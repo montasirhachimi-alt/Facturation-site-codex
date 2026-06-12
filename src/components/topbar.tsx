@@ -1,0 +1,50 @@
+"use client";
+
+import { Bell, CalendarDays, Menu, Moon, Search, Sun } from "lucide-react";
+import { useEffect, useState } from "react";
+import { HicotechLogo } from "@/components/hicotech-logo";
+
+export function Topbar() {
+  const [dark, setDark] = useState(false);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", dark);
+  }, [dark]);
+
+  return (
+    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur dark:border-white/10 dark:bg-[#07152d]/90 sm:px-6 lg:px-8">
+      <div className="flex items-center gap-3">
+        <button className="rounded-lg border border-slate-200 p-2 text-hicotech-navy lg:hidden dark:border-white/10 dark:text-white" aria-label="Ouvrir le menu">
+          <Menu size={20} />
+        </button>
+        <div className="lg:hidden">
+          <HicotechLogo compact />
+        </div>
+        <div className="hidden flex-1 items-center gap-3 rounded-lg border border-slate-200 bg-hicotech-cloud px-3 py-2 md:flex dark:border-white/10 dark:bg-white/5">
+          <Search size={18} className="text-slate-400" />
+          <input
+            className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
+            placeholder="Rechercher client, facture, produit..."
+          />
+        </div>
+        <button className="ml-auto hidden items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-hicotech-navy md:flex dark:border-white/10 dark:text-white">
+          <CalendarDays size={17} />
+          Aujourd&apos;hui
+        </button>
+        <button
+          className="rounded-lg border border-slate-200 p-2 text-hicotech-navy dark:border-white/10 dark:text-white"
+          onClick={() => setDark((value) => !value)}
+          aria-label="Changer le thème"
+        >
+          {dark ? <Sun size={19} /> : <Moon size={19} />}
+        </button>
+        <button className="rounded-lg border border-slate-200 p-2 text-hicotech-navy dark:border-white/10 dark:text-white" aria-label="Notifications">
+          <Bell size={19} />
+        </button>
+        <div className="grid size-10 place-items-center rounded-full bg-hicotech-navy font-display text-sm font-bold text-white">
+          AD
+        </div>
+      </div>
+    </header>
+  );
+}

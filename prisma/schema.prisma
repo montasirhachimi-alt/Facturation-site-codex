@@ -1,0 +1,242 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  COMPANY_ADMIN
+  SALES
+  ACCOUNTANT
+  WAREHOUSE
+  READ_ONLY
+}
+
+enum DocumentType {
+  QUOTE
+  INVOICE
+  PROFORMA
+  CREDIT_NOTE
+  PURCHASE_ORDER
+  DELIVERY_NOTE
+  RECEIPT
+}
+
+enum DocumentStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REFUSED
+  PAID
+  PARTIALLY_PAID
+  OVERDUE
+}
+
+enum PaymentMode {
+  CASH
+  CHECK
+  TRANSFER
+  CARD
+}
+
+model Company {
+  id        String     @id @default(cuid())
+  name      String
+  ice       String?
+  taxId     String?
+  rc        String?
+  phone     String?
+  email     String?
+  address   String?
+  city      String?
+  logoUrl   String?
+  stampUrl  String?
+  signUrl   String?
+  users     User[]
+  clients   Client[]
+  suppliers Supplier[]
+  products  Product[]
+  documents Document[]
+  expenses  Expense[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model User {
+  id        String   @id @default(cuid())
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(READ_ONLY)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+}
+
+model Client {
+  id          String     @id @default(cuid())
+  companyId   String
+  company     Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  contactName String?
+  ice         String?
+  taxId       String?
+  rc          String?
+  phone       String?
+  email       String?
+  address     String?
+  city        String?
+  balance     Decimal    @default(0)
+  documents   Document[]
+  reminders   Reminder[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([companyId])
+  @@index([companyId, ice])
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  ice       String?
+  phone     String?
+  email     String?
+  address   String?
+  balance   Decimal  @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  companyId String
+  name      String
+  products  Product[]
+  createdAt DateTime  @default(now())
+
+  @@unique([companyId, name])
+}
+
+model Product {
+  id            String          @id @default(cuid())
+  companyId     String
+  company       Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  categoryId    String?
+  category      Category?       @relation(fields: [categoryId], references: [id])
+  reference     String
+  designation   String
+  description   String?
+  imageUrl      String?
+  purchasePrice Decimal         @default(0)
+  salePrice     Decimal
+  vatRate       Decimal         @default(20)
+  stock         Int             @default(0)
+  minStock      Int             @default(0)
+  lines         DocumentLine[]
+  movements     StockMovement[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@unique([companyId, reference])
+  @@index([companyId])
+}
+
+model Document {
+  id          String           @id @default(cuid())
+  companyId   String
+  company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  clientId    String?
+  client      Client?          @relation(fields: [clientId], references: [id])
+  type        DocumentType
+  status      DocumentStatus   @default(DRAFT)
+  number      String
+  issueDate   DateTime         @default(now())
+  dueDate     DateTime?
+  subtotal    Decimal          @default(0)
+  vatTotal    Decimal          @default(0)
+  total       Decimal          @default(0)
+  paidAmount  Decimal          @default(0)
+  notes       String?
+  lines       DocumentLine[]
+  payments    Payment[]
+  sourceId    String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([companyId, type, number])
+  @@index([companyId, status])
+}
+
+model DocumentLine {
+  id          String   @id @default(cuid())
+  documentId  String
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     Product? @relation(fields: [productId], references: [id])
+  designation String
+  quantity    Decimal
+  unitPrice   Decimal
+  vatRate     Decimal
+  total       Decimal
+}
+
+model Payment {
+  id          String      @id @default(cuid())
+  documentId  String
+  document    Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  amount      Decimal
+  mode        PaymentMode
+  reference   String?
+  paidAt      DateTime    @default(now())
+}
+
+model Expense {
+  id        String      @id @default(cuid())
+  companyId String
+  company   Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  label     String
+  amount    Decimal
+  mode      PaymentMode
+  spentAt   DateTime    @default(now())
+  createdAt DateTime    @default(now())
+
+  @@index([companyId])
+}
+
+model StockMovement {
+  id        String   @id @default(cuid())
+  companyId String
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int
+  reason    String
+  createdAt DateTime @default(now())
+
+  @@index([companyId, productId])
+}
+
+model Reminder {
+  id        String   @id @default(cuid())
+  companyId String
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  subject   String
+  note      String?
+  dueAt     DateTime
+  done      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([companyId, clientId])
+}
