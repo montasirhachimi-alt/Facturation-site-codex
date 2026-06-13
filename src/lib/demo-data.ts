@@ -2,18 +2,24 @@ import type { BusinessClient, ClientDocument, Invoice, Quote, SalesDocument, Sto
 
 export const dashboardStats = {
   revenue: 125430,
+  purchases: 48300,
+  expenses: 18450,
+  grossMargin: 77130,
   outstanding: 32850,
   netResult: 38940,
+  cashBalance: 64280,
+  stockValue: 214800,
+  overdueInvoices: 6,
   criticalStock: 12
 };
 
 export const salesSeries = [
-  { month: "Janv", sales: 20000 },
-  { month: "Fév", sales: 36000 },
-  { month: "Mars", sales: 78000 },
-  { month: "Avr", sales: 60000 },
-  { month: "Mai", sales: 80500 },
-  { month: "Juin", sales: 94200 }
+  { month: "Janv", sales: 20000, purchases: 9200, expenses: 5400 },
+  { month: "Fév", sales: 36000, purchases: 14200, expenses: 6900 },
+  { month: "Mars", sales: 78000, purchases: 31000, expenses: 11200 },
+  { month: "Avr", sales: 60000, purchases: 25500, expenses: 8800 },
+  { month: "Mai", sales: 80500, purchases: 33400, expenses: 12500 },
+  { month: "Juin", sales: 94200, purchases: 38600, expenses: 14600 }
 ];
 
 export const productsRanking = [
@@ -22,6 +28,14 @@ export const productsRanking = [
   { name: "Support mural", quantity: 28 },
   { name: "Câble HDMI 10M", quantity: 26 },
   { name: "Stylet interactif", quantity: 21 }
+];
+
+export const topClients = [
+  { company: "Clinique Lumière", total: 56000, paid: 23000 },
+  { company: "École Al Hikma", total: 39000, paid: 26150 },
+  { company: "Lycée Ibn Sina", total: 22400, paid: 22400 },
+  { company: "Entreprise Atlas", total: 20000, paid: 0 },
+  { company: "Groupe Noor", total: 3840, paid: 3840 }
 ];
 
 export const documents = [
