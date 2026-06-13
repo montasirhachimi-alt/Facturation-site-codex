@@ -1,4 +1,4 @@
-import type { BusinessClient, ClientDocument, Quote, SalesDocument, StockMovement, StockProduct } from "@/lib/types";
+import type { BusinessClient, ClientDocument, Invoice, Quote, SalesDocument, StockMovement, StockProduct } from "@/lib/types";
 
 export const dashboardStats = {
   revenue: 125430,
@@ -239,6 +239,82 @@ export const quotes: Quote[] = [
     status: "Refusé",
     lines: [
       { id: "ql-8", productId: "prod-1", designation: "Écran interactif 75 pouces", quantity: 4, unitPrice: 12500, vat: 20, discount: 8 }
+    ]
+  }
+];
+
+export const invoices: Invoice[] = [
+  {
+    id: "invoice-1",
+    number: "FAC-2026-000123",
+    date: "2026-06-12",
+    dueDate: "2026-06-30",
+    clientId: "client-1",
+    status: "Partiellement payée",
+    lines: [
+      { id: "il-1", productId: "prod-1", designation: "Écran interactif 75 pouces", quantity: 2, unitPrice: 12500, vat: 20, discount: 0 },
+      { id: "il-2", productId: "prod-2", designation: "Vidéoprojecteur Epson", quantity: 1, unitPrice: 6800, vat: 20, discount: 0 },
+      { id: "il-3", productId: "prod-3", designation: "Support mural", quantity: 2, unitPrice: 350, vat: 20, discount: 0 }
+    ],
+    payments: [
+      { id: "pay-1", invoiceId: "invoice-1", date: "2026-06-13", amount: 15000, mode: "Virement", reference: "VIR-0613" },
+      { id: "pay-2", invoiceId: "invoice-1", date: "2026-06-18", amount: 11150, mode: "Chèque", reference: "CHQ-8821" }
+    ]
+  },
+  {
+    id: "invoice-2",
+    number: "FAC-2026-000118",
+    date: "2026-05-28",
+    dueDate: "2026-06-10",
+    clientId: "client-2",
+    status: "Payée",
+    lines: [
+      { id: "il-4", productId: "prod-4", designation: "Câble HDMI 10M", quantity: 30, unitPrice: 120, vat: 20, discount: 0 },
+      { id: "il-5", productId: "prod-6", designation: "Installation sur site", quantity: 2, unitPrice: 950, vat: 20, discount: 0 }
+    ],
+    payments: [
+      { id: "pay-3", invoiceId: "invoice-2", date: "2026-06-02", amount: 6600, mode: "Carte bancaire", reference: "CB-20260602" }
+    ]
+  },
+  {
+    id: "invoice-3",
+    number: "FAC-2026-000119",
+    date: "2026-06-02",
+    dueDate: "2026-06-12",
+    clientId: "client-3",
+    status: "En retard",
+    lines: [
+      { id: "il-6", productId: "prod-2", designation: "Vidéoprojecteur Epson", quantity: 2, unitPrice: 6800, vat: 20, discount: 3 },
+      { id: "il-7", productId: "prod-3", designation: "Support mural", quantity: 4, unitPrice: 350, vat: 20, discount: 0 }
+    ],
+    payments: []
+  },
+  {
+    id: "invoice-4",
+    number: "FAC-2026-000111",
+    date: "2026-05-18",
+    dueDate: "2026-06-01",
+    clientId: "client-4",
+    status: "Partiellement payée",
+    lines: [
+      { id: "il-8", productId: "prod-1", designation: "Écran interactif 75 pouces", quantity: 4, unitPrice: 12500, vat: 20, discount: 8 }
+    ],
+    payments: [
+      { id: "pay-4", invoiceId: "invoice-4", date: "2026-05-25", amount: 23000, mode: "Virement", reference: "VIR-0525" }
+    ]
+  },
+  {
+    id: "invoice-5",
+    number: "FAC-2026-000104",
+    date: "2026-05-09",
+    dueDate: "2026-05-20",
+    clientId: "client-5",
+    status: "Payée",
+    lines: [
+      { id: "il-9", productId: "prod-5", designation: "Stylet interactif", quantity: 20, unitPrice: 160, vat: 20, discount: 0 }
+    ],
+    payments: [
+      { id: "pay-5", invoiceId: "invoice-5", date: "2026-05-11", amount: 3840, mode: "Espèces", reference: "ESP-00104" }
     ]
   }
 ];

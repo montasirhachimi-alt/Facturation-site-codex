@@ -109,6 +109,32 @@ export type Quote = {
   lines: QuoteLine[];
 };
 
+export type InvoiceStatus = "Payée" | "Partiellement payée" | "En retard";
+
+export type InvoiceLine = QuoteLine;
+
+export type PaymentModeLabel = "Espèces" | "Chèque" | "Virement" | "Carte bancaire";
+
+export type InvoicePayment = {
+  id: string;
+  invoiceId: string;
+  date: string;
+  amount: number;
+  mode: PaymentModeLabel;
+  reference: string;
+};
+
+export type Invoice = {
+  id: string;
+  number: string;
+  date: string;
+  dueDate: string;
+  clientId: string;
+  status: InvoiceStatus;
+  lines: InvoiceLine[];
+  payments: InvoicePayment[];
+};
+
 export type TenantScope = {
   companyId: string;
   userId: string;
