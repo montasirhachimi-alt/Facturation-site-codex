@@ -62,6 +62,32 @@ export type StockMovement = {
   date: string;
 };
 
+export type ClientDocumentType = "Devis" | "Facture";
+
+export type ClientDocument = {
+  id: string;
+  clientId: string;
+  number: string;
+  type: ClientDocumentType;
+  status: DocumentStatus;
+  date: string;
+  total: number;
+  paid: number;
+};
+
+export type BusinessClient = {
+  id: string;
+  name: string;
+  company: string;
+  ice: string;
+  taxId: string;
+  rc: string;
+  phone: string;
+  email: string;
+  address: string;
+  city: string;
+};
+
 export type TenantScope = {
   companyId: string;
   userId: string;

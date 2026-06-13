@@ -1,7 +1,6 @@
-import { DataTable } from "@/components/data-table";
+import { ClientsModule } from "@/components/clients-module";
 import { SectionHeader } from "@/components/section-header";
-import { clients } from "@/lib/demo-data";
-import { formatCurrency } from "@/lib/format";
+import { clientDocuments, clients } from "@/lib/demo-data";
 
 export default function ClientsPage() {
   return (
@@ -9,20 +8,9 @@ export default function ClientsPage() {
       <SectionHeader
         eyebrow="Clients"
         title="Portefeuille clients"
-        description="Coordonnées, ICE, solde, historique et relances commerciales."
-        action="Ajouter un client"
+        description="Coordonnées complètes, historique commercial, devis, factures et encaissements."
       />
-      <DataTable
-        columns={["Société", "Ville", "ICE", "Téléphone", "Solde", "Dernière relance"]}
-        rows={clients.map((client) => [
-          client.company,
-          client.city,
-          client.ice,
-          client.phone,
-          formatCurrency(client.balance),
-          client.lastReminder
-        ])}
-      />
+      <ClientsModule initialClients={clients} initialDocuments={clientDocuments} />
     </div>
   );
 }

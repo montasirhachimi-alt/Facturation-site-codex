@@ -187,6 +187,8 @@ model Document {
 
   @@unique([companyId, type, number])
   @@index([companyId, status])
+  @@index([companyId, clientId])
+  @@index([companyId, clientId, type])
 }
 
 model DocumentLine {

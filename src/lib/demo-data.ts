@@ -1,4 +1,4 @@
-import type { SalesDocument, StockMovement, StockProduct } from "@/lib/types";
+import type { BusinessClient, ClientDocument, SalesDocument, StockMovement, StockProduct } from "@/lib/types";
 
 export const dashboardStats = {
   revenue: 125430,
@@ -32,11 +32,79 @@ export const documents = [
   { number: "AV-2026-000004", type: "Avoir", customer: "Groupe Noor", date: "2026-06-05", status: "Payé", total: 3200 }
 ];
 
-export const clients = [
-  { company: "École Al Hikma", city: "Casablanca", ice: "001122334455667", phone: "0661 22 33 44", balance: 12850, lastReminder: "Aujourd'hui" },
-  { company: "Lycée Ibn Sina", city: "Rabat", ice: "001133445566778", phone: "0678 11 22 33", balance: 0, lastReminder: "Aucune" },
-  { company: "Entreprise Atlas", city: "Casablanca", ice: "001144556677889", phone: "0662 33 44 55", balance: 20000, lastReminder: "10/06/2026" },
-  { company: "Clinique Lumière", city: "Marrakech", ice: "001155667788990", phone: "0663 44 55 66", balance: 84000, lastReminder: "09/06/2026" }
+export const clients: BusinessClient[] = [
+  {
+    id: "client-1",
+    name: "Amina El Mansouri",
+    company: "École Al Hikma",
+    ice: "001122334455667",
+    taxId: "12345678",
+    rc: "98765",
+    phone: "0661 22 33 44",
+    email: "contact@alhikma.ma",
+    address: "45, Rue des Écoles",
+    city: "Casablanca"
+  },
+  {
+    id: "client-2",
+    name: "Youssef Bennani",
+    company: "Lycée Ibn Sina",
+    ice: "001133445566778",
+    taxId: "23456789",
+    rc: "87654",
+    phone: "0678 11 22 33",
+    email: "administration@ibnsina.ma",
+    address: "78, Bd Hassan II",
+    city: "Rabat"
+  },
+  {
+    id: "client-3",
+    name: "Karim Alaoui",
+    company: "Entreprise Atlas",
+    ice: "001144556677889",
+    taxId: "34567890",
+    rc: "76543",
+    phone: "0662 33 44 55",
+    email: "achats@atlas.ma",
+    address: "12, Zone Industrielle",
+    city: "Casablanca"
+  },
+  {
+    id: "client-4",
+    name: "Nadia Idrissi",
+    company: "Clinique Lumière",
+    ice: "001155667788990",
+    taxId: "45678901",
+    rc: "65432",
+    phone: "0663 44 55 66",
+    email: "direction@cliniquelumiere.ma",
+    address: "9, Avenue Mohammed VI",
+    city: "Marrakech"
+  },
+  {
+    id: "client-5",
+    name: "Mehdi Lahlou",
+    company: "Groupe Noor",
+    ice: "001166778899001",
+    taxId: "56789012",
+    rc: "54321",
+    phone: "0664 55 66 77",
+    email: "finance@groupenoor.ma",
+    address: "23, Rue Ibn Toumert",
+    city: "Tanger"
+  }
+];
+
+export const clientDocuments: ClientDocument[] = [
+  { id: "cdoc-1", clientId: "client-1", number: "FAC-2026-000123", type: "Facture", status: "Partiellement payé", date: "2026-06-12", total: 39000, paid: 26150 },
+  { id: "cdoc-2", clientId: "client-1", number: "DEV-2026-000061", type: "Devis", status: "Envoyé", date: "2026-06-05", total: 18400, paid: 0 },
+  { id: "cdoc-3", clientId: "client-2", number: "DEV-2026-000056", type: "Devis", status: "Accepté", date: "2026-06-11", total: 38820, paid: 0 },
+  { id: "cdoc-4", clientId: "client-2", number: "FAC-2026-000118", type: "Facture", status: "Payé", date: "2026-05-28", total: 22400, paid: 22400 },
+  { id: "cdoc-5", clientId: "client-3", number: "FAC-2026-000119", type: "Facture", status: "En retard", date: "2026-06-02", total: 20000, paid: 0 },
+  { id: "cdoc-6", clientId: "client-3", number: "DEV-2026-000052", type: "Devis", status: "Accepté", date: "2026-05-22", total: 19000, paid: 0 },
+  { id: "cdoc-7", clientId: "client-4", number: "PRO-2026-000019", type: "Devis", status: "Brouillon", date: "2026-06-08", total: 84000, paid: 0 },
+  { id: "cdoc-8", clientId: "client-4", number: "FAC-2026-000111", type: "Facture", status: "Partiellement payé", date: "2026-05-18", total: 56000, paid: 23000 },
+  { id: "cdoc-9", clientId: "client-5", number: "FAC-2026-000104", type: "Facture", status: "Payé", date: "2026-05-09", total: 3200, paid: 3200 }
 ];
 
 export const products: StockProduct[] = [
