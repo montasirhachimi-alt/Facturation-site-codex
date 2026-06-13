@@ -4,7 +4,11 @@ import { Bell, CalendarDays, Menu, Moon, Search, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { HicotechLogo } from "@/components/hicotech-logo";
 
-export function Topbar() {
+type TopbarProps = {
+  onMenuClick: () => void;
+};
+
+export function Topbar({ onMenuClick }: TopbarProps) {
   const [dark, setDark] = useState(false);
 
   useEffect(() => {
@@ -21,10 +25,15 @@ export function Topbar() {
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur dark:border-hicotech-dark-border dark:bg-hicotech-dark-sidebar/95 sm:px-6 lg:px-8">
       <div className="flex items-center gap-3">
-        <button className="rounded-lg border border-slate-200 p-2 text-hicotech-navy lg:hidden dark:border-hicotech-dark-border dark:text-white" aria-label="Ouvrir le menu">
+        <button
+          type="button"
+          onClick={onMenuClick}
+          className="rounded-lg border border-slate-200 p-2 text-hicotech-navy lg:hidden dark:border-hicotech-dark-border dark:text-white"
+          aria-label="Ouvrir le menu"
+        >
           <Menu size={20} />
         </button>
-        <div className="lg:hidden">
+        <div className="w-40 max-w-[45vw] lg:hidden">
           <HicotechLogo compact />
         </div>
         <div className="hidden flex-1 items-center gap-3 rounded-lg border border-slate-200 bg-hicotech-cloud px-3 py-2 md:flex dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
