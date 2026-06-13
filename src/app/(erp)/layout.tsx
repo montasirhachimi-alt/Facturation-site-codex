@@ -3,7 +3,7 @@ import { Topbar } from "@/components/topbar";
 
 export default function ErpLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-hicotech-cloud text-hicotech-ink dark:bg-[#07152d] dark:text-white">
+    <div className="min-h-screen bg-hicotech-cloud text-hicotech-ink dark:bg-hicotech-dark-page dark:text-white">
       <Sidebar />
       <div className="min-h-screen lg:pl-72">
         <Topbar />

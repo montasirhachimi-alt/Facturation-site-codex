@@ -16,7 +16,7 @@ export default function AssistantIaPage() {
         title="Analyse métier préparée"
         description="Espace prévu pour interroger plus tard les données isolées de chaque entreprise."
       />
-      <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-soft dark:border-white/10 dark:bg-white/5">
+      <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-soft dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
         <div className="flex items-center gap-3">
           <div className="rounded-lg bg-hicotech-sky p-3 text-hicotech-blue">
             <Bot size={24} />
@@ -34,7 +34,7 @@ export default function AssistantIaPage() {
           {prompts.map((prompt) => (
             <button
               key={prompt}
-              className="flex items-center gap-3 rounded-lg border border-slate-200 px-4 py-3 text-left text-sm font-semibold text-hicotech-navy transition hover:border-hicotech-blue hover:bg-hicotech-sky dark:border-white/10 dark:text-white dark:hover:bg-white/10"
+              className="flex items-center gap-3 rounded-lg border border-slate-200 px-4 py-3 text-left text-sm font-semibold text-hicotech-navy transition hover:border-hicotech-blue hover:bg-hicotech-sky dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/40 dark:text-white dark:hover:bg-hicotech-blue/20"
             >
               <MessageSquareText size={18} />
               {prompt}

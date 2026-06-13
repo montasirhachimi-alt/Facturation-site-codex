@@ -25,10 +25,10 @@ export default async function ModulePage({ params }: { params: Promise<{ module:
         description={"Module préparé dans l'architecture. Les formulaires, règles métier et permissions seront ajoutés étape par étape."}
         action="Nouvelle entrée"
       />
-      <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-soft dark:border-white/10 dark:bg-white/5">
+      <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-soft dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
         <div className="grid gap-4 md:grid-cols-3">
           {["Recherche et filtres", "Workflow métier", "Export Excel et PDF"].map((item) => (
-            <div key={item} className="rounded-lg border border-slate-200 p-4 dark:border-white/10">
+            <div key={item} className="rounded-lg border border-slate-200 p-4 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/40">
               <p className="font-display text-sm font-bold text-hicotech-navy dark:text-white">{item}</p>
               <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-300">
                 Bloc prévu pour respecter les droits utilisateur et l&apos;isolation par entreprise.

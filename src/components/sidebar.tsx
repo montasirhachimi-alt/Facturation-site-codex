@@ -67,8 +67,8 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 flex-col bg-hicotech-navy px-4 py-5 text-white shadow-soft lg:flex">
-      <div className="mb-6 rounded-lg bg-white/5 p-3">
+    <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 flex-col bg-hicotech-navy px-4 py-5 text-white shadow-soft dark:bg-hicotech-dark-sidebar lg:flex">
+      <div className="mb-6 rounded-lg bg-white/5 p-3 dark:bg-hicotech-dark-card">
         <HicotechLogo compact inverse />
       </div>
       <nav className="flex-1 space-y-5 overflow-y-auto pr-1">
@@ -90,7 +90,7 @@ export function Sidebar() {
                       "flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-semibold transition",
                       active
                         ? "bg-hicotech-blue text-white shadow-lg shadow-blue-950/20"
-                        : "text-slate-200 hover:bg-white/10 hover:text-white"
+                        : "text-slate-200 hover:bg-white/10 hover:text-white dark:text-slate-100 dark:hover:bg-hicotech-dark-card"
                     )}
                   >
                     <Icon size={18} />

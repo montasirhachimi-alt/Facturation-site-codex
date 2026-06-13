@@ -14,7 +14,11 @@ const config: Config = {
           green: "#2ECC71",
           orange: "#FF8C00",
           red: "#E74C3C",
-          ink: "#333333"
+          ink: "#333333",
+          "dark-page": "#0A1E3F",
+          "dark-sidebar": "#08172D",
+          "dark-card": "#12284B",
+          "dark-border": "#1E3A66"
         }
       },
       boxShadow: {

@@ -19,7 +19,7 @@ const toneClasses = {
 
 export function StatCard({ icon: Icon, label, value, detail, trend, tone }: StatCardProps) {
   return (
-    <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-soft dark:border-white/10 dark:bg-white/5">
+    <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-soft dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-slate-500 dark:text-slate-300">{label}</p>

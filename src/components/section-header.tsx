@@ -56,10 +56,10 @@ export function SectionHeader({ eyebrow, title, description, action }: SectionHe
       </div>
 
       {action && open && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-hicotech-navy/40 px-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-hicotech-dark-sidebar/70 px-4 backdrop-blur-sm">
           <form
             onSubmit={handleSubmit}
-            className="w-full max-w-xl rounded-lg border border-slate-200 bg-white p-6 shadow-soft dark:border-white/10 dark:bg-[#07152d]"
+            className="w-full max-w-xl rounded-lg border border-slate-200 bg-white p-6 shadow-soft dark:border-hicotech-dark-border dark:bg-hicotech-dark-card"
           >
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -73,7 +73,7 @@ export function SectionHeader({ eyebrow, title, description, action }: SectionHe
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-lg border border-slate-200 p-2 text-hicotech-navy transition hover:bg-hicotech-cloud dark:border-white/10 dark:text-white dark:hover:bg-white/10"
+                className="rounded-lg border border-slate-200 p-2 text-hicotech-navy transition hover:bg-hicotech-cloud dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white dark:hover:bg-hicotech-dark-page"
                 aria-label="Fermer"
               >
                 <X size={18} />
@@ -87,7 +87,7 @@ export function SectionHeader({ eyebrow, title, description, action }: SectionHe
                 </span>
                 <input
                   required
-                  className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none ring-hicotech-blue/20 transition focus:border-hicotech-blue focus:ring-4 dark:border-white/10 dark:bg-white/5"
+                  className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none ring-hicotech-blue/20 transition focus:border-hicotech-blue focus:ring-4 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white dark:placeholder:text-slate-400"
                   placeholder="Ex. nouvelle opération"
                 />
               </label>
@@ -96,7 +96,7 @@ export function SectionHeader({ eyebrow, title, description, action }: SectionHe
                   Description
                 </span>
                 <textarea
-                  className="mt-2 min-h-28 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none ring-hicotech-blue/20 transition focus:border-hicotech-blue focus:ring-4 dark:border-white/10 dark:bg-white/5"
+                  className="mt-2 min-h-28 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none ring-hicotech-blue/20 transition focus:border-hicotech-blue focus:ring-4 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white dark:placeholder:text-slate-400"
                   placeholder="Notes internes"
                 />
               </label>
@@ -104,7 +104,7 @@ export function SectionHeader({ eyebrow, title, description, action }: SectionHe
                 <span className="text-sm font-semibold text-hicotech-navy dark:text-white">
                   Statut
                 </span>
-                <select className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none ring-hicotech-blue/20 transition focus:border-hicotech-blue focus:ring-4 dark:border-white/10 dark:bg-white/5">
+                <select className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none ring-hicotech-blue/20 transition focus:border-hicotech-blue focus:ring-4 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white">
                   <option>Brouillon</option>
                   <option>En cours</option>
                   <option>Validé</option>
@@ -116,7 +116,7 @@ export function SectionHeader({ eyebrow, title, description, action }: SectionHe
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-bold text-hicotech-navy transition hover:bg-hicotech-cloud dark:border-white/10 dark:text-white dark:hover:bg-white/10"
+                className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-bold text-hicotech-navy transition hover:bg-hicotech-cloud dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white dark:hover:bg-hicotech-dark-page"
               >
                 Annuler
               </button>
