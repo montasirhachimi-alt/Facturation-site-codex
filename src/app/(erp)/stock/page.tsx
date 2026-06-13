@@ -1,7 +1,6 @@
-import { DataTable } from "@/components/data-table";
 import { SectionHeader } from "@/components/section-header";
-import { products } from "@/lib/demo-data";
-import { formatCurrency } from "@/lib/format";
+import { StockModule } from "@/components/stock-module";
+import { products, stockMovements } from "@/lib/demo-data";
 
 export default function StockPage() {
   return (
@@ -9,21 +8,9 @@ export default function StockPage() {
       <SectionHeader
         eyebrow="Stock"
         title="Produits et services"
-        description="Prix HT/TTC, TVA, seuils critiques et mouvements de stock."
-        action="Nouveau produit"
+        description="Gestion complète des produits, seuils critiques, entrées, sorties et historique de stock."
       />
-      <DataTable
-        columns={["Référence", "Désignation", "Catégorie", "Stock", "Stock min.", "Prix HT", "TVA"]}
-        rows={products.map((product) => [
-          product.reference,
-          product.name,
-          product.category,
-          `${product.stock}`,
-          `${product.minStock}`,
-          formatCurrency(product.salePrice),
-          `${product.vat}%`
-        ])}
-      />
+      <StockModule initialProducts={products} initialMovements={stockMovements} />
     </div>
   );
 }

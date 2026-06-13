@@ -35,6 +35,33 @@ export type SalesDocument = {
   amountInWords: string;
 };
 
+export type StockProduct = {
+  id: string;
+  reference: string;
+  designation: string;
+  description: string;
+  category: string;
+  imageUrl: string;
+  purchasePrice: number;
+  salePrice: number;
+  vat: number;
+  stock: number;
+  minStock: number;
+};
+
+export type StockMovementType = "Entrée" | "Sortie" | "Ajustement";
+
+export type StockMovement = {
+  id: string;
+  productReference: string;
+  productName: string;
+  type: StockMovementType;
+  quantity: number;
+  reason: string;
+  reference?: string;
+  date: string;
+};
+
 export type TenantScope = {
   companyId: string;
   userId: string;

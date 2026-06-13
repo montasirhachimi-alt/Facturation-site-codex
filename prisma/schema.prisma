@@ -43,6 +43,12 @@ enum PaymentMode {
   CARD
 }
 
+enum StockMovementType {
+  IN
+  OUT
+  ADJUSTMENT
+}
+
 model Company {
   id        String     @id @default(cuid())
   name      String
@@ -62,6 +68,8 @@ model Company {
   products  Product[]
   documents Document[]
   expenses  Expense[]
+  categories Category[]
+  movements  StockMovement[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 }
@@ -122,11 +130,13 @@ model Supplier {
 model Category {
   id        String    @id @default(cuid())
   companyId String
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name      String
   products  Product[]
   createdAt DateTime  @default(now())
 
   @@unique([companyId, name])
+  @@index([companyId])
 }
 
 model Product {
@@ -218,13 +228,19 @@ model Expense {
 model StockMovement {
   id        String   @id @default(cuid())
   companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   productId String
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type      StockMovementType
   quantity  Int
   reason    String
+  reference String?
+  note      String?
   createdAt DateTime @default(now())
 
   @@index([companyId, productId])
+  @@index([companyId, type])
+  @@index([companyId, createdAt])
 }
 
 model Reminder {
