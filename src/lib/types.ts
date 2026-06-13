@@ -88,6 +88,27 @@ export type BusinessClient = {
   city: string;
 };
 
+export type QuoteStatus = "Brouillon" | "Envoyé" | "Accepté" | "Refusé";
+
+export type QuoteLine = {
+  id: string;
+  productId: string;
+  designation: string;
+  quantity: number;
+  unitPrice: number;
+  vat: number;
+  discount: number;
+};
+
+export type Quote = {
+  id: string;
+  number: string;
+  date: string;
+  clientId: string;
+  status: QuoteStatus;
+  lines: QuoteLine[];
+};
+
 export type TenantScope = {
   companyId: string;
   userId: string;

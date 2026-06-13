@@ -1,4 +1,4 @@
-import type { BusinessClient, ClientDocument, SalesDocument, StockMovement, StockProduct } from "@/lib/types";
+import type { BusinessClient, ClientDocument, Quote, SalesDocument, StockMovement, StockProduct } from "@/lib/types";
 
 export const dashboardStats = {
   revenue: 125430,
@@ -194,6 +194,53 @@ export const stockMovements: StockMovement[] = [
   { id: "mov-3", productReference: "VID-EP", productName: "Vidéoprojecteur Epson", type: "Sortie", quantity: 1, reason: "Facture client", reference: "FAC-2026-000123", date: "2026-06-10" },
   { id: "mov-4", productReference: "HDMI-10", productName: "Câble HDMI 10M", type: "Entrée", quantity: 20, reason: "Réapprovisionnement", reference: "ACH-2026-00039", date: "2026-06-09" },
   { id: "mov-5", productReference: "STY-INT", productName: "Stylet interactif", type: "Ajustement", quantity: -1, reason: "Correction inventaire", reference: "INV-2026-00007", date: "2026-06-08" }
+];
+
+export const quotes: Quote[] = [
+  {
+    id: "quote-1",
+    number: "DEV-2026-000056",
+    date: "2026-06-11",
+    clientId: "client-2",
+    status: "Envoyé",
+    lines: [
+      { id: "ql-1", productId: "prod-1", designation: "Écran interactif 75 pouces", quantity: 2, unitPrice: 12500, vat: 20, discount: 0 },
+      { id: "ql-2", productId: "prod-2", designation: "Vidéoprojecteur Epson", quantity: 1, unitPrice: 6800, vat: 20, discount: 0 },
+      { id: "ql-3", productId: "prod-3", designation: "Support mural", quantity: 2, unitPrice: 350, vat: 20, discount: 0 }
+    ]
+  },
+  {
+    id: "quote-2",
+    number: "DEV-2026-000061",
+    date: "2026-06-05",
+    clientId: "client-1",
+    status: "Brouillon",
+    lines: [
+      { id: "ql-4", productId: "prod-4", designation: "Câble HDMI 10M", quantity: 20, unitPrice: 120, vat: 20, discount: 5 },
+      { id: "ql-5", productId: "prod-6", designation: "Installation sur site", quantity: 1, unitPrice: 950, vat: 20, discount: 0 }
+    ]
+  },
+  {
+    id: "quote-3",
+    number: "DEV-2026-000052",
+    date: "2026-05-22",
+    clientId: "client-3",
+    status: "Accepté",
+    lines: [
+      { id: "ql-6", productId: "prod-2", designation: "Vidéoprojecteur Epson", quantity: 2, unitPrice: 6800, vat: 20, discount: 3 },
+      { id: "ql-7", productId: "prod-3", designation: "Support mural", quantity: 4, unitPrice: 350, vat: 20, discount: 0 }
+    ]
+  },
+  {
+    id: "quote-4",
+    number: "DEV-2026-000048",
+    date: "2026-05-14",
+    clientId: "client-4",
+    status: "Refusé",
+    lines: [
+      { id: "ql-8", productId: "prod-1", designation: "Écran interactif 75 pouces", quantity: 4, unitPrice: 12500, vat: 20, discount: 8 }
+    ]
+  }
 ];
 
 export const sampleInvoice: SalesDocument = {
