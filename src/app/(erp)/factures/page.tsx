@@ -1,6 +1,6 @@
 import { InvoicesModule } from "@/components/invoices-module";
 import { SectionHeader } from "@/components/section-header";
-import { clients, invoices } from "@/lib/demo-data";
+import { clients, invoices, products } from "@/lib/demo-data";
 
 export default function FacturesPage() {
   return (
@@ -10,7 +10,7 @@ export default function FacturesPage() {
         title="Factures"
         description="Suivi des factures, paiements, restes à payer, PDF, impression et export."
       />
-      <InvoicesModule initialInvoices={invoices} clients={clients} />
+      <InvoicesModule initialInvoices={invoices} clients={clients} products={products} />
     </div>
   );
 }

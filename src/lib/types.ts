@@ -97,7 +97,6 @@ export type QuoteLine = {
   quantity: number;
   unitPrice: number;
   vat: number;
-  discount: number;
 };
 
 export type Quote = {

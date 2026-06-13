@@ -91,17 +91,14 @@ export function createQuotePdf(quote: Quote, client: BusinessClient) {
   const pageWidth = pdf.internal.pageSize.getWidth();
   const totals = quote.lines.reduce(
     (sum, line) => {
-      const gross = line.quantity * line.unitPrice;
-      const discount = gross * (line.discount / 100);
-      const ht = gross - discount;
+      const ht = line.quantity * line.unitPrice;
       const vat = ht * (line.vat / 100);
       return {
         ht: sum.ht + ht,
-        vat: sum.vat + vat,
-        discount: sum.discount + discount
+        vat: sum.vat + vat
       };
     },
-    { ht: 0, vat: 0, discount: 0 }
+    { ht: 0, vat: 0 }
   );
   const totalTtc = totals.ht + totals.vat;
 
@@ -145,22 +142,19 @@ export function createQuotePdf(quote: Quote, client: BusinessClient) {
   pdf.text("Désignation", 17, tableTop + 6);
   pdf.text("Qté", 101, tableTop + 6, { align: "right" });
   pdf.text("PU HT", 126, tableTop + 6, { align: "right" });
-  pdf.text("TVA", 146, tableTop + 6, { align: "right" });
-  pdf.text("Rem.", 165, tableTop + 6, { align: "right" });
+  pdf.text("TVA", 154, tableTop + 6, { align: "right" });
   pdf.text("TTC", 192, tableTop + 6, { align: "right" });
 
   pdf.setTextColor(51, 51, 51);
   pdf.setFont("helvetica", "normal");
   quote.lines.forEach((line, index) => {
-    const gross = line.quantity * line.unitPrice;
-    const ht = gross - gross * (line.discount / 100);
+    const ht = line.quantity * line.unitPrice;
     const ttc = ht * (1 + line.vat / 100);
     const y = tableTop + 18 + index * 9;
     pdf.text(line.designation.slice(0, 42), 17, y);
     pdf.text(String(line.quantity), 101, y, { align: "right" });
     pdf.text(line.unitPrice.toFixed(2), 126, y, { align: "right" });
-    pdf.text(`${line.vat}%`, 146, y, { align: "right" });
-    pdf.text(`${line.discount}%`, 165, y, { align: "right" });
+    pdf.text(`${line.vat}%`, 154, y, { align: "right" });
     pdf.text(ttc.toFixed(2), 192, y, { align: "right" });
     pdf.line(14, y + 3, 196, y + 3);
   });
@@ -170,12 +164,10 @@ export function createQuotePdf(quote: Quote, client: BusinessClient) {
   pdf.text(`${totals.ht.toFixed(2)} DH`, 196, 162, { align: "right" });
   pdf.text("Total TVA", 148, 171);
   pdf.text(`${totals.vat.toFixed(2)} DH`, 196, 171, { align: "right" });
-  pdf.text("Remise", 148, 180);
-  pdf.text(`${totals.discount.toFixed(2)} DH`, 196, 180, { align: "right" });
   pdf.setFillColor(10, 30, 63);
-  pdf.roundedRect(145, 187, 51, 10, 2, 2, "F");
+  pdf.roundedRect(145, 180, 51, 10, 2, 2, "F");
   pdf.setTextColor(255, 255, 255);
-  pdf.text(`Total TTC  ${totalTtc.toFixed(2)} DH`, 192, 194, { align: "right" });
+  pdf.text(`Total TTC  ${totalTtc.toFixed(2)} DH`, 192, 187, { align: "right" });
 
   pdf.setTextColor(10, 30, 63);
   pdf.roundedRect(28, 230, 55, 28, 2, 2);
@@ -191,13 +183,11 @@ export function createInvoicePdf(invoice: Invoice, client: BusinessClient) {
   const pageWidth = pdf.internal.pageSize.getWidth();
   const totals = invoice.lines.reduce(
     (sum, line) => {
-      const gross = line.quantity * line.unitPrice;
-      const discount = gross * (line.discount / 100);
-      const ht = gross - discount;
+      const ht = line.quantity * line.unitPrice;
       const vat = ht * (line.vat / 100);
-      return { ht: sum.ht + ht, vat: sum.vat + vat, discount: sum.discount + discount };
+      return { ht: sum.ht + ht, vat: sum.vat + vat };
     },
-    { ht: 0, vat: 0, discount: 0 }
+    { ht: 0, vat: 0 }
   );
   const totalTtc = totals.ht + totals.vat;
   const paid = invoice.payments.reduce((sum, payment) => sum + payment.amount, 0);
@@ -244,22 +234,19 @@ export function createInvoicePdf(invoice: Invoice, client: BusinessClient) {
   pdf.text("Désignation", 17, tableTop + 6);
   pdf.text("Qté", 101, tableTop + 6, { align: "right" });
   pdf.text("PU HT", 126, tableTop + 6, { align: "right" });
-  pdf.text("TVA", 146, tableTop + 6, { align: "right" });
-  pdf.text("Rem.", 165, tableTop + 6, { align: "right" });
+  pdf.text("TVA", 154, tableTop + 6, { align: "right" });
   pdf.text("TTC", 192, tableTop + 6, { align: "right" });
 
   pdf.setTextColor(51, 51, 51);
   pdf.setFont("helvetica", "normal");
   invoice.lines.forEach((line, index) => {
-    const gross = line.quantity * line.unitPrice;
-    const ht = gross - gross * (line.discount / 100);
+    const ht = line.quantity * line.unitPrice;
     const ttc = ht * (1 + line.vat / 100);
     const y = tableTop + 18 + index * 9;
     pdf.text(line.designation.slice(0, 42), 17, y);
     pdf.text(String(line.quantity), 101, y, { align: "right" });
     pdf.text(line.unitPrice.toFixed(2), 126, y, { align: "right" });
-    pdf.text(`${line.vat}%`, 146, y, { align: "right" });
-    pdf.text(`${line.discount}%`, 165, y, { align: "right" });
+    pdf.text(`${line.vat}%`, 154, y, { align: "right" });
     pdf.text(ttc.toFixed(2), 192, y, { align: "right" });
     pdf.line(14, y + 3, 196, y + 3);
   });

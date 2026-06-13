@@ -3,35 +3,44 @@
 import { FormEvent, useMemo, useState } from "react";
 import { CreditCard, Download, Eye, FileText, Plus, Printer, Search, X } from "lucide-react";
 import { clsx } from "clsx";
-import type { BusinessClient, Invoice, InvoicePayment, InvoiceStatus, PaymentModeLabel } from "@/lib/types";
+import type { BusinessClient, Invoice, InvoiceLine, InvoicePayment, InvoiceStatus, PaymentModeLabel, StockProduct } from "@/lib/types";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { createInvoicePdf } from "@/lib/pdf";
 
 const statuses: Array<"Tous" | InvoiceStatus> = ["Tous", "Payée", "Partiellement payée", "En retard"];
 const modes: PaymentModeLabel[] = ["Espèces", "Chèque", "Virement", "Carte bancaire"];
 const pageSize = 5;
+type InvoiceFormState = Omit<Invoice, "id" | "payments">;
 
 function invoiceTotals(invoice: Invoice) {
   const totals = invoice.lines.reduce(
     (sum, line) => {
-      const gross = line.quantity * line.unitPrice;
-      const discount = gross * (line.discount / 100);
-      const ht = gross - discount;
+      const ht = line.quantity * line.unitPrice;
       const vat = ht * (line.vat / 100);
-      return { ht: sum.ht + ht, vat: sum.vat + vat, discount: sum.discount + discount, ttc: sum.ttc + ht + vat };
+      return { ht: sum.ht + ht, vat: sum.vat + vat, ttc: sum.ttc + ht + vat };
     },
-    { ht: 0, vat: 0, discount: 0, ttc: 0 }
+    { ht: 0, vat: 0, ttc: 0 }
   );
   const paid = invoice.payments.reduce((sum, payment) => sum + payment.amount, 0);
   return { ...totals, paid, outstanding: Math.max(0, totals.ttc - paid) };
 }
 
+function nextInvoiceNumber(invoices: Invoice[]) {
+  const max = invoices.reduce((value, invoice) => {
+    const current = Number(invoice.number.split("-").at(-1) ?? "0");
+    return Number.isFinite(current) ? Math.max(value, current) : value;
+  }, 0);
+  return `FAC-2026-${String(max + 1).padStart(6, "0")}`;
+}
+
 export function InvoicesModule({
   initialInvoices,
-  clients
+  clients,
+  products
 }: {
   initialInvoices: Invoice[];
   clients: BusinessClient[];
+  products: StockProduct[];
 }) {
   const [invoices, setInvoices] = useState(initialInvoices);
   const [query, setQuery] = useState("");
@@ -43,6 +52,7 @@ export function InvoicesModule({
   const [paymentAmount, setPaymentAmount] = useState(0);
   const [paymentMode, setPaymentMode] = useState<PaymentModeLabel>("Virement");
   const [paymentReference, setPaymentReference] = useState("");
+  const [invoiceForm, setInvoiceForm] = useState<InvoiceFormState | null>(null);
 
   const filteredInvoices = useMemo(() => {
     const normalizedQuery = query.toLowerCase();
@@ -79,6 +89,35 @@ export function InvoicesModule({
     setPaymentAmount(totals.outstanding);
     setPaymentMode("Virement");
     setPaymentReference("");
+  }
+
+  function createEmptyInvoice(): InvoiceFormState {
+    const product = products[0];
+    return {
+      number: nextInvoiceNumber(invoices),
+      date: new Date().toISOString().slice(0, 10),
+      dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+      clientId: clients[0]?.id ?? "",
+      status: "Partiellement payée",
+      lines: [
+        {
+          id: `iline-${Date.now()}`,
+          productId: product?.id ?? "",
+          designation: product?.designation ?? "",
+          quantity: 1,
+          unitPrice: product?.salePrice ?? 0,
+          vat: product?.vat ?? 20
+        }
+      ]
+    };
+  }
+
+  function saveInvoice(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!invoiceForm) return;
+    setInvoices((current) => [{ id: `invoice-${Date.now()}`, ...invoiceForm, payments: [] }, ...current]);
+    setInvoiceForm(null);
+    setPage(1);
   }
 
   function savePayment(event: FormEvent<HTMLFormElement>) {
@@ -165,7 +204,11 @@ export function InvoicesModule({
               <Download size={18} />
               Export
             </button>
-            <button type="button" className="inline-flex items-center justify-center gap-2 rounded-lg bg-hicotech-blue px-4 py-2.5 text-sm font-bold text-white shadow-soft">
+            <button
+              type="button"
+              onClick={() => setInvoiceForm(createEmptyInvoice())}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-hicotech-blue px-4 py-2.5 text-sm font-bold text-white shadow-soft"
+            >
               <Plus size={18} />
               Nouvelle facture
             </button>
@@ -237,6 +280,16 @@ export function InvoicesModule({
           onReferenceChange={setPaymentReference}
           onClose={() => setPaymentInvoice(null)}
           onSubmit={savePayment}
+        />
+      )}
+      {invoiceForm && (
+        <InvoiceModal
+          form={invoiceForm}
+          clients={clients}
+          products={products}
+          onChange={setInvoiceForm}
+          onClose={() => setInvoiceForm(null)}
+          onSubmit={saveInvoice}
         />
       )}
     </div>
@@ -348,6 +401,168 @@ function PaymentModal({
           <button type="submit" className="rounded-lg bg-hicotech-blue px-4 py-2.5 text-sm font-bold text-white shadow-soft">Enregistrer</button>
         </div>
       </form>
+    </div>
+  );
+}
+
+function InvoiceModal({
+  form,
+  clients,
+  products,
+  onChange,
+  onClose,
+  onSubmit
+}: {
+  form: InvoiceFormState;
+  clients: BusinessClient[];
+  products: StockProduct[];
+  onChange: (form: InvoiceFormState) => void;
+  onClose: () => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  const totals = form.lines.reduce(
+    (sum, line) => {
+      const ht = line.quantity * line.unitPrice;
+      const vat = ht * (line.vat / 100);
+      return { ht: sum.ht + ht, vat: sum.vat + vat, ttc: sum.ttc + ht + vat };
+    },
+    { ht: 0, vat: 0, ttc: 0 }
+  );
+
+  function updateLine(lineId: string, patch: Partial<InvoiceLine>) {
+    onChange({
+      ...form,
+      lines: form.lines.map((line) => (line.id === lineId ? { ...line, ...patch } : line))
+    });
+  }
+
+  function selectProduct(lineId: string, productId: string) {
+    const product = products.find((item) => item.id === productId);
+    updateLine(lineId, {
+      productId,
+      designation: product?.designation ?? "",
+      unitPrice: product?.salePrice ?? 0,
+      vat: product?.vat ?? 20
+    });
+  }
+
+  function addLine() {
+    const product = products[0];
+    onChange({
+      ...form,
+      lines: [
+        ...form.lines,
+        {
+          id: `iline-${Date.now()}`,
+          productId: product?.id ?? "",
+          designation: product?.designation ?? "",
+          quantity: 1,
+          unitPrice: product?.salePrice ?? 0,
+          vat: product?.vat ?? 20
+        }
+      ]
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-hicotech-dark-sidebar/70 px-4 backdrop-blur-sm">
+      <form onSubmit={onSubmit} className="max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-lg border border-slate-200 bg-white p-6 shadow-soft dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
+        <div className="flex items-start justify-between gap-4">
+          <h2 className="font-display text-2xl font-bold text-hicotech-navy dark:text-white">Nouvelle facture</h2>
+          <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 p-2 text-hicotech-navy dark:border-hicotech-dark-border dark:text-white" aria-label="Fermer">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="mt-6 grid gap-4 md:grid-cols-4">
+          <Input label="Numéro" value={form.number} onChange={(value) => onChange({ ...form, number: value })} />
+          <Input label="Date" type="date" value={form.date} onChange={(value) => onChange({ ...form, date: value })} />
+          <Input label="Échéance" type="date" value={form.dueDate} onChange={(value) => onChange({ ...form, dueDate: value })} />
+          <label className="block">
+            <span className="text-sm font-semibold text-hicotech-navy dark:text-white">Client</span>
+            <select value={form.clientId} onChange={(event) => onChange({ ...form, clientId: event.target.value })} className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white">
+              {clients.map((client) => <option key={client.id} value={client.id}>{client.company}</option>)}
+            </select>
+          </label>
+        </div>
+
+        <div className="mt-6 overflow-x-auto">
+          <table className="w-full min-w-[880px] text-sm">
+            <thead>
+              <tr className="bg-hicotech-sky/70 text-left text-hicotech-navy dark:bg-hicotech-blue/20 dark:text-white">
+                {["Produit", "Qté", "Prix HT", "TVA", "HT", "TTC", ""].map((column) => <th key={column} className="px-3 py-3">{column}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {form.lines.map((line) => {
+                const ht = line.quantity * line.unitPrice;
+                const ttc = ht * (1 + line.vat / 100);
+                return (
+                  <tr key={line.id} className="border-b border-slate-100 dark:border-hicotech-dark-border">
+                    <td className="px-3 py-3">
+                      <select value={line.productId} onChange={(event) => selectProduct(line.id, event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white">
+                        {products.map((product) => <option key={product.id} value={product.id}>{product.designation}</option>)}
+                      </select>
+                    </td>
+                    <td className="px-3 py-3"><SmallInput value={line.quantity} onChange={(value) => updateLine(line.id, { quantity: Number(value) })} /></td>
+                    <td className="px-3 py-3"><SmallInput value={line.unitPrice} onChange={(value) => updateLine(line.id, { unitPrice: Number(value) })} /></td>
+                    <td className="px-3 py-3"><SmallInput value={line.vat} onChange={(value) => updateLine(line.id, { vat: Number(value) })} /></td>
+                    <td className="px-3 py-3 font-bold text-hicotech-navy dark:text-white">{formatCurrency(ht)}</td>
+                    <td className="px-3 py-3 font-bold text-hicotech-navy dark:text-white">{formatCurrency(ttc)}</td>
+                    <td className="px-3 py-3">
+                      <button type="button" onClick={() => onChange({ ...form, lines: form.lines.filter((item) => item.id !== line.id) })} className="rounded-lg border border-red-200 p-2 text-hicotech-red" aria-label="Supprimer ligne">
+                        <X size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <button type="button" onClick={addLine} className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-bold text-hicotech-navy dark:border-hicotech-dark-border dark:text-white">
+            <Plus size={18} />
+            Ajouter une ligne
+          </button>
+          <div className="w-full max-w-sm space-y-2 rounded-lg bg-hicotech-cloud p-4 text-sm dark:bg-hicotech-dark-page/50">
+            <TotalRow label="Total HT" value={totals.ht} />
+            <TotalRow label="Total TVA" value={totals.vat} />
+            <div className="flex justify-between rounded-lg bg-hicotech-navy px-4 py-3 text-white">
+              <span>Total TTC</span>
+              <strong>{formatCurrency(totals.ttc)}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-bold text-hicotech-navy dark:border-hicotech-dark-border dark:text-white">Annuler</button>
+          <button type="submit" className="rounded-lg bg-hicotech-blue px-4 py-2.5 text-sm font-bold text-white shadow-soft">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function Input({ label, value, type = "text", onChange }: { label: string; value: string; type?: string; onChange: (value: string) => void }) {
+  return (
+    <label className="block">
+      <span className="text-sm font-semibold text-hicotech-navy dark:text-white">{label}</span>
+      <input value={value} type={type} onChange={(event) => onChange(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white" />
+    </label>
+  );
+}
+
+function SmallInput({ value, onChange }: { value: number; onChange: (value: string) => void }) {
+  return <input type="number" value={value} onChange={(event) => onChange(event.target.value)} className="w-24 rounded-lg border border-slate-200 px-3 py-2 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white" />;
+}
+
+function TotalRow({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex justify-between text-hicotech-navy dark:text-white">
+      <span>{label}</span>
+      <strong>{formatCurrency(value)}</strong>
     </div>
   );
 }

@@ -14,18 +14,15 @@ const statuses: QuoteStatus[] = ["Brouillon", "Envoyé", "Accepté", "Refusé"];
 function quoteTotals(lines: QuoteLine[]) {
   return lines.reduce(
     (sum, line) => {
-      const gross = line.quantity * line.unitPrice;
-      const discount = gross * (line.discount / 100);
-      const ht = gross - discount;
+      const ht = line.quantity * line.unitPrice;
       const vat = ht * (line.vat / 100);
       return {
-        discount: sum.discount + discount,
         ht: sum.ht + ht,
         vat: sum.vat + vat,
         ttc: sum.ttc + ht + vat
       };
     },
-    { discount: 0, ht: 0, vat: 0, ttc: 0 }
+    { ht: 0, vat: 0, ttc: 0 }
   );
 }
 
@@ -92,8 +89,7 @@ export function QuotesModule({
           designation: firstProduct?.designation ?? "",
           quantity: 1,
           unitPrice: firstProduct?.salePrice ?? 0,
-          vat: firstProduct?.vat ?? 20,
-          discount: 0
+          vat: firstProduct?.vat ?? 20
         }
       ]
     };
@@ -205,7 +201,7 @@ export function QuotesModule({
           <table className="w-full min-w-[1100px] border-collapse text-sm">
             <thead>
               <tr className="bg-hicotech-sky/70 text-left text-hicotech-navy dark:bg-hicotech-blue/20 dark:text-white">
-                {["Numéro", "Date", "Client", "Statut", "Total HT", "TVA", "Remise", "Total TTC", "Actions"].map((column) => (
+                {["Numéro", "Date", "Client", "Statut", "Total HT", "TVA", "Total TTC", "Actions"].map((column) => (
                   <th key={column} className="px-4 py-3 font-display text-xs font-bold uppercase">{column}</th>
                 ))}
               </tr>
@@ -225,7 +221,6 @@ export function QuotesModule({
                     <td className="px-4 py-4"><StatusPill status={quote.status} /></td>
                     <td className="px-4 py-4 font-medium text-slate-700 dark:text-slate-200">{formatCurrency(totals.ht)}</td>
                     <td className="px-4 py-4 font-medium text-slate-700 dark:text-slate-200">{formatCurrency(totals.vat)}</td>
-                    <td className="px-4 py-4 font-medium text-hicotech-orange">{formatCurrency(totals.discount)}</td>
                     <td className="px-4 py-4 font-bold text-hicotech-navy dark:text-white">{formatCurrency(totals.ttc)}</td>
                     <td className="px-4 py-4">
                       <div className="flex flex-wrap gap-2">
@@ -338,8 +333,7 @@ function QuoteModal({
           designation: product?.designation ?? "",
           quantity: 1,
           unitPrice: product?.salePrice ?? 0,
-          vat: product?.vat ?? 20,
-          discount: 0
+          vat: product?.vat ?? 20
         }
       ]
     });
@@ -376,13 +370,12 @@ function QuoteModal({
           <table className="w-full min-w-[980px] text-sm">
             <thead>
               <tr className="bg-hicotech-sky/70 text-left text-hicotech-navy dark:bg-hicotech-blue/20 dark:text-white">
-                {["Produit", "Qté", "Prix HT", "TVA", "Remise", "HT", "TTC", ""].map((column) => <th key={column} className="px-3 py-3">{column}</th>)}
+                {["Produit", "Qté", "Prix HT", "TVA", "HT", "TTC", ""].map((column) => <th key={column} className="px-3 py-3">{column}</th>)}
               </tr>
             </thead>
             <tbody>
               {form.lines.map((line) => {
-                const gross = line.quantity * line.unitPrice;
-                const ht = gross - gross * (line.discount / 100);
+                const ht = line.quantity * line.unitPrice;
                 const ttc = ht * (1 + line.vat / 100);
                 return (
                   <tr key={line.id} className="border-b border-slate-100 dark:border-hicotech-dark-border">
@@ -394,7 +387,6 @@ function QuoteModal({
                     <td className="px-3 py-3"><SmallInput type="number" value={line.quantity} onChange={(value) => updateLine(line.id, { quantity: Number(value) })} /></td>
                     <td className="px-3 py-3"><SmallInput type="number" value={line.unitPrice} onChange={(value) => updateLine(line.id, { unitPrice: Number(value) })} /></td>
                     <td className="px-3 py-3"><SmallInput type="number" value={line.vat} onChange={(value) => updateLine(line.id, { vat: Number(value) })} /></td>
-                    <td className="px-3 py-3"><SmallInput type="number" value={line.discount} onChange={(value) => updateLine(line.id, { discount: Number(value) })} /></td>
                     <td className="px-3 py-3 font-bold text-hicotech-navy dark:text-white">{formatCurrency(ht)}</td>
                     <td className="px-3 py-3 font-bold text-hicotech-navy dark:text-white">{formatCurrency(ttc)}</td>
                     <td className="px-3 py-3">
@@ -417,7 +409,6 @@ function QuoteModal({
           <div className="w-full max-w-sm space-y-2 rounded-lg bg-hicotech-cloud p-4 text-sm dark:bg-hicotech-dark-page/50">
             <TotalRow label="Total HT" value={totals.ht} />
             <TotalRow label="Total TVA" value={totals.vat} />
-            <TotalRow label="Remise" value={totals.discount} />
             <div className="flex justify-between rounded-lg bg-hicotech-navy px-4 py-3 text-white">
               <span>Total TTC</span>
               <strong>{formatCurrency(totals.ttc)}</strong>
