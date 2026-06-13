@@ -48,6 +48,7 @@ export function StockModule({
   const [stockFilter, setStockFilter] = useState("Tous");
   const [page, setPage] = useState(1);
   const [editingProduct, setEditingProduct] = useState<StockProduct | null>(null);
+  const [productFormOpen, setProductFormOpen] = useState(false);
   const [productForm, setProductForm] = useState<ProductFormState>(emptyProduct);
   const [movementProduct, setMovementProduct] = useState<StockProduct | null>(null);
   const [movementType, setMovementType] = useState<StockMovementType>("Entrée");
@@ -87,7 +88,8 @@ export function StockModule({
 
   function openCreateProduct() {
     setEditingProduct(null);
-    setProductForm(emptyProduct);
+    setProductForm({ ...emptyProduct });
+    setProductFormOpen(true);
   }
 
   function openEditProduct(product: StockProduct) {
@@ -104,11 +106,13 @@ export function StockModule({
       stock: product.stock,
       minStock: product.minStock
     });
+    setProductFormOpen(true);
   }
 
   function closeProductForm() {
     setEditingProduct(null);
-    setProductForm(emptyProduct);
+    setProductForm({ ...emptyProduct });
+    setProductFormOpen(false);
   }
 
   function saveProduct(event: FormEvent<HTMLFormElement>) {
@@ -357,7 +361,7 @@ export function StockModule({
         </div>
       </section>
 
-      {(editingProduct || productForm !== emptyProduct) && (
+      {productFormOpen && (
         <ProductModal
           form={productForm}
           title={editingProduct ? "Modifier produit" : "Ajouter produit"}
