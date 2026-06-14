@@ -1,370 +1,631 @@
 import jsPDF from "jspdf";
-import type { BusinessClient, DeliveryNote, Invoice, Quote, SalesDocument } from "@/lib/types";
+import type { BusinessClient, CompanyProfile, DeliveryNote, Invoice, Quote, SalesDocument } from "@/lib/types";
 
-export function createSalesPdf(document: SalesDocument) {
+type PdfLine = {
+  reference: string;
+  designation: string;
+  quantity: number;
+  unitPrice: number;
+  vat: number;
+};
+
+type PdfClient = {
+  name: string;
+  company: string;
+  address: string;
+  city: string;
+  ice?: string;
+  phone?: string;
+};
+
+type PdfDocument = {
+  title: string;
+  number: string;
+  date: string;
+  dueDate?: string;
+  status?: string;
+  internalReference?: string;
+  client: PdfClient;
+  lines: PdfLine[];
+  paidAmount?: number;
+  discount?: number;
+  amountInWords?: string;
+  paymentTerms?: string;
+  notes?: string;
+  filename?: string;
+  deliverySummary?: {
+    totalItems: number;
+    totalDelivered: number;
+  };
+  company?: CompanyProfile;
+};
+
+const colors = {
+  navy: [10, 30, 63] as const,
+  blue: [13, 110, 253] as const,
+  lightBlue: [230, 242, 255] as const,
+  text: [43, 50, 65] as const,
+  muted: [101, 116, 139] as const,
+  border: [215, 226, 240] as const,
+  soft: [248, 250, 252] as const,
+  white: [255, 255, 255] as const
+};
+
+const defaultCompany: Required<Pick<CompanyProfile, "name" | "address" | "city" | "phone" | "ice" | "taxId">> = {
+  name: "HICOTECH",
+  address: "N7, ILOT 14 - LOTISSEMENT FADALLAH",
+  city: "MOHAMMEDIA, Maroc",
+  phone: "0661144190",
+  ice: "003390979000024",
+  taxId: "60164052"
+};
+
+const margin = 14;
+const pageWidth = 210;
+const pageHeight = 297;
+const contentWidth = pageWidth - margin * 2;
+const footerY = 285;
+const tableBottomY = 214;
+
+export function createSalesPdf(document: SalesDocument, companyProfile?: CompanyProfile) {
+  const lines = document.lines.map((line, index) => ({
+    reference: `REF-${String(index + 1).padStart(3, "0")}`,
+    designation: line.designation,
+    quantity: line.quantity,
+    unitPrice: line.unitPrice,
+    vat: line.vat
+  }));
+
+  renderPremiumPdf({
+    title: document.type,
+    number: document.number,
+    date: document.date,
+    client: {
+      name: document.customer.name,
+      company: document.customer.name,
+      address: document.customer.address,
+      city: document.customer.city,
+      ice: document.customer.ice,
+      phone: document.customer.phone
+    },
+    lines,
+    amountInWords: document.amountInWords,
+    paymentTerms: "Paiement par virement, chèque ou espèces selon accord commercial.",
+    filename: document.number,
+    company: companyProfile
+  });
+}
+
+export function createQuotePdf(quote: Quote, client: BusinessClient, companyProfile?: CompanyProfile) {
+  renderPremiumPdf({
+    title: "DEVIS",
+    number: quote.number,
+    date: quote.date,
+    status: quote.status,
+    client: toPdfClient(client),
+    lines: quote.lines.map((line) => ({
+      reference: line.productId,
+      designation: line.designation,
+      quantity: line.quantity,
+      unitPrice: line.unitPrice,
+      vat: line.vat
+    })),
+    paymentTerms: "Ce devis est valable 30 jours. Paiement selon conditions convenues à la validation.",
+    filename: quote.number,
+    company: companyProfile
+  });
+}
+
+export function createInvoicePdf(invoice: Invoice, client: BusinessClient, companyProfile?: CompanyProfile) {
+  const paidAmount = invoice.payments.reduce((sum, payment) => sum + payment.amount, 0);
+
+  renderPremiumPdf({
+    title: "FACTURE",
+    number: invoice.number,
+    date: invoice.date,
+    dueDate: invoice.dueDate,
+    status: invoice.status,
+    client: toPdfClient(client),
+    lines: invoice.lines.map((line) => ({
+      reference: line.productId,
+      designation: line.designation,
+      quantity: line.quantity,
+      unitPrice: line.unitPrice,
+      vat: line.vat
+    })),
+    paidAmount,
+    paymentTerms: "Paiement par virement, chèque ou espèces. Merci d'indiquer le numéro de facture comme référence.",
+    filename: invoice.number,
+    company: companyProfile
+  });
+}
+
+export function createDeliveryNotePdf(deliveryNote: DeliveryNote, client: BusinessClient, companyProfile?: CompanyProfile) {
+  renderPremiumPdf({
+    title: "BON DE LIVRAISON",
+    number: deliveryNote.number,
+    date: deliveryNote.date,
+    status: deliveryNote.status,
+    internalReference: deliveryNote.internalReference,
+    client: {
+      ...toPdfClient(client),
+      address: deliveryNote.deliveryAddress,
+      city: deliveryNote.city
+    },
+    lines: deliveryNote.lines.map((line) => ({
+      reference: line.reference,
+      designation: `${line.designation}${line.observations ? ` - ${line.observations}` : ""}`,
+      quantity: line.deliveredQuantity,
+      unitPrice: 0,
+      vat: 0
+    })),
+    paymentTerms: deliveryNote.deliveryTerms || "Livraison selon accord commercial.",
+    notes: deliveryNote.internalNotes,
+    deliverySummary: {
+      totalItems: deliveryNote.lines.length,
+      totalDelivered: deliveryNote.lines.reduce((sum, line) => sum + line.deliveredQuantity, 0)
+    },
+    filename: deliveryNote.number,
+    company: companyProfile
+  });
+}
+
+export function createPurchaseOrderPdf(document: SalesDocument, companyProfile?: CompanyProfile) {
+  createTypedSalesPdf(document, "BON DE COMMANDE", companyProfile);
+}
+
+export function createProformaPdf(document: SalesDocument, companyProfile?: CompanyProfile) {
+  createTypedSalesPdf(document, "FACTURE PROFORMA", companyProfile);
+}
+
+export function createCreditNotePdf(document: SalesDocument, companyProfile?: CompanyProfile) {
+  createTypedSalesPdf(document, "AVOIR", companyProfile);
+}
+
+function createTypedSalesPdf(document: SalesDocument, title: string, companyProfile?: CompanyProfile) {
+  renderPremiumPdf({
+    title,
+    number: document.number,
+    date: document.date,
+    client: {
+      name: document.customer.name,
+      company: document.customer.name,
+      address: document.customer.address,
+      city: document.customer.city,
+      ice: document.customer.ice,
+      phone: document.customer.phone
+    },
+    lines: document.lines.map((line, index) => ({
+      reference: `REF-${String(index + 1).padStart(3, "0")}`,
+      designation: line.designation,
+      quantity: line.quantity,
+      unitPrice: line.unitPrice,
+      vat: line.vat
+    })),
+    amountInWords: document.amountInWords,
+    paymentTerms: "Document établi selon les conditions commerciales convenues.",
+    filename: document.number,
+    company: companyProfile
+  });
+}
+
+function renderPremiumPdf(document: PdfDocument) {
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const subtotal = document.lines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0);
-  const vat = subtotal * 0.2;
-  const total = subtotal + vat;
+  const company = resolveCompanyProfile(document.company);
+  const totals = calculateTotals(document.lines, document.discount ?? 0, document.paidAmount ?? 0);
+  const amountInWords = document.amountInWords || `${numberToFrench(Math.round(totals.ttc))} dirhams toutes taxes comprises.`;
+  let page = 1;
+  let y = drawPageHeader(pdf, document, page, company);
 
-  pdf.setDrawColor(180, 230, 245);
-  pdf.setLineWidth(1.2);
-  pdf.rect(14, 12, 62, 22);
-  pdf.setFillColor(7, 154, 209);
-  pdf.rect(14, 31, 62, 3, "F");
-  pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(18);
-  pdf.setTextColor(0, 0, 0);
-  pdf.text("HICOTECH", 18, 28);
-  pdf.setFontSize(8);
-  pdf.text("INFORMATIQUE SIMPLIFIEE", 24, 41);
+  y = drawProductsTableHeader(pdf, y);
 
-  pdf.setFontSize(22);
-  pdf.setTextColor(10, 30, 63);
-  pdf.text(document.type, pageWidth - 14, 24, { align: "right" });
-  pdf.setFontSize(10);
-  pdf.text(`N° : ${document.number}`, pageWidth - 14, 32, { align: "right" });
-  pdf.text(`Date : ${document.date}`, pageWidth - 14, 38, { align: "right" });
-
-  pdf.setTextColor(51, 51, 51);
-  pdf.setFont("helvetica", "bold");
-  pdf.text("HICOTECH", 14, 56);
-  pdf.setFont("helvetica", "normal");
-  pdf.text(["123, Avenue Mohamed V", "Casablanca - Maroc", "ICE : 001234567000089", "IF : 12345678 - RC : 123456"], 14, 62);
-
-  pdf.roundedRect(122, 50, 74, 35, 2, 2);
-  pdf.setFont("helvetica", "bold");
-  pdf.text("Client", 126, 58);
-  pdf.setFont("helvetica", "normal");
-  pdf.text([document.customer.name, document.customer.address, document.customer.city, `ICE : ${document.customer.ice}`, `Tél : ${document.customer.phone}`], 126, 64);
-
-  const tableTop = 100;
-  pdf.setFillColor(13, 110, 253);
-  pdf.rect(14, tableTop, 182, 9, "F");
-  pdf.setTextColor(255, 255, 255);
-  pdf.setFont("helvetica", "bold");
-  pdf.text("Désignation", 17, tableTop + 6);
-  pdf.text("Qté", 120, tableTop + 6, { align: "right" });
-  pdf.text("PU HT", 145, tableTop + 6, { align: "right" });
-  pdf.text("TVA", 162, tableTop + 6, { align: "right" });
-  pdf.text("Total HT", 192, tableTop + 6, { align: "right" });
-
-  pdf.setTextColor(51, 51, 51);
-  pdf.setFont("helvetica", "normal");
   document.lines.forEach((line, index) => {
-    const y = tableTop + 18 + index * 9;
-    pdf.text(line.designation, 17, y);
-    pdf.text(String(line.quantity), 120, y, { align: "right" });
-    pdf.text(line.unitPrice.toFixed(2), 145, y, { align: "right" });
-    pdf.text(`${line.vat}%`, 162, y, { align: "right" });
-    pdf.text((line.quantity * line.unitPrice).toFixed(2), 192, y, { align: "right" });
-    pdf.line(14, y + 3, 196, y + 3);
+    if (y > tableBottomY) {
+      drawFooter(pdf, page, company);
+      pdf.addPage();
+      page += 1;
+      y = drawPageHeader(pdf, document, page, company);
+      y = drawProductsTableHeader(pdf, y);
+    }
+    y = drawProductRow(pdf, line, index, y);
   });
 
-  pdf.setFont("helvetica", "bold");
-  pdf.text("Montant en lettres", 14, 158);
-  pdf.setFont("helvetica", "normal");
-  pdf.text(document.amountInWords, 14, 165);
+  if (y > 176) {
+    drawFooter(pdf, page, company);
+    pdf.addPage();
+    page += 1;
+    y = drawPageHeader(pdf, document, page, company);
+  }
 
-  pdf.setFont("helvetica", "bold");
-  pdf.text("Total HT", 148, 156);
-  pdf.text(`${subtotal.toFixed(2)} DH`, 196, 156, { align: "right" });
-  pdf.text("TVA 20%", 148, 165);
-  pdf.text(`${vat.toFixed(2)} DH`, 196, 165, { align: "right" });
-  pdf.setFillColor(10, 30, 63);
-  pdf.roundedRect(145, 172, 51, 10, 2, 2, "F");
-  pdf.setTextColor(255, 255, 255);
-  pdf.text(`Total TTC  ${total.toFixed(2)} DH`, 192, 179, { align: "right" });
-
-  pdf.setTextColor(10, 30, 63);
-  pdf.roundedRect(28, 230, 55, 28, 2, 2);
-  pdf.roundedRect(126, 230, 55, 28, 2, 2);
-  pdf.text("Signature", 56, 246, { align: "center" });
-  pdf.text("Cachet", 154, 246, { align: "center" });
-
-  pdf.save(`${document.number}.pdf`);
+  drawBottomBlocks(pdf, document, totals, amountInWords, y + 8);
+  drawFooter(pdf, page, company);
+  applyTotalPageCount(pdf);
+  pdf.save(`${document.filename || document.number}.pdf`);
 }
 
-export function createQuotePdf(quote: Quote, client: BusinessClient) {
-  const pdf = new jsPDF({ unit: "mm", format: "a4" });
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const totals = quote.lines.reduce(
-    (sum, line) => {
-      const ht = line.quantity * line.unitPrice;
-      const vat = ht * (line.vat / 100);
-      return {
-        ht: sum.ht + ht,
-        vat: sum.vat + vat
-      };
-    },
-    { ht: 0, vat: 0 }
-  );
-  const totalTtc = totals.ht + totals.vat;
+function drawPageHeader(
+  pdf: jsPDF,
+  document: PdfDocument,
+  currentPage: number,
+  company: ReturnType<typeof resolveCompanyProfile>
+) {
+  pdf.setFillColor(...colors.white);
+  pdf.rect(0, 0, pageWidth, pageHeight, "F");
 
+  drawLogo(pdf, margin, 13, company);
+
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(8.5);
+  pdf.setTextColor(...colors.text);
+  pdf.text(company.name, margin, 45);
+  pdf.setTextColor(...colors.muted);
+  pdf.text(company.address, margin, 50);
+  pdf.text(company.city, margin, 55);
+  pdf.text(`Tél : ${company.phone}`, margin, 60);
+  pdf.text(`ICE : ${company.ice}   IF : ${company.taxId}`, margin, 65);
+
+  pdf.setTextColor(...colors.navy);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(document.title.length > 16 ? 18 : 22);
+  pdf.text(document.title, pageWidth - margin, 21, { align: "right" });
+
+  const metaX = pageWidth - margin - 72;
+  let metaY = 31;
+  drawMetaLine(pdf, metaX, metaY, "Numéro", document.number);
+  metaY += 6;
+  drawMetaLine(pdf, metaX, metaY, "Date", document.date);
+  if (document.dueDate) {
+    metaY += 6;
+    drawMetaLine(pdf, metaX, metaY, "Échéance", document.dueDate);
+  }
+  if (document.status) {
+    metaY += 6;
+    drawMetaLine(pdf, metaX, metaY, "Statut", document.status);
+  }
+  if (document.internalReference) {
+    metaY += 6;
+    drawMetaLine(pdf, metaX, metaY, "Référence", document.internalReference);
+  }
+
+  drawClientBlock(pdf, document.client);
+
+  pdf.setDrawColor(...colors.border);
+  pdf.setLineWidth(0.25);
+  pdf.line(margin, 100, pageWidth - margin, 100);
+
+  if (currentPage > 1) {
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(8);
+    pdf.setTextColor(...colors.muted);
+    pdf.text(`Suite du document ${document.number}`, margin, 96);
+  }
+
+  return 106;
+}
+
+function drawLogo(pdf: jsPDF, x: number, y: number, company: ReturnType<typeof resolveCompanyProfile>) {
   pdf.setDrawColor(180, 230, 245);
-  pdf.setLineWidth(1.2);
-  pdf.rect(14, 12, 62, 22);
+  pdf.setLineWidth(1);
+  pdf.rect(x, y, 66, 20);
   pdf.setFillColor(7, 154, 209);
-  pdf.rect(14, 31, 62, 3, "F");
+  pdf.rect(x, y + 17, 66, 3, "F");
   pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(18);
+  pdf.setFontSize(19);
   pdf.setTextColor(0, 0, 0);
-  pdf.text("HICOTECH", 18, 28);
-  pdf.setFontSize(8);
-  pdf.text("INFORMATIQUE SIMPLIFIEE", 24, 41);
-
-  pdf.setFontSize(22);
+  const name = company.name.toUpperCase();
+  pdf.text(name.length <= 10 ? name.slice(0, Math.max(1, name.length - 1)) : "HICOTEC", x + 8, y + 14);
+  pdf.setTextColor(160, 225, 242);
+  pdf.text(name.length <= 10 ? name.slice(-1) : "H", x + 56, y + 14);
+  pdf.setFontSize(6.5);
   pdf.setTextColor(10, 30, 63);
-  pdf.text("DEVIS", pageWidth - 14, 24, { align: "right" });
-  pdf.setFontSize(10);
-  pdf.text(`N° : ${quote.number}`, pageWidth - 14, 32, { align: "right" });
-  pdf.text(`Date : ${quote.date}`, pageWidth - 14, 38, { align: "right" });
-  pdf.text(`Statut : ${quote.status}`, pageWidth - 14, 44, { align: "right" });
-
-  pdf.setTextColor(51, 51, 51);
-  pdf.setFont("helvetica", "bold");
-  pdf.text("HICOTECH", 14, 56);
-  pdf.setFont("helvetica", "normal");
-  pdf.text(["123, Avenue Mohamed V", "Casablanca - Maroc", "ICE : 001234567000089", "IF : 12345678 - RC : 123456"], 14, 62);
-
-  pdf.roundedRect(122, 50, 74, 38, 2, 2);
-  pdf.setFont("helvetica", "bold");
-  pdf.text("Client", 126, 58);
-  pdf.setFont("helvetica", "normal");
-  pdf.text([client.company, client.name, client.address, client.city, `ICE : ${client.ice}`, `Tél : ${client.phone}`], 126, 64);
-
-  const tableTop = 104;
-  pdf.setFillColor(13, 110, 253);
-  pdf.rect(14, tableTop, 182, 9, "F");
-  pdf.setTextColor(255, 255, 255);
-  pdf.setFont("helvetica", "bold");
-  pdf.text("Désignation", 17, tableTop + 6);
-  pdf.text("Qté", 101, tableTop + 6, { align: "right" });
-  pdf.text("PU HT", 126, tableTop + 6, { align: "right" });
-  pdf.text("TVA", 154, tableTop + 6, { align: "right" });
-  pdf.text("TTC", 192, tableTop + 6, { align: "right" });
-
-  pdf.setTextColor(51, 51, 51);
-  pdf.setFont("helvetica", "normal");
-  quote.lines.forEach((line, index) => {
-    const ht = line.quantity * line.unitPrice;
-    const ttc = ht * (1 + line.vat / 100);
-    const y = tableTop + 18 + index * 9;
-    pdf.text(line.designation.slice(0, 42), 17, y);
-    pdf.text(String(line.quantity), 101, y, { align: "right" });
-    pdf.text(line.unitPrice.toFixed(2), 126, y, { align: "right" });
-    pdf.text(`${line.vat}%`, 154, y, { align: "right" });
-    pdf.text(ttc.toFixed(2), 192, y, { align: "right" });
-    pdf.line(14, y + 3, 196, y + 3);
-  });
-
-  pdf.setFont("helvetica", "bold");
-  pdf.text("Total HT", 148, 162);
-  pdf.text(`${totals.ht.toFixed(2)} DH`, 196, 162, { align: "right" });
-  pdf.text("Total TVA", 148, 171);
-  pdf.text(`${totals.vat.toFixed(2)} DH`, 196, 171, { align: "right" });
-  pdf.setFillColor(10, 30, 63);
-  pdf.roundedRect(145, 180, 51, 10, 2, 2, "F");
-  pdf.setTextColor(255, 255, 255);
-  pdf.text(`Total TTC  ${totalTtc.toFixed(2)} DH`, 192, 187, { align: "right" });
-
-  pdf.setTextColor(10, 30, 63);
-  pdf.roundedRect(28, 230, 55, 28, 2, 2);
-  pdf.roundedRect(126, 230, 55, 28, 2, 2);
-  pdf.text("Signature", 56, 246, { align: "center" });
-  pdf.text("Cachet", 154, 246, { align: "center" });
-
-  pdf.save(`${quote.number}.pdf`);
+  pdf.text("INFORMATIQUE SIMPLIFIEE", x + 16, y + 27);
 }
 
-export function createInvoicePdf(invoice: Invoice, client: BusinessClient) {
-  const pdf = new jsPDF({ unit: "mm", format: "a4" });
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const totals = invoice.lines.reduce(
-    (sum, line) => {
-      const ht = line.quantity * line.unitPrice;
-      const vat = ht * (line.vat / 100);
-      return { ht: sum.ht + ht, vat: sum.vat + vat };
-    },
-    { ht: 0, vat: 0 }
-  );
-  const totalTtc = totals.ht + totals.vat;
-  const paid = invoice.payments.reduce((sum, payment) => sum + payment.amount, 0);
-  const outstanding = Math.max(0, totalTtc - paid);
-
-  pdf.setDrawColor(180, 230, 245);
-  pdf.setLineWidth(1.2);
-  pdf.rect(14, 12, 62, 22);
-  pdf.setFillColor(7, 154, 209);
-  pdf.rect(14, 31, 62, 3, "F");
-  pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(18);
-  pdf.setTextColor(0, 0, 0);
-  pdf.text("HICOTECH", 18, 28);
-  pdf.setFontSize(8);
-  pdf.text("INFORMATIQUE SIMPLIFIEE", 24, 41);
-
-  pdf.setFontSize(22);
-  pdf.setTextColor(10, 30, 63);
-  pdf.text("FACTURE", pageWidth - 14, 24, { align: "right" });
-  pdf.setFontSize(10);
-  pdf.text(`N° : ${invoice.number}`, pageWidth - 14, 32, { align: "right" });
-  pdf.text(`Date : ${invoice.date}`, pageWidth - 14, 38, { align: "right" });
-  pdf.text(`Échéance : ${invoice.dueDate}`, pageWidth - 14, 44, { align: "right" });
-  pdf.text(`Statut : ${invoice.status}`, pageWidth - 14, 50, { align: "right" });
-
-  pdf.setTextColor(51, 51, 51);
-  pdf.setFont("helvetica", "bold");
-  pdf.text("HICOTECH", 14, 56);
+function drawMetaLine(pdf: jsPDF, x: number, y: number, label: string, value: string) {
+  pdf.setFontSize(8.5);
   pdf.setFont("helvetica", "normal");
-  pdf.text(["123, Avenue Mohamed V", "Casablanca - Maroc", "ICE : 001234567000089", "IF : 12345678 - RC : 123456"], 14, 62);
-
-  pdf.roundedRect(122, 56, 74, 36, 2, 2);
+  pdf.setTextColor(...colors.muted);
+  pdf.text(`${label} :`, x, y);
   pdf.setFont("helvetica", "bold");
-  pdf.text("Client", 126, 64);
-  pdf.setFont("helvetica", "normal");
-  pdf.text([client.company, client.name, client.address, client.city, `ICE : ${client.ice}`, `Tél : ${client.phone}`], 126, 70);
-
-  const tableTop = 106;
-  pdf.setFillColor(13, 110, 253);
-  pdf.rect(14, tableTop, 182, 9, "F");
-  pdf.setTextColor(255, 255, 255);
-  pdf.setFont("helvetica", "bold");
-  pdf.text("Désignation", 17, tableTop + 6);
-  pdf.text("Qté", 101, tableTop + 6, { align: "right" });
-  pdf.text("PU HT", 126, tableTop + 6, { align: "right" });
-  pdf.text("TVA", 154, tableTop + 6, { align: "right" });
-  pdf.text("TTC", 192, tableTop + 6, { align: "right" });
-
-  pdf.setTextColor(51, 51, 51);
-  pdf.setFont("helvetica", "normal");
-  invoice.lines.forEach((line, index) => {
-    const ht = line.quantity * line.unitPrice;
-    const ttc = ht * (1 + line.vat / 100);
-    const y = tableTop + 18 + index * 9;
-    pdf.text(line.designation.slice(0, 42), 17, y);
-    pdf.text(String(line.quantity), 101, y, { align: "right" });
-    pdf.text(line.unitPrice.toFixed(2), 126, y, { align: "right" });
-    pdf.text(`${line.vat}%`, 154, y, { align: "right" });
-    pdf.text(ttc.toFixed(2), 192, y, { align: "right" });
-    pdf.line(14, y + 3, 196, y + 3);
-  });
-
-  pdf.setFont("helvetica", "bold");
-  pdf.text("Total HT", 146, 164);
-  pdf.text(`${totals.ht.toFixed(2)} DH`, 196, 164, { align: "right" });
-  pdf.text("Total TVA", 146, 172);
-  pdf.text(`${totals.vat.toFixed(2)} DH`, 196, 172, { align: "right" });
-  pdf.text("Payé", 146, 180);
-  pdf.text(`${paid.toFixed(2)} DH`, 196, 180, { align: "right" });
-  pdf.text("Reste", 146, 188);
-  pdf.text(`${outstanding.toFixed(2)} DH`, 196, 188, { align: "right" });
-  pdf.setFillColor(10, 30, 63);
-  pdf.roundedRect(145, 195, 51, 10, 2, 2, "F");
-  pdf.setTextColor(255, 255, 255);
-  pdf.text(`Total TTC  ${totalTtc.toFixed(2)} DH`, 192, 202, { align: "right" });
-
-  pdf.setTextColor(10, 30, 63);
-  pdf.roundedRect(28, 230, 55, 28, 2, 2);
-  pdf.roundedRect(126, 230, 55, 28, 2, 2);
-  pdf.text("Signature", 56, 246, { align: "center" });
-  pdf.text("Cachet", 154, 246, { align: "center" });
-
-  pdf.save(`${invoice.number}.pdf`);
+  pdf.setTextColor(...colors.navy);
+  pdf.text(value, pageWidth - margin, y, { align: "right" });
 }
 
-export function createDeliveryNotePdf(deliveryNote: DeliveryNote, client: BusinessClient) {
-  const pdf = new jsPDF({ unit: "mm", format: "a4" });
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const totalItems = deliveryNote.lines.length;
-  const totalDelivered = deliveryNote.lines.reduce((sum, line) => sum + line.deliveredQuantity, 0);
+function drawClientBlock(pdf: jsPDF, client: PdfClient) {
+  const x = 116;
+  const y = 61;
+  pdf.setFillColor(...colors.lightBlue);
+  pdf.roundedRect(x, y, 80, 31, 2, 2, "F");
+  pdf.setDrawColor(...colors.border);
+  pdf.roundedRect(x, y, 80, 31, 2, 2);
 
-  pdf.setDrawColor(180, 230, 245);
-  pdf.setLineWidth(1.2);
-  pdf.rect(14, 12, 62, 22);
-  pdf.setFillColor(7, 154, 209);
-  pdf.rect(14, 31, 62, 3, "F");
   pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(18);
-  pdf.setTextColor(0, 0, 0);
-  pdf.text("HICOTECH", 18, 28);
+  pdf.setFontSize(8.5);
+  pdf.setTextColor(...colors.blue);
+  pdf.text("CLIENT", x + 4, y + 7);
+  pdf.setTextColor(...colors.navy);
+  pdf.text(client.company || client.name, x + 4, y + 13);
+
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(7.8);
+  pdf.setTextColor(...colors.text);
+  const lines = [
+    client.name && client.name !== client.company ? client.name : "",
+    client.address,
+    client.city,
+    client.ice ? `ICE : ${client.ice}` : "",
+    client.phone ? `Tél : ${client.phone}` : ""
+  ].filter(Boolean);
+  pdf.text(lines.slice(0, 5), x + 4, y + 18);
+}
+
+function drawProductsTableHeader(pdf: jsPDF, y: number) {
+  pdf.setFillColor(...colors.navy);
+  pdf.roundedRect(margin, y, contentWidth, 9, 1.5, 1.5, "F");
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(7.5);
+  pdf.setTextColor(...colors.white);
+  pdf.text("Désignation", 17, y + 6);
+  pdf.text("Référence", 76, y + 6);
+  pdf.text("Qté", 105, y + 6, { align: "right" });
+  pdf.text("PU HT", 126, y + 6, { align: "right" });
+  pdf.text("TVA", 145, y + 6, { align: "right" });
+  pdf.text("Total HT", 169, y + 6, { align: "right" });
+  pdf.text("Total TTC", 193, y + 6, { align: "right" });
+  return y + 10;
+}
+
+function drawProductRow(pdf: jsPDF, line: PdfLine, index: number, y: number) {
+  const ht = line.quantity * line.unitPrice;
+  const vat = ht * (line.vat / 100);
+  const ttc = ht + vat;
+  const rowHeight = 9;
+
+  if (index % 2 === 0) {
+    pdf.setFillColor(...colors.soft);
+    pdf.rect(margin, y - 1, contentWidth, rowHeight, "F");
+  }
+
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(7.8);
+  pdf.setTextColor(...colors.text);
+  pdf.text(line.designation.slice(0, 38), 17, y + 5);
+  pdf.setTextColor(...colors.muted);
+  pdf.text((line.reference || "-").slice(0, 16), 76, y + 5);
+  pdf.setTextColor(...colors.text);
+  pdf.text(formatQty(line.quantity), 105, y + 5, { align: "right" });
+  pdf.text(formatMoney(line.unitPrice), 126, y + 5, { align: "right" });
+  pdf.text(`${formatQty(line.vat)}%`, 145, y + 5, { align: "right" });
+  pdf.text(formatMoney(ht), 169, y + 5, { align: "right" });
+  pdf.setFont("helvetica", "bold");
+  pdf.setTextColor(...colors.navy);
+  pdf.text(formatMoney(ttc), 193, y + 5, { align: "right" });
+
+  pdf.setDrawColor(...colors.border);
+  pdf.setLineWidth(0.15);
+  pdf.line(margin, y + rowHeight - 1, pageWidth - margin, y + rowHeight - 1);
+  return y + rowHeight;
+}
+
+function drawBottomBlocks(
+  pdf: jsPDF,
+  document: PdfDocument,
+  totals: ReturnType<typeof calculateTotals>,
+  amountInWords: string,
+  startY: number
+) {
+  const y = Math.max(startY, 152);
+  const leftW = 104;
+  const totalsX = 126;
+  const totalsW = 70;
+
+  pdf.setFillColor(...colors.lightBlue);
+  pdf.roundedRect(margin, y, leftW, 36, 2, 2, "F");
+  pdf.setDrawColor(...colors.border);
+  pdf.roundedRect(margin, y, leftW, 36, 2, 2);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(8.5);
+  pdf.setTextColor(...colors.navy);
+  pdf.text("Montant en lettres", margin + 4, y + 7);
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(7.8);
+  pdf.setTextColor(...colors.text);
+  pdf.text(amountInWords, margin + 4, y + 14, { maxWidth: leftW - 8 });
+
+  if (document.deliverySummary) {
+    pdf.setFont("helvetica", "bold");
+    pdf.text("Résumé livraison", margin + 4, y + 25);
+    pdf.setFont("helvetica", "normal");
+    pdf.text(`Articles : ${document.deliverySummary.totalItems}   Quantité livrée : ${document.deliverySummary.totalDelivered}`, margin + 4, y + 31);
+  }
+
+  drawTotalsBlock(pdf, totalsX, y, totalsW, totals);
+
+  const termsY = y + 45;
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(8.5);
+  pdf.setTextColor(...colors.navy);
+  pdf.text("Conditions de paiement", margin, termsY);
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(7.8);
+  pdf.setTextColor(...colors.text);
+  pdf.text(document.paymentTerms || "Paiement selon accord commercial.", margin, termsY + 6, { maxWidth: 112 });
+
+  if (document.notes) {
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(...colors.navy);
+    pdf.text("Notes", margin, termsY + 18);
+    pdf.setFont("helvetica", "normal");
+    pdf.setTextColor(...colors.text);
+    pdf.text(document.notes, margin, termsY + 24, { maxWidth: 112 });
+  }
+
+  drawSignatureBlocks(pdf, Math.max(termsY + 36, 235));
+}
+
+function drawTotalsBlock(pdf: jsPDF, x: number, y: number, width: number, totals: ReturnType<typeof calculateTotals>) {
+  pdf.setFillColor(...colors.white);
+  pdf.setDrawColor(...colors.border);
+  pdf.roundedRect(x, y, width, 56, 2, 2, "FD");
+
+  const rows = [
+    ["Total HT", totals.ht],
+    ["Total TVA", totals.vat],
+    ["Remise", totals.discount],
+    ["Montant payé", totals.paid],
+    ["Reste à payer", totals.outstanding]
+  ] as const;
+
   pdf.setFontSize(8);
-  pdf.text("INFORMATIQUE SIMPLIFIEE", 24, 41);
-
-  pdf.setFontSize(20);
-  pdf.setTextColor(10, 30, 63);
-  pdf.text("BON DE LIVRAISON", pageWidth - 14, 24, { align: "right" });
-  pdf.setFontSize(10);
-  pdf.text(`N° : ${deliveryNote.number}`, pageWidth - 14, 32, { align: "right" });
-  pdf.text(`Date : ${deliveryNote.date}`, pageWidth - 14, 38, { align: "right" });
-  pdf.text(`Statut : ${deliveryNote.status}`, pageWidth - 14, 44, { align: "right" });
-  pdf.text(`Réf. : ${deliveryNote.internalReference || "-"}`, pageWidth - 14, 50, { align: "right" });
-
-  pdf.setTextColor(51, 51, 51);
-  pdf.setFont("helvetica", "bold");
-  pdf.text("HICOTECH", 14, 58);
-  pdf.setFont("helvetica", "normal");
-  pdf.text(["123, Avenue Mohamed V", "Casablanca - Maroc", "ICE : 001234567000089", "IF : 12345678 - RC : 123456"], 14, 64);
-
-  pdf.roundedRect(122, 56, 74, 42, 2, 2);
-  pdf.setFont("helvetica", "bold");
-  pdf.text("Client / Livraison", 126, 64);
-  pdf.setFont("helvetica", "normal");
-  pdf.text([
-    client.company,
-    client.name,
-    `Tél : ${client.phone}`,
-    deliveryNote.deliveryAddress,
-    deliveryNote.city
-  ], 126, 70);
-
-  const tableTop = 112;
-  pdf.setFillColor(13, 110, 253);
-  pdf.rect(14, tableTop, 182, 9, "F");
-  pdf.setTextColor(255, 255, 255);
-  pdf.setFont("helvetica", "bold");
-  pdf.text("Réf.", 17, tableTop + 6);
-  pdf.text("Désignation", 42, tableTop + 6);
-  pdf.text("Cmd", 124, tableTop + 6, { align: "right" });
-  pdf.text("Livré", 145, tableTop + 6, { align: "right" });
-  pdf.text("Unité", 164, tableTop + 6, { align: "right" });
-  pdf.text("Obs.", 192, tableTop + 6, { align: "right" });
-
-  pdf.setTextColor(51, 51, 51);
-  pdf.setFont("helvetica", "normal");
-  deliveryNote.lines.forEach((line, index) => {
-    const y = tableTop + 18 + index * 10;
-    pdf.text(line.reference.slice(0, 12), 17, y);
-    pdf.text(line.designation.slice(0, 38), 42, y);
-    pdf.text(String(line.orderedQuantity), 124, y, { align: "right" });
-    pdf.text(String(line.deliveredQuantity), 145, y, { align: "right" });
-    pdf.text(line.unit.slice(0, 10), 164, y, { align: "right" });
-    pdf.text(line.observations.slice(0, 18), 192, y, { align: "right" });
-    pdf.line(14, y + 3, 196, y + 3);
+  rows.forEach((row, index) => {
+    const rowY = y + 7 + index * 8;
+    pdf.setFont("helvetica", "normal");
+    pdf.setTextColor(...colors.muted);
+    pdf.text(row[0], x + 4, rowY);
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(...colors.navy);
+    pdf.text(formatMoney(row[1]), x + width - 4, rowY, { align: "right" });
   });
 
+  pdf.setFillColor(...colors.blue);
+  pdf.roundedRect(x + 3, y + 43, width - 6, 10, 2, 2, "F");
   pdf.setFont("helvetica", "bold");
-  pdf.text("Résumé", 14, 170);
-  pdf.setFont("helvetica", "normal");
-  pdf.text(`Nombre total d'articles : ${totalItems}`, 14, 178);
-  pdf.text(`Quantité totale livrée : ${totalDelivered}`, 14, 186);
-
-  pdf.setFont("helvetica", "bold");
-  pdf.text("Conditions de livraison", 14, 202);
-  pdf.setFont("helvetica", "normal");
-  pdf.text(deliveryNote.deliveryTerms || "-", 14, 210, { maxWidth: 120 });
-
-  pdf.setFont("helvetica", "bold");
-  pdf.text("Observations internes", 14, 226);
-  pdf.setFont("helvetica", "normal");
-  pdf.text(deliveryNote.internalNotes || "-", 14, 234, { maxWidth: 120 });
-
-  pdf.setTextColor(10, 30, 63);
-  pdf.roundedRect(28, 250, 55, 24, 2, 2);
-  pdf.roundedRect(126, 250, 55, 24, 2, 2);
-  pdf.text("Signature client", 56, 264, { align: "center" });
-  pdf.text("Cachet HICOTECH", 154, 264, { align: "center" });
-
-  pdf.save(`${deliveryNote.number}.pdf`);
+  pdf.setFontSize(8.5);
+  pdf.setTextColor(...colors.white);
+  pdf.text("Total TTC", x + 7, y + 50);
+  pdf.text(formatMoney(totals.ttc), x + width - 7, y + 50, { align: "right" });
 }
+
+function drawSignatureBlocks(pdf: jsPDF, y: number) {
+  const blockY = Math.min(y, 249);
+  pdf.setDrawColor(...colors.border);
+  pdf.setLineWidth(0.3);
+  pdf.roundedRect(margin, blockY, 62, 22, 2, 2);
+  pdf.roundedRect(pageWidth - margin - 62, blockY, 62, 22, 2, 2);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(8);
+  pdf.setTextColor(...colors.navy);
+  pdf.text("Signature client", margin + 31, blockY + 13, { align: "center" });
+  pdf.text("Cachet et signature", pageWidth - margin - 31, blockY + 13, { align: "center" });
+}
+
+function drawFooter(pdf: jsPDF, page: number, company: ReturnType<typeof resolveCompanyProfile>) {
+  pdf.setDrawColor(...colors.border);
+  pdf.setLineWidth(0.25);
+  pdf.line(margin, 279, pageWidth - margin, 279);
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(7.5);
+  pdf.setTextColor(...colors.muted);
+  pdf.text(`Tél : ${company.phone}  |  ICE : ${company.ice}  |  IF : ${company.taxId}`, margin, footerY);
+  pdf.text(`Page ${page}/{total_pages_count_string}`, pageWidth - margin, footerY, { align: "right" });
+}
+
+function resolveCompanyProfile(profile?: CompanyProfile) {
+  return {
+    name: profile?.name?.trim() || defaultCompany.name,
+    address: profile?.address?.trim() || defaultCompany.address,
+    city: profile?.city?.trim() || defaultCompany.city,
+    phone: profile?.phone?.trim() || defaultCompany.phone,
+    ice: profile?.ice?.trim() || defaultCompany.ice,
+    taxId: profile?.taxId?.trim() || defaultCompany.taxId,
+    rc: profile?.rc?.trim() || "",
+    logoUrl: profile?.logoUrl?.trim() || ""
+  };
+}
+
+function applyTotalPageCount(pdf: jsPDF) {
+  if (typeof pdf.putTotalPages === "function") {
+    pdf.putTotalPages(total_pages_count_string);
+  }
+}
+
+function calculateTotals(lines: PdfLine[], discount: number, paid: number) {
+  const ht = lines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0);
+  const vat = lines.reduce((sum, line) => sum + line.quantity * line.unitPrice * (line.vat / 100), 0);
+  const ttcBeforeDiscount = ht + vat;
+  const ttc = Math.max(0, ttcBeforeDiscount - discount);
+  const outstanding = Math.max(0, ttc - paid);
+  return { ht, vat, discount, paid, outstanding, ttc };
+}
+
+function toPdfClient(client: BusinessClient): PdfClient {
+  return {
+    name: client.name,
+    company: client.company,
+    address: client.address,
+    city: client.city,
+    ice: client.ice,
+    phone: client.phone
+  };
+}
+
+function formatMoney(value: number) {
+  return `${value.toLocaleString("fr-MA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} DH`;
+}
+
+function formatQty(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toLocaleString("fr-MA", { maximumFractionDigits: 2 });
+}
+
+function numberToFrench(value: number): string {
+  if (value === 0) return "zéro";
+  if (value < 0) return `moins ${numberToFrench(Math.abs(value))}`;
+
+  const units = [
+    "",
+    "un",
+    "deux",
+    "trois",
+    "quatre",
+    "cinq",
+    "six",
+    "sept",
+    "huit",
+    "neuf",
+    "dix",
+    "onze",
+    "douze",
+    "treize",
+    "quatorze",
+    "quinze",
+    "seize"
+  ];
+
+  function belowHundred(n: number): string {
+    if (n < 17) return units[n];
+    if (n < 20) return `dix-${units[n - 10]}`;
+    if (n < 70) {
+      const tens = ["", "", "vingt", "trente", "quarante", "cinquante", "soixante"];
+      const ten = Math.floor(n / 10);
+      const rest = n % 10;
+      if (rest === 0) return tens[ten];
+      if (rest === 1) return `${tens[ten]} et un`;
+      return `${tens[ten]}-${units[rest]}`;
+    }
+    if (n < 80) return `soixante-${belowHundred(n - 60)}`;
+    if (n === 80) return "quatre-vingts";
+    return `quatre-vingt-${belowHundred(n - 80)}`;
+  }
+
+  function belowThousand(n: number): string {
+    if (n < 100) return belowHundred(n);
+    const hundreds = Math.floor(n / 100);
+    const rest = n % 100;
+    const hundredText = hundreds === 1 ? "cent" : `${units[hundreds]} cent`;
+    if (rest === 0) return hundreds > 1 ? `${hundredText}s` : hundredText;
+    return `${hundredText} ${belowHundred(rest)}`;
+  }
+
+  const parts: string[] = [];
+  const millions = Math.floor(value / 1_000_000);
+  const thousands = Math.floor((value % 1_000_000) / 1_000);
+  const rest = value % 1_000;
+
+  if (millions) parts.push(`${belowThousand(millions)} million${millions > 1 ? "s" : ""}`);
+  if (thousands) parts.push(thousands === 1 ? "mille" : `${belowThousand(thousands)} mille`);
+  if (rest) parts.push(belowThousand(rest));
+
+  return parts.join(" ");
+}
+
+const total_pages_count_string = "{total_pages_count_string}";

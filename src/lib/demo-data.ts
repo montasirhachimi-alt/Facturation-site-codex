@@ -2,6 +2,7 @@ import type {
   BusinessClient,
   CashEntry,
   ClientDocument,
+  CompanyProfile,
   DeliveryNote,
   Invoice,
   PurchaseInvoice,
@@ -13,6 +14,16 @@ import type {
 } from "@/lib/types";
 
 export const activeCompanyId = "company-hicotech";
+
+export const activeCompanyProfile: CompanyProfile = {
+  id: activeCompanyId,
+  name: "HICOTECH",
+  address: "N7, ILOT 14 - LOTISSEMENT FADALLAH",
+  city: "MOHAMMEDIA, Maroc",
+  phone: "0661144190",
+  ice: "003390979000024",
+  taxId: "60164052"
+};
 
 export const dashboardStats = {
   revenue: 125430,

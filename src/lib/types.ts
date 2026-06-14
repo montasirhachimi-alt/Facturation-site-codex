@@ -104,6 +104,21 @@ export type Supplier = {
   balance: number;
 };
 
+export type CompanyProfile = {
+  id?: string;
+  name?: string;
+  address?: string;
+  city?: string;
+  phone?: string;
+  email?: string;
+  ice?: string;
+  taxId?: string;
+  rc?: string;
+  logoUrl?: string;
+  stampUrl?: string;
+  signUrl?: string;
+};
+
 export type QuoteStatus = "Brouillon" | "Envoyé" | "Accepté" | "Refusé";
 
 export type QuoteLine = {

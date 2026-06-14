@@ -9,6 +9,7 @@ import { Filters } from "@/components/filters";
 import { SearchBar } from "@/components/search-bar";
 import { formatDate } from "@/lib/format";
 import { createDeliveryNotePdf } from "@/lib/pdf";
+import { activeCompanyProfile } from "@/lib/demo-data";
 import type {
   BusinessClient,
   DeliveryNote,
@@ -158,7 +159,7 @@ export function DeliveryNotesModule({
   function createPdf(note: DeliveryNote) {
     const client = getClient(note.clientId, clients);
     if (!client) return;
-    createDeliveryNotePdf(note, client);
+    createDeliveryNotePdf(note, client, activeCompanyProfile);
   }
 
   return (
@@ -265,7 +266,7 @@ export function DeliveryNotesModule({
           onValidate={() => saveForm("Validé")}
           onPdf={() => {
             const client = getClient(form.clientId, clients);
-            if (client) createDeliveryNotePdf({ id: editingNote?.id ?? "draft", companyId: scope.companyId, ...form }, client);
+            if (client) createDeliveryNotePdf({ id: editingNote?.id ?? "draft", companyId: scope.companyId, ...form }, client, activeCompanyProfile);
           }}
           onPrint={() => window.print()}
           onConvert={() => setMessage(`Le bon ${form.number} est prêt à convertir en facture.`)}

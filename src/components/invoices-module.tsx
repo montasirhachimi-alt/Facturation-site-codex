@@ -6,6 +6,7 @@ import { clsx } from "clsx";
 import type { BusinessClient, Invoice, InvoiceLine, InvoicePayment, InvoiceStatus, PaymentModeLabel, StockProduct } from "@/lib/types";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { createInvoicePdf } from "@/lib/pdf";
+import { activeCompanyProfile } from "@/lib/demo-data";
 
 const statuses: Array<"Tous" | InvoiceStatus> = ["Tous", "Payée", "Partiellement payée", "En retard"];
 const modes: PaymentModeLabel[] = ["Espèces", "Chèque", "Virement", "Carte bancaire"];
@@ -247,7 +248,7 @@ export function InvoicesModule({
                       <div className="flex flex-wrap gap-2">
                         <Action label="Historique" icon={<Eye size={16} />} onClick={() => setSelectedInvoice(invoice)} />
                         <Action label="Paiement" icon={<CreditCard size={16} />} onClick={() => openPayment(invoice)} />
-                        <Action label="PDF" icon={<FileText size={16} />} onClick={() => client && createInvoicePdf(invoice, client)} />
+                        <Action label="PDF" icon={<FileText size={16} />} onClick={() => client && createInvoicePdf(invoice, client, activeCompanyProfile)} />
                         <Action label="Imprimer" icon={<Printer size={16} />} onClick={() => window.print()} />
                       </div>
                     </td>
