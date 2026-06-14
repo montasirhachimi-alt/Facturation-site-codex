@@ -8,17 +8,24 @@ import {
   Bot,
   Boxes,
   Building2,
+  CalendarCheck,
+  CalendarX,
   ChevronsLeft,
   ChevronsRight,
   CircleDollarSign,
   ClipboardList,
+  ContactRound,
+  FileArchive,
   FileOutput,
   FileText,
   HandCoins,
   LayoutDashboard,
+  Landmark,
   PackageCheck,
   Receipt,
+  ScrollText,
   Settings,
+  ShieldCheck,
   Truck,
   Users,
   WalletCards,
@@ -53,6 +60,19 @@ const groups = [
       { href: "/caisse", label: "Caisse", icon: CircleDollarSign },
       { href: "/clients", label: "Clients", icon: Users },
       { href: "/fournisseurs", label: "Fournisseurs", icon: Building2 }
+    ]
+  },
+  {
+    label: "Ressources humaines",
+    items: [
+      { href: "/rh/employes", label: "Employés", icon: ContactRound },
+      { href: "/rh/contrats", label: "Contrats", icon: ScrollText },
+      { href: "/rh/presences", label: "Présences", icon: CalendarCheck },
+      { href: "/rh/absences", label: "Absences", icon: CalendarX },
+      { href: "/rh/conges", label: "Congés", icon: ShieldCheck },
+      { href: "/rh/salaires", label: "Salaires", icon: Landmark },
+      { href: "/rh/avances", label: "Avances", icon: WalletCards },
+      { href: "/rh/documents", label: "Documents RH", icon: FileArchive }
     ]
   },
   {

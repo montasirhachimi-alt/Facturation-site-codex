@@ -70,6 +70,13 @@ model Company {
   deliveryNotes DeliveryNote[]
   purchases PurchaseInvoice[]
   cashEntries CashEntry[]
+  employees Employee[]
+  employeeContracts EmployeeContract[]
+  attendances Attendance[]
+  hrLeaves HrLeave[]
+  salarySlips SalarySlip[]
+  salaryAdvances SalaryAdvance[]
+  hrDocuments HrDocument[]
   expenses  Expense[]
   categories Category[]
   movements  StockMovement[]
@@ -328,6 +335,147 @@ model Expense {
   createdAt DateTime    @default(now())
 
   @@index([companyId])
+}
+
+model Employee {
+  id            String             @id @default(cuid())
+  companyId     String
+  company       Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  photoUrl      String?
+  firstName     String
+  lastName      String
+  cin           String
+  phone         String?
+  email         String?
+  address       String?
+  city          String?
+  birthDate     DateTime?
+  hireDate      DateTime
+  position      String
+  department    String
+  contractType  String
+  baseSalary    Decimal            @default(0)
+  status        String             @default("actif")
+  contracts     EmployeeContract[]
+  attendances   Attendance[]
+  leaves        HrLeave[]
+  salarySlips   SalarySlip[]
+  advances      SalaryAdvance[]
+  documents     HrDocument[]
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([companyId, cin])
+}
+
+model EmployeeContract {
+  id             String   @id @default(cuid())
+  companyId      String
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeId     String
+  employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type           String
+  startDate      DateTime
+  endDate        DateTime?
+  salary         Decimal  @default(0)
+  position       String
+  signedFileUrl  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([companyId, employeeId])
+  @@index([companyId, type])
+}
+
+model Attendance {
+  id             String   @id @default(cuid())
+  companyId      String
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeId     String
+  employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  workDate       DateTime
+  checkIn        DateTime?
+  checkOut       DateTime?
+  lateMinutes    Int      @default(0)
+  workedHours    Decimal  @default(0)
+  createdAt      DateTime @default(now())
+
+  @@index([companyId, employeeId])
+  @@index([companyId, workDate])
+}
+
+model HrLeave {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type        String
+  reason      String
+  startDate   DateTime
+  endDate     DateTime
+  days        Decimal  @default(0)
+  status      String   @default("en attente")
+  balance     Decimal  @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([companyId, employeeId])
+  @@index([companyId, status])
+}
+
+model SalarySlip {
+  id              String   @id @default(cuid())
+  companyId       String
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  month           String
+  baseSalary      Decimal  @default(0)
+  bonuses         Decimal  @default(0)
+  advances        Decimal  @default(0)
+  deductions      Decimal  @default(0)
+  unpaidAbsences  Decimal  @default(0)
+  netSalary       Decimal  @default(0)
+  paidAt          DateTime?
+  createdAt       DateTime @default(now())
+
+  @@unique([companyId, employeeId, month])
+  @@index([companyId, month])
+}
+
+model SalaryAdvance {
+  id          String      @id @default(cuid())
+  companyId   String
+  company     Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeId  String
+  employee    Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  amount      Decimal
+  mode        PaymentMode
+  paidAt      DateTime    @default(now())
+  deducted    Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+
+  @@index([companyId, employeeId])
+  @@index([companyId, paidAt])
+}
+
+model HrDocument {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type        String
+  title       String
+  fileUrl     String?
+  issuedAt    DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([companyId, employeeId])
+  @@index([companyId, type])
 }
 
 model StockMovement {

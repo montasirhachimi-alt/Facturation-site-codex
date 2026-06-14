@@ -4,10 +4,17 @@ import type {
   ClientDocument,
   CompanyProfile,
   DeliveryNote,
+  Employee,
+  EmployeeContract,
+  Attendance,
+  HrDocument,
+  HrLeave,
   Invoice,
   PurchaseInvoice,
   Quote,
   SalesDocument,
+  SalaryAdvance,
+  SalarySlip,
   StockMovement,
   StockProduct,
   Supplier
@@ -540,6 +547,121 @@ export const cashEntries: CashEntry[] = [
   { id: "cash-3", companyId: activeCompanyId, date: "2026-06-10", type: "Sortie", category: "Dépense", label: "Frais livraison client", amount: 650, mode: "Espèces", reference: "DEP-0610" },
   { id: "cash-4", companyId: activeCompanyId, date: "2026-06-08", type: "Entrée", category: "Vente", label: "Vente comptoir accessoires", amount: 3840, mode: "Carte bancaire", reference: "TPE-0608" },
   { id: "cash-5", companyId: activeCompanyId, date: "2026-06-05", type: "Sortie", category: "Achat", label: "Achat câbles HDMI", amount: 1680, mode: "Chèque", reference: "ACH-2026-00039" }
+];
+
+export const employees: Employee[] = [
+  {
+    id: "emp-1",
+    companyId: activeCompanyId,
+    photoUrl: "",
+    firstName: "Yassine",
+    lastName: "Karimi",
+    cin: "BE123456",
+    phone: "0661 10 20 30",
+    email: "yassine.karimi@hicotech.ma",
+    address: "Hay Al Qods",
+    city: "Mohammedia",
+    birthDate: "1991-03-14",
+    hireDate: "2023-01-10",
+    position: "Technicien installation",
+    department: "Technique",
+    contractType: "CDI",
+    baseSalary: 6500,
+    status: "actif"
+  },
+  {
+    id: "emp-2",
+    companyId: activeCompanyId,
+    photoUrl: "",
+    firstName: "Salma",
+    lastName: "Berrada",
+    cin: "BK778899",
+    phone: "0662 44 55 66",
+    email: "salma.berrada@hicotech.ma",
+    address: "Quartier Oasis",
+    city: "Casablanca",
+    birthDate: "1994-08-02",
+    hireDate: "2022-09-01",
+    position: "Responsable commerciale",
+    department: "Ventes",
+    contractType: "CDI",
+    baseSalary: 9200,
+    status: "actif"
+  },
+  {
+    id: "emp-3",
+    companyId: activeCompanyId,
+    photoUrl: "",
+    firstName: "Imane",
+    lastName: "Raji",
+    cin: "HH456123",
+    phone: "0667 90 12 34",
+    email: "imane.raji@hicotech.ma",
+    address: "Centre-ville",
+    city: "Rabat",
+    birthDate: "1998-12-21",
+    hireDate: "2026-02-15",
+    position: "Assistante administrative",
+    department: "Administration",
+    contractType: "CDD",
+    baseSalary: 4800,
+    status: "actif"
+  },
+  {
+    id: "emp-4",
+    companyId: activeCompanyId,
+    photoUrl: "",
+    firstName: "Othmane",
+    lastName: "Amrani",
+    cin: "AB909090",
+    phone: "0668 11 33 55",
+    email: "othmane.amrani@hicotech.ma",
+    address: "Sidi Maarouf",
+    city: "Casablanca",
+    birthDate: "1989-06-09",
+    hireDate: "2021-05-03",
+    position: "Magasinier",
+    department: "Stock",
+    contractType: "CDI",
+    baseSalary: 5600,
+    status: "suspendu"
+  }
+];
+
+export const employeeContracts: EmployeeContract[] = [
+  { id: "contract-1", companyId: activeCompanyId, employeeId: "emp-1", type: "CDI", startDate: "2023-01-10", endDate: "", salary: 6500, position: "Technicien installation", signedFileUrl: "" },
+  { id: "contract-2", companyId: activeCompanyId, employeeId: "emp-2", type: "CDI", startDate: "2022-09-01", endDate: "", salary: 9200, position: "Responsable commerciale", signedFileUrl: "" },
+  { id: "contract-3", companyId: activeCompanyId, employeeId: "emp-3", type: "CDD", startDate: "2026-02-15", endDate: "2026-12-31", salary: 4800, position: "Assistante administrative", signedFileUrl: "" }
+];
+
+export const attendances: Attendance[] = [
+  { id: "att-1", companyId: activeCompanyId, employeeId: "emp-1", date: "2026-06-14", checkIn: "08:35", checkOut: "17:42", lateMinutes: 5, workedHours: 8.1 },
+  { id: "att-2", companyId: activeCompanyId, employeeId: "emp-2", date: "2026-06-14", checkIn: "08:56", checkOut: "18:05", lateMinutes: 26, workedHours: 8.2 },
+  { id: "att-3", companyId: activeCompanyId, employeeId: "emp-3", date: "2026-06-14", checkIn: "08:25", checkOut: "17:30", lateMinutes: 0, workedHours: 8 },
+  { id: "att-4", companyId: activeCompanyId, employeeId: "emp-4", date: "2026-06-13", checkIn: "09:15", checkOut: "16:50", lateMinutes: 45, workedHours: 6.9 }
+];
+
+export const hrLeaves: HrLeave[] = [
+  { id: "leave-1", companyId: activeCompanyId, employeeId: "emp-1", type: "congé", reason: "Congé annuel", startDate: "2026-06-20", endDate: "2026-06-24", days: 5, status: "en attente", balance: 14 },
+  { id: "leave-2", companyId: activeCompanyId, employeeId: "emp-2", type: "absence", reason: "Rendez-vous administratif", startDate: "2026-06-14", endDate: "2026-06-14", days: 1, status: "validé", balance: 9 },
+  { id: "leave-3", companyId: activeCompanyId, employeeId: "emp-3", type: "congé", reason: "Congé personnel", startDate: "2026-07-01", endDate: "2026-07-03", days: 3, status: "refusé", balance: 10 }
+];
+
+export const salaryAdvances: SalaryAdvance[] = [
+  { id: "adv-1", companyId: activeCompanyId, employeeId: "emp-1", amount: 1500, date: "2026-06-05", mode: "Virement", deducted: true },
+  { id: "adv-2", companyId: activeCompanyId, employeeId: "emp-3", amount: 800, date: "2026-06-10", mode: "Espèces", deducted: false }
+];
+
+export const salarySlips: SalarySlip[] = [
+  { id: "slip-1", companyId: activeCompanyId, employeeId: "emp-1", month: "2026-06", baseSalary: 6500, bonuses: 600, advances: 1500, deductions: 250, unpaidAbsences: 0, netSalary: 5350 },
+  { id: "slip-2", companyId: activeCompanyId, employeeId: "emp-2", month: "2026-06", baseSalary: 9200, bonuses: 1200, advances: 0, deductions: 400, unpaidAbsences: 0, netSalary: 10000 },
+  { id: "slip-3", companyId: activeCompanyId, employeeId: "emp-3", month: "2026-06", baseSalary: 4800, bonuses: 300, advances: 800, deductions: 100, unpaidAbsences: 0, netSalary: 4200 }
+];
+
+export const hrDocuments: HrDocument[] = [
+  { id: "hrdoc-1", companyId: activeCompanyId, employeeId: "emp-1", type: "CIN", title: "Copie CIN Yassine Karimi", fileUrl: "", issuedAt: "2026-01-10" },
+  { id: "hrdoc-2", companyId: activeCompanyId, employeeId: "emp-2", type: "Contrat", title: "Contrat CDI signé", fileUrl: "", issuedAt: "2022-09-01" },
+  { id: "hrdoc-3", companyId: activeCompanyId, employeeId: "emp-3", type: "Attestation de travail", title: "Attestation de travail", fileUrl: "", issuedAt: "2026-06-01" }
 ];
 
 export const sampleInvoice: SalesDocument = {

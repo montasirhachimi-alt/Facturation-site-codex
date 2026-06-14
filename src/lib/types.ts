@@ -232,6 +232,99 @@ export type CashEntry = {
   reference: string;
 };
 
+export type EmployeeStatus = "actif" | "suspendu" | "quitté";
+export type ContractType = "CDI" | "CDD" | "stage" | "freelance";
+export type HrRequestStatus = "en attente" | "validé" | "refusé";
+
+export type Employee = {
+  id: string;
+  companyId: string;
+  photoUrl: string;
+  firstName: string;
+  lastName: string;
+  cin: string;
+  phone: string;
+  email: string;
+  address: string;
+  city: string;
+  birthDate: string;
+  hireDate: string;
+  position: string;
+  department: string;
+  contractType: ContractType;
+  baseSalary: number;
+  status: EmployeeStatus;
+};
+
+export type EmployeeContract = {
+  id: string;
+  companyId: string;
+  employeeId: string;
+  type: ContractType;
+  startDate: string;
+  endDate: string;
+  salary: number;
+  position: string;
+  signedFileUrl: string;
+};
+
+export type Attendance = {
+  id: string;
+  companyId: string;
+  employeeId: string;
+  date: string;
+  checkIn: string;
+  checkOut: string;
+  lateMinutes: number;
+  workedHours: number;
+};
+
+export type HrLeave = {
+  id: string;
+  companyId: string;
+  employeeId: string;
+  type: "absence" | "congé";
+  reason: string;
+  startDate: string;
+  endDate: string;
+  days: number;
+  status: HrRequestStatus;
+  balance: number;
+};
+
+export type SalarySlip = {
+  id: string;
+  companyId: string;
+  employeeId: string;
+  month: string;
+  baseSalary: number;
+  bonuses: number;
+  advances: number;
+  deductions: number;
+  unpaidAbsences: number;
+  netSalary: number;
+};
+
+export type SalaryAdvance = {
+  id: string;
+  companyId: string;
+  employeeId: string;
+  amount: number;
+  date: string;
+  mode: PaymentModeLabel;
+  deducted: boolean;
+};
+
+export type HrDocument = {
+  id: string;
+  companyId: string;
+  employeeId: string;
+  type: "CIN" | "Contrat" | "Attestation de travail" | "Certificat de salaire" | "Document scanné";
+  title: string;
+  fileUrl: string;
+  issuedAt: string;
+};
+
 export type TenantScope = {
   companyId: string;
   userId: string;
