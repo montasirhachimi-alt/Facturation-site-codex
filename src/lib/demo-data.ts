@@ -7,6 +7,7 @@ import type {
   Employee,
   EmployeeContract,
   Attendance,
+  AppUser,
   HrDocument,
   HrLeave,
   Invoice,
@@ -32,6 +33,72 @@ export const activeCompanyProfile: CompanyProfile = {
   taxId: "60164052",
   logoUrl: "/hicotech-logo.png"
 };
+
+export const demoUsers: AppUser[] = [
+  {
+    id: "user-admin",
+    companyId: activeCompanyId,
+    name: "Administrateur HICOTECH",
+    email: "admin@hicotech.ma",
+    passwordHash: "2209251d15cb5db5025444f8eea3a9fa9a7830cb8934f0611d7665c66eadec35",
+    role: "COMPANY_ADMIN",
+    status: "active"
+  },
+  {
+    id: "user-sales",
+    companyId: activeCompanyId,
+    name: "Commercial",
+    email: "ventes@hicotech.ma",
+    passwordHash: "45fd4e203bc1f59e90b516742489bbe500a332a994c6547cbb080c42a15717d9",
+    role: "SALES",
+    status: "active"
+  },
+  {
+    id: "user-stock",
+    companyId: activeCompanyId,
+    name: "Gestion Stock",
+    email: "stock@hicotech.ma",
+    passwordHash: "ff83add410bb4e43fd6b07ab00c15183ff30afd6cb270a40b97053bb9b4e7565",
+    role: "STOCK_MANAGER",
+    status: "active"
+  },
+  {
+    id: "user-accountant",
+    companyId: activeCompanyId,
+    name: "Comptable",
+    email: "caisse@hicotech.ma",
+    passwordHash: "17e9df22e2e393e3e6d1c37e88a3789e73dcd3f21a0589c23f07b13dad345748",
+    role: "ACCOUNTANT",
+    status: "active"
+  },
+  {
+    id: "user-hr",
+    companyId: activeCompanyId,
+    name: "Responsable RH",
+    email: "rh@hicotech.ma",
+    passwordHash: "b6500aab942cbeb3c69e2126cdb322b85901755eeb5bc4c853c813d44985c2f9",
+    role: "HR",
+    status: "active"
+  },
+  {
+    id: "user-readonly",
+    companyId: activeCompanyId,
+    name: "Lecture seule",
+    email: "lecture@hicotech.ma",
+    passwordHash: "98d76c060ace70fe97851f68ab413a354660b0acc4dfd7ba40a7a1918909c718",
+    role: "READ_ONLY",
+    status: "active"
+  },
+  {
+    id: "user-super",
+    companyId: null,
+    name: "Super Admin",
+    email: "super@hicotech.ma",
+    passwordHash: "ae4bab9f70526336225866284c96491dc7556157ade5b90e890be244e49b9627",
+    role: "SUPER_ADMIN",
+    status: "active"
+  }
+];
 
 export const dashboardStats = {
   revenue: 125430,

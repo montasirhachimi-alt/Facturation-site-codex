@@ -11,9 +11,16 @@ enum Role {
   SUPER_ADMIN
   COMPANY_ADMIN
   SALES
+  STOCK_MANAGER
   ACCOUNTANT
+  HR
   WAREHOUSE
   READ_ONLY
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
 }
 
 enum DocumentType {
@@ -85,17 +92,19 @@ model Company {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  companyId String?
-  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  name      String
-  email     String   @unique
-  password  String
-  role      Role     @default(READ_ONLY)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String     @id @default(cuid())
+  companyId    String?
+  company      Company?   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name         String
+  email        String     @unique
+  passwordHash String
+  role         Role       @default(READ_ONLY)
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
   @@index([companyId])
+  @@index([companyId, status])
 }
 
 model Client {

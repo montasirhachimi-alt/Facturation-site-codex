@@ -3,12 +3,14 @@
 import { Bell, CalendarDays, Menu, Moon, Search, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { HicotechLogo } from "@/components/hicotech-logo";
+import type { AuthSession } from "@/lib/types";
 
 type TopbarProps = {
   onMenuClick: () => void;
+  user: AuthSession | null;
 };
 
-export function Topbar({ onMenuClick }: TopbarProps) {
+export function Topbar({ onMenuClick, user }: TopbarProps) {
   const [dark, setDark] = useState(false);
 
   useEffect(() => {
@@ -58,7 +60,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           <Bell size={19} />
         </button>
         <div className="grid size-10 place-items-center rounded-full bg-hicotech-navy font-display text-sm font-bold text-white">
-          AD
+          {user?.name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase() ?? "AD"}
         </div>
       </div>
     </header>

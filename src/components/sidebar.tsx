@@ -27,61 +27,65 @@ import {
   Settings,
   ShieldCheck,
   Truck,
+  UserCog,
   Users,
   WalletCards,
   X
 } from "lucide-react";
 import { clsx } from "clsx";
 import { HicotechLogo } from "@/components/hicotech-logo";
+import { canViewModule } from "@/lib/rbac";
+import type { AuthSession, PermissionModule } from "@/lib/types";
 
 const groups = [
   {
     label: "Pilotage",
     items: [
-      { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
-      { href: "/statistiques", label: "Statistiques", icon: BarChart3 },
-      { href: "/paiements", label: "Suivi paiements", icon: WalletCards }
+      { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard, module: "dashboard" },
+      { href: "/statistiques", label: "Statistiques", icon: BarChart3, module: "reports" },
+      { href: "/paiements", label: "Suivi paiements", icon: WalletCards, module: "payments" }
     ]
   },
   {
     label: "Ventes",
     items: [
-      { href: "/ventes", label: "Documents", icon: FileText },
-      { href: "/devis", label: "Devis", icon: ClipboardList },
-      { href: "/factures", label: "Factures", icon: Receipt },
-      { href: "/livraisons", label: "Bons de livraison", icon: Truck }
+      { href: "/ventes", label: "Documents", icon: FileText, module: "quotes" },
+      { href: "/devis", label: "Devis", icon: ClipboardList, module: "quotes" },
+      { href: "/factures", label: "Factures", icon: Receipt, module: "invoices" },
+      { href: "/livraisons", label: "Bons de livraison", icon: Truck, module: "delivery_notes" }
     ]
   },
   {
     label: "Gestion",
     items: [
-      { href: "/stock", label: "Produits & stock", icon: Boxes },
-      { href: "/achats", label: "Achats", icon: HandCoins },
-      { href: "/caisse", label: "Caisse", icon: CircleDollarSign },
-      { href: "/clients", label: "Clients", icon: Users },
-      { href: "/fournisseurs", label: "Fournisseurs", icon: Building2 }
+      { href: "/stock", label: "Produits & stock", icon: Boxes, module: "stock" },
+      { href: "/achats", label: "Achats", icon: HandCoins, module: "purchases" },
+      { href: "/caisse", label: "Caisse", icon: CircleDollarSign, module: "cash" },
+      { href: "/clients", label: "Clients", icon: Users, module: "clients" },
+      { href: "/fournisseurs", label: "Fournisseurs", icon: Building2, module: "suppliers" }
     ]
   },
   {
     label: "Ressources humaines",
     items: [
-      { href: "/rh/employes", label: "Employés", icon: ContactRound },
-      { href: "/rh/contrats", label: "Contrats", icon: ScrollText },
-      { href: "/rh/presences", label: "Présences", icon: CalendarCheck },
-      { href: "/rh/absences", label: "Absences", icon: CalendarX },
-      { href: "/rh/conges", label: "Congés", icon: ShieldCheck },
-      { href: "/rh/salaires", label: "Salaires", icon: Landmark },
-      { href: "/rh/avances", label: "Avances", icon: WalletCards },
-      { href: "/rh/documents", label: "Documents RH", icon: FileArchive }
+      { href: "/rh/employes", label: "Employés", icon: ContactRound, module: "hr" },
+      { href: "/rh/contrats", label: "Contrats", icon: ScrollText, module: "hr" },
+      { href: "/rh/presences", label: "Présences", icon: CalendarCheck, module: "hr" },
+      { href: "/rh/absences", label: "Absences", icon: CalendarX, module: "hr" },
+      { href: "/rh/conges", label: "Congés", icon: ShieldCheck, module: "hr" },
+      { href: "/rh/salaires", label: "Salaires", icon: Landmark, module: "hr" },
+      { href: "/rh/avances", label: "Avances", icon: WalletCards, module: "hr" },
+      { href: "/rh/documents", label: "Documents RH", icon: FileArchive, module: "hr" }
     ]
   },
   {
     label: "Outils",
     items: [
-      { href: "/pdf", label: "Documents PDF", icon: FileOutput },
-      { href: "/rapports", label: "Rapports", icon: PackageCheck },
-      { href: "/assistant-ia", label: "Assistant IA", icon: Bot },
-      { href: "/parametres", label: "Paramètres", icon: Settings }
+      { href: "/pdf", label: "Documents PDF", icon: FileOutput, module: "pdf_documents" },
+      { href: "/rapports", label: "Rapports", icon: PackageCheck, module: "reports" },
+      { href: "/assistant-ia", label: "Assistant IA", icon: Bot, module: "assistant" },
+      { href: "/utilisateurs", label: "Utilisateurs", icon: UserCog, module: "users" },
+      { href: "/parametres", label: "Paramètres", icon: Settings, module: "settings" }
     ]
   }
 ];
@@ -91,10 +95,17 @@ type SidebarProps = {
   mobileOpen: boolean;
   onCloseMobile: () => void;
   onToggleCollapse: () => void;
+  user: AuthSession | null;
 };
 
-export function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse }: SidebarProps) {
+export function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse, user }: SidebarProps) {
   const pathname = usePathname();
+  const visibleGroups = groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => user && canViewModule(user.role, item.module as PermissionModule))
+    }))
+    .filter((group) => group.items.length > 0);
 
   const renderContent = (isCollapsed: boolean) => (
     <>
@@ -102,7 +113,7 @@ export function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse
         <HicotechLogo compact inverse markOnly={isCollapsed} />
       </div>
       <nav className="flex-1 space-y-5 overflow-y-auto pr-1">
-        {groups.map((group) => (
+        {visibleGroups.map((group) => (
           <div key={group.label}>
             {!isCollapsed && (
               <p className="mb-2 px-3 text-[11px] font-bold uppercase tracking-[0.18em] text-cyan-100/70">

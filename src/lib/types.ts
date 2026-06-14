@@ -2,9 +2,34 @@ export type Role =
   | "SUPER_ADMIN"
   | "COMPANY_ADMIN"
   | "SALES"
+  | "STOCK_MANAGER"
   | "ACCOUNTANT"
+  | "HR"
   | "WAREHOUSE"
   | "READ_ONLY";
+
+export type UserStatus = "active" | "disabled";
+
+export type PermissionAction = "view" | "create" | "edit" | "delete" | "export" | "print" | "approve";
+
+export type PermissionModule =
+  | "dashboard"
+  | "quotes"
+  | "invoices"
+  | "delivery_notes"
+  | "purchases"
+  | "stock"
+  | "clients"
+  | "suppliers"
+  | "cash"
+  | "expenses"
+  | "payments"
+  | "reports"
+  | "pdf_documents"
+  | "hr"
+  | "settings"
+  | "users"
+  | "assistant";
 
 export type DocumentStatus =
   | "Brouillon"
@@ -117,6 +142,24 @@ export type CompanyProfile = {
   logoUrl?: string;
   stampUrl?: string;
   signUrl?: string;
+};
+
+export type AppUser = {
+  id: string;
+  companyId: string | null;
+  name: string;
+  email: string;
+  passwordHash: string;
+  role: Role;
+  status: UserStatus;
+};
+
+export type AuthSession = {
+  userId: string;
+  email: string;
+  name: string;
+  role: Role;
+  companyId: string | null;
 };
 
 export type QuoteStatus = "Brouillon" | "Envoyé" | "Accepté" | "Refusé";
