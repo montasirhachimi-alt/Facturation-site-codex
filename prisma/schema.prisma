@@ -67,6 +67,7 @@ model Company {
   suppliers Supplier[]
   products  Product[]
   documents Document[]
+  deliveryNotes DeliveryNote[]
   purchases PurchaseInvoice[]
   cashEntries CashEntry[]
   expenses  Expense[]
@@ -105,6 +106,7 @@ model Client {
   city        String?
   balance     Decimal    @default(0)
   documents   Document[]
+  deliveryNotes DeliveryNote[]
   reminders   Reminder[]
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
@@ -163,6 +165,7 @@ model Product {
   stock         Int             @default(0)
   minStock      Int             @default(0)
   lines         DocumentLine[]
+  deliveryLines DeliveryNoteLine[]
   purchaseLines PurchaseInvoiceLine[]
   movements     StockMovement[]
   createdAt     DateTime        @default(now())
@@ -221,6 +224,43 @@ model Payment {
   mode        PaymentMode
   reference   String?
   paidAt      DateTime    @default(now())
+}
+
+model DeliveryNote {
+  id                String             @id @default(cuid())
+  companyId         String
+  company           Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  clientId          String
+  client            Client             @relation(fields: [clientId], references: [id])
+  number            String
+  status            DocumentStatus     @default(DRAFT)
+  issueDate         DateTime           @default(now())
+  internalReference String?
+  deliveryAddress   String?
+  city              String?
+  deliveryTerms     String?
+  internalNotes     String?
+  lines             DeliveryNoteLine[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@unique([companyId, number])
+  @@index([companyId, clientId])
+  @@index([companyId, status])
+}
+
+model DeliveryNoteLine {
+  id                String       @id @default(cuid())
+  deliveryNoteId    String
+  deliveryNote      DeliveryNote @relation(fields: [deliveryNoteId], references: [id], onDelete: Cascade)
+  productId         String?
+  product           Product?     @relation(fields: [productId], references: [id])
+  reference         String?
+  designation       String
+  orderedQuantity   Decimal
+  deliveredQuantity Decimal
+  unit              String       @default("Pièce")
+  observations      String?
 }
 
 model PurchaseInvoice {

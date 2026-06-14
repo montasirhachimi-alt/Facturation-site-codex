@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-import type { BusinessClient, Invoice, Quote, SalesDocument } from "@/lib/types";
+import type { BusinessClient, DeliveryNote, Invoice, Quote, SalesDocument } from "@/lib/types";
 
 export function createSalesPdf(document: SalesDocument) {
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
@@ -272,4 +272,99 @@ export function createInvoicePdf(invoice: Invoice, client: BusinessClient) {
   pdf.text("Cachet", 154, 246, { align: "center" });
 
   pdf.save(`${invoice.number}.pdf`);
+}
+
+export function createDeliveryNotePdf(deliveryNote: DeliveryNote, client: BusinessClient) {
+  const pdf = new jsPDF({ unit: "mm", format: "a4" });
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const totalItems = deliveryNote.lines.length;
+  const totalDelivered = deliveryNote.lines.reduce((sum, line) => sum + line.deliveredQuantity, 0);
+
+  pdf.setDrawColor(180, 230, 245);
+  pdf.setLineWidth(1.2);
+  pdf.rect(14, 12, 62, 22);
+  pdf.setFillColor(7, 154, 209);
+  pdf.rect(14, 31, 62, 3, "F");
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(18);
+  pdf.setTextColor(0, 0, 0);
+  pdf.text("HICOTECH", 18, 28);
+  pdf.setFontSize(8);
+  pdf.text("INFORMATIQUE SIMPLIFIEE", 24, 41);
+
+  pdf.setFontSize(20);
+  pdf.setTextColor(10, 30, 63);
+  pdf.text("BON DE LIVRAISON", pageWidth - 14, 24, { align: "right" });
+  pdf.setFontSize(10);
+  pdf.text(`N° : ${deliveryNote.number}`, pageWidth - 14, 32, { align: "right" });
+  pdf.text(`Date : ${deliveryNote.date}`, pageWidth - 14, 38, { align: "right" });
+  pdf.text(`Statut : ${deliveryNote.status}`, pageWidth - 14, 44, { align: "right" });
+  pdf.text(`Réf. : ${deliveryNote.internalReference || "-"}`, pageWidth - 14, 50, { align: "right" });
+
+  pdf.setTextColor(51, 51, 51);
+  pdf.setFont("helvetica", "bold");
+  pdf.text("HICOTECH", 14, 58);
+  pdf.setFont("helvetica", "normal");
+  pdf.text(["123, Avenue Mohamed V", "Casablanca - Maroc", "ICE : 001234567000089", "IF : 12345678 - RC : 123456"], 14, 64);
+
+  pdf.roundedRect(122, 56, 74, 42, 2, 2);
+  pdf.setFont("helvetica", "bold");
+  pdf.text("Client / Livraison", 126, 64);
+  pdf.setFont("helvetica", "normal");
+  pdf.text([
+    client.company,
+    client.name,
+    `Tél : ${client.phone}`,
+    deliveryNote.deliveryAddress,
+    deliveryNote.city
+  ], 126, 70);
+
+  const tableTop = 112;
+  pdf.setFillColor(13, 110, 253);
+  pdf.rect(14, tableTop, 182, 9, "F");
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFont("helvetica", "bold");
+  pdf.text("Réf.", 17, tableTop + 6);
+  pdf.text("Désignation", 42, tableTop + 6);
+  pdf.text("Cmd", 124, tableTop + 6, { align: "right" });
+  pdf.text("Livré", 145, tableTop + 6, { align: "right" });
+  pdf.text("Unité", 164, tableTop + 6, { align: "right" });
+  pdf.text("Obs.", 192, tableTop + 6, { align: "right" });
+
+  pdf.setTextColor(51, 51, 51);
+  pdf.setFont("helvetica", "normal");
+  deliveryNote.lines.forEach((line, index) => {
+    const y = tableTop + 18 + index * 10;
+    pdf.text(line.reference.slice(0, 12), 17, y);
+    pdf.text(line.designation.slice(0, 38), 42, y);
+    pdf.text(String(line.orderedQuantity), 124, y, { align: "right" });
+    pdf.text(String(line.deliveredQuantity), 145, y, { align: "right" });
+    pdf.text(line.unit.slice(0, 10), 164, y, { align: "right" });
+    pdf.text(line.observations.slice(0, 18), 192, y, { align: "right" });
+    pdf.line(14, y + 3, 196, y + 3);
+  });
+
+  pdf.setFont("helvetica", "bold");
+  pdf.text("Résumé", 14, 170);
+  pdf.setFont("helvetica", "normal");
+  pdf.text(`Nombre total d'articles : ${totalItems}`, 14, 178);
+  pdf.text(`Quantité totale livrée : ${totalDelivered}`, 14, 186);
+
+  pdf.setFont("helvetica", "bold");
+  pdf.text("Conditions de livraison", 14, 202);
+  pdf.setFont("helvetica", "normal");
+  pdf.text(deliveryNote.deliveryTerms || "-", 14, 210, { maxWidth: 120 });
+
+  pdf.setFont("helvetica", "bold");
+  pdf.text("Observations internes", 14, 226);
+  pdf.setFont("helvetica", "normal");
+  pdf.text(deliveryNote.internalNotes || "-", 14, 234, { maxWidth: 120 });
+
+  pdf.setTextColor(10, 30, 63);
+  pdf.roundedRect(28, 250, 55, 24, 2, 2);
+  pdf.roundedRect(126, 250, 55, 24, 2, 2);
+  pdf.text("Signature client", 56, 264, { align: "center" });
+  pdf.text("Cachet HICOTECH", 154, 264, { align: "center" });
+
+  pdf.save(`${deliveryNote.number}.pdf`);
 }

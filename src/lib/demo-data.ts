@@ -2,6 +2,7 @@ import type {
   BusinessClient,
   CashEntry,
   ClientDocument,
+  DeliveryNote,
   Invoice,
   PurchaseInvoice,
   Quote,
@@ -280,6 +281,79 @@ export const stockMovements: StockMovement[] = [
   { id: "mov-3", productReference: "VID-EP", productName: "Vidéoprojecteur Epson", type: "Sortie", quantity: 1, reason: "Facture client", reference: "FAC-2026-000123", date: "2026-06-10" },
   { id: "mov-4", productReference: "HDMI-10", productName: "Câble HDMI 10M", type: "Entrée", quantity: 20, reason: "Réapprovisionnement", reference: "ACH-2026-00039", date: "2026-06-09" },
   { id: "mov-5", productReference: "STY-INT", productName: "Stylet interactif", type: "Ajustement", quantity: -1, reason: "Correction inventaire", reference: "INV-2026-00007", date: "2026-06-08" }
+];
+
+export const deliveryNotes: DeliveryNote[] = [
+  {
+    id: "delivery-1",
+    companyId: activeCompanyId,
+    number: "BL-2026-000045",
+    date: "2026-06-10",
+    status: "Livré",
+    internalReference: "CMD-ATLAS-0610",
+    clientId: "client-3",
+    deliveryAddress: "12, Zone Industrielle",
+    city: "Casablanca",
+    deliveryTerms: "Livraison sur site client avec vérification du matériel.",
+    internalNotes: "Prévoir installation complémentaire semaine prochaine.",
+    lines: [
+      {
+        id: "dll-1",
+        productId: "prod-1",
+        reference: "ECR-75",
+        designation: "Écran interactif 75 pouces",
+        orderedQuantity: 2,
+        deliveredQuantity: 2,
+        unit: "Pièce",
+        observations: "Livré sans réserve"
+      },
+      {
+        id: "dll-2",
+        productId: "prod-3",
+        reference: "SUP-MUR",
+        designation: "Support mural",
+        orderedQuantity: 2,
+        deliveredQuantity: 2,
+        unit: "Pièce",
+        observations: "À poser par l'équipe technique"
+      }
+    ]
+  },
+  {
+    id: "delivery-2",
+    companyId: activeCompanyId,
+    number: "BL-2026-000046",
+    date: "2026-06-12",
+    status: "Validé",
+    internalReference: "CMD-HIKMA-0612",
+    clientId: "client-1",
+    deliveryAddress: "45, Rue des Écoles",
+    city: "Casablanca",
+    deliveryTerms: "Livraison partielle acceptée par le client.",
+    internalNotes: "Reste à livrer 1 vidéoprojecteur.",
+    lines: [
+      {
+        id: "dll-3",
+        productId: "prod-4",
+        reference: "HDMI-10",
+        designation: "Câble HDMI 10M",
+        orderedQuantity: 20,
+        deliveredQuantity: 20,
+        unit: "Pièce",
+        observations: ""
+      },
+      {
+        id: "dll-4",
+        productId: "prod-2",
+        reference: "VID-EP",
+        designation: "Vidéoprojecteur Epson",
+        orderedQuantity: 2,
+        deliveredQuantity: 1,
+        unit: "Pièce",
+        observations: "Livraison partielle"
+      }
+    ]
+  }
 ];
 
 export const quotes: Quote[] = [

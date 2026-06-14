@@ -150,6 +150,34 @@ export type Invoice = {
   payments: InvoicePayment[];
 };
 
+export type DeliveryNoteStatus = "Brouillon" | "Validé" | "Livré" | "Annulé";
+
+export type DeliveryNoteLine = {
+  id: string;
+  productId: string;
+  reference: string;
+  designation: string;
+  orderedQuantity: number;
+  deliveredQuantity: number;
+  unit: string;
+  observations: string;
+};
+
+export type DeliveryNote = {
+  id: string;
+  companyId: string;
+  number: string;
+  date: string;
+  status: DeliveryNoteStatus;
+  internalReference: string;
+  clientId: string;
+  deliveryAddress: string;
+  city: string;
+  lines: DeliveryNoteLine[];
+  deliveryTerms: string;
+  internalNotes: string;
+};
+
 export type PurchaseStatus = "Brouillon" | "Validée" | "Partiellement payée" | "Payée" | "En retard";
 
 export type PurchaseInvoiceLine = {
