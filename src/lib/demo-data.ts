@@ -22,7 +22,8 @@ export const activeCompanyProfile: CompanyProfile = {
   city: "MOHAMMEDIA, Maroc",
   phone: "0661144190",
   ice: "003390979000024",
-  taxId: "60164052"
+  taxId: "60164052",
+  logoUrl: "/hicotech-logo.png"
 };
 
 export const dashboardStats = {

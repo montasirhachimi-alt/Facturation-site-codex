@@ -34,13 +34,13 @@ export function PdfPreview({ document }: { document: SalesDocument }) {
       <article className="mx-auto max-w-4xl rounded-lg bg-white p-8 text-hicotech-ink shadow-soft print:shadow-none">
         <header className="flex items-start justify-between gap-8 border-b border-slate-200 pb-6">
           <div>
-            <div className="w-64 border border-sky-200 px-3 py-2">
-              <p className="font-display text-4xl font-black tracking-tight text-black">
-                <span className="text-sky-600">{company.name?.slice(0, 1) ?? "H"}</span>{company.name?.slice(1, -1) ?? "ICOTEC"}<span className="text-sky-200">{company.name?.slice(-1) ?? "H"}</span>
-              </p>
-              <div className="mt-1 h-2 bg-sky-600" />
+            <div className="flex h-24 w-72 items-center justify-center p-2">
+              <img
+                src={company.logoUrl || "/hicotech-logo.png"}
+                alt="HICOTECH Informatique Simplifiée"
+                className="max-h-full max-w-full object-contain"
+              />
             </div>
-            <p className="mt-1 text-center text-xs font-bold tracking-wide">INFORMATIQUE SIMPLIFIÉE</p>
             <div className="mt-6 text-sm leading-6 text-slate-600">
               <p className="font-bold text-hicotech-navy">{company.name}</p>
               <p>{company.address}</p>

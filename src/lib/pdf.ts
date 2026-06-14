@@ -60,6 +60,8 @@ const defaultCompany: Required<Pick<CompanyProfile, "name" | "address" | "city" 
   taxId: "60164052"
 };
 
+const defaultLogoUrl = "/hicotech-logo.png";
+
 const margin = 14;
 const pageWidth = 210;
 const pageHeight = 297;
@@ -67,7 +69,7 @@ const contentWidth = pageWidth - margin * 2;
 const footerY = 285;
 const tableBottomY = 214;
 
-export function createSalesPdf(document: SalesDocument, companyProfile?: CompanyProfile) {
+export async function createSalesPdf(document: SalesDocument, companyProfile?: CompanyProfile) {
   const lines = document.lines.map((line, index) => ({
     reference: `REF-${String(index + 1).padStart(3, "0")}`,
     designation: line.designation,
@@ -76,7 +78,7 @@ export function createSalesPdf(document: SalesDocument, companyProfile?: Company
     vat: line.vat
   }));
 
-  renderPremiumPdf({
+  await renderPremiumPdf({
     title: document.type,
     number: document.number,
     date: document.date,
@@ -96,8 +98,8 @@ export function createSalesPdf(document: SalesDocument, companyProfile?: Company
   });
 }
 
-export function createQuotePdf(quote: Quote, client: BusinessClient, companyProfile?: CompanyProfile) {
-  renderPremiumPdf({
+export async function createQuotePdf(quote: Quote, client: BusinessClient, companyProfile?: CompanyProfile) {
+  await renderPremiumPdf({
     title: "DEVIS",
     number: quote.number,
     date: quote.date,
@@ -116,10 +118,10 @@ export function createQuotePdf(quote: Quote, client: BusinessClient, companyProf
   });
 }
 
-export function createInvoicePdf(invoice: Invoice, client: BusinessClient, companyProfile?: CompanyProfile) {
+export async function createInvoicePdf(invoice: Invoice, client: BusinessClient, companyProfile?: CompanyProfile) {
   const paidAmount = invoice.payments.reduce((sum, payment) => sum + payment.amount, 0);
 
-  renderPremiumPdf({
+  await renderPremiumPdf({
     title: "FACTURE",
     number: invoice.number,
     date: invoice.date,
@@ -140,8 +142,8 @@ export function createInvoicePdf(invoice: Invoice, client: BusinessClient, compa
   });
 }
 
-export function createDeliveryNotePdf(deliveryNote: DeliveryNote, client: BusinessClient, companyProfile?: CompanyProfile) {
-  renderPremiumPdf({
+export async function createDeliveryNotePdf(deliveryNote: DeliveryNote, client: BusinessClient, companyProfile?: CompanyProfile) {
+  await renderPremiumPdf({
     title: "BON DE LIVRAISON",
     number: deliveryNote.number,
     date: deliveryNote.date,
@@ -170,20 +172,20 @@ export function createDeliveryNotePdf(deliveryNote: DeliveryNote, client: Busine
   });
 }
 
-export function createPurchaseOrderPdf(document: SalesDocument, companyProfile?: CompanyProfile) {
-  createTypedSalesPdf(document, "BON DE COMMANDE", companyProfile);
+export async function createPurchaseOrderPdf(document: SalesDocument, companyProfile?: CompanyProfile) {
+  await createTypedSalesPdf(document, "BON DE COMMANDE", companyProfile);
 }
 
-export function createProformaPdf(document: SalesDocument, companyProfile?: CompanyProfile) {
-  createTypedSalesPdf(document, "FACTURE PROFORMA", companyProfile);
+export async function createProformaPdf(document: SalesDocument, companyProfile?: CompanyProfile) {
+  await createTypedSalesPdf(document, "FACTURE PROFORMA", companyProfile);
 }
 
-export function createCreditNotePdf(document: SalesDocument, companyProfile?: CompanyProfile) {
-  createTypedSalesPdf(document, "AVOIR", companyProfile);
+export async function createCreditNotePdf(document: SalesDocument, companyProfile?: CompanyProfile) {
+  await createTypedSalesPdf(document, "AVOIR", companyProfile);
 }
 
-function createTypedSalesPdf(document: SalesDocument, title: string, companyProfile?: CompanyProfile) {
-  renderPremiumPdf({
+async function createTypedSalesPdf(document: SalesDocument, title: string, companyProfile?: CompanyProfile) {
+  await renderPremiumPdf({
     title,
     number: document.number,
     date: document.date,
@@ -209,13 +211,14 @@ function createTypedSalesPdf(document: SalesDocument, title: string, companyProf
   });
 }
 
-function renderPremiumPdf(document: PdfDocument) {
+async function renderPremiumPdf(document: PdfDocument) {
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
   const company = resolveCompanyProfile(document.company);
+  const logo = await loadLogo(company.logoUrl);
   const totals = calculateTotals(document.lines, document.discount ?? 0, document.paidAmount ?? 0);
   const amountInWords = document.amountInWords || `${numberToFrench(Math.round(totals.ttc))} dirhams toutes taxes comprises.`;
   let page = 1;
-  let y = drawPageHeader(pdf, document, page, company);
+  let y = drawPageHeader(pdf, document, page, company, logo);
 
   y = drawProductsTableHeader(pdf, y);
 
@@ -224,7 +227,7 @@ function renderPremiumPdf(document: PdfDocument) {
       drawFooter(pdf, page, company);
       pdf.addPage();
       page += 1;
-      y = drawPageHeader(pdf, document, page, company);
+      y = drawPageHeader(pdf, document, page, company, logo);
       y = drawProductsTableHeader(pdf, y);
     }
     y = drawProductRow(pdf, line, index, y);
@@ -234,7 +237,7 @@ function renderPremiumPdf(document: PdfDocument) {
     drawFooter(pdf, page, company);
     pdf.addPage();
     page += 1;
-    y = drawPageHeader(pdf, document, page, company);
+    y = drawPageHeader(pdf, document, page, company, logo);
   }
 
   drawBottomBlocks(pdf, document, totals, amountInWords, y + 8);
@@ -247,12 +250,13 @@ function drawPageHeader(
   pdf: jsPDF,
   document: PdfDocument,
   currentPage: number,
-  company: ReturnType<typeof resolveCompanyProfile>
+  company: ReturnType<typeof resolveCompanyProfile>,
+  logo: LoadedLogo | null
 ) {
   pdf.setFillColor(...colors.white);
   pdf.rect(0, 0, pageWidth, pageHeight, "F");
 
-  drawLogo(pdf, margin, 13, company);
+  drawLogoPdf(pdf, margin, 12, logo);
 
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(8.5);
@@ -303,22 +307,30 @@ function drawPageHeader(
   return 106;
 }
 
-function drawLogo(pdf: jsPDF, x: number, y: number, company: ReturnType<typeof resolveCompanyProfile>) {
-  pdf.setDrawColor(180, 230, 245);
-  pdf.setLineWidth(1);
-  pdf.rect(x, y, 66, 20);
-  pdf.setFillColor(7, 154, 209);
-  pdf.rect(x, y + 17, 66, 3, "F");
-  pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(19);
-  pdf.setTextColor(0, 0, 0);
-  const name = company.name.toUpperCase();
-  pdf.text(name.length <= 10 ? name.slice(0, Math.max(1, name.length - 1)) : "HICOTEC", x + 8, y + 14);
-  pdf.setTextColor(160, 225, 242);
-  pdf.text(name.length <= 10 ? name.slice(-1) : "H", x + 56, y + 14);
-  pdf.setFontSize(6.5);
-  pdf.setTextColor(10, 30, 63);
-  pdf.text("INFORMATIQUE SIMPLIFIEE", x + 16, y + 27);
+function drawLogoPdf(pdf: jsPDF, x: number, y: number, logo: LoadedLogo | null) {
+  const boxWidth = 72;
+  const boxHeight = 30;
+  const padding = 1.5;
+
+  if (!logo) {
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(18);
+    pdf.setTextColor(...colors.navy);
+    pdf.text("HICOTECH", x, y + 12);
+    pdf.setFontSize(7);
+    pdf.text("INFORMATIQUE SIMPLIFIEE", x, y + 20);
+    return;
+  }
+
+  const availableWidth = boxWidth - padding * 2;
+  const availableHeight = boxHeight - padding * 2;
+  const scale = Math.min(availableWidth / logo.width, availableHeight / logo.height);
+  const width = logo.width * scale;
+  const height = logo.height * scale;
+  const imageX = x + padding + (availableWidth - width) / 2;
+  const imageY = y + padding + (availableHeight - height) / 2;
+
+  pdf.addImage(logo.dataUrl, "PNG", imageX, imageY, width, height);
 }
 
 function drawMetaLine(pdf: jsPDF, x: number, y: number, label: string, value: string) {
@@ -529,8 +541,59 @@ function resolveCompanyProfile(profile?: CompanyProfile) {
     ice: profile?.ice?.trim() || defaultCompany.ice,
     taxId: profile?.taxId?.trim() || defaultCompany.taxId,
     rc: profile?.rc?.trim() || "",
-    logoUrl: profile?.logoUrl?.trim() || ""
+    logoUrl: profile?.logoUrl?.trim() || defaultLogoUrl
   };
+}
+
+type LoadedLogo = {
+  dataUrl: string;
+  width: number;
+  height: number;
+};
+
+const logoCache = new Map<string, Promise<LoadedLogo | null>>();
+
+function loadLogo(logoUrl: string): Promise<LoadedLogo | null> {
+  if (!logoCache.has(logoUrl)) {
+    logoCache.set(logoUrl, loadLogoUncached(logoUrl));
+  }
+  return logoCache.get(logoUrl)!;
+}
+
+async function loadLogoUncached(logoUrl: string): Promise<LoadedLogo | null> {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const dataUrl = await imageUrlToDataUrl(logoUrl);
+    const dimensions = await getImageDimensions(dataUrl);
+    return { dataUrl, ...dimensions };
+  } catch {
+    if (logoUrl !== defaultLogoUrl) {
+      return loadLogo(defaultLogoUrl);
+    }
+    return null;
+  }
+}
+
+async function imageUrlToDataUrl(url: string) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("Logo introuvable");
+  const blob = await response.blob();
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+function getImageDimensions(dataUrl: string) {
+  return new Promise<{ width: number; height: number }>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight });
+    image.onerror = reject;
+    image.src = dataUrl;
+  });
 }
 
 function applyTotalPageCount(pdf: jsPDF) {
