@@ -1,4 +1,17 @@
-import type { BusinessClient, ClientDocument, Invoice, Quote, SalesDocument, StockMovement, StockProduct } from "@/lib/types";
+import type {
+  BusinessClient,
+  CashEntry,
+  ClientDocument,
+  Invoice,
+  PurchaseInvoice,
+  Quote,
+  SalesDocument,
+  StockMovement,
+  StockProduct,
+  Supplier
+} from "@/lib/types";
+
+export const activeCompanyId = "company-hicotech";
 
 export const dashboardStats = {
   revenue: 125430,
@@ -106,6 +119,65 @@ export const clients: BusinessClient[] = [
     email: "finance@groupenoor.ma",
     address: "23, Rue Ibn Toumert",
     city: "Tanger"
+  }
+];
+
+export const suppliers: Supplier[] = [
+  {
+    id: "supplier-1",
+    companyId: activeCompanyId,
+    name: "Tech Distribution Maroc",
+    contactName: "Said Amrani",
+    ice: "002244668811335",
+    taxId: "99887766",
+    rc: "445566",
+    phone: "0522 44 88 11",
+    email: "facturation@tdm.ma",
+    address: "Zone industrielle Sidi Maarouf",
+    city: "Casablanca",
+    balance: 18400
+  },
+  {
+    id: "supplier-2",
+    companyId: activeCompanyId,
+    name: "Epson Partner Center",
+    contactName: "Meryem Zahraoui",
+    ice: "002255779922446",
+    taxId: "88776655",
+    rc: "334455",
+    phone: "0537 20 44 90",
+    email: "commandes@epsonpartner.ma",
+    address: "Avenue Annakhil, Hay Riad",
+    city: "Rabat",
+    balance: 0
+  },
+  {
+    id: "supplier-3",
+    companyId: activeCompanyId,
+    name: "Accessoires Pro",
+    contactName: "Imane Rami",
+    ice: "002266880033557",
+    taxId: "77665544",
+    rc: "223344",
+    phone: "0539 77 12 18",
+    email: "contact@accessoirespro.ma",
+    address: "12, Rue Ibn Khaldoun",
+    city: "Tanger",
+    balance: 4200
+  },
+  {
+    id: "supplier-4",
+    companyId: activeCompanyId,
+    name: "Smart Board Import",
+    contactName: "Omar Ghali",
+    ice: "002277991144668",
+    taxId: "66554433",
+    rc: "112233",
+    phone: "0524 66 10 31",
+    email: "finance@smartboard.ma",
+    address: "Quartier industriel Al Massar",
+    city: "Marrakech",
+    balance: 31200
   }
 ];
 
@@ -331,6 +403,57 @@ export const invoices: Invoice[] = [
       { id: "pay-5", invoiceId: "invoice-5", date: "2026-05-11", amount: 3840, mode: "Espèces", reference: "ESP-00104" }
     ]
   }
+];
+
+export const purchaseInvoices: PurchaseInvoice[] = [
+  {
+    id: "purchase-1",
+    companyId: activeCompanyId,
+    number: "ACH-2026-00041",
+    date: "2026-06-12",
+    dueDate: "2026-06-30",
+    supplierId: "supplier-1",
+    status: "Partiellement payée",
+    paid: 12000,
+    lines: [
+      { id: "pil-1", productId: "prod-1", designation: "Écran interactif 75 pouces", quantity: 6, unitPrice: 9800, vat: 20 },
+      { id: "pil-2", productId: "prod-3", designation: "Support mural", quantity: 10, unitPrice: 210, vat: 20 }
+    ]
+  },
+  {
+    id: "purchase-2",
+    companyId: activeCompanyId,
+    number: "ACH-2026-00039",
+    date: "2026-06-09",
+    dueDate: "2026-06-20",
+    supplierId: "supplier-3",
+    status: "Payée",
+    paid: 1680,
+    lines: [
+      { id: "pil-3", productId: "prod-4", designation: "Câble HDMI 10M", quantity: 20, unitPrice: 70, vat: 20 }
+    ]
+  },
+  {
+    id: "purchase-3",
+    companyId: activeCompanyId,
+    number: "ACH-2026-00036",
+    date: "2026-05-28",
+    dueDate: "2026-06-12",
+    supplierId: "supplier-2",
+    status: "En retard",
+    paid: 0,
+    lines: [
+      { id: "pil-4", productId: "prod-2", designation: "Vidéoprojecteur Epson", quantity: 4, unitPrice: 5300, vat: 20 }
+    ]
+  }
+];
+
+export const cashEntries: CashEntry[] = [
+  { id: "cash-1", companyId: activeCompanyId, date: "2026-06-13", type: "Entrée", category: "Paiement client", label: "Encaissement FAC-2026-000123", amount: 15000, mode: "Virement", reference: "VIR-0613" },
+  { id: "cash-2", companyId: activeCompanyId, date: "2026-06-12", type: "Sortie", category: "Paiement fournisseur", label: "Acompte ACH-2026-00041", amount: 12000, mode: "Virement", reference: "ACH-2026-00041" },
+  { id: "cash-3", companyId: activeCompanyId, date: "2026-06-10", type: "Sortie", category: "Dépense", label: "Frais livraison client", amount: 650, mode: "Espèces", reference: "DEP-0610" },
+  { id: "cash-4", companyId: activeCompanyId, date: "2026-06-08", type: "Entrée", category: "Vente", label: "Vente comptoir accessoires", amount: 3840, mode: "Carte bancaire", reference: "TPE-0608" },
+  { id: "cash-5", companyId: activeCompanyId, date: "2026-06-05", type: "Sortie", category: "Achat", label: "Achat câbles HDMI", amount: 1680, mode: "Chèque", reference: "ACH-2026-00039" }
 ];
 
 export const sampleInvoice: SalesDocument = {

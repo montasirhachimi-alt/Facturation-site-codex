@@ -67,6 +67,8 @@ model Company {
   suppliers Supplier[]
   products  Product[]
   documents Document[]
+  purchases PurchaseInvoice[]
+  cashEntries CashEntry[]
   expenses  Expense[]
   categories Category[]
   movements  StockMovement[]
@@ -112,19 +114,25 @@ model Client {
 }
 
 model Supplier {
-  id        String   @id @default(cuid())
-  companyId String
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  name      String
-  ice       String?
-  phone     String?
-  email     String?
-  address   String?
-  balance   Decimal  @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String            @id @default(cuid())
+  companyId   String
+  company     Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  contactName String?
+  ice         String?
+  taxId       String?
+  rc          String?
+  phone       String?
+  email       String?
+  address     String?
+  city        String?
+  balance     Decimal           @default(0)
+  purchases   PurchaseInvoice[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
   @@index([companyId])
+  @@index([companyId, ice])
 }
 
 model Category {
@@ -155,6 +163,7 @@ model Product {
   stock         Int             @default(0)
   minStock      Int             @default(0)
   lines         DocumentLine[]
+  purchaseLines PurchaseInvoiceLine[]
   movements     StockMovement[]
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
@@ -212,6 +221,60 @@ model Payment {
   mode        PaymentMode
   reference   String?
   paidAt      DateTime    @default(now())
+}
+
+model PurchaseInvoice {
+  id         String                @id @default(cuid())
+  companyId  String
+  company    Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  supplierId String
+  supplier   Supplier              @relation(fields: [supplierId], references: [id])
+  number     String
+  status     DocumentStatus        @default(DRAFT)
+  issueDate  DateTime              @default(now())
+  dueDate    DateTime?
+  subtotal   Decimal               @default(0)
+  vatTotal   Decimal               @default(0)
+  total      Decimal               @default(0)
+  paidAmount Decimal               @default(0)
+  notes      String?
+  lines      PurchaseInvoiceLine[]
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+
+  @@unique([companyId, number])
+  @@index([companyId, supplierId])
+  @@index([companyId, status])
+}
+
+model PurchaseInvoiceLine {
+  id                String          @id @default(cuid())
+  purchaseInvoiceId String
+  purchaseInvoice   PurchaseInvoice @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Cascade)
+  productId         String?
+  product           Product?        @relation(fields: [productId], references: [id])
+  designation       String
+  quantity          Decimal
+  unitPrice         Decimal
+  vatRate           Decimal
+  total             Decimal
+}
+
+model CashEntry {
+  id        String      @id @default(cuid())
+  companyId String
+  company   Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  type      String
+  category  String
+  label     String
+  amount    Decimal
+  mode      PaymentMode
+  reference String?
+  entryDate DateTime    @default(now())
+  createdAt DateTime    @default(now())
+
+  @@index([companyId, entryDate])
+  @@index([companyId, type])
 }
 
 model Expense {

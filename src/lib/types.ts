@@ -77,6 +77,7 @@ export type ClientDocument = {
 
 export type BusinessClient = {
   id: string;
+  companyId?: string;
   name: string;
   company: string;
   ice: string;
@@ -86,6 +87,21 @@ export type BusinessClient = {
   email: string;
   address: string;
   city: string;
+};
+
+export type Supplier = {
+  id: string;
+  companyId: string;
+  name: string;
+  contactName: string;
+  ice: string;
+  taxId: string;
+  rc: string;
+  phone: string;
+  email: string;
+  address: string;
+  city: string;
+  balance: number;
 };
 
 export type QuoteStatus = "Brouillon" | "Envoyé" | "Accepté" | "Refusé";
@@ -132,6 +148,45 @@ export type Invoice = {
   status: InvoiceStatus;
   lines: InvoiceLine[];
   payments: InvoicePayment[];
+};
+
+export type PurchaseStatus = "Brouillon" | "Validée" | "Partiellement payée" | "Payée" | "En retard";
+
+export type PurchaseInvoiceLine = {
+  id: string;
+  productId: string;
+  designation: string;
+  quantity: number;
+  unitPrice: number;
+  vat: number;
+};
+
+export type PurchaseInvoice = {
+  id: string;
+  companyId: string;
+  number: string;
+  date: string;
+  dueDate: string;
+  supplierId: string;
+  status: PurchaseStatus;
+  lines: PurchaseInvoiceLine[];
+  paid: number;
+};
+
+export type CashEntryType = "Entrée" | "Sortie";
+
+export type CashEntryCategory = "Vente" | "Achat" | "Dépense" | "Paiement client" | "Paiement fournisseur" | "Ajustement";
+
+export type CashEntry = {
+  id: string;
+  companyId: string;
+  date: string;
+  type: CashEntryType;
+  category: CashEntryCategory;
+  label: string;
+  amount: number;
+  mode: PaymentModeLabel;
+  reference: string;
 };
 
 export type TenantScope = {
