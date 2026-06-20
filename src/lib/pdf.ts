@@ -40,6 +40,15 @@ type PdfDocument = {
   company?: CompanyProfile;
 };
 
+type StoredPdfSettings = {
+  showLogo?: boolean;
+  showStamp?: boolean;
+  showSignature?: boolean;
+  paymentTerms?: string;
+  legalNotice?: string;
+  footer?: string;
+};
+
 const colors = {
   navy: [10, 30, 63] as const,
   blue: [13, 110, 253] as const,
@@ -214,34 +223,35 @@ async function createTypedSalesPdf(document: SalesDocument, title: string, compa
 async function renderPremiumPdf(document: PdfDocument) {
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
   const company = resolveCompanyProfile(document.company);
+  const pdfSettings = resolvePdfSettings();
   const logo = await loadLogo(company.logoUrl);
   const totals = calculateTotals(document.lines, document.discount ?? 0, document.paidAmount ?? 0);
   const amountInWords = document.amountInWords || `${numberToFrench(Math.round(totals.ttc))} dirhams toutes taxes comprises.`;
   let page = 1;
-  let y = drawPageHeader(pdf, document, page, company, logo);
+  let y = drawPageHeader(pdf, document, page, company, logo, pdfSettings);
 
   y = drawProductsTableHeader(pdf, y);
 
   document.lines.forEach((line, index) => {
     if (y > tableBottomY) {
-      drawFooter(pdf, page, company);
+      drawFooter(pdf, page, company, pdfSettings);
       pdf.addPage();
       page += 1;
-      y = drawPageHeader(pdf, document, page, company, logo);
+      y = drawPageHeader(pdf, document, page, company, logo, pdfSettings);
       y = drawProductsTableHeader(pdf, y);
     }
     y = drawProductRow(pdf, line, index, y);
   });
 
   if (y > 176) {
-    drawFooter(pdf, page, company);
+    drawFooter(pdf, page, company, pdfSettings);
     pdf.addPage();
     page += 1;
-    y = drawPageHeader(pdf, document, page, company, logo);
+    y = drawPageHeader(pdf, document, page, company, logo, pdfSettings);
   }
 
-  drawBottomBlocks(pdf, document, totals, amountInWords, y + 8);
-  drawFooter(pdf, page, company);
+  drawBottomBlocks(pdf, document, totals, amountInWords, y + 8, pdfSettings);
+  drawFooter(pdf, page, company, pdfSettings);
   applyTotalPageCount(pdf);
   pdf.save(`${document.filename || document.number}.pdf`);
 }
@@ -251,12 +261,15 @@ function drawPageHeader(
   document: PdfDocument,
   currentPage: number,
   company: ReturnType<typeof resolveCompanyProfile>,
-  logo: LoadedLogo | null
+  logo: LoadedLogo | null,
+  pdfSettings: StoredPdfSettings
 ) {
   pdf.setFillColor(...colors.white);
   pdf.rect(0, 0, pageWidth, pageHeight, "F");
 
-  drawLogoPdf(pdf, margin, 12, logo);
+  if (pdfSettings.showLogo !== false) {
+    drawLogoPdf(pdf, margin, 12, logo);
+  }
 
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(8.5);
@@ -424,7 +437,8 @@ function drawBottomBlocks(
   document: PdfDocument,
   totals: ReturnType<typeof calculateTotals>,
   amountInWords: string,
-  startY: number
+  startY: number,
+  pdfSettings: StoredPdfSettings
 ) {
   const y = Math.max(startY, 152);
   const leftW = 104;
@@ -461,18 +475,21 @@ function drawBottomBlocks(
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(7.8);
   pdf.setTextColor(...colors.text);
-  pdf.text(document.paymentTerms || "Paiement selon accord commercial.", margin, termsY + 6, { maxWidth: 112 });
+  pdf.text(pdfSettings.paymentTerms || document.paymentTerms || "Paiement selon accord commercial.", margin, termsY + 6, { maxWidth: 112 });
 
-  if (document.notes) {
+  const notes = [document.notes, pdfSettings.legalNotice].filter(Boolean).join("\n");
+  if (notes) {
     pdf.setFont("helvetica", "bold");
     pdf.setTextColor(...colors.navy);
     pdf.text("Notes", margin, termsY + 18);
     pdf.setFont("helvetica", "normal");
     pdf.setTextColor(...colors.text);
-    pdf.text(document.notes, margin, termsY + 24, { maxWidth: 112 });
+    pdf.text(notes, margin, termsY + 24, { maxWidth: 112 });
   }
 
-  drawSignatureBlocks(pdf, Math.max(termsY + 36, 235));
+  if (pdfSettings.showSignature !== false || pdfSettings.showStamp !== false) {
+    drawSignatureBlocks(pdf, Math.max(termsY + 36, 235), pdfSettings);
+  }
 }
 
 function drawTotalsBlock(pdf: jsPDF, x: number, y: number, width: number, totals: ReturnType<typeof calculateTotals>) {
@@ -508,41 +525,61 @@ function drawTotalsBlock(pdf: jsPDF, x: number, y: number, width: number, totals
   pdf.text(formatMoney(totals.ttc), x + width - 7, y + 50, { align: "right" });
 }
 
-function drawSignatureBlocks(pdf: jsPDF, y: number) {
+function drawSignatureBlocks(pdf: jsPDF, y: number, pdfSettings: StoredPdfSettings) {
   const blockY = Math.min(y, 249);
   pdf.setDrawColor(...colors.border);
   pdf.setLineWidth(0.3);
-  pdf.roundedRect(margin, blockY, 62, 22, 2, 2);
-  pdf.roundedRect(pageWidth - margin - 62, blockY, 62, 22, 2, 2);
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(8);
   pdf.setTextColor(...colors.navy);
-  pdf.text("Signature client", margin + 31, blockY + 13, { align: "center" });
-  pdf.text("Cachet et signature", pageWidth - margin - 31, blockY + 13, { align: "center" });
+  if (pdfSettings.showSignature !== false) {
+    pdf.roundedRect(margin, blockY, 62, 22, 2, 2);
+    pdf.text("Signature client", margin + 31, blockY + 13, { align: "center" });
+  }
+  if (pdfSettings.showStamp !== false) {
+    pdf.roundedRect(pageWidth - margin - 62, blockY, 62, 22, 2, 2);
+    pdf.text("Cachet et signature", pageWidth - margin - 31, blockY + 13, { align: "center" });
+  }
 }
 
-function drawFooter(pdf: jsPDF, page: number, company: ReturnType<typeof resolveCompanyProfile>) {
+function drawFooter(pdf: jsPDF, page: number, company: ReturnType<typeof resolveCompanyProfile>, pdfSettings: StoredPdfSettings) {
   pdf.setDrawColor(...colors.border);
   pdf.setLineWidth(0.25);
   pdf.line(margin, 279, pageWidth - margin, 279);
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(7.5);
   pdf.setTextColor(...colors.muted);
-  pdf.text(`Tél : ${company.phone}  |  ICE : ${company.ice}  |  IF : ${company.taxId}`, margin, footerY);
+  pdf.text(pdfSettings.footer || `Tél : ${company.phone}  |  ICE : ${company.ice}  |  IF : ${company.taxId}`, margin, footerY);
   pdf.text(`Page ${page}/{total_pages_count_string}`, pageWidth - margin, footerY, { align: "right" });
 }
 
 function resolveCompanyProfile(profile?: CompanyProfile) {
+  const storedCompany = readStoredObject<CompanyProfile>("hicotech-settings-company");
+  const resolvedProfile = { ...profile, ...storedCompany };
   return {
-    name: profile?.name?.trim() || defaultCompany.name,
-    address: profile?.address?.trim() || defaultCompany.address,
-    city: profile?.city?.trim() || defaultCompany.city,
-    phone: profile?.phone?.trim() || defaultCompany.phone,
-    ice: profile?.ice?.trim() || defaultCompany.ice,
-    taxId: profile?.taxId?.trim() || defaultCompany.taxId,
-    rc: profile?.rc?.trim() || "",
-    logoUrl: profile?.logoUrl?.trim() || defaultLogoUrl
+    name: resolvedProfile?.name?.trim() || defaultCompany.name,
+    address: resolvedProfile?.address?.trim() || defaultCompany.address,
+    city: resolvedProfile?.city?.trim() || defaultCompany.city,
+    phone: resolvedProfile?.phone?.trim() || defaultCompany.phone,
+    ice: resolvedProfile?.ice?.trim() || defaultCompany.ice,
+    taxId: resolvedProfile?.taxId?.trim() || defaultCompany.taxId,
+    rc: resolvedProfile?.rc?.trim() || "",
+    logoUrl: resolvedProfile?.logoUrl?.trim() || defaultLogoUrl
   };
+}
+
+function resolvePdfSettings(): StoredPdfSettings {
+  return readStoredObject<StoredPdfSettings>("hicotech-settings-pdf") ?? {};
+}
+
+function readStoredObject<T>(key: string): T | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? JSON.parse(raw) as T : null;
+  } catch {
+    return null;
+  }
 }
 
 type LoadedLogo = {
