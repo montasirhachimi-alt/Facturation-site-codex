@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Edit3, Eye, FileText, Plus, Printer, Trash2 } from "lucide-react";
 import { clsx } from "clsx";
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
@@ -9,6 +9,7 @@ import { Filters } from "@/components/filters";
 import { FormModal } from "@/components/form-modal";
 import { SearchBar } from "@/components/search-bar";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { applyStockChange, readProductsFromStorage } from "@/lib/product-tools";
 import type { PurchaseInvoice, PurchaseInvoiceLine, PurchaseStatus, StockProduct, Supplier, TenantScope } from "@/lib/types";
 
 type PurchaseFormState = Omit<PurchaseInvoice, "id" | "companyId">;
@@ -38,8 +39,22 @@ export function PurchasesModule({
   const [deleteTarget, setDeleteTarget] = useState<PurchaseInvoice | null>(null);
   const [loading] = useState(false);
   const [error] = useState<string | null>(null);
+  const [availableProducts, setAvailableProducts] = useState(products);
   const canWrite = scope.role === "COMPANY_ADMIN" || scope.role === "ACCOUNTANT" || scope.role === "SUPER_ADMIN";
   const scopedSuppliers = suppliers.filter((supplier) => supplier.companyId === scope.companyId);
+
+  useEffect(() => {
+    setAvailableProducts(readProductsFromStorage(products));
+    function syncProducts() {
+      setAvailableProducts(readProductsFromStorage(products));
+    }
+    window.addEventListener("hicotech-products-updated", syncProducts);
+    window.addEventListener("storage", syncProducts);
+    return () => {
+      window.removeEventListener("hicotech-products-updated", syncProducts);
+      window.removeEventListener("storage", syncProducts);
+    };
+  }, [products]);
 
   const filteredPurchases = useMemo(() => {
     const normalizedQuery = query.toLowerCase();
@@ -71,7 +86,7 @@ export function PurchasesModule({
       supplierId: firstSupplier,
       status: "Brouillon",
       paid: 0,
-      lines: [createLine(products[0])]
+      lines: [createLine(availableProducts[0])]
     });
   }
 
@@ -93,8 +108,14 @@ export function PurchasesModule({
     if (!form || !canWrite) return;
     if (editingPurchase) {
       setPurchases((current) => current.map((purchase) => purchase.id === editingPurchase.id ? { ...editingPurchase, ...form } : purchase));
+      if (!isStockStatus(editingPurchase.status) && isStockStatus(form.status)) {
+        applyStockChange(form.lines, "purchase", availableProducts);
+      }
     } else {
       setPurchases((current) => [{ id: `purchase-${Date.now()}`, companyId: scope.companyId, ...form }, ...current]);
+      if (isStockStatus(form.status)) {
+        applyStockChange(form.lines, "purchase", availableProducts);
+      }
     }
     setPage(1);
     setForm(null);
@@ -117,7 +138,7 @@ export function PurchasesModule({
   }
 
   function changeLineProduct(lineId: string, productId: string) {
-    const product = products.find((item) => item.id === productId);
+    const product = availableProducts.find((item) => item.id === productId);
     updateLine(lineId, {
       productId,
       designation: product?.designation ?? "",
@@ -232,13 +253,13 @@ export function PurchasesModule({
           <div className="mt-6 rounded-lg border border-slate-200 dark:border-hicotech-dark-border">
             <div className="flex items-center justify-between gap-3 border-b border-slate-200 p-4 dark:border-hicotech-dark-border">
               <h3 className="font-display text-lg font-bold text-hicotech-navy dark:text-white">Produits achetés</h3>
-              <button type="button" onClick={() => setForm({ ...form, lines: [...form.lines, createLine(products[0])] })} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-hicotech-navy dark:border-hicotech-dark-border dark:text-white">Ajouter ligne</button>
+              <button type="button" onClick={() => setForm({ ...form, lines: [...form.lines, createLine(availableProducts[0])] })} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-hicotech-navy dark:border-hicotech-dark-border dark:text-white">Ajouter ligne</button>
             </div>
             <div className="space-y-3 p-4">
               {form.lines.map((line) => (
                 <div key={line.id} className="grid gap-3 rounded-lg bg-slate-50 p-3 dark:bg-hicotech-dark-page/50 md:grid-cols-[1.4fr_90px_120px_90px_90px]">
                   <select value={line.productId} onChange={(event) => changeLineProduct(line.id, event.target.value)} className="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white">
-                    {products.map((product) => <option key={product.id} value={product.id}>{product.designation}</option>)}
+                    {availableProducts.map((product) => <option key={product.id} value={product.id}>{product.designation}</option>)}
                   </select>
                   <input type="number" min={1} value={line.quantity} onChange={(event) => updateLine(line.id, { quantity: Number(event.target.value) })} className="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white" />
                   <input type="number" value={line.unitPrice} onChange={(event) => updateLine(line.id, { unitPrice: Number(event.target.value) })} className="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white" />
@@ -266,6 +287,10 @@ function createLine(product?: StockProduct): PurchaseInvoiceLine {
     unitPrice: product?.purchasePrice ?? 0,
     vat: product?.vat ?? 20
   };
+}
+
+function isStockStatus(status: PurchaseStatus) {
+  return status === "Validée" || status === "Partiellement payée" || status === "Payée";
 }
 
 function getPurchaseTotal(purchase: Pick<PurchaseInvoice, "lines">) {

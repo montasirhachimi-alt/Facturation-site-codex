@@ -1,14 +1,21 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
-import { CreditCard, Download, Eye, FileText, Plus, Printer, Search, X } from "lucide-react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { Ban, CreditCard, Download, Eye, FileText, Plus, Printer, Search, X } from "lucide-react";
 import { clsx } from "clsx";
 import type { BusinessClient, Invoice, InvoiceLine, InvoicePayment, InvoiceStatus, PaymentModeLabel, StockProduct } from "@/lib/types";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { createInvoicePdf } from "@/lib/pdf";
 import { activeCompanyProfile } from "@/lib/demo-data";
+import {
+  applyStockChange,
+  createDocumentLineFromProduct,
+  fillDocumentLineFromProduct,
+  findProductByReferenceOrDesignation,
+  readProductsFromStorage
+} from "@/lib/product-tools";
 
-const statuses: Array<"Tous" | InvoiceStatus> = ["Tous", "Payée", "Partiellement payée", "En retard"];
+const statuses: Array<"Tous" | InvoiceStatus> = ["Tous", "Payée", "Partiellement payée", "En retard", "Annulée"];
 const modes: PaymentModeLabel[] = ["Espèces", "Chèque", "Virement", "Carte bancaire"];
 const pageSize = 5;
 type InvoiceFormState = Omit<Invoice, "id" | "payments">;
@@ -54,6 +61,20 @@ export function InvoicesModule({
   const [paymentMode, setPaymentMode] = useState<PaymentModeLabel>("Virement");
   const [paymentReference, setPaymentReference] = useState("");
   const [invoiceForm, setInvoiceForm] = useState<InvoiceFormState | null>(null);
+  const [availableProducts, setAvailableProducts] = useState(products);
+
+  useEffect(() => {
+    setAvailableProducts(readProductsFromStorage(products));
+    function syncProducts() {
+      setAvailableProducts(readProductsFromStorage(products));
+    }
+    window.addEventListener("hicotech-products-updated", syncProducts);
+    window.addEventListener("storage", syncProducts);
+    return () => {
+      window.removeEventListener("hicotech-products-updated", syncProducts);
+      window.removeEventListener("storage", syncProducts);
+    };
+  }, [products]);
 
   const filteredInvoices = useMemo(() => {
     const normalizedQuery = query.toLowerCase();
@@ -93,7 +114,7 @@ export function InvoicesModule({
   }
 
   function createEmptyInvoice(): InvoiceFormState {
-    const product = products[0];
+    const product = availableProducts[0];
     return {
       number: nextInvoiceNumber(invoices),
       date: new Date().toISOString().slice(0, 10),
@@ -101,14 +122,7 @@ export function InvoicesModule({
       clientId: clients[0]?.id ?? "",
       status: "Partiellement payée",
       lines: [
-        {
-          id: `iline-${Date.now()}`,
-          productId: product?.id ?? "",
-          designation: product?.designation ?? "",
-          quantity: 1,
-          unitPrice: product?.salePrice ?? 0,
-          vat: product?.vat ?? 20
-        }
+        createDocumentLineFromProduct(product, "iline")
       ]
     };
   }
@@ -116,9 +130,19 @@ export function InvoicesModule({
   function saveInvoice(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!invoiceForm) return;
-    setInvoices((current) => [{ id: `invoice-${Date.now()}`, ...invoiceForm, payments: [] }, ...current]);
+    const newInvoice = { id: `invoice-${Date.now()}`, ...invoiceForm, payments: [] };
+    setInvoices((current) => [newInvoice, ...current]);
+    if (newInvoice.status !== "Annulée") {
+      applyStockChange(newInvoice.lines, "sale", availableProducts);
+    }
     setInvoiceForm(null);
     setPage(1);
+  }
+
+  function cancelInvoice(invoice: Invoice) {
+    if (invoice.status === "Annulée") return;
+    setInvoices((current) => current.map((item) => item.id === invoice.id ? { ...item, status: "Annulée" } : item));
+    applyStockChange(invoice.lines, "sale-cancel", availableProducts);
   }
 
   function savePayment(event: FormEvent<HTMLFormElement>) {
@@ -250,6 +274,7 @@ export function InvoicesModule({
                         <Action label="Paiement" icon={<CreditCard size={16} />} onClick={() => openPayment(invoice)} />
                         <Action label="PDF" icon={<FileText size={16} />} onClick={() => client && createInvoicePdf(invoice, client, activeCompanyProfile)} />
                         <Action label="Imprimer" icon={<Printer size={16} />} onClick={() => window.print()} />
+                        <Action label="Annuler" icon={<Ban size={16} />} onClick={() => cancelInvoice(invoice)} />
                       </div>
                     </td>
                   </tr>
@@ -287,7 +312,7 @@ export function InvoicesModule({
         <InvoiceModal
           form={invoiceForm}
           clients={clients}
-          products={products}
+          products={availableProducts}
           onChange={setInvoiceForm}
           onClose={() => setInvoiceForm(null)}
           onSubmit={saveInvoice}
@@ -310,7 +335,8 @@ function Status({ status }: { status: InvoiceStatus }) {
   const classes = {
     Payée: "bg-emerald-50 text-hicotech-green",
     "Partiellement payée": "bg-blue-50 text-hicotech-blue",
-    "En retard": "bg-red-50 text-hicotech-red"
+    "En retard": "bg-red-50 text-hicotech-red",
+    Annulée: "bg-slate-100 text-slate-600"
   };
   return <span className={clsx("rounded-md px-2 py-1 text-xs font-bold", classes[status])}>{status}</span>;
 }
@@ -437,14 +463,9 @@ function InvoiceModal({
     });
   }
 
-  function selectProduct(lineId: string, productId: string) {
-    const product = products.find((item) => item.id === productId);
-    updateLine(lineId, {
-      productId,
-      designation: product?.designation ?? "",
-      unitPrice: product?.salePrice ?? 0,
-      vat: product?.vat ?? 20
-    });
+  function lookupProduct(lineId: string, value: string) {
+    const product = findProductByReferenceOrDesignation(value, products);
+    updateLine(lineId, product ? fillDocumentLineFromProduct(lineId, product) : { reference: value, productId: "", designation: "", description: "", unitPrice: 0, vat: 20, unit: "Pièce" });
   }
 
   function addLine() {
@@ -453,14 +474,7 @@ function InvoiceModal({
       ...form,
       lines: [
         ...form.lines,
-        {
-          id: `iline-${Date.now()}`,
-          productId: product?.id ?? "",
-          designation: product?.designation ?? "",
-          quantity: 1,
-          unitPrice: product?.salePrice ?? 0,
-          vat: product?.vat ?? 20
-        }
+        createDocumentLineFromProduct(product, "iline")
       ]
     });
   }
@@ -488,10 +502,18 @@ function InvoiceModal({
         </div>
 
         <div className="mt-6 overflow-x-auto">
-          <table className="w-full min-w-[880px] text-sm">
+          <datalist id="invoice-product-options">
+            {products.map((product) => (
+              <option key={product.id} value={product.reference}>{product.designation}</option>
+            ))}
+            {products.map((product) => (
+              <option key={`${product.id}-designation`} value={product.designation}>{product.reference}</option>
+            ))}
+          </datalist>
+          <table className="w-full min-w-[1260px] text-sm">
             <thead>
               <tr className="bg-hicotech-sky/70 text-left text-hicotech-navy dark:bg-hicotech-blue/20 dark:text-white">
-                {["Produit", "Qté", "Prix HT", "TVA", "HT", "TTC", ""].map((column) => <th key={column} className="px-3 py-3">{column}</th>)}
+                {["Référence produit", "Désignation", "Qté", "Unité", "Prix HT", "TVA", "HT", "TTC", ""].map((column) => <th key={column} className="px-3 py-3">{column}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -501,11 +523,18 @@ function InvoiceModal({
                 return (
                   <tr key={line.id} className="border-b border-slate-100 dark:border-hicotech-dark-border">
                     <td className="px-3 py-3">
-                      <select value={line.productId} onChange={(event) => selectProduct(line.id, event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white">
-                        {products.map((product) => <option key={product.id} value={product.id}>{product.designation}</option>)}
-                      </select>
+                      <input list="invoice-product-options" value={line.reference ?? ""} onChange={(event) => lookupProduct(line.id, event.target.value)} className="w-44 rounded-lg border border-slate-200 px-3 py-2 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white" placeholder="Ex: ECR-75" />
+                      {!line.productId && line.reference && (
+                        <p className="mt-1 text-xs font-semibold text-hicotech-red">
+                          Produit introuvable. Voulez-vous le créer ?
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-3 py-3">
+                      <input value={line.designation} onChange={(event) => updateLine(line.id, { designation: event.target.value })} className="w-64 rounded-lg border border-slate-200 px-3 py-2 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white" />
                     </td>
                     <td className="px-3 py-3"><SmallInput value={line.quantity} onChange={(value) => updateLine(line.id, { quantity: Number(value) })} /></td>
+                    <td className="px-3 py-3"><input value={line.unit ?? "Pièce"} onChange={(event) => updateLine(line.id, { unit: event.target.value })} className="w-24 rounded-lg border border-slate-200 px-3 py-2 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white" /></td>
                     <td className="px-3 py-3"><SmallInput value={line.unitPrice} onChange={(value) => updateLine(line.id, { unitPrice: Number(value) })} /></td>
                     <td className="px-3 py-3"><SmallInput value={line.vat} onChange={(value) => updateLine(line.id, { vat: Number(value) })} /></td>
                     <td className="px-3 py-3 font-bold text-hicotech-navy dark:text-white">{formatCurrency(ht)}</td>

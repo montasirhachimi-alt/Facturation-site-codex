@@ -292,7 +292,8 @@ export const products: StockProduct[] = [
     salePrice: 12500,
     vat: 20,
     stock: 14,
-    minStock: 5
+    minStock: 5,
+    unit: "Pièce"
   },
   {
     id: "prod-2",
@@ -305,7 +306,8 @@ export const products: StockProduct[] = [
     salePrice: 6800,
     vat: 20,
     stock: 8,
-    minStock: 4
+    minStock: 4,
+    unit: "Pièce"
   },
   {
     id: "prod-3",
@@ -318,7 +320,8 @@ export const products: StockProduct[] = [
     salePrice: 350,
     vat: 20,
     stock: 3,
-    minStock: 10
+    minStock: 10,
+    unit: "Pièce"
   },
   {
     id: "prod-4",
@@ -331,7 +334,8 @@ export const products: StockProduct[] = [
     salePrice: 120,
     vat: 20,
     stock: 26,
-    minStock: 20
+    minStock: 20,
+    unit: "Pièce"
   },
   {
     id: "prod-5",
@@ -344,7 +348,8 @@ export const products: StockProduct[] = [
     salePrice: 160,
     vat: 20,
     stock: 2,
-    minStock: 8
+    minStock: 8,
+    unit: "Pièce"
   },
   {
     id: "prod-6",
@@ -357,7 +362,8 @@ export const products: StockProduct[] = [
     salePrice: 950,
     vat: 20,
     stock: 0,
-    minStock: 0
+    minStock: 0,
+    unit: "Pièce"
   }
 ];
 

@@ -72,6 +72,7 @@ export type StockProduct = {
   vat: number;
   stock: number;
   minStock: number;
+  unit: string;
 };
 
 export type StockMovementType = "Entrée" | "Sortie" | "Ajustement";
@@ -167,10 +168,13 @@ export type QuoteStatus = "Brouillon" | "Envoyé" | "Accepté" | "Refusé";
 export type QuoteLine = {
   id: string;
   productId: string;
+  reference?: string;
   designation: string;
+  description?: string;
   quantity: number;
   unitPrice: number;
   vat: number;
+  unit?: string;
 };
 
 export type Quote = {
@@ -182,7 +186,7 @@ export type Quote = {
   lines: QuoteLine[];
 };
 
-export type InvoiceStatus = "Payée" | "Partiellement payée" | "En retard";
+export type InvoiceStatus = "Payée" | "Partiellement payée" | "En retard" | "Annulée";
 
 export type InvoiceLine = QuoteLine;
 

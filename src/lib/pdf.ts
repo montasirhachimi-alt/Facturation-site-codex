@@ -115,7 +115,7 @@ export async function createQuotePdf(quote: Quote, client: BusinessClient, compa
     status: quote.status,
     client: toPdfClient(client),
     lines: quote.lines.map((line) => ({
-      reference: line.productId,
+      reference: line.reference || line.productId,
       designation: line.designation,
       quantity: line.quantity,
       unitPrice: line.unitPrice,
@@ -138,7 +138,7 @@ export async function createInvoicePdf(invoice: Invoice, client: BusinessClient,
     status: invoice.status,
     client: toPdfClient(client),
     lines: invoice.lines.map((line) => ({
-      reference: line.productId,
+      reference: line.reference || line.productId,
       designation: line.designation,
       quantity: line.quantity,
       unitPrice: line.unitPrice,

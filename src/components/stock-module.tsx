@@ -1,21 +1,34 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowDownCircle,
   ArrowUpCircle,
+  Download,
   Edit3,
+  FileSpreadsheet,
   ImageIcon,
   PackagePlus,
   Plus,
   Search,
   Trash2,
+  Upload,
   X
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import { clsx } from "clsx";
 import type { StockMovement, StockMovementType, StockProduct } from "@/lib/types";
 import { formatCurrency, formatDate } from "@/lib/format";
+import {
+  buildTemplateRows,
+  normalizeImportedProduct,
+  productImportColumns,
+  productToExportRow,
+  readProductsFromStorage,
+  writeProductsToStorage,
+  type ProductImportPreviewRow
+} from "@/lib/product-tools";
 
 type ProductFormState = Omit<StockProduct, "id">;
 
@@ -29,7 +42,8 @@ const emptyProduct: ProductFormState = {
   salePrice: 0,
   vat: 20,
   stock: 0,
-  minStock: 0
+  minStock: 0,
+  unit: "Pièce"
 };
 
 const pageSize = 5;
@@ -54,6 +68,24 @@ export function StockModule({
   const [movementType, setMovementType] = useState<StockMovementType>("Entrée");
   const [movementQuantity, setMovementQuantity] = useState(1);
   const [movementReason, setMovementReason] = useState("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [importRows, setImportRows] = useState<ProductImportPreviewRow[]>([]);
+  const [importFileName, setImportFileName] = useState("");
+  const [importSummary, setImportSummary] = useState<{ imported: number; updated: number; ignored: number; errors: number } | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const skipFirstProductsWrite = useRef(true);
+
+  useEffect(() => {
+    setProducts(readProductsFromStorage(initialProducts));
+  }, [initialProducts]);
+
+  useEffect(() => {
+    if (skipFirstProductsWrite.current) {
+      skipFirstProductsWrite.current = false;
+      return;
+    }
+    writeProductsToStorage(products);
+  }, [products]);
 
   const categories = useMemo(
     () => ["Toutes", ...Array.from(new Set(products.map((product) => product.category)))],
@@ -104,7 +136,8 @@ export function StockModule({
       salePrice: product.salePrice,
       vat: product.vat,
       stock: product.stock,
-      minStock: product.minStock
+      minStock: product.minStock,
+      unit: product.unit || "Pièce"
     });
     setProductFormOpen(true);
   }
@@ -169,6 +202,75 @@ export function StockModule({
       ...current
     ]);
     setMovementProduct(null);
+  }
+
+  async function handleImportFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setImportError(null);
+    setImportSummary(null);
+    setImportFileName(file.name);
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array" });
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, { defval: "" });
+      const seenReferences = new Set<string>();
+      const previewRows = rawRows.map((row, index) =>
+        normalizeImportedProduct(normalizeImportSource(row), index + 2, products, seenReferences)
+      );
+
+      if (previewRows.length === 0) {
+        setImportError("Le fichier ne contient aucune ligne produit.");
+        return;
+      }
+
+      setImportRows(previewRows);
+    } catch {
+      setImportError("Impossible de lire le fichier. Vérifiez le format .xlsx ou .csv.");
+    }
+  }
+
+  function setImportAction(rowId: string, status: "update" | "ignore") {
+    setImportRows((current) =>
+      current.map((row) => row.id === rowId && row.errors.length === 0 ? { ...row, status } : row)
+    );
+  }
+
+  function confirmImport() {
+    let imported = 0;
+    let updated = 0;
+    const errors = importRows.filter((row) => row.status === "error").length;
+    const ignored = importRows.filter((row) => row.status === "ignore").length;
+
+    setProducts((current) => {
+      const next = [...current];
+      importRows.forEach((row) => {
+        if (!row.product || row.status === "error" || row.status === "ignore") return;
+        const existingIndex = next.findIndex((product) => sameReference(product.reference, row.product?.reference ?? ""));
+        if (existingIndex >= 0) {
+          next[existingIndex] = { ...next[existingIndex], ...row.product };
+          updated += 1;
+        } else {
+          next.unshift({ id: `prod-${Date.now()}-${Math.random().toString(16).slice(2)}`, ...row.product });
+          imported += 1;
+        }
+      });
+      return next;
+    });
+    setImportSummary({ imported, updated, ignored, errors });
+    setPage(1);
+  }
+
+  function downloadTemplate() {
+    downloadWorkbook("modele-produits-hicotech.xlsx", buildTemplateRows());
+  }
+
+  function exportProducts() {
+    downloadWorkbook("produits-hicotech.xlsx", products.map(productToExportRow));
   }
 
   return (
@@ -239,21 +341,36 @@ export function StockModule({
               ))}
             </select>
           </div>
-          <button
-            type="button"
-            onClick={openCreateProduct}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-hicotech-blue px-4 py-2.5 text-sm font-bold text-white shadow-soft transition hover:bg-blue-700"
-          >
-            <Plus size={18} />
-            Ajouter produit
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <input ref={fileInputRef} type="file" accept=".xlsx,.csv" className="hidden" onChange={handleImportFile} />
+            <button type="button" onClick={() => fileInputRef.current?.click()} className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-bold text-hicotech-navy transition hover:bg-hicotech-sky dark:border-hicotech-dark-border dark:text-white dark:hover:bg-hicotech-blue/20">
+              <Upload size={18} />
+              Importer produits
+            </button>
+            <button type="button" onClick={downloadTemplate} className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-bold text-hicotech-navy transition hover:bg-hicotech-sky dark:border-hicotech-dark-border dark:text-white dark:hover:bg-hicotech-blue/20">
+              <FileSpreadsheet size={18} />
+              Modèle Excel
+            </button>
+            <button type="button" onClick={exportProducts} className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-bold text-hicotech-navy transition hover:bg-hicotech-sky dark:border-hicotech-dark-border dark:text-white dark:hover:bg-hicotech-blue/20">
+              <Download size={18} />
+              Export Excel
+            </button>
+            <button
+              type="button"
+              onClick={openCreateProduct}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-hicotech-blue px-4 py-2.5 text-sm font-bold text-white shadow-soft transition hover:bg-blue-700"
+            >
+              <Plus size={18} />
+              Ajouter produit
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1180px] border-collapse text-sm">
             <thead>
               <tr className="bg-hicotech-sky/70 text-left text-hicotech-navy dark:bg-hicotech-blue/20 dark:text-white">
-                {["Image", "Référence", "Désignation", "Catégorie", "Prix achat", "Prix vente", "TVA", "Prix TTC", "Stock", "Actions"].map((column) => (
+                {["Image", "Référence", "Désignation", "Catégorie", "Unité", "Prix achat", "Prix vente", "TVA", "Prix TTC", "Stock", "Actions"].map((column) => (
                   <th key={column} className="px-4 py-3 font-display text-xs font-bold uppercase">
                     {column}
                   </th>
@@ -278,6 +395,7 @@ export function StockModule({
                       <p className="mt-1 line-clamp-2 text-xs text-slate-500 dark:text-slate-300">{product.description}</p>
                     </td>
                     <td className="px-4 py-4 font-medium text-slate-700 dark:text-slate-200">{product.category}</td>
+                    <td className="px-4 py-4 font-medium text-slate-700 dark:text-slate-200">{product.unit || "Pièce"}</td>
                     <td className="px-4 py-4 font-medium text-slate-700 dark:text-slate-200">{formatCurrency(product.purchasePrice)}</td>
                     <td className="px-4 py-4 font-medium text-slate-700 dark:text-slate-200">{formatCurrency(product.salePrice)}</td>
                     <td className="px-4 py-4 font-medium text-slate-700 dark:text-slate-200">{product.vat}%</td>
@@ -371,6 +489,23 @@ export function StockModule({
         />
       )}
 
+      {(importRows.length > 0 || importError || importSummary) && (
+        <ImportProductsModal
+          fileName={importFileName}
+          rows={importRows}
+          summary={importSummary}
+          error={importError}
+          onActionChange={setImportAction}
+          onConfirm={confirmImport}
+          onClose={() => {
+            setImportRows([]);
+            setImportFileName("");
+            setImportSummary(null);
+            setImportError(null);
+          }}
+        />
+      )}
+
       {movementProduct && (
         <MovementModal
           product={movementProduct}
@@ -386,6 +521,29 @@ export function StockModule({
       )}
     </div>
   );
+}
+
+function normalizeImportSource(row: Record<string, unknown>) {
+  const normalized: Record<string, unknown> = {};
+  Object.entries(row).forEach(([key, value]) => {
+    const cleanKey = key.trim().toLowerCase().replace(/\s+/g, "_");
+    normalized[cleanKey] = value;
+  });
+  productImportColumns.forEach((column) => {
+    normalized[column] ??= "";
+  });
+  return normalized;
+}
+
+function sameReference(first: string, second: string) {
+  return first.trim().toLowerCase() === second.trim().toLowerCase();
+}
+
+function downloadWorkbook(fileName: string, rows: Record<string, unknown>[]) {
+  const worksheet = XLSX.utils.json_to_sheet(rows, { header: [...productImportColumns] });
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Produits");
+  XLSX.writeFile(workbook, fileName);
 }
 
 function SummaryCard({ label, value, tone = "blue" }: { label: string; value: string; tone?: "blue" | "red" }) {
@@ -414,6 +572,111 @@ function IconButton({ label, icon, danger, onClick }: { label: string; icon: Rea
       {icon}
       {label}
     </button>
+  );
+}
+
+function ImportProductsModal({
+  fileName,
+  rows,
+  summary,
+  error,
+  onActionChange,
+  onConfirm,
+  onClose
+}: {
+  fileName: string;
+  rows: ProductImportPreviewRow[];
+  summary: { imported: number; updated: number; ignored: number; errors: number } | null;
+  error: string | null;
+  onActionChange: (rowId: string, status: "update" | "ignore") => void;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  const pendingRows = rows.filter((row) => row.status !== "error" && row.status !== "ignore").length;
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-hicotech-dark-sidebar/70 px-4 backdrop-blur-sm">
+      <section className="max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-lg border border-slate-200 bg-white p-6 shadow-soft dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
+        <ModalTitle title="Importer produits" onClose={onClose} />
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-300">{fileName || "Fichier sélectionné"}</p>
+
+        {error && (
+          <p className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-bold text-hicotech-red dark:bg-red-950/20">
+            {error}
+          </p>
+        )}
+
+        {summary && (
+          <div className="mt-5 grid gap-3 md:grid-cols-4">
+            <MiniStat label="Importés" value={summary.imported} />
+            <MiniStat label="Mis à jour" value={summary.updated} />
+            <MiniStat label="Ignorés" value={summary.ignored} />
+            <MiniStat label="Erreurs" value={summary.errors} danger={summary.errors > 0} />
+          </div>
+        )}
+
+        {rows.length > 0 && (
+          <>
+            <div className="mt-5 overflow-x-auto rounded-lg border border-slate-200 dark:border-hicotech-dark-border">
+              <table className="w-full min-w-[1120px] text-sm">
+                <thead>
+                  <tr className="bg-hicotech-sky/70 text-left text-hicotech-navy dark:bg-hicotech-blue/20 dark:text-white">
+                    {["Ligne", "Référence", "Désignation", "Catégorie", "Prix HT", "TVA", "Stock", "Action", "Erreurs"].map((column) => (
+                      <th key={column} className="px-3 py-3 font-display text-xs font-bold uppercase">{column}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row) => (
+                    <tr key={row.id} className="border-t border-slate-100 dark:border-hicotech-dark-border">
+                      <td className="px-3 py-3 font-bold text-hicotech-navy dark:text-white">{row.lineNumber}</td>
+                      <td className="px-3 py-3 font-semibold text-slate-700 dark:text-slate-200">{row.product?.reference ?? String(row.source.reference ?? "")}</td>
+                      <td className="px-3 py-3 text-slate-700 dark:text-slate-200">{row.product?.designation ?? String(row.source.designation ?? "")}</td>
+                      <td className="px-3 py-3 text-slate-700 dark:text-slate-200">{row.product?.category ?? String(row.source.categorie ?? "")}</td>
+                      <td className="px-3 py-3 text-slate-700 dark:text-slate-200">{row.product ? formatCurrency(row.product.salePrice) : "-"}</td>
+                      <td className="px-3 py-3 text-slate-700 dark:text-slate-200">{row.product ? `${row.product.vat}%` : "-"}</td>
+                      <td className="px-3 py-3 text-slate-700 dark:text-slate-200">{row.product?.stock ?? "-"}</td>
+                      <td className="px-3 py-3">
+                        {row.status === "error" ? (
+                          <span className="rounded-md bg-red-50 px-2 py-1 text-xs font-bold text-hicotech-red">Erreur</span>
+                        ) : row.status === "new" ? (
+                          <span className="rounded-md bg-emerald-50 px-2 py-1 text-xs font-bold text-hicotech-green">Créer</span>
+                        ) : (
+                          <select value={row.status} onChange={(event) => onActionChange(row.id, event.target.value as "update" | "ignore")} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white">
+                            <option value="update">Mettre à jour</option>
+                            <option value="ignore">Ignorer</option>
+                          </select>
+                        )}
+                      </td>
+                      <td className="px-3 py-3">
+                        {row.errors.length > 0 ? (
+                          <span className="text-xs font-bold text-hicotech-red">{row.errors.join(", ")}</span>
+                        ) : (
+                          <span className="text-xs font-semibold text-slate-400">Aucune</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-bold text-hicotech-navy dark:border-hicotech-dark-border dark:text-white">Fermer</button>
+              <button type="button" disabled={pendingRows === 0} onClick={onConfirm} className="rounded-lg bg-hicotech-blue px-4 py-2.5 text-sm font-bold text-white shadow-soft disabled:cursor-not-allowed disabled:opacity-50">Valider l&apos;import</button>
+            </div>
+          </>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function MiniStat({ label, value, danger }: { label: string; value: number; danger?: boolean }) {
+  return (
+    <article className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50">
+      <p className="text-xs font-bold uppercase text-slate-500 dark:text-slate-300">{label}</p>
+      <p className={clsx("mt-1 font-display text-2xl font-bold", danger ? "text-hicotech-red" : "text-hicotech-navy dark:text-white")}>{value}</p>
+    </article>
   );
 }
 
@@ -449,6 +712,7 @@ function ProductModal({
           <Field label="Prix TTC" value={formatCurrency(form.salePrice * (1 + form.vat / 100))} onChange={() => undefined} disabled />
           <Field label="Quantité en stock" type="number" value={form.stock} onChange={(value) => update("stock", Number(value))} />
           <Field label="Stock minimum" type="number" value={form.minStock} onChange={(value) => update("minStock", Number(value))} />
+          <Field label="Unité" value={form.unit} onChange={(value) => update("unit", value)} required />
           <label className="block md:col-span-2">
             <span className="text-sm font-semibold text-hicotech-navy dark:text-white">Description</span>
             <textarea
