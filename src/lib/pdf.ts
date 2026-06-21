@@ -1,8 +1,9 @@
 import jsPDF from "jspdf";
 import type { BusinessClient, CompanyProfile, DeliveryNote, Invoice, Quote, SalesDocument } from "@/lib/types";
 import { DeliveryNotePdfTemplate } from "@/components/pdf-templates/DeliveryNotePdfTemplate";
-import { HrReportPdfTemplate, type HrReportPdfData } from "@/components/pdf-templates/HrReportPdfTemplate";
+import { HrReportPdfTemplate, type HrReportColumn, type HrReportPdfData } from "@/components/pdf-templates/HrReportPdfTemplate";
 import { InvoicePdfTemplate } from "@/components/pdf-templates/InvoicePdfTemplate";
+import { PayslipPdfTemplate, type PayslipPdfData } from "@/components/pdf-templates/PayslipPdfTemplate";
 import type { PdfDocumentTitle, PdfLayoutDocument, PdfLineItem, PdfParty } from "@/components/pdf-templates/PdfLayout";
 import { pdfTheme as colors } from "@/components/pdf-templates/PdfLayout";
 import {
@@ -71,7 +72,11 @@ export async function createCreditNotePdf(document: SalesDocument, companyProfil
 }
 
 export async function createHrReportPdf(data: HrReportPdfData, companyProfile?: CompanyProfile, mode: PdfOutputMode = "save") {
-  await renderPremiumPdf(HrReportPdfTemplate(data, companyProfile), mode);
+  await renderHrReportPdf(HrReportPdfTemplate(data, companyProfile), mode);
+}
+
+export async function createPayslipPdf(data: PayslipPdfData, companyProfile?: CompanyProfile, mode: PdfOutputMode = "save") {
+  await renderPayslipPdf(PayslipPdfTemplate(data, companyProfile), mode);
 }
 
 function normalizeSalesTitle(title: SalesDocument["type"]): PdfDocumentTitle {
@@ -113,6 +118,260 @@ async function renderPremiumPdf(document: PdfLayoutDocument, mode: PdfOutputMode
   drawFooter(pdf, page, company, pdfSettings);
   applyTotalPageCount(pdf);
   outputPdf(pdf, `${document.filename || document.number}.pdf`, mode);
+}
+
+async function renderHrReportPdf(report: HrReportPdfData, mode: PdfOutputMode) {
+  const pdf = new jsPDF({ unit: "mm", format: "a4" });
+  const company = resolveCompanyProfile(report.company);
+  const pdfSettings = resolvePdfSettings();
+  const logo = await loadLogo(company.logoUrl);
+  let page = 1;
+  let y = drawHrHeader(pdf, "RAPPORT RH", report.number, report.date, report.period, company, logo, pdfSettings);
+
+  y = drawHrSummaryCards(pdf, report, y + 4);
+  y = drawHrSectionTitle(pdf, report.sectionLabel, y + 8);
+  y = drawHrTableHeader(pdf, report.columns, y);
+
+  report.rows.forEach((row, index) => {
+    if (y > 262) {
+      drawFooter(pdf, page, company, pdfSettings);
+      pdf.addPage();
+      page += 1;
+      y = drawHrHeader(pdf, "RAPPORT RH", report.number, report.date, report.period, company, logo, pdfSettings);
+      y = drawHrSectionTitle(pdf, `${report.sectionLabel} - suite`, y + 8);
+      y = drawHrTableHeader(pdf, report.columns, y);
+    }
+    y = drawHrTableRow(pdf, report.columns, row, index, y);
+  });
+
+  if (report.rows.length === 0) {
+    pdf.setFillColor(...colors.zebra);
+    pdf.roundedRect(margin, y, contentWidth, 18, 2, 2, "F");
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(9);
+    pdf.setTextColor(...colors.muted);
+    pdf.text("Aucune donnée RH disponible pour cette période.", margin + 4, y + 11);
+  }
+
+  drawFooter(pdf, page, company, pdfSettings);
+  applyTotalPageCount(pdf);
+  outputPdf(pdf, `${report.filename || report.number}.pdf`, mode);
+}
+
+async function renderPayslipPdf(payslip: PayslipPdfData, mode: PdfOutputMode) {
+  const pdf = new jsPDF({ unit: "mm", format: "a4" });
+  const company = resolveCompanyProfile(payslip.company);
+  const pdfSettings = resolvePdfSettings();
+  const logo = await loadLogo(company.logoUrl);
+  const page = 1;
+  let y = drawHrHeader(pdf, "FICHE DE PAIE", payslip.number, payslip.date, payslip.period, company, logo, pdfSettings);
+
+  pdf.setFillColor(...colors.lightBlue);
+  pdf.roundedRect(margin, y + 4, contentWidth, 24, 2, 2, "F");
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(9);
+  pdf.setTextColor(...colors.blue);
+  pdf.text("EMPLOYÉ", margin + 5, y + 12);
+  pdf.setFontSize(13);
+  pdf.setTextColor(...colors.navy);
+  pdf.text(payslip.employeeName, margin + 5, y + 20);
+  y += 38;
+
+  const rows = [
+    ["Salaire de base", payslip.baseSalary, "gain"],
+    ["Primes", payslip.bonuses, "gain"],
+    ["Avances", payslip.advances, "deduction"],
+    ["Retenues", payslip.deductions, "deduction"],
+    ["Absences non payées", payslip.unpaidAbsences ?? 0, "deduction"]
+  ] as const;
+
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(8);
+  pdf.setTextColor(...colors.white);
+  pdf.setFillColor(...colors.navy);
+  pdf.roundedRect(margin, y, contentWidth, 9, 1.5, 1.5, "F");
+  pdf.text("Libellé", margin + 4, y + 6);
+  pdf.text("Gain", 145, y + 6, { align: "right" });
+  pdf.text("Retenue", 192, y + 6, { align: "right" });
+  y += 10;
+
+  rows.forEach((row, index) => {
+    if (index % 2 === 0) {
+      pdf.setFillColor(...colors.zebra);
+      pdf.rect(margin, y - 1, contentWidth, 9, "F");
+    }
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(8.2);
+    pdf.setTextColor(...colors.ink);
+    pdf.text(row[0], margin + 4, y + 5);
+    pdf.text(row[2] === "gain" ? formatMoney(row[1]) : "-", 145, y + 5, { align: "right" });
+    pdf.text(row[2] === "deduction" ? formatMoney(row[1]) : "-", 192, y + 5, { align: "right" });
+    y += 9;
+  });
+
+  pdf.setFillColor(...colors.blue);
+  pdf.roundedRect(118, y + 8, 78, 16, 2, 2, "F");
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(10);
+  pdf.setTextColor(...colors.white);
+  pdf.text("Salaire net", 124, y + 18);
+  pdf.text(formatMoney(payslip.netSalary), 191, y + 18, { align: "right" });
+
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(8);
+  pdf.setTextColor(...colors.muted);
+  pdf.text("Document administratif généré par HICOTECH ERP.", margin, 246);
+  drawFooter(pdf, page, company, pdfSettings);
+  applyTotalPageCount(pdf);
+  outputPdf(pdf, `${payslip.filename || payslip.number}.pdf`, mode);
+}
+
+function drawHrHeader(
+  pdf: jsPDF,
+  title: "RAPPORT RH" | "FICHE DE PAIE",
+  number: string,
+  date: string,
+  period: string,
+  company: ReturnType<typeof resolveCompanyProfile>,
+  logo: LoadedLogo | null,
+  pdfSettings: StoredPdfSettings
+) {
+  pdf.setFillColor(...colors.white);
+  pdf.rect(0, 0, pageWidth, pageHeight, "F");
+  pdf.setFillColor(...colors.navy);
+  pdf.rect(0, 0, pageWidth, 7, "F");
+
+  if (pdfSettings.showLogo !== false) {
+    drawLogoPdf(pdf, margin, 14, logo);
+  }
+
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(10);
+  pdf.setTextColor(...colors.navy);
+  pdf.text(company.name, margin + 54, 19);
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(7.8);
+  pdf.setTextColor(...colors.muted);
+  pdf.text(company.address, margin + 54, 25);
+  pdf.text(company.city, margin + 54, 30);
+  pdf.text(`Tél : ${company.phone}`, margin + 54, 35);
+  pdf.text(`ICE : ${company.ice}   IF : ${company.taxId}`, margin + 54, 40);
+
+  pdf.setTextColor(...colors.navy);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(24);
+  pdf.text(title, pageWidth - margin, 22, { align: "right" });
+
+  const metaX = pageWidth - margin - 66;
+  drawMetaLine(pdf, metaX, 34, "Numéro", number);
+  drawMetaLine(pdf, metaX, 40, "Date", date);
+  drawMetaLine(pdf, metaX, 46, "Période", period);
+
+  pdf.setDrawColor(...colors.border);
+  pdf.setLineWidth(0.25);
+  pdf.line(margin, 58, pageWidth - margin, 58);
+  return 64;
+}
+
+function drawHrSummaryCards(pdf: jsPDF, report: HrReportPdfData, y: number) {
+  const cards = [
+    ["Employés actifs", report.summary.activeEmployees.toString()],
+    ["Contrats", report.summary.contracts.toString()],
+    ["Présences mois", report.summary.monthlyAttendances.toString()],
+    ["Absences mois", report.summary.monthlyAbsences.toString()],
+    ["Congés attente", report.summary.pendingLeaves.toString()],
+    ["Masse salariale", formatMoney(report.summary.payrollMass)]
+  ];
+  const gap = 4;
+  const cardWidth = (contentWidth - gap * 2) / 3;
+  const cardHeight = 20;
+
+  cards.forEach((card, index) => {
+    const col = index % 3;
+    const row = Math.floor(index / 3);
+    const x = margin + col * (cardWidth + gap);
+    const cardY = y + row * (cardHeight + gap);
+    pdf.setFillColor(...colors.lightBlue);
+    pdf.roundedRect(x, cardY, cardWidth, cardHeight, 2, 2, "F");
+    pdf.setDrawColor(...colors.border);
+    pdf.roundedRect(x, cardY, cardWidth, cardHeight, 2, 2);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(7.5);
+    pdf.setTextColor(...colors.muted);
+    pdf.text(card[0], x + 4, cardY + 7);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(card[1].length > 14 ? 11 : 13);
+    pdf.setTextColor(...colors.navy);
+    pdf.text(card[1], x + 4, cardY + 15);
+  });
+
+  return y + cardHeight * 2 + gap;
+}
+
+function drawHrSectionTitle(pdf: jsPDF, title: string, y: number) {
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(11);
+  pdf.setTextColor(...colors.navy);
+  pdf.text(title, margin, y);
+  pdf.setDrawColor(...colors.blue);
+  pdf.setLineWidth(0.8);
+  pdf.line(margin, y + 3, margin + 28, y + 3);
+  return y + 9;
+}
+
+function drawHrTableHeader(pdf: jsPDF, columns: HrReportColumn[], y: number) {
+  pdf.setFillColor(...colors.navy);
+  pdf.roundedRect(margin, y, contentWidth, 9, 1.5, 1.5, "F");
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(7.2);
+  pdf.setTextColor(...colors.white);
+
+  let x = margin + 3;
+  columns.forEach((column) => {
+    const width = column.width ?? contentWidth / columns.length;
+    pdf.text(column.label, getAlignedX(x, width, column.align), y + 6, { align: column.align ?? "left" });
+    x += width;
+  });
+  return y + 10;
+}
+
+function drawHrTableRow(pdf: jsPDF, columns: HrReportColumn[], row: Record<string, string | number | boolean>, index: number, y: number) {
+  const rowHeight = 9;
+  if (index % 2 === 0) {
+    pdf.setFillColor(...colors.zebra);
+    pdf.rect(margin, y - 1, contentWidth, rowHeight, "F");
+  }
+
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(7.6);
+  pdf.setTextColor(...colors.ink);
+  let x = margin + 3;
+  columns.forEach((column) => {
+    const width = column.width ?? contentWidth / columns.length;
+    const value = formatHrValue(row[column.key]);
+    pdf.text(value, getAlignedX(x, width, column.align), y + 5, {
+      align: column.align ?? "left",
+      maxWidth: Math.max(8, width - 4)
+    });
+    x += width;
+  });
+
+  pdf.setDrawColor(...colors.border);
+  pdf.setLineWidth(0.12);
+  pdf.line(margin, y + rowHeight - 1, pageWidth - margin, y + rowHeight - 1);
+  return y + rowHeight;
+}
+
+function getAlignedX(x: number, width: number, align?: "left" | "right" | "center") {
+  if (align === "right") return x + width - 3;
+  if (align === "center") return x + width / 2;
+  return x;
+}
+
+function formatHrValue(value: string | number | boolean | undefined) {
+  if (typeof value === "number") return Number.isInteger(value) ? String(value) : value.toLocaleString("fr-MA", { maximumFractionDigits: 2 });
+  if (typeof value === "boolean") return value ? "Oui" : "Non";
+  return String(value ?? "-").slice(0, 34);
 }
 
 function drawPageHeader(

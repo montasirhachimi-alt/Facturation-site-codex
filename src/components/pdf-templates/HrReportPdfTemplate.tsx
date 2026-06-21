@@ -1,40 +1,43 @@
 import type { CompanyProfile } from "@/lib/types";
-import type { PdfLayoutDocument, PdfLineItem } from "@/components/pdf-templates/PdfLayout";
+
+export type HrReportSection = "contrats" | "presences" | "absences" | "conges" | "general";
+
+export type HrReportSummary = {
+  activeEmployees: number;
+  contracts: number;
+  monthlyAttendances: number;
+  monthlyAbsences: number;
+  pendingLeaves: number;
+  payrollMass: number;
+};
+
+export type HrReportColumn = {
+  key: string;
+  label: string;
+  width?: number;
+  align?: "left" | "right" | "center";
+};
+
+export type HrReportRow = Record<string, string | number | boolean>;
 
 export type HrReportPdfData = {
   number: string;
   date: string;
-  title?: string;
   period: string;
-  rows: Array<{
-    reference: string;
-    label: string;
-    value: number;
-  }>;
+  section: HrReportSection;
+  sectionLabel: string;
+  summary: HrReportSummary;
+  columns: HrReportColumn[];
+  rows: HrReportRow[];
+  company?: CompanyProfile;
+  filename?: string;
 };
 
-export function HrReportPdfTemplate(data: HrReportPdfData, company?: CompanyProfile): PdfLayoutDocument {
-  const lines: PdfLineItem[] = data.rows.map((row) => ({
-    reference: row.reference,
-    designation: row.label,
-    quantity: 1,
-    unitPrice: row.value,
-    vat: 0
-  }));
-
+export function HrReportPdfTemplate(data: HrReportPdfData, company?: CompanyProfile): HrReportPdfData {
   return {
-    title: "RAPPORT RH",
-    number: data.number,
-    date: data.date,
-    recipient: {
-      label: "RAPPORT",
-      name: data.title || "Rapport Ressources Humaines",
-      company: `Période : ${data.period}`
-    },
-    lines,
-    notes: "Rapport généré par HICOTECH ERP.",
-    filename: data.number,
-    company
+    ...data,
+    company: company ?? data.company,
+    filename: data.filename || data.number
   };
 }
 

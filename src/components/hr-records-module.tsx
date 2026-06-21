@@ -7,7 +7,8 @@ import { EmptyState } from "@/components/empty-state";
 import { FormModal } from "@/components/form-modal";
 import { SearchBar } from "@/components/search-bar";
 import { activeCompanyProfile } from "@/lib/demo-data";
-import { createHrReportPdf } from "@/lib/pdf";
+import { createHrReportPdf, createPayslipPdf } from "@/lib/pdf";
+import type { HrReportColumn, HrReportSection } from "@/components/pdf-templates/HrReportPdfTemplate";
 
 export type HrField = {
   key: string;
@@ -96,20 +97,42 @@ export function HrRecordsModule({
   }
 
   function createRecordPdf(item: HrRecord) {
+    if (title.toLowerCase().includes("salaire")) {
+      createPayslipPdf({
+        number: `PAIE-${Date.now()}`,
+        date: new Date().toISOString().slice(0, 10),
+        employeeName: String(item.employee ?? "Employé"),
+        period: String(item.month ?? item.periode ?? "Mois courant"),
+        baseSalary: toNumber(item.baseSalary),
+        bonuses: toNumber(item.bonuses),
+        advances: toNumber(item.advances),
+        deductions: toNumber(item.deductions),
+        unpaidAbsences: toNumber(item.unpaidAbsences),
+        netSalary: toNumber(item.netSalary)
+      }, activeCompanyProfile);
+      return;
+    }
+
+    const section = getHrSection(title);
+    const reportColumns = getReportColumns(section);
+    const reportRows = (filtered.length > 0 ? filtered : [item]).map((record) => normalizeReportRow(section, record));
+
     createHrReportPdf({
       number: `RH-${Date.now()}`,
       date: new Date().toISOString().slice(0, 10),
-      title,
-      period: String(item.date ?? item.periode ?? item.period ?? "Courant"),
-      rows: columns.map((column, index) => {
-        const rawValue = item[column.key];
-        const numericValue = typeof rawValue === "number" ? rawValue : Number(rawValue);
-        return {
-          reference: column.key.toUpperCase().slice(0, 12) || `RH-${index + 1}`,
-          label: `${column.label} : ${String(rawValue ?? "-")}`,
-          value: Number.isFinite(numericValue) ? numericValue : 0
-        };
-      })
+      period: getReportPeriod(item),
+      section,
+      sectionLabel: title,
+      summary: {
+        activeEmployees: countUnique(items, "employee"),
+        contracts: title.toLowerCase().includes("contrat") ? items.length : 0,
+        monthlyAttendances: title.toLowerCase().includes("présence") || title.toLowerCase().includes("presence") ? items.length : 0,
+        monthlyAbsences: title.toLowerCase().includes("absence") ? items.length : 0,
+        pendingLeaves: items.filter((record) => String(record.status ?? "").toLowerCase() === "en attente").length,
+        payrollMass: items.reduce((sum, record) => sum + toNumber(record.netSalary), 0)
+      },
+      columns: reportColumns,
+      rows: reportRows
     }, activeCompanyProfile);
   }
 
@@ -192,6 +215,92 @@ function Field({ field, value, onChange }: { field: HrField; value: string | num
       <input type={field.type ?? "text"} value={String(value)} onChange={(event) => onChange(field.type === "number" ? Number(event.target.value) : event.target.value)} className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none ring-hicotech-blue/20 focus:border-hicotech-blue focus:ring-4 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white" />
     </label>
   );
+}
+
+function getHrSection(title: string): HrReportSection {
+  const normalized = title.toLowerCase();
+  if (normalized.includes("contrat")) return "contrats";
+  if (normalized.includes("présence") || normalized.includes("presence")) return "presences";
+  if (normalized.includes("absence")) return "absences";
+  if (normalized.includes("congé") || normalized.includes("conge")) return "conges";
+  return "general";
+}
+
+function getReportColumns(section: HrReportSection): HrReportColumn[] {
+  if (section === "contrats") {
+    return [
+      { key: "employee", label: "Employé", width: 35 },
+      { key: "type", label: "Type de contrat", width: 25 },
+      { key: "position", label: "Poste", width: 34 },
+      { key: "startDate", label: "Date début", width: 24 },
+      { key: "endDate", label: "Date fin", width: 24 },
+      { key: "salary", label: "Salaire", width: 22, align: "right" },
+      { key: "status", label: "Statut", width: 18 }
+    ];
+  }
+
+  if (section === "presences") {
+    return [
+      { key: "employee", label: "Employé", width: 38 },
+      { key: "date", label: "Date", width: 25 },
+      { key: "checkIn", label: "Heure entrée", width: 25 },
+      { key: "checkOut", label: "Heure sortie", width: 25 },
+      { key: "lateMinutes", label: "Retard", width: 21, align: "right" },
+      { key: "workedHours", label: "Heures travaillées", width: 30, align: "right" },
+      { key: "status", label: "Statut", width: 18 }
+    ];
+  }
+
+  if (section === "absences" || section === "conges") {
+    return [
+      { key: "employee", label: "Employé", width: 38 },
+      { key: "startDate", label: "Date début", width: 27 },
+      { key: "endDate", label: "Date fin", width: 27 },
+      { key: "reason", label: "Motif", width: 48 },
+      { key: "days", label: "Jours", width: 20, align: "right" },
+      { key: "status", label: "Statut", width: 22 }
+    ];
+  }
+
+  return [
+    { key: "employee", label: "Employé", width: 42 },
+    { key: "date", label: "Date", width: 28 },
+    { key: "reason", label: "Motif", width: 62 },
+    { key: "status", label: "Statut", width: 24 },
+    { key: "value", label: "Valeur", width: 26, align: "right" }
+  ];
+}
+
+function normalizeReportRow(section: HrReportSection, record: HrRecord): HrRecord {
+  if (section === "contrats") {
+    return {
+      ...record,
+      position: record.position ?? record.function ?? "-",
+      status: record.status ?? "Actif"
+    };
+  }
+
+  if (section === "presences") {
+    return {
+      ...record,
+      status: record.status ?? (toNumber(record.lateMinutes) > 0 ? "Retard" : "Présent")
+    };
+  }
+
+  return record;
+}
+
+function getReportPeriod(record: HrRecord) {
+  return String(record.month ?? record.date ?? record.startDate ?? "Période courante");
+}
+
+function countUnique(records: HrRecord[], key: string) {
+  return new Set(records.map((record) => String(record[key] ?? "")).filter(Boolean)).size;
+}
+
+function toNumber(value: unknown) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function Action({ label, icon, danger, disabled, onClick }: { label: string; icon: React.ReactNode; danger?: boolean; disabled?: boolean; onClick: () => void }) {
