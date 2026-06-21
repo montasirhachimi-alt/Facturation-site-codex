@@ -156,10 +156,10 @@ export function DeliveryNotesModule({
     });
   }
 
-  function createPdf(note: DeliveryNote) {
+  function createPdf(note: DeliveryNote, mode: "save" | "print" = "save") {
     const client = getClient(note.clientId, clients);
     if (!client) return;
-    createDeliveryNotePdf(note, client, activeCompanyProfile);
+    createDeliveryNotePdf(note, client, activeCompanyProfile, mode);
   }
 
   return (
@@ -228,7 +228,7 @@ export function DeliveryNotesModule({
                             <Action label="Voir" icon={<Eye size={16} />} onClick={() => setSelectedNote(note)} />
                             <Action label="Modifier" icon={<Edit3 size={16} />} onClick={() => openEdit(note)} disabled={!canWrite} />
                             <Action label="PDF" icon={<FileUp size={16} />} onClick={() => createPdf(note)} />
-                            <Action label="Imprimer" icon={<Printer size={16} />} onClick={() => window.print()} />
+                            <Action label="Imprimer" icon={<Printer size={16} />} onClick={() => createPdf(note, "print")} />
                             <Action label="Supprimer" icon={<Trash2 size={16} />} onClick={() => setDeleteTarget(note)} danger disabled={!canWrite} />
                           </div>
                         </td>
@@ -249,7 +249,7 @@ export function DeliveryNotesModule({
           client={getClient(selectedNote.clientId, clients)}
           onClose={() => setSelectedNote(null)}
           onPdf={() => createPdf(selectedNote)}
-          onPrint={() => window.print()}
+          onPrint={() => createPdf(selectedNote, "print")}
           onConvert={() => setMessage(`Le bon ${selectedNote.number} est prêt à convertir en facture.`)}
         />
       )}
@@ -268,7 +268,10 @@ export function DeliveryNotesModule({
             const client = getClient(form.clientId, clients);
             if (client) createDeliveryNotePdf({ id: editingNote?.id ?? "draft", companyId: scope.companyId, ...form }, client, activeCompanyProfile);
           }}
-          onPrint={() => window.print()}
+          onPrint={() => {
+            const client = getClient(form.clientId, clients);
+            if (client) createDeliveryNotePdf({ id: editingNote?.id ?? "draft", companyId: scope.companyId, ...form }, client, activeCompanyProfile, "print");
+          }}
           onConvert={() => setMessage(`Le bon ${form.number} est prêt à convertir en facture.`)}
           onFormChange={setForm}
           onClientChange={updateClient}

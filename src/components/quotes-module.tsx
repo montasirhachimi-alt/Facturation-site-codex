@@ -240,7 +240,7 @@ export function QuotesModule({
                       <div className="flex flex-wrap gap-2">
                         <Action label="Modifier" icon={<Edit3 size={16} />} onClick={() => openEditQuote(quote)} />
                         <Action label="PDF" icon={<FileText size={16} />} onClick={() => client && createQuotePdf(quote, client, activeCompanyProfile)} />
-                        <Action label="Imprimer" icon={<Printer size={16} />} onClick={() => window.print()} />
+                        <Action label="Imprimer" icon={<Printer size={16} />} onClick={() => client && createQuotePdf(quote, client, activeCompanyProfile, "print")} />
                         <Action label={convertedInvoices.includes(quote.id) ? "Facturé" : "Facture"} icon={<FileCheck2 size={16} />} onClick={() => convertToInvoice(quote)} />
                         <Action label="Supprimer" icon={<Trash2 size={16} />} onClick={() => deleteQuote(quote.id)} danger />
                       </div>

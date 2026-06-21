@@ -6,6 +6,8 @@ import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
 import { EmptyState } from "@/components/empty-state";
 import { FormModal } from "@/components/form-modal";
 import { SearchBar } from "@/components/search-bar";
+import { activeCompanyProfile } from "@/lib/demo-data";
+import { createHrReportPdf } from "@/lib/pdf";
 
 export type HrField = {
   key: string;
@@ -93,6 +95,24 @@ export function HrRecordsModule({
     URL.revokeObjectURL(url);
   }
 
+  function createRecordPdf(item: HrRecord) {
+    createHrReportPdf({
+      number: `RH-${Date.now()}`,
+      date: new Date().toISOString().slice(0, 10),
+      title,
+      period: String(item.date ?? item.periode ?? item.period ?? "Courant"),
+      rows: columns.map((column, index) => {
+        const rawValue = item[column.key];
+        const numericValue = typeof rawValue === "number" ? rawValue : Number(rawValue);
+        return {
+          reference: column.key.toUpperCase().slice(0, 12) || `RH-${index + 1}`,
+          label: `${column.label} : ${String(rawValue ?? "-")}`,
+          value: Number.isFinite(numericValue) ? numericValue : 0
+        };
+      })
+    }, activeCompanyProfile);
+  }
+
   return (
     <section className="rounded-lg border border-slate-200 bg-white shadow-soft dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
       <div className="flex flex-col gap-3 border-b border-slate-200 p-4 dark:border-hicotech-dark-border lg:flex-row lg:items-center lg:justify-between">
@@ -129,7 +149,7 @@ export function HrRecordsModule({
                   <td className="px-4 py-4">
                     <div className="flex gap-2">
                       <Action label="Modifier" icon={<Edit3 size={16} />} onClick={() => openEdit(item)} disabled={readOnly} />
-                      <Action label="PDF" icon={<FileText size={16} />} onClick={() => window.print()} />
+                      <Action label="PDF" icon={<FileText size={16} />} onClick={() => createRecordPdf(item)} />
                       <Action label="Supprimer" icon={<Trash2 size={16} />} onClick={() => setDeleteTarget(item)} danger disabled={readOnly} />
                     </div>
                   </td>

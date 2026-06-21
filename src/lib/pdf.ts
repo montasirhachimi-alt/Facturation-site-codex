@@ -1,44 +1,17 @@
 import jsPDF from "jspdf";
 import type { BusinessClient, CompanyProfile, DeliveryNote, Invoice, Quote, SalesDocument } from "@/lib/types";
-
-type PdfLine = {
-  reference: string;
-  designation: string;
-  quantity: number;
-  unitPrice: number;
-  vat: number;
-};
-
-type PdfClient = {
-  name: string;
-  company: string;
-  address: string;
-  city: string;
-  ice?: string;
-  phone?: string;
-};
-
-type PdfDocument = {
-  title: string;
-  number: string;
-  date: string;
-  dueDate?: string;
-  status?: string;
-  internalReference?: string;
-  client: PdfClient;
-  lines: PdfLine[];
-  paidAmount?: number;
-  discount?: number;
-  amountInWords?: string;
-  paymentTerms?: string;
-  notes?: string;
-  filename?: string;
-  deliverySummary?: {
-    totalItems: number;
-    totalDelivered: number;
-  };
-  company?: CompanyProfile;
-};
+import { DeliveryNotePdfTemplate } from "@/components/pdf-templates/DeliveryNotePdfTemplate";
+import { HrReportPdfTemplate, type HrReportPdfData } from "@/components/pdf-templates/HrReportPdfTemplate";
+import { InvoicePdfTemplate } from "@/components/pdf-templates/InvoicePdfTemplate";
+import type { PdfDocumentTitle, PdfLayoutDocument, PdfLineItem, PdfParty } from "@/components/pdf-templates/PdfLayout";
+import { pdfTheme as colors } from "@/components/pdf-templates/PdfLayout";
+import {
+  CreditNotePdfTemplate,
+  ProformaPdfTemplate,
+  PurchaseOrderPdfTemplate,
+  typedSalesTemplate
+} from "@/components/pdf-templates/PurchaseOrderPdfTemplate";
+import { QuotePdfTemplate } from "@/components/pdf-templates/QuotePdfTemplate";
 
 type StoredPdfSettings = {
   showLogo?: boolean;
@@ -49,16 +22,7 @@ type StoredPdfSettings = {
   footer?: string;
 };
 
-const colors = {
-  navy: [10, 30, 63] as const,
-  blue: [13, 110, 253] as const,
-  lightBlue: [230, 242, 255] as const,
-  text: [43, 50, 65] as const,
-  muted: [101, 116, 139] as const,
-  border: [215, 226, 240] as const,
-  soft: [248, 250, 252] as const,
-  white: [255, 255, 255] as const
-};
+type PdfOutputMode = "save" | "print";
 
 const defaultCompany: Required<Pick<CompanyProfile, "name" | "address" | "city" | "phone" | "ice" | "taxId">> = {
   name: "HICOTECH",
@@ -76,151 +40,46 @@ const pageWidth = 210;
 const pageHeight = 297;
 const contentWidth = pageWidth - margin * 2;
 const footerY = 285;
-const tableBottomY = 214;
+const tableBottomY = 226;
 
-export async function createSalesPdf(document: SalesDocument, companyProfile?: CompanyProfile) {
-  const lines = document.lines.map((line, index) => ({
-    reference: `REF-${String(index + 1).padStart(3, "0")}`,
-    designation: line.designation,
-    quantity: line.quantity,
-    unitPrice: line.unitPrice,
-    vat: line.vat
-  }));
-
-  await renderPremiumPdf({
-    title: document.type,
-    number: document.number,
-    date: document.date,
-    client: {
-      name: document.customer.name,
-      company: document.customer.name,
-      address: document.customer.address,
-      city: document.customer.city,
-      ice: document.customer.ice,
-      phone: document.customer.phone
-    },
-    lines,
-    amountInWords: document.amountInWords,
-    paymentTerms: "Paiement par virement, chèque ou espèces selon accord commercial.",
-    filename: document.number,
-    company: companyProfile
-  });
+export async function createSalesPdf(document: SalesDocument, companyProfile?: CompanyProfile, mode: PdfOutputMode = "save") {
+  await renderPremiumPdf(typedSalesTemplate(document, normalizeSalesTitle(document.type), companyProfile), mode);
 }
 
-export async function createQuotePdf(quote: Quote, client: BusinessClient, companyProfile?: CompanyProfile) {
-  await renderPremiumPdf({
-    title: "DEVIS",
-    number: quote.number,
-    date: quote.date,
-    status: quote.status,
-    client: toPdfClient(client),
-    lines: quote.lines.map((line) => ({
-      reference: line.reference || line.productId,
-      designation: line.designation,
-      quantity: line.quantity,
-      unitPrice: line.unitPrice,
-      vat: line.vat
-    })),
-    paymentTerms: "Ce devis est valable 30 jours. Paiement selon conditions convenues à la validation.",
-    filename: quote.number,
-    company: companyProfile
-  });
+export async function createQuotePdf(quote: Quote, client: BusinessClient, companyProfile?: CompanyProfile, mode: PdfOutputMode = "save") {
+  await renderPremiumPdf(QuotePdfTemplate(quote, client, companyProfile), mode);
 }
 
-export async function createInvoicePdf(invoice: Invoice, client: BusinessClient, companyProfile?: CompanyProfile) {
-  const paidAmount = invoice.payments.reduce((sum, payment) => sum + payment.amount, 0);
-
-  await renderPremiumPdf({
-    title: "FACTURE",
-    number: invoice.number,
-    date: invoice.date,
-    dueDate: invoice.dueDate,
-    status: invoice.status,
-    client: toPdfClient(client),
-    lines: invoice.lines.map((line) => ({
-      reference: line.reference || line.productId,
-      designation: line.designation,
-      quantity: line.quantity,
-      unitPrice: line.unitPrice,
-      vat: line.vat
-    })),
-    paidAmount,
-    paymentTerms: "Paiement par virement, chèque ou espèces. Merci d'indiquer le numéro de facture comme référence.",
-    filename: invoice.number,
-    company: companyProfile
-  });
+export async function createInvoicePdf(invoice: Invoice, client: BusinessClient, companyProfile?: CompanyProfile, mode: PdfOutputMode = "save") {
+  await renderPremiumPdf(InvoicePdfTemplate(invoice, client, companyProfile), mode);
 }
 
-export async function createDeliveryNotePdf(deliveryNote: DeliveryNote, client: BusinessClient, companyProfile?: CompanyProfile) {
-  await renderPremiumPdf({
-    title: "BON DE LIVRAISON",
-    number: deliveryNote.number,
-    date: deliveryNote.date,
-    status: deliveryNote.status,
-    internalReference: deliveryNote.internalReference,
-    client: {
-      ...toPdfClient(client),
-      address: deliveryNote.deliveryAddress,
-      city: deliveryNote.city
-    },
-    lines: deliveryNote.lines.map((line) => ({
-      reference: line.reference,
-      designation: `${line.designation}${line.observations ? ` - ${line.observations}` : ""}`,
-      quantity: line.deliveredQuantity,
-      unitPrice: 0,
-      vat: 0
-    })),
-    paymentTerms: deliveryNote.deliveryTerms || "Livraison selon accord commercial.",
-    notes: deliveryNote.internalNotes,
-    deliverySummary: {
-      totalItems: deliveryNote.lines.length,
-      totalDelivered: deliveryNote.lines.reduce((sum, line) => sum + line.deliveredQuantity, 0)
-    },
-    filename: deliveryNote.number,
-    company: companyProfile
-  });
+export async function createDeliveryNotePdf(deliveryNote: DeliveryNote, client: BusinessClient, companyProfile?: CompanyProfile, mode: PdfOutputMode = "save") {
+  await renderPremiumPdf(DeliveryNotePdfTemplate(deliveryNote, client, companyProfile), mode);
 }
 
-export async function createPurchaseOrderPdf(document: SalesDocument, companyProfile?: CompanyProfile) {
-  await createTypedSalesPdf(document, "BON DE COMMANDE", companyProfile);
+export async function createPurchaseOrderPdf(document: SalesDocument, companyProfile?: CompanyProfile, mode: PdfOutputMode = "save") {
+  await renderPremiumPdf(PurchaseOrderPdfTemplate(document, companyProfile), mode);
 }
 
-export async function createProformaPdf(document: SalesDocument, companyProfile?: CompanyProfile) {
-  await createTypedSalesPdf(document, "FACTURE PROFORMA", companyProfile);
+export async function createProformaPdf(document: SalesDocument, companyProfile?: CompanyProfile, mode: PdfOutputMode = "save") {
+  await renderPremiumPdf(ProformaPdfTemplate(document, companyProfile), mode);
 }
 
-export async function createCreditNotePdf(document: SalesDocument, companyProfile?: CompanyProfile) {
-  await createTypedSalesPdf(document, "AVOIR", companyProfile);
+export async function createCreditNotePdf(document: SalesDocument, companyProfile?: CompanyProfile, mode: PdfOutputMode = "save") {
+  await renderPremiumPdf(CreditNotePdfTemplate(document, companyProfile), mode);
 }
 
-async function createTypedSalesPdf(document: SalesDocument, title: string, companyProfile?: CompanyProfile) {
-  await renderPremiumPdf({
-    title,
-    number: document.number,
-    date: document.date,
-    client: {
-      name: document.customer.name,
-      company: document.customer.name,
-      address: document.customer.address,
-      city: document.customer.city,
-      ice: document.customer.ice,
-      phone: document.customer.phone
-    },
-    lines: document.lines.map((line, index) => ({
-      reference: `REF-${String(index + 1).padStart(3, "0")}`,
-      designation: line.designation,
-      quantity: line.quantity,
-      unitPrice: line.unitPrice,
-      vat: line.vat
-    })),
-    amountInWords: document.amountInWords,
-    paymentTerms: "Document établi selon les conditions commerciales convenues.",
-    filename: document.number,
-    company: companyProfile
-  });
+export async function createHrReportPdf(data: HrReportPdfData, companyProfile?: CompanyProfile, mode: PdfOutputMode = "save") {
+  await renderPremiumPdf(HrReportPdfTemplate(data, companyProfile), mode);
 }
 
-async function renderPremiumPdf(document: PdfDocument) {
+function normalizeSalesTitle(title: SalesDocument["type"]): PdfDocumentTitle {
+  if (title === "PROFORMA") return "FACTURE PROFORMA";
+  return title;
+}
+
+async function renderPremiumPdf(document: PdfLayoutDocument, mode: PdfOutputMode) {
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
   const company = resolveCompanyProfile(document.company);
   const pdfSettings = resolvePdfSettings();
@@ -253,12 +112,12 @@ async function renderPremiumPdf(document: PdfDocument) {
   drawBottomBlocks(pdf, document, totals, amountInWords, y + 8, pdfSettings);
   drawFooter(pdf, page, company, pdfSettings);
   applyTotalPageCount(pdf);
-  pdf.save(`${document.filename || document.number}.pdf`);
+  outputPdf(pdf, `${document.filename || document.number}.pdf`, mode);
 }
 
 function drawPageHeader(
   pdf: jsPDF,
-  document: PdfDocument,
+  document: PdfLayoutDocument,
   currentPage: number,
   company: ReturnType<typeof resolveCompanyProfile>,
   logo: LoadedLogo | null,
@@ -267,27 +126,32 @@ function drawPageHeader(
   pdf.setFillColor(...colors.white);
   pdf.rect(0, 0, pageWidth, pageHeight, "F");
 
+  pdf.setFillColor(...colors.navy);
+  pdf.rect(0, 0, pageWidth, 7, "F");
+
   if (pdfSettings.showLogo !== false) {
-    drawLogoPdf(pdf, margin, 12, logo);
+    drawLogoPdf(pdf, margin, 14, logo);
   }
 
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(10);
+  pdf.setTextColor(...colors.navy);
+  pdf.text(company.name, margin + 54, 19);
   pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(8.5);
-  pdf.setTextColor(...colors.text);
-  pdf.text(company.name, margin, 45);
+  pdf.setFontSize(7.8);
   pdf.setTextColor(...colors.muted);
-  pdf.text(company.address, margin, 50);
-  pdf.text(company.city, margin, 55);
-  pdf.text(`Tél : ${company.phone}`, margin, 60);
-  pdf.text(`ICE : ${company.ice}   IF : ${company.taxId}`, margin, 65);
+  pdf.text(company.address, margin + 54, 25);
+  pdf.text(company.city, margin + 54, 30);
+  pdf.text(`Tél : ${company.phone}`, margin + 54, 35);
+  pdf.text(`ICE : ${company.ice}   IF : ${company.taxId}`, margin + 54, 40);
 
   pdf.setTextColor(...colors.navy);
   pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(document.title.length > 16 ? 18 : 22);
-  pdf.text(document.title, pageWidth - margin, 21, { align: "right" });
+  pdf.setFontSize(document.title.length > 16 ? 19 : 24);
+  pdf.text(document.title, pageWidth - margin, 22, { align: "right" });
 
-  const metaX = pageWidth - margin - 72;
-  let metaY = 31;
+  const metaX = pageWidth - margin - 66;
+  let metaY = 34;
   drawMetaLine(pdf, metaX, metaY, "Numéro", document.number);
   metaY += 6;
   drawMetaLine(pdf, metaX, metaY, "Date", document.date);
@@ -304,34 +168,34 @@ function drawPageHeader(
     drawMetaLine(pdf, metaX, metaY, "Référence", document.internalReference);
   }
 
-  drawClientBlock(pdf, document.client);
+  drawRecipientBlock(pdf, document.recipient);
 
   pdf.setDrawColor(...colors.border);
   pdf.setLineWidth(0.25);
-  pdf.line(margin, 100, pageWidth - margin, 100);
+  pdf.line(margin, 96, pageWidth - margin, 96);
 
   if (currentPage > 1) {
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(8);
     pdf.setTextColor(...colors.muted);
-    pdf.text(`Suite du document ${document.number}`, margin, 96);
+    pdf.text(`Suite du document ${document.number}`, margin, 92);
   }
 
-  return 106;
+  return 102;
 }
 
 function drawLogoPdf(pdf: jsPDF, x: number, y: number, logo: LoadedLogo | null) {
-  const boxWidth = 72;
-  const boxHeight = 30;
-  const padding = 1.5;
+  const boxWidth = 46;
+  const boxHeight = 20;
+  const padding = 1;
 
   if (!logo) {
     pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(18);
+    pdf.setFontSize(13);
     pdf.setTextColor(...colors.navy);
-    pdf.text("HICOTECH", x, y + 12);
-    pdf.setFontSize(7);
-    pdf.text("INFORMATIQUE SIMPLIFIEE", x, y + 20);
+    pdf.text("HICOTECH", x, y + 8);
+    pdf.setFontSize(5.5);
+    pdf.text("INFORMATIQUE SIMPLIFIEE", x, y + 14);
     return;
   }
 
@@ -356,31 +220,31 @@ function drawMetaLine(pdf: jsPDF, x: number, y: number, label: string, value: st
   pdf.text(value, pageWidth - margin, y, { align: "right" });
 }
 
-function drawClientBlock(pdf: jsPDF, client: PdfClient) {
+function drawRecipientBlock(pdf: jsPDF, recipient: PdfParty) {
   const x = 116;
-  const y = 61;
+  const y = 58;
   pdf.setFillColor(...colors.lightBlue);
-  pdf.roundedRect(x, y, 80, 31, 2, 2, "F");
+  pdf.roundedRect(x, y, 80, 30, 2, 2, "F");
   pdf.setDrawColor(...colors.border);
-  pdf.roundedRect(x, y, 80, 31, 2, 2);
+  pdf.roundedRect(x, y, 80, 30, 2, 2);
 
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(8.5);
   pdf.setTextColor(...colors.blue);
-  pdf.text("CLIENT", x + 4, y + 7);
+  pdf.text(recipient.label, x + 4, y + 7);
   pdf.setTextColor(...colors.navy);
-  pdf.text(client.company || client.name, x + 4, y + 13);
+  pdf.text(recipient.company || recipient.name, x + 4, y + 13, { maxWidth: 72 });
 
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(7.8);
-  pdf.setTextColor(...colors.text);
+  pdf.setTextColor(...colors.ink);
   const lines = [
-    client.name && client.name !== client.company ? client.name : "",
-    client.address,
-    client.city,
-    client.ice ? `ICE : ${client.ice}` : "",
-    client.phone ? `Tél : ${client.phone}` : ""
-  ].filter(Boolean);
+    recipient.name && recipient.name !== recipient.company ? recipient.name : "",
+    recipient.address,
+    recipient.city,
+    recipient.ice ? `ICE : ${recipient.ice}` : "",
+    recipient.phone ? `Tél : ${recipient.phone}` : ""
+  ].filter((line): line is string => Boolean(line));
   pdf.text(lines.slice(0, 5), x + 4, y + 18);
 }
 
@@ -400,24 +264,25 @@ function drawProductsTableHeader(pdf: jsPDF, y: number) {
   return y + 10;
 }
 
-function drawProductRow(pdf: jsPDF, line: PdfLine, index: number, y: number) {
+function drawProductRow(pdf: jsPDF, line: PdfLineItem, index: number, y: number) {
   const ht = line.quantity * line.unitPrice;
   const vat = ht * (line.vat / 100);
   const ttc = ht + vat;
-  const rowHeight = 9;
+  const designationLines = pdf.splitTextToSize(line.designation, 55).slice(0, 2);
+  const rowHeight = designationLines.length > 1 ? 12 : 9;
 
   if (index % 2 === 0) {
-    pdf.setFillColor(...colors.soft);
+    pdf.setFillColor(...colors.zebra);
     pdf.rect(margin, y - 1, contentWidth, rowHeight, "F");
   }
 
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(7.8);
-  pdf.setTextColor(...colors.text);
-  pdf.text(line.designation.slice(0, 38), 17, y + 5);
+  pdf.setTextColor(...colors.ink);
+  pdf.text(designationLines, 17, y + 5);
   pdf.setTextColor(...colors.muted);
   pdf.text((line.reference || "-").slice(0, 16), 76, y + 5);
-  pdf.setTextColor(...colors.text);
+  pdf.setTextColor(...colors.ink);
   pdf.text(formatQty(line.quantity), 105, y + 5, { align: "right" });
   pdf.text(formatMoney(line.unitPrice), 126, y + 5, { align: "right" });
   pdf.text(`${formatQty(line.vat)}%`, 145, y + 5, { align: "right" });
@@ -434,7 +299,7 @@ function drawProductRow(pdf: jsPDF, line: PdfLine, index: number, y: number) {
 
 function drawBottomBlocks(
   pdf: jsPDF,
-  document: PdfDocument,
+  document: PdfLayoutDocument,
   totals: ReturnType<typeof calculateTotals>,
   amountInWords: string,
   startY: number,
@@ -455,7 +320,7 @@ function drawBottomBlocks(
   pdf.text("Montant en lettres", margin + 4, y + 7);
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(7.8);
-  pdf.setTextColor(...colors.text);
+  pdf.setTextColor(...colors.ink);
   pdf.text(amountInWords, margin + 4, y + 14, { maxWidth: leftW - 8 });
 
   if (document.deliverySummary) {
@@ -474,7 +339,7 @@ function drawBottomBlocks(
   pdf.text("Conditions de paiement", margin, termsY);
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(7.8);
-  pdf.setTextColor(...colors.text);
+  pdf.setTextColor(...colors.ink);
   pdf.text(pdfSettings.paymentTerms || document.paymentTerms || "Paiement selon accord commercial.", margin, termsY + 6, { maxWidth: 112 });
 
   const notes = [document.notes, pdfSettings.legalNotice].filter(Boolean).join("\n");
@@ -483,7 +348,7 @@ function drawBottomBlocks(
     pdf.setTextColor(...colors.navy);
     pdf.text("Notes", margin, termsY + 18);
     pdf.setFont("helvetica", "normal");
-    pdf.setTextColor(...colors.text);
+    pdf.setTextColor(...colors.ink);
     pdf.text(notes, margin, termsY + 24, { maxWidth: 112 });
   }
 
@@ -546,11 +411,16 @@ function drawFooter(pdf: jsPDF, page: number, company: ReturnType<typeof resolve
   pdf.setDrawColor(...colors.border);
   pdf.setLineWidth(0.25);
   pdf.line(margin, 279, pageWidth - margin, 279);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(7.5);
+  pdf.setTextColor(...colors.navy);
+  pdf.text("HICOTECH ERP", margin, footerY);
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(7.5);
   pdf.setTextColor(...colors.muted);
-  pdf.text(pdfSettings.footer || `Tél : ${company.phone}  |  ICE : ${company.ice}  |  IF : ${company.taxId}`, margin, footerY);
-  pdf.text(`Page ${page}/{total_pages_count_string}`, pageWidth - margin, footerY, { align: "right" });
+  const footer = pdfSettings.footer || `www.hicotech.ma  |  Téléphone : ${company.phone}  |  ICE : ${company.ice}  |  IF : ${company.taxId}`;
+  pdf.text(footer, margin + 24, footerY);
+  pdf.text(`Page ${page} sur ${total_pages_count_string}`, pageWidth - margin, footerY, { align: "right" });
 }
 
 function resolveCompanyProfile(profile?: CompanyProfile) {
@@ -639,24 +509,24 @@ function applyTotalPageCount(pdf: jsPDF) {
   }
 }
 
-function calculateTotals(lines: PdfLine[], discount: number, paid: number) {
+function outputPdf(pdf: jsPDF, fileName: string, mode: PdfOutputMode) {
+  if (mode === "print") {
+    pdf.autoPrint();
+    const url = pdf.output("bloburl");
+    window.open(url, "_blank", "noopener,noreferrer");
+    return;
+  }
+
+  pdf.save(fileName);
+}
+
+function calculateTotals(lines: PdfLineItem[], discount: number, paid: number) {
   const ht = lines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0);
   const vat = lines.reduce((sum, line) => sum + line.quantity * line.unitPrice * (line.vat / 100), 0);
   const ttcBeforeDiscount = ht + vat;
   const ttc = Math.max(0, ttcBeforeDiscount - discount);
   const outstanding = Math.max(0, ttc - paid);
   return { ht, vat, discount, paid, outstanding, ttc };
-}
-
-function toPdfClient(client: BusinessClient): PdfClient {
-  return {
-    name: client.name,
-    company: client.company,
-    address: client.address,
-    city: client.city,
-    ice: client.ice,
-    phone: client.phone
-  };
 }
 
 function formatMoney(value: number) {

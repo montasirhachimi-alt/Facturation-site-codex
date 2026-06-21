@@ -16,7 +16,7 @@ export function PdfPreview({ document }: { document: SalesDocument }) {
     <div className="space-y-4">
       <div className="no-print flex justify-end gap-2">
         <button
-          onClick={() => window.print()}
+          onClick={() => createSalesPdf(document, activeCompanyProfile, "print")}
           className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-hicotech-navy shadow-soft"
         >
           <Printer size={18} />

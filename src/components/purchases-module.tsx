@@ -8,9 +8,11 @@ import { EmptyState } from "@/components/empty-state";
 import { Filters } from "@/components/filters";
 import { FormModal } from "@/components/form-modal";
 import { SearchBar } from "@/components/search-bar";
+import { activeCompanyProfile } from "@/lib/demo-data";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { createPurchaseOrderPdf } from "@/lib/pdf";
 import { applyStockChange, readProductsFromStorage } from "@/lib/product-tools";
-import type { PurchaseInvoice, PurchaseInvoiceLine, PurchaseStatus, StockProduct, Supplier, TenantScope } from "@/lib/types";
+import type { PurchaseInvoice, PurchaseInvoiceLine, PurchaseStatus, SalesDocument, StockProduct, Supplier, TenantScope } from "@/lib/types";
 
 type PurchaseFormState = Omit<PurchaseInvoice, "id" | "companyId">;
 
@@ -212,7 +214,7 @@ export function PurchasesModule({
                           <div className="flex flex-wrap gap-2">
                             <Action label="Voir" icon={<Eye size={16} />} onClick={() => setSelectedPurchase(purchase)} />
                             <Action label="Modifier" icon={<Edit3 size={16} />} onClick={() => openEdit(purchase)} disabled={!canWrite} />
-                            <Action label="Imprimer" icon={<Printer size={16} />} onClick={() => window.print()} />
+                            <Action label="Imprimer" icon={<Printer size={16} />} onClick={() => supplier && createPurchaseOrderPdf(toPurchaseSalesDocument(purchase, supplier), activeCompanyProfile, "print")} />
                             <Action label="Supprimer" icon={<Trash2 size={16} />} onClick={() => setDeleteTarget(purchase)} danger disabled={!canWrite} />
                           </div>
                         </td>
@@ -291,6 +293,28 @@ function createLine(product?: StockProduct): PurchaseInvoiceLine {
 
 function isStockStatus(status: PurchaseStatus) {
   return status === "Validée" || status === "Partiellement payée" || status === "Payée";
+}
+
+function toPurchaseSalesDocument(purchase: PurchaseInvoice, supplier: Supplier): SalesDocument {
+  return {
+    type: "DEVIS",
+    number: purchase.number,
+    date: purchase.date,
+    customer: {
+      name: supplier.name,
+      address: supplier.address,
+      city: supplier.city,
+      ice: supplier.ice,
+      phone: supplier.phone
+    },
+    lines: purchase.lines.map((line) => ({
+      designation: line.designation,
+      quantity: line.quantity,
+      unitPrice: line.unitPrice,
+      vat: line.vat
+    })),
+    amountInWords: ""
+  };
 }
 
 function getPurchaseTotal(purchase: Pick<PurchaseInvoice, "lines">) {

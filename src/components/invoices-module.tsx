@@ -273,7 +273,7 @@ export function InvoicesModule({
                         <Action label="Historique" icon={<Eye size={16} />} onClick={() => setSelectedInvoice(invoice)} />
                         <Action label="Paiement" icon={<CreditCard size={16} />} onClick={() => openPayment(invoice)} />
                         <Action label="PDF" icon={<FileText size={16} />} onClick={() => client && createInvoicePdf(invoice, client, activeCompanyProfile)} />
-                        <Action label="Imprimer" icon={<Printer size={16} />} onClick={() => window.print()} />
+                        <Action label="Imprimer" icon={<Printer size={16} />} onClick={() => client && createInvoicePdf(invoice, client, activeCompanyProfile, "print")} />
                         <Action label="Annuler" icon={<Ban size={16} />} onClick={() => cancelInvoice(invoice)} />
                       </div>
                     </td>
