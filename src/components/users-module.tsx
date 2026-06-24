@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Edit3, KeyRound, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
 import { EmptyState } from "@/components/empty-state";
@@ -18,6 +18,7 @@ type UserForm = {
 };
 
 const roles: Role[] = ["SUPER_ADMIN", "COMPANY_ADMIN", "SALES", "STOCK_MANAGER", "ACCOUNTANT", "HR", "READ_ONLY"];
+const usersStorageKey = "hicotech-users";
 
 export function UsersModule({ initialUsers, companyId }: { initialUsers: AppUser[]; companyId: string }) {
   const [users, setUsers] = useState(initialUsers.filter((user) => user.companyId === companyId || user.role === "SUPER_ADMIN"));
@@ -25,6 +26,20 @@ export function UsersModule({ initialUsers, companyId }: { initialUsers: AppUser
   const [form, setForm] = useState<UserForm | null>(null);
   const [editing, setEditing] = useState<AppUser | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AppUser | null>(null);
+  const [passwordTarget, setPasswordTarget] = useState<AppUser | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    const stored = loadUsers();
+    if (stored.length > 0) {
+      setUsers(stored.filter((user) => user.companyId === companyId || user.role === "SUPER_ADMIN"));
+    }
+  }, [companyId]);
+
+  useEffect(() => {
+    localStorage.setItem(usersStorageKey, JSON.stringify(users));
+  }, [users]);
 
   const filtered = useMemo(() => {
     const normalized = query.toLowerCase();
@@ -57,16 +72,35 @@ export function UsersModule({ initialUsers, companyId }: { initialUsers: AppUser
     setUsers((current) => editing ? current.map((user) => user.id === editing.id ? payload : user) : [payload, ...current]);
     setEditing(null);
     setForm(null);
+    showMessage(editing ? "Utilisateur modifié." : "Utilisateur créé.");
   }
 
-  function disableUser(user: AppUser) {
-    setUsers((current) => current.map((item) => item.id === user.id ? { ...item, status: "disabled" } : item));
+  function toggleUserStatus(user: AppUser) {
+    const nextStatus = user.status === "active" ? "disabled" : "active";
+    setUsers((current) => current.map((item) => item.id === user.id ? { ...item, status: nextStatus } : item));
+    showMessage(nextStatus === "active" ? "Utilisateur activé." : "Utilisateur désactivé.");
   }
 
   function confirmDelete() {
     if (!deleteTarget) return;
     setUsers((current) => current.filter((user) => user.id !== deleteTarget.id));
     setDeleteTarget(null);
+    showMessage("Utilisateur supprimé.");
+  }
+
+  async function savePassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!passwordTarget || !newPassword) return;
+    const passwordHash = await hashPasswordClient(newPassword);
+    setUsers((current) => current.map((user) => user.id === passwordTarget.id ? { ...user, passwordHash } : user));
+    setPasswordTarget(null);
+    setNewPassword("");
+    showMessage("Mot de passe changé.");
+  }
+
+  function showMessage(value: string) {
+    setMessage(value);
+    window.setTimeout(() => setMessage(""), 2500);
   }
 
   return (
@@ -79,6 +113,8 @@ export function UsersModule({ initialUsers, companyId }: { initialUsers: AppUser
             Créer utilisateur
           </button>
         </div>
+
+        {message && <p className="mx-4 mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-hicotech-green">{message}</p>}
 
         {filtered.length === 0 ? (
           <div className="p-5">
@@ -103,7 +139,8 @@ export function UsersModule({ initialUsers, companyId }: { initialUsers: AppUser
                     <td className="px-4 py-4">
                       <div className="flex flex-wrap gap-2">
                         <Action label="Modifier" icon={<Edit3 size={16} />} onClick={() => openEdit(user)} />
-                        <Action label="Désactiver" icon={<KeyRound size={16} />} onClick={() => disableUser(user)} />
+                        <Action label="Mot de passe" icon={<KeyRound size={16} />} onClick={() => { setPasswordTarget(user); setNewPassword(""); }} />
+                        <Action label={user.status === "active" ? "Désactiver" : "Activer"} icon={<ShieldCheck size={16} />} onClick={() => toggleUserStatus(user)} />
                         <Action label="Supprimer" icon={<Trash2 size={16} />} onClick={() => setDeleteTarget(user)} danger />
                       </div>
                     </td>
@@ -127,9 +164,24 @@ export function UsersModule({ initialUsers, companyId }: { initialUsers: AppUser
         </FormModal>
       )}
 
+      {passwordTarget && (
+        <FormModal title={`Changer mot de passe - ${passwordTarget.name}`} onClose={() => setPasswordTarget(null)} onSubmit={savePassword} submitLabel="Enregistrer le mot de passe">
+          <Field label="Nouveau mot de passe" type="password" value={newPassword} onChange={setNewPassword} required />
+        </FormModal>
+      )}
+
       {deleteTarget && <ConfirmDeleteDialog title="Supprimer cet utilisateur ?" description="Cette action retire l'utilisateur de la liste locale." onCancel={() => setDeleteTarget(null)} onConfirm={confirmDelete} />}
     </div>
   );
+}
+
+function loadUsers() {
+  try {
+    const raw = localStorage.getItem(usersStorageKey);
+    return raw ? JSON.parse(raw) as AppUser[] : [];
+  } catch {
+    return [];
+  }
 }
 
 function permissionSummary(role: Role) {

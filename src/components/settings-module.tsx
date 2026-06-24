@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Building2, Download, Eye, Hash, Plus, Printer, Save, Users, X } from "lucide-react";
+import { Building2, Download, Eye, Hash, KeyRound, Plus, Printer, Save, Trash2, Users, X } from "lucide-react";
 import { activeCompanyId, activeCompanyProfile, demoUsers } from "@/lib/demo-data";
 import type { AppUser, CompanyProfile, Role } from "@/lib/types";
 
@@ -28,6 +28,7 @@ type PdfSettings = {
 const companyStorageKey = "hicotech-settings-company";
 const numberingStorageKey = "hicotech-settings-numbering";
 const pdfStorageKey = "hicotech-settings-pdf";
+const usersStorageKey = "hicotech-users";
 
 const defaultCompany: CompanyProfile & { legalName: string; website: string; patente: string } = {
   ...activeCompanyProfile,
@@ -66,13 +67,23 @@ export function SettingsModule() {
   const [pdf, setPdf] = useState(defaultPdf);
   const [users, setUsers] = useState(demoUsers.filter((user) => user.companyId === activeCompanyId || user.role === "SUPER_ADMIN"));
   const [userForm, setUserForm] = useState<AppUser | null>(null);
+  const [passwordTarget, setPasswordTarget] = useState<AppUser | null>(null);
+  const [newPassword, setNewPassword] = useState("");
   const [saved, setSaved] = useState("");
 
   useEffect(() => {
     setCompany(loadStored(companyStorageKey, defaultCompany));
     setNumbering(loadStored(numberingStorageKey, defaultNumbering));
     setPdf(loadStored(pdfStorageKey, defaultPdf));
+    const storedUsers = loadStored<AppUser[]>(usersStorageKey, []);
+    if (storedUsers.length > 0) {
+      setUsers(storedUsers.filter((user) => user.companyId === activeCompanyId || user.role === "SUPER_ADMIN"));
+    }
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem(usersStorageKey, JSON.stringify(users));
+  }, [users]);
 
   const sections = useMemo(() => [
     { id: "entreprise", title: "Entreprise", description: "Identité, coordonnées, fiscalité et visuels.", icon: Building2 },
@@ -108,6 +119,27 @@ export function SettingsModule() {
     setUsers((current) => current.some((user) => user.id === nextUser.id) ? current.map((user) => user.id === nextUser.id ? nextUser : user) : [nextUser, ...current]);
     setUserForm(null);
     markSaved("Utilisateur enregistré.");
+  }
+
+  async function saveUserPassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!passwordTarget || !newPassword) return;
+    const passwordHash = await hashPasswordClient(newPassword);
+    setUsers((current) => current.map((user) => user.id === passwordTarget.id ? { ...user, passwordHash } : user));
+    setPasswordTarget(null);
+    setNewPassword("");
+    markSaved("Mot de passe changé.");
+  }
+
+  function toggleUserStatus(user: AppUser) {
+    const nextStatus = user.status === "active" ? "disabled" : "active";
+    setUsers((current) => current.map((item) => item.id === user.id ? { ...item, status: nextStatus } : item));
+    markSaved(nextStatus === "active" ? "Utilisateur activé." : "Utilisateur désactivé.");
+  }
+
+  function deleteUser(user: AppUser) {
+    setUsers((current) => current.filter((item) => item.id !== user.id));
+    markSaved("Utilisateur supprimé.");
   }
 
   function exportJson() {
@@ -214,7 +246,9 @@ export function SettingsModule() {
                     <td className="px-4 py-4">
                       <div className="flex gap-2">
                         <SmallButton onClick={() => setUserForm(user)}>Modifier</SmallButton>
-                        <SmallButton onClick={() => setUsers((current) => current.map((item) => item.id === user.id ? { ...item, status: "disabled" } : item))}>Désactiver</SmallButton>
+                        <SmallButton onClick={() => { setPasswordTarget(user); setNewPassword(""); }}><KeyRound size={14} /> Mot de passe</SmallButton>
+                        <SmallButton onClick={() => toggleUserStatus(user)}>{user.status === "active" ? "Désactiver" : "Activer"}</SmallButton>
+                        <SmallButton onClick={() => deleteUser(user)} danger><Trash2 size={14} /> Supprimer</SmallButton>
                       </div>
                     </td>
                   </tr>
@@ -257,6 +291,16 @@ export function SettingsModule() {
 
       {userForm && (
         <UserModal user={userForm} onChange={setUserForm} onClose={() => setUserForm(null)} onSubmit={saveUser} />
+      )}
+
+      {passwordTarget && (
+        <PasswordModal
+          user={passwordTarget}
+          password={newPassword}
+          onPasswordChange={setNewPassword}
+          onClose={() => setPasswordTarget(null)}
+          onSubmit={saveUserPassword}
+        />
       )}
     </div>
   );
@@ -340,8 +384,55 @@ function SaveButton() {
   );
 }
 
-function SmallButton({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
-  return <button type="button" onClick={onClick} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-hicotech-navy dark:border-hicotech-dark-border dark:text-white">{children}</button>;
+function SmallButton({ children, danger, onClick }: { children: React.ReactNode; danger?: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-xs font-bold ${
+        danger
+          ? "border-red-200 text-hicotech-red hover:bg-red-50"
+          : "border-slate-200 text-hicotech-navy hover:bg-hicotech-sky dark:border-hicotech-dark-border dark:text-white dark:hover:bg-hicotech-blue/20"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function PasswordModal({
+  user,
+  password,
+  onPasswordChange,
+  onClose,
+  onSubmit
+}: {
+  user: AppUser;
+  password: string;
+  onPasswordChange: (value: string) => void;
+  onClose: () => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-hicotech-dark-sidebar/70 px-4 backdrop-blur-sm">
+      <form onSubmit={onSubmit} className="w-full max-w-xl rounded-lg border border-slate-200 bg-white p-6 shadow-soft dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="font-display text-2xl font-bold text-hicotech-navy dark:text-white">Changer mot de passe</h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">{user.name} - {user.email}</p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 p-2 dark:border-hicotech-dark-border"><X size={18} /></button>
+        </div>
+        <div className="mt-6">
+          <Field label="Nouveau mot de passe" type="password" value={password} onChange={onPasswordChange} />
+        </div>
+        <div className="mt-6 flex justify-end gap-3">
+          <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-bold text-hicotech-navy dark:border-hicotech-dark-border dark:text-white">Annuler</button>
+          <button type="submit" disabled={!password} className="rounded-lg bg-hicotech-blue px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  );
 }
 
 function UserModal({ user, onChange, onClose, onSubmit }: { user: AppUser; onChange: (user: AppUser) => void; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
