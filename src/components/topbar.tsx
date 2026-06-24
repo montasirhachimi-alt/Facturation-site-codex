@@ -1,7 +1,6 @@
 "use client";
 
 import { Bell, CalendarDays, LogOut, Menu, Moon, Search, Sun } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { HicotechLogo } from "@/components/hicotech-logo";
 import type { AuthSession } from "@/lib/types";
@@ -60,20 +59,24 @@ export function Topbar({ onMenuClick, user }: TopbarProps) {
         <button className="rounded-lg border border-slate-200 p-2 text-hicotech-navy dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white" aria-label="Notifications">
           <Bell size={19} />
         </button>
-        <Link
-          href="/logout"
-          className="hidden items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-hicotech-navy transition hover:bg-hicotech-sky dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white dark:hover:bg-hicotech-blue/20 sm:inline-flex"
-        >
-          <LogOut size={17} />
-          Se déconnecter
-        </Link>
-        <Link
-          href="/logout"
-          className="rounded-lg border border-slate-200 p-2 text-hicotech-navy transition hover:bg-hicotech-sky dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white dark:hover:bg-hicotech-blue/20 sm:hidden"
-          aria-label="Se déconnecter"
-        >
-          <LogOut size={19} />
-        </Link>
+        <form action="/logout" method="post" className="hidden sm:block">
+          <button
+            type="submit"
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-hicotech-navy transition hover:bg-hicotech-sky dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white dark:hover:bg-hicotech-blue/20"
+          >
+            <LogOut size={17} />
+            Se déconnecter
+          </button>
+        </form>
+        <form action="/logout" method="post" className="sm:hidden">
+          <button
+            type="submit"
+            className="rounded-lg border border-slate-200 p-2 text-hicotech-navy transition hover:bg-hicotech-sky dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white dark:hover:bg-hicotech-blue/20"
+            aria-label="Se déconnecter"
+          >
+            <LogOut size={19} />
+          </button>
+        </form>
         <div className="grid size-10 place-items-center rounded-full bg-hicotech-navy font-display text-sm font-bold text-white">
           {user?.name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase() ?? "AD"}
         </div>
