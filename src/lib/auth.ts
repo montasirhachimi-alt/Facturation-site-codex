@@ -2,7 +2,6 @@ import "server-only";
 
 import crypto from "crypto";
 import { cookies } from "next/headers";
-import { demoUsers } from "@/lib/demo-data";
 import type { AppUser, AuthSession } from "@/lib/types";
 
 export const authCookieName = "hicotech-session";
@@ -32,8 +31,7 @@ export async function getCurrentUser(): Promise<AuthSession | null> {
 
   try {
     const session = JSON.parse(Buffer.from(raw, "base64url").toString("utf8")) as AuthSession;
-    const user = demoUsers.find((item) => item.id === session.userId && item.status === "active");
-    return user ? sanitizeUser(user) : null;
+    return session.userId && session.email && session.role ? session : null;
   } catch {
     return null;
   }
