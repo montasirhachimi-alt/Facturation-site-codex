@@ -1,4 +1,5 @@
 import jsPDF from "jspdf";
+import { branding } from "@/lib/branding";
 import type { BusinessClient, CompanyProfile, DeliveryNote, Invoice, Quote, SalesDocument } from "@/lib/types";
 import { DeliveryNotePdfTemplate } from "@/components/pdf-templates/DeliveryNotePdfTemplate";
 import { HrReportPdfTemplate, type HrReportColumn, type HrReportPdfData } from "@/components/pdf-templates/HrReportPdfTemplate";
@@ -34,7 +35,7 @@ const defaultCompany: Required<Pick<CompanyProfile, "name" | "address" | "city" 
   taxId: "60164052"
 };
 
-const defaultLogoUrl = "/hicotech-logo.png";
+const defaultLogoUrl = branding.assets.logo.full;
 
 const margin = 14;
 const pageWidth = 210;
@@ -220,7 +221,7 @@ async function renderPayslipPdf(payslip: PayslipPdfData, mode: PdfOutputMode) {
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(8);
   pdf.setTextColor(...colors.muted);
-  pdf.text("Document administratif généré par HicoPilot.", margin, 246);
+  pdf.text(branding.pdf.administrativeNote, margin, 246);
   drawFooter(pdf, page, company, pdfSettings);
   applyTotalPageCount(pdf);
   outputPdf(pdf, `${payslip.filename || payslip.number}.pdf`, mode);
@@ -673,7 +674,7 @@ function drawFooter(pdf: jsPDF, page: number, company: ReturnType<typeof resolve
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(7.5);
   pdf.setTextColor(...colors.navy);
-  pdf.text("HicoPilot", margin, footerY);
+  pdf.text(branding.pdf.footerProductName, margin, footerY);
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(7.5);
   pdf.setTextColor(...colors.muted);

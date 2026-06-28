@@ -4,6 +4,7 @@ import { FormEvent, useMemo, useState } from "react";
 import { CreditCard, Download, Edit3, Eye, FileText, Mail, Search, SortAsc, SortDesc, X } from "lucide-react";
 import jsPDF from "jspdf";
 import * as XLSX from "xlsx";
+import { branding } from "@/lib/branding";
 import { can } from "@/lib/rbac";
 import { invoiceTotals } from "@/lib/business-metrics";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -101,7 +102,7 @@ export function PaymentsTrackingModule({ invoices: initialInvoices, clients, rol
     if (!canExport) return;
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(rows.map((row) => toExportRow(row))), "Paiements");
-    XLSX.writeFile(workbook, "suivi-paiements-hicotech.xlsx");
+    XLSX.writeFile(workbook, `${branding.exports.paymentsFilename}.xlsx`);
   }
 
   function exportPdf() {
@@ -109,7 +110,7 @@ export function PaymentsTrackingModule({ invoices: initialInvoices, clients, rol
     const pdf = new jsPDF({ unit: "mm", format: "a4" });
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(18);
-    pdf.text("Suivi paiements HicoPilot", 14, 18);
+    pdf.text(branding.exports.paymentsTitle, 14, 18);
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(8);
     let y = 32;
@@ -121,7 +122,7 @@ export function PaymentsTrackingModule({ invoices: initialInvoices, clients, rol
       pdf.text(`${row.invoice.number} - ${row.client?.company ?? ""} - ${row.status} - Reste ${formatCurrency(row.totals.outstanding)}`, 14, y);
       y += 7;
     });
-    pdf.save("suivi-paiements-hicotech.pdf");
+    pdf.save(`${branding.exports.paymentsFilename}.pdf`);
   }
 
   function receiptPdf(invoice: Invoice) {

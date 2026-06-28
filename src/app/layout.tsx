@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import { branding } from "@/lib/branding";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "HicoPilot",
-  description: "Plateforme de gestion intelligente pour PME"
+  title: branding.browserTitle,
+  description: branding.browserDescription
 };
 
 export default function RootLayout({

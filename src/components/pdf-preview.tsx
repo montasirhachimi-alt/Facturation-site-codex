@@ -1,6 +1,7 @@
 "use client";
 
 import { Download, Printer } from "lucide-react";
+import { branding } from "@/lib/branding";
 import { createSalesPdf } from "@/lib/pdf";
 import { formatCurrency } from "@/lib/format";
 import { activeCompanyProfile } from "@/lib/demo-data";
@@ -36,8 +37,8 @@ export function PdfPreview({ document }: { document: SalesDocument }) {
           <div>
             <div className="flex h-24 w-72 items-center justify-center p-2">
               <img
-                src={company.logoUrl || "/hicotech-logo.png"}
-                alt="HICOTECH Informatique Simplifiée"
+                src={company.logoUrl || branding.assets.logo.full}
+                alt={branding.assets.logo.alt}
                 className="max-h-full max-w-full object-contain"
               />
             </div>

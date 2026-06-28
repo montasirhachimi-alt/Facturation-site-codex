@@ -1,3 +1,4 @@
+import { branding } from "@/lib/branding";
 import type { CompanyProfile } from "@/lib/types";
 import type { PdfLayoutDocument } from "@/components/pdf-templates/PdfLayout";
 
@@ -26,7 +27,7 @@ export function EmployeeContractPdfTemplate(data: EmployeeContractPdfData, compa
       { reference: data.contractType, designation: `Fonction : ${data.position}`, quantity: 1, unitPrice: data.salary, vat: 0 },
       { reference: data.startDate, designation: `Date début${data.endDate ? ` - Date fin : ${data.endDate}` : ""}`, quantity: 1, unitPrice: 0, vat: 0 }
     ],
-    notes: "Contrat généré par HicoPilot selon les informations RH enregistrées.",
+    notes: branding.pdf.employeeContractNote,
     filename: data.number,
     company
   };

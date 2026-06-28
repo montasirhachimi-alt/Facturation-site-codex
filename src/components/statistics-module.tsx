@@ -5,6 +5,7 @@ import { Download, Eye, FileText, SortAsc, SortDesc, X } from "lucide-react";
 import jsPDF from "jspdf";
 import * as XLSX from "xlsx";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { branding } from "@/lib/branding";
 import { can } from "@/lib/rbac";
 import { calculateBusinessMetrics, filterByDate, getDateRange, toDateInput, type PeriodFilter } from "@/lib/business-metrics";
 import { formatCurrency } from "@/lib/format";
@@ -74,7 +75,7 @@ export function StatisticsModule({
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(indicators.map((item) => ({ Indicateur: item.label, Valeur: item.value, Detail: item.detail }))), "Indicateurs");
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(metrics.topClients), "Top clients");
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(metrics.topProducts), "Top produits");
-    XLSX.writeFile(workbook, "statistiques-hicotech.xlsx");
+    XLSX.writeFile(workbook, `${branding.exports.statisticsFilename}.xlsx`);
   }
 
   function exportPdf() {
@@ -82,7 +83,7 @@ export function StatisticsModule({
     const pdf = new jsPDF({ unit: "mm", format: "a4" });
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(20);
-    pdf.text("Statistiques HicoPilot", 14, 20);
+    pdf.text(branding.exports.statisticsTitle, 14, 20);
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(9);
     pdf.text(`Période : ${range.from} au ${range.to}`, 14, 28);
@@ -92,7 +93,7 @@ export function StatisticsModule({
       pdf.text(indicator.id === "overdue" ? String(indicator.value) : formatCurrency(indicator.value), 190, y, { align: "right" });
       y += 8;
     });
-    pdf.save("statistiques-hicotech.pdf");
+    pdf.save(`${branding.exports.statisticsFilename}.pdf`);
   }
 
   return (

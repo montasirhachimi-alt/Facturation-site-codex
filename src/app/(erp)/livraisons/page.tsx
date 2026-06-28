@@ -1,5 +1,6 @@
 import { DeliveryNotesModule } from "@/components/delivery-notes-module";
 import { SectionHeader } from "@/components/section-header";
+import { branding } from "@/lib/branding";
 import { activeCompanyId, clients, deliveryNotes, products } from "@/lib/demo-data";
 
 export default function DeliveryNotesPage() {
@@ -8,7 +9,7 @@ export default function DeliveryNotesPage() {
       <SectionHeader
         eyebrow="Livraisons"
         title="Bons de livraison"
-        description="Création, validation, impression et génération PDF des bons de livraison HicoPilot."
+        description={`Création, validation, impression et génération PDF des bons de livraison ${branding.productName}.`}
       />
       <DeliveryNotesModule
         initialDeliveryNotes={deliveryNotes}

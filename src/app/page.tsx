@@ -1,22 +1,22 @@
-import { HicotechLogo } from "@/components/hicotech-logo";
+import { Logo } from "@/components/logo";
 import { LoginForm } from "@/components/login-form";
+import { branding } from "@/lib/branding";
 
 export default function LoginPage() {
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,#E6F2FF_0,#F5F7FA_38%,#ffffff_100%)] px-4 py-8 text-hicotech-ink">
       <section className="mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-6xl items-center gap-10 lg:grid-cols-[0.9fr_1.1fr]">
         <div className="space-y-8">
-          <HicotechLogo size="lg" />
+          <Logo size="lg" />
           <div className="max-w-xl space-y-5">
             <p className="font-display text-sm font-bold uppercase tracking-[0.2em] text-hicotech-blue">
-              Business Operating System pour PME
+              {branding.productTagline}
             </p>
             <h1 className="font-display text-4xl font-bold leading-tight text-hicotech-navy md:text-6xl">
-              HicoPilot
+              {branding.productName}
             </h1>
             <p className="text-lg leading-8 text-slate-600">
-              Gestion commerciale, facturation, stock, caisse et CRM dans une
-              plateforme moderne, pensée pour les entreprises marocaines.
+              {branding.productDescription}
             </p>
           </div>
           <div className="grid max-w-xl grid-cols-3 gap-3">

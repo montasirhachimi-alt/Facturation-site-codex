@@ -2,7 +2,7 @@
 
 import { Bell, CalendarDays, LogOut, Menu, Moon, Search, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
-import { HicotechLogo } from "@/components/hicotech-logo";
+import { Logo } from "@/components/logo";
 import type { AuthSession } from "@/lib/types";
 
 type TopbarProps = {
@@ -36,7 +36,7 @@ export function Topbar({ onMenuClick, user }: TopbarProps) {
           <Menu size={20} />
         </button>
         <div className="w-40 max-w-[45vw] lg:hidden">
-          <HicotechLogo compact />
+          <Logo size="sm" />
         </div>
         <div className="hidden flex-1 items-center gap-3 rounded-lg border border-slate-200 bg-hicotech-cloud px-3 py-2 md:flex dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
           <Search size={18} className="text-slate-400" />

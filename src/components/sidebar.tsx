@@ -33,7 +33,8 @@ import {
   X
 } from "lucide-react";
 import { clsx } from "clsx";
-import { HicotechLogo } from "@/components/hicotech-logo";
+import { Logo } from "@/components/logo";
+import { branding } from "@/lib/branding";
 import { canViewModule } from "@/lib/rbac";
 import type { AuthSession, PermissionModule } from "@/lib/types";
 
@@ -110,10 +111,10 @@ export function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse
   const renderContent = (isCollapsed: boolean) => (
     <>
       <div className={clsx("mb-6 rounded-lg bg-white/5 dark:bg-hicotech-dark-card", isCollapsed ? "p-2" : "p-4")}>
-        <HicotechLogo compact inverse markOnly={isCollapsed} />
+        <Logo variant={isCollapsed ? "icon" : "full"} tone="dark" size={isCollapsed ? "sm" : "md"} className="mx-auto" />
         {!isCollapsed && (
           <p className="mt-4 text-center font-display text-sm font-bold text-white">
-            HicoPilot
+            {branding.productName}
           </p>
         )}
       </div>

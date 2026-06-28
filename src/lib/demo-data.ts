@@ -20,18 +20,19 @@ import type {
   StockProduct,
   Supplier
 } from "@/lib/types";
+import { branding } from "@/lib/branding";
 
 export const activeCompanyId = "company-hicotech";
 
 export const activeCompanyProfile: CompanyProfile = {
   id: activeCompanyId,
-  name: "HICOTECH",
+  name: branding.companyName,
   address: "N7, ILOT 14 - LOTISSEMENT FADALLAH",
   city: "MOHAMMEDIA, Maroc",
   phone: "0661144190",
   ice: "003390979000024",
   taxId: "60164052",
-  logoUrl: "/hicotech-logo.png"
+  logoUrl: branding.assets.logo.full
 };
 
 export const demoUsers: AppUser[] = [

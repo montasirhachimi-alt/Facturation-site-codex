@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Building2, Download, Eye, Hash, KeyRound, Plus, Printer, Save, Trash2, Users, X } from "lucide-react";
+import { branding } from "@/lib/branding";
 import { activeCompanyId, activeCompanyProfile, demoUsers } from "@/lib/demo-data";
 import type { AppUser, CompanyProfile, Role } from "@/lib/types";
 
@@ -49,7 +50,7 @@ const defaultNumbering: NumberingSettings = {
 };
 
 const defaultPdf: PdfSettings = {
-  model: "Premium HicoPilot",
+  model: branding.pdf.modelName,
   showLogo: true,
   showStamp: true,
   showSignature: true,
