@@ -8,7 +8,7 @@ export default function DeliveryNotesPage() {
       <SectionHeader
         eyebrow="Livraisons"
         title="Bons de livraison"
-        description="Création, validation, impression et génération PDF des bons de livraison HICOTECH."
+        description="Création, validation, impression et génération PDF des bons de livraison HicoPilot."
       />
       <DeliveryNotesModule
         initialDeliveryNotes={deliveryNotes}

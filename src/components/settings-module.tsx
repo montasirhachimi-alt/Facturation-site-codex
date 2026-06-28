@@ -49,7 +49,7 @@ const defaultNumbering: NumberingSettings = {
 };
 
 const defaultPdf: PdfSettings = {
-  model: "Premium HICOTECH",
+  model: "Premium HicoPilot",
   showLogo: true,
   showStamp: true,
   showSignature: true,

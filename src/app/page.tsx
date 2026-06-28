@@ -9,15 +9,14 @@ export default function LoginPage() {
           <HicotechLogo size="lg" />
           <div className="max-w-xl space-y-5">
             <p className="font-display text-sm font-bold uppercase tracking-[0.2em] text-hicotech-blue">
-              ERP CRM Multi-Entreprises
+              Business Operating System pour PME
             </p>
             <h1 className="font-display text-4xl font-bold leading-tight text-hicotech-navy md:text-6xl">
-              HICOTECH ERP
+              HicoPilot
             </h1>
             <p className="text-lg leading-8 text-slate-600">
               Gestion commerciale, facturation, stock, caisse et CRM dans une
-              interface française moderne, pensée pour les entreprises
-              marocaines.
+              plateforme moderne, pensée pour les entreprises marocaines.
             </p>
           </div>
           <div className="grid max-w-xl grid-cols-3 gap-3">

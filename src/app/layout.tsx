@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "HICOTECH ERP",
-  description: "ERP SaaS multi-entreprises HICOTECH"
+  title: "HicoPilot",
+  description: "Plateforme de gestion intelligente pour PME"
 };
 
 export default function RootLayout({

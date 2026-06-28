@@ -1,6 +1,6 @@
-# HICOTECH ERP
+# HicoPilot
 
-Application SaaS ERP/CRM multi-entreprises pour la facturation, les achats, le stock, la caisse, le CRM commercial, les rapports et les documents PDF.
+Plateforme SaaS de gestion multi-entreprises pour la facturation, les achats, le stock, la caisse, le CRM commercial, les rapports et les documents PDF.
 
 ## Architecture
 
@@ -21,7 +21,7 @@ Puis ouvrir `http://localhost:3000`.
 
 ## Identité visuelle
 
-La base reprend la charte HICOTECH fournie :
+La base reprend la charte HICOTECH fournie pour l'identité visuelle :
 
 - Bleu principal `#0D6EFD`
 - Bleu foncé `#0A1E3F`

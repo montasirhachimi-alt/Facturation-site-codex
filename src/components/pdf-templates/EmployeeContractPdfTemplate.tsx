@@ -26,9 +26,8 @@ export function EmployeeContractPdfTemplate(data: EmployeeContractPdfData, compa
       { reference: data.contractType, designation: `Fonction : ${data.position}`, quantity: 1, unitPrice: data.salary, vat: 0 },
       { reference: data.startDate, designation: `Date début${data.endDate ? ` - Date fin : ${data.endDate}` : ""}`, quantity: 1, unitPrice: 0, vat: 0 }
     ],
-    notes: "Contrat généré par HICOTECH ERP selon les informations RH enregistrées.",
+    notes: "Contrat généré par HicoPilot selon les informations RH enregistrées.",
     filename: data.number,
     company
   };
 }
-

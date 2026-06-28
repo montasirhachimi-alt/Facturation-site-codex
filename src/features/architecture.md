@@ -1,4 +1,4 @@
-# Architecture fonctionnelle HICOTECH ERP
+# Architecture fonctionnelle HicoPilot
 
 ## Modules
 

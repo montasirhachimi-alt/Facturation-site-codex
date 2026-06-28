@@ -7,7 +7,7 @@ export default function PdfPage() {
     <div className="space-y-6">
       <SectionHeader
         eyebrow="PDF"
-        title="Modèle facture HICOTECH"
+        title="Modèle facture HicoPilot"
         description="Prévisualisation imprimable avec logo, coordonnées, ICE, IF, RC, totaux, signature et cachet."
       />
       <PdfPreview document={sampleInvoice} />

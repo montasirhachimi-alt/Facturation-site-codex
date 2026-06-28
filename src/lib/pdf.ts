@@ -220,7 +220,7 @@ async function renderPayslipPdf(payslip: PayslipPdfData, mode: PdfOutputMode) {
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(8);
   pdf.setTextColor(...colors.muted);
-  pdf.text("Document administratif généré par HICOTECH ERP.", margin, 246);
+  pdf.text("Document administratif généré par HicoPilot.", margin, 246);
   drawFooter(pdf, page, company, pdfSettings);
   applyTotalPageCount(pdf);
   outputPdf(pdf, `${payslip.filename || payslip.number}.pdf`, mode);
@@ -673,7 +673,7 @@ function drawFooter(pdf: jsPDF, page: number, company: ReturnType<typeof resolve
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(7.5);
   pdf.setTextColor(...colors.navy);
-  pdf.text("HICOTECH ERP", margin, footerY);
+  pdf.text("HicoPilot", margin, footerY);
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(7.5);
   pdf.setTextColor(...colors.muted);
