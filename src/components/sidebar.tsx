@@ -40,15 +40,21 @@ import type { AuthSession, PermissionModule } from "@/lib/types";
 
 const groups = [
   {
-    label: "Pilotage",
+    label: "Home",
     items: [
-      { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard, module: "dashboard" },
-      { href: "/statistiques", label: "Statistiques", icon: BarChart3, module: "reports" },
-      { href: "/paiements", label: "Suivi paiements", icon: WalletCards, module: "payments" }
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, module: "dashboard" }
     ]
   },
   {
-    label: "Ventes",
+    label: "Business",
+    items: [
+      { href: "/clients", label: "Clients", icon: Users, module: "clients" },
+      { href: "/fournisseurs", label: "Fournisseurs", icon: Building2, module: "suppliers" },
+      { href: "/stock", label: "Produits & stock", icon: Boxes, module: "stock" }
+    ]
+  },
+  {
+    label: "Sales",
     items: [
       { href: "/ventes", label: "Documents", icon: FileText, module: "quotes" },
       { href: "/devis", label: "Devis", icon: ClipboardList, module: "quotes" },
@@ -57,17 +63,15 @@ const groups = [
     ]
   },
   {
-    label: "Gestion",
+    label: "Finance",
     items: [
-      { href: "/stock", label: "Produits & stock", icon: Boxes, module: "stock" },
       { href: "/achats", label: "Achats", icon: HandCoins, module: "purchases" },
       { href: "/caisse", label: "Caisse", icon: CircleDollarSign, module: "cash" },
-      { href: "/clients", label: "Clients", icon: Users, module: "clients" },
-      { href: "/fournisseurs", label: "Fournisseurs", icon: Building2, module: "suppliers" }
+      { href: "/paiements", label: "Suivi paiements", icon: WalletCards, module: "payments" }
     ]
   },
   {
-    label: "Ressources humaines",
+    label: "People",
     items: [
       { href: "/rh/employes", label: "Employés", icon: ContactRound, module: "hr" },
       { href: "/rh/contrats", label: "Contrats", icon: ScrollText, module: "hr" },
@@ -80,11 +84,22 @@ const groups = [
     ]
   },
   {
-    label: "Outils",
+    label: "Analytics",
     items: [
-      { href: "/pdf", label: "Documents PDF", icon: FileOutput, module: "pdf_documents" },
+      { href: "/statistiques", label: "Statistiques", icon: BarChart3, module: "reports" },
       { href: "/rapports", label: "Rapports", icon: PackageCheck, module: "reports" },
-      { href: "/assistant-ia", label: "Assistant IA", icon: Bot, module: "assistant" },
+      { href: "/pdf", label: "Documents PDF", icon: FileOutput, module: "pdf_documents" }
+    ]
+  },
+  {
+    label: "AI",
+    items: [
+      { href: "/assistant-ia", label: "Assistant IA", icon: Bot, module: "assistant" }
+    ]
+  },
+  {
+    label: "System",
+    items: [
       { href: "/utilisateurs", label: "Utilisateurs", icon: UserCog, module: "users" },
       { href: "/parametres", label: "Paramètres", icon: Settings, module: "settings" }
     ]
@@ -118,15 +133,15 @@ export function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse
           </p>
         )}
       </div>
-      <nav className="flex-1 space-y-5 overflow-y-auto pr-1">
+      <nav className="flex-1 space-y-6 overflow-y-auto pr-1">
         {visibleGroups.map((group) => (
-          <div key={group.label}>
+          <div key={group.label} className="space-y-2">
             {!isCollapsed && (
-              <p className="mb-2 px-3 text-[11px] font-bold uppercase tracking-[0.18em] text-cyan-100/70">
+              <p className="px-3 text-[10px] font-bold uppercase tracking-[0.22em] text-cyan-100/60">
                 {group.label}
               </p>
             )}
-            <div className="space-y-1">
+            <div className={clsx("space-y-1", isCollapsed && "border-t border-white/10 pt-3 first:border-t-0 first:pt-0")}>
               {group.items.map((item) => {
                 const Icon = item.icon;
                 const active = pathname === item.href;
@@ -138,11 +153,11 @@ export function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse
                     onClick={onCloseMobile}
                     title={isCollapsed ? item.label : undefined}
                     className={clsx(
-                      "flex h-11 items-center rounded-lg text-sm font-semibold transition",
+                      "flex h-11 items-center rounded-lg text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-hicotech-blue/60",
                       isCollapsed ? "justify-center px-0" : "gap-3 px-3",
                       active
                         ? "bg-hicotech-blue text-white shadow-lg shadow-blue-950/20"
-                        : "text-slate-200 hover:bg-white/10 hover:text-white dark:text-slate-100 dark:hover:bg-hicotech-dark-card"
+                        : "text-slate-300 hover:bg-white/10 hover:text-white dark:text-slate-100 dark:hover:bg-hicotech-dark-card"
                     )}
                   >
                     <Icon size={19} />
