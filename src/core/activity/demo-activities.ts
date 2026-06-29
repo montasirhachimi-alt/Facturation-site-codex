@@ -1,0 +1,215 @@
+import { registerActivity } from "./activity.registry";
+import type { ActivityInput } from "./activity.types";
+
+const adminUser = {
+  id: "user-admin",
+  name: "Administrateur HICOTECH",
+  email: "admin@hicotech.ma",
+  role: "COMPANY_ADMIN"
+};
+
+export const demoActivities: ActivityInput[] = [
+  {
+    id: "activity-invoice-created",
+    title: "Invoice F-2026-154 created",
+    description: "A new customer invoice was created for ABC SARL.",
+    type: "created",
+    category: "sales",
+    moduleId: "invoices",
+    user: adminUser,
+    createdAt: "2026-06-29T09:14:00.000Z",
+    severity: "normal",
+    icon: "Receipt",
+    color: "blue",
+    metadata: { documentNumber: "F-2026-154", customer: "ABC SARL" }
+  },
+  {
+    id: "activity-payment-received",
+    title: "Payment received from ABC SARL",
+    description: "A customer payment of 12 500 MAD was registered.",
+    type: "payment",
+    category: "finance",
+    moduleId: "payments",
+    user: adminUser,
+    createdAt: "2026-06-29T08:52:00.000Z",
+    severity: "normal",
+    icon: "WalletCards",
+    color: "green",
+    metadata: { amount: 12500, customer: "ABC SARL" }
+  },
+  {
+    id: "activity-client-created",
+    title: "New client created",
+    description: "Clinique Lumière was added to the customer database.",
+    type: "created",
+    category: "crm",
+    moduleId: "clients",
+    user: adminUser,
+    createdAt: "2026-06-28T17:20:00.000Z",
+    severity: "low",
+    icon: "Users",
+    color: "purple",
+    metadata: { customer: "Clinique Lumière" }
+  },
+  {
+    id: "activity-stock-updated",
+    title: "Stock updated",
+    description: "Interactive screen stock quantity was adjusted.",
+    type: "updated",
+    category: "stock",
+    moduleId: "products",
+    user: adminUser,
+    createdAt: "2026-06-28T16:45:00.000Z",
+    severity: "normal",
+    icon: "Boxes",
+    color: "orange",
+    metadata: { product: "Écran Interactif 75", quantity: 4 }
+  },
+  {
+    id: "activity-purchase-validated",
+    title: "Purchase order validated",
+    description: "A purchase workflow was validated for supplier Atlas Distribution.",
+    type: "success",
+    category: "finance",
+    moduleId: "purchases",
+    user: adminUser,
+    createdAt: "2026-06-28T15:30:00.000Z",
+    severity: "normal",
+    icon: "HandCoins",
+    color: "green",
+    metadata: { supplier: "Atlas Distribution" }
+  },
+  {
+    id: "activity-employee-added",
+    title: "Employee added",
+    description: "A new employee record was created in HR.",
+    type: "created",
+    category: "hr",
+    moduleId: "employees",
+    user: adminUser,
+    createdAt: "2026-06-28T14:10:00.000Z",
+    severity: "low",
+    icon: "ContactRound",
+    color: "blue"
+  },
+  {
+    id: "activity-monthly-backup",
+    title: "Monthly backup completed",
+    description: "The scheduled monthly backup finished successfully.",
+    type: "backup",
+    category: "system",
+    moduleId: "settings",
+    createdAt: "2026-06-28T03:00:00.000Z",
+    severity: "low",
+    icon: "ShieldCheck",
+    color: "green"
+  },
+  {
+    id: "activity-admin-login",
+    title: "Administrator login",
+    description: "Administrator HICOTECH logged in successfully.",
+    type: "login",
+    category: "administration",
+    moduleId: "users",
+    user: adminUser,
+    createdAt: "2026-06-27T09:05:00.000Z",
+    severity: "low",
+    icon: "UserCog",
+    color: "blue"
+  },
+  {
+    id: "activity-failed-login",
+    title: "Failed login attempt",
+    description: "A failed login attempt was detected for stock@hicotech.ma.",
+    type: "security",
+    category: "security",
+    moduleId: "users",
+    createdAt: "2026-06-27T08:44:00.000Z",
+    severity: "high",
+    icon: "ShieldAlert",
+    color: "red",
+    metadata: { email: "stock@hicotech.ma" },
+    pinned: true
+  },
+  {
+    id: "activity-ai-reminder",
+    title: "AI suggested invoice reminder",
+    description: "AI recommended following up overdue invoices for ABC SARL.",
+    type: "ai",
+    category: "ai",
+    moduleId: "ai_assistant",
+    createdAt: "2026-06-27T08:30:00.000Z",
+    severity: "normal",
+    icon: "Bot",
+    color: "purple",
+    metadata: { customer: "ABC SARL" },
+    favorite: true
+  },
+  {
+    id: "activity-product-price-updated",
+    title: "Product price updated",
+    description: "The sale price of HDMI cable 10M was updated.",
+    type: "updated",
+    category: "stock",
+    moduleId: "products",
+    user: adminUser,
+    createdAt: "2026-06-26T18:05:00.000Z",
+    severity: "normal",
+    icon: "Package",
+    color: "orange",
+    metadata: { product: "Câble HDMI 10M" }
+  },
+  {
+    id: "activity-supplier-added",
+    title: "Supplier added",
+    description: "A new supplier was added to the purchasing module.",
+    type: "created",
+    category: "finance",
+    moduleId: "suppliers",
+    user: adminUser,
+    createdAt: "2026-06-26T16:15:00.000Z",
+    severity: "low",
+    icon: "Building2",
+    color: "blue"
+  },
+  {
+    id: "activity-contract-renewed",
+    title: "Contract renewed",
+    description: "An employee contract was renewed for the next period.",
+    type: "updated",
+    category: "hr",
+    moduleId: "contracts",
+    user: adminUser,
+    createdAt: "2026-06-26T11:40:00.000Z",
+    severity: "normal",
+    icon: "ScrollText",
+    color: "green"
+  },
+  {
+    id: "activity-inventory-adjustment",
+    title: "Inventory adjustment",
+    description: "A manual inventory adjustment was recorded after stock control.",
+    type: "warning",
+    category: "stock",
+    moduleId: "products",
+    user: adminUser,
+    createdAt: "2026-06-25T17:35:00.000Z",
+    severity: "high",
+    icon: "TriangleAlert",
+    color: "orange"
+  },
+  {
+    id: "activity-database-sync",
+    title: "Database synchronization completed",
+    description: "System data synchronization completed successfully.",
+    type: "system",
+    category: "system",
+    moduleId: "settings",
+    createdAt: "2026-06-25T06:20:00.000Z",
+    severity: "low",
+    icon: "Database",
+    color: "green"
+  }
+];
+
+demoActivities.forEach(registerActivity);
