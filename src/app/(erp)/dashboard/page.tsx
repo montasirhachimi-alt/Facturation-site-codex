@@ -9,14 +9,20 @@ import {
   CheckCircle2,
   Clock3,
   ClipboardList,
+  ContactRound,
   FileWarning,
   HandCoins,
+  PackagePlus,
+  Plus,
+  Receipt,
   TriangleAlert,
   ReceiptText,
   TrendingUp,
   WalletCards
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { BusinessHealthSection } from "@/components/business-health-section";
+import { SmartInsightsSection } from "@/components/smart-insights-section";
 import { StatCard } from "@/components/stat-card";
 import { ProductRanking } from "@/components/product-ranking";
 import { FinanceBarsChart, MarginDonutChart, SalesEvolutionChart, TopClientsPanel } from "@/components/dashboard-widgets";
@@ -31,6 +37,50 @@ export default async function DashboardPage() {
     hour: "2-digit",
     minute: "2-digit"
   }).format(new Date());
+  const quickActions: QuickActionCardProps[] = [
+    {
+      icon: Receipt,
+      label: "Nouvelle facture",
+      description: "Créer ou consulter les factures",
+      href: "/factures",
+      tone: "blue"
+    },
+    {
+      icon: ClipboardList,
+      label: "Nouveau devis",
+      description: "Préparer une proposition client",
+      href: "/devis",
+      tone: "green"
+    },
+    {
+      icon: ContactRound,
+      label: "Nouveau client",
+      description: "Ouvrir le module clients",
+      href: "/clients",
+      tone: "purple"
+    },
+    {
+      icon: PackagePlus,
+      label: "Nouveau produit",
+      description: "Gérer le catalogue et le stock",
+      href: "/stock",
+      tone: "orange"
+    },
+    {
+      icon: WalletCards,
+      label: "Encaisser",
+      description: "Accéder à la caisse",
+      href: "/caisse",
+      tone: "blue"
+    },
+    {
+      icon: HandCoins,
+      label: "Nouvel achat",
+      description: "Suivre les factures d'achat",
+      href: "/achats",
+      tone: "red"
+    }
+  ];
   const priorities: PriorityCardProps[] = [
     {
       icon: FileWarning,
@@ -121,6 +171,32 @@ export default async function DashboardPage() {
           </div>
         </div>
       </section>
+
+      <section className="space-y-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="font-display text-xs font-bold uppercase tracking-[0.18em] text-hicotech-blue">
+              Actions rapides
+            </p>
+            <h2 className="mt-2 font-display text-2xl font-bold text-hicotech-navy dark:text-white">
+              Démarrer en un clic
+            </h2>
+          </div>
+          <p className="max-w-xl text-sm leading-6 text-slate-500 dark:text-slate-300">
+            Les raccourcis essentiels pour créer, encaisser et suivre l&apos;activité sans chercher dans les menus.
+          </p>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+          {quickActions.map((action) => (
+            <QuickActionCard key={action.label} {...action} />
+          ))}
+        </div>
+      </section>
+
+      <BusinessHealthSection />
+
+      <SmartInsightsSection />
 
       <section className="space-y-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -235,6 +311,50 @@ export default async function DashboardPage() {
 }
 
 type PriorityTone = "red" | "orange" | "green" | "blue" | "purple" | "ai";
+
+type QuickActionTone = "red" | "orange" | "green" | "blue" | "purple";
+
+type QuickActionCardProps = {
+  icon: LucideIcon;
+  label: string;
+  description: string;
+  href: string;
+  tone: QuickActionTone;
+};
+
+const quickActionToneClasses: Record<QuickActionTone, string> = {
+  red: "bg-red-50 text-hicotech-red dark:bg-red-500/15 dark:text-red-100",
+  orange: "bg-orange-50 text-hicotech-orange dark:bg-orange-500/15 dark:text-orange-100",
+  green: "bg-emerald-50 text-hicotech-green dark:bg-emerald-500/15 dark:text-emerald-100",
+  blue: "bg-hicotech-sky text-hicotech-blue dark:bg-hicotech-blue/15 dark:text-blue-100",
+  purple: "bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-100"
+};
+
+function QuickActionCard({ icon: Icon, label, description, href, tone }: QuickActionCardProps) {
+  return (
+    <Link
+      href={href}
+      className="group flex min-h-32 flex-col justify-between rounded-lg border border-slate-200 bg-white p-4 shadow-soft transition duration-200 hover:-translate-y-0.5 hover:border-hicotech-blue/30 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-hicotech-blue/40 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:hover:border-hicotech-blue/50"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <span className={`grid size-10 shrink-0 place-items-center rounded-lg ${quickActionToneClasses[tone]}`}>
+          <Icon size={19} />
+        </span>
+        <span className="grid size-8 place-items-center rounded-lg bg-slate-50 text-slate-400 transition group-hover:bg-hicotech-sky group-hover:text-hicotech-blue dark:bg-hicotech-dark-page/60 dark:text-slate-300 dark:group-hover:bg-hicotech-blue/15 dark:group-hover:text-white">
+          <Plus size={16} />
+        </span>
+      </div>
+      <div className="mt-4">
+        <h3 className="font-display text-base font-bold text-hicotech-navy dark:text-white">
+          {label}
+        </h3>
+        <p className="mt-1 text-sm leading-5 text-slate-500 dark:text-slate-300">
+          {description}
+        </p>
+      </div>
+    </Link>
+  );
+}
 
 type PriorityCardProps = {
   icon: LucideIcon;
