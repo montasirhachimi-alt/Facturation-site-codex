@@ -1,4 +1,5 @@
 import type { CorePermissionRequirement, CoreRegistryItem } from "../types";
+import type { CoreModuleDefinition } from "../registry";
 
 export type SearchEntityType =
   | "client"
@@ -26,6 +27,24 @@ export type SearchResult = {
   href?: string;
   score?: number;
   metadata?: Record<string, unknown>;
+};
+
+export type ModuleSearchResult = {
+  id: string;
+  module: CoreModuleDefinition;
+  title: string;
+  category: string;
+  route: string;
+  icon: string;
+  score: number;
+  matchedOn: "name" | "category" | "alias";
+};
+
+export type UniversalSearchState = {
+  open: boolean;
+  query: string;
+  selectedIndex: number;
+  results: ModuleSearchResult[];
 };
 
 export type SearchProviderDefinition<TQuery extends SearchQuery = SearchQuery> = CoreRegistryItem<{

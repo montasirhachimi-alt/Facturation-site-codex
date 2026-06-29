@@ -3,6 +3,7 @@
 import { Bell, CalendarDays, Command, LogOut, Menu, Moon, Search, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Logo } from "@/components/logo";
+import { useUniversalSearch } from "@/core/search";
 import type { AuthSession } from "@/lib/types";
 
 type TopbarProps = {
@@ -12,6 +13,7 @@ type TopbarProps = {
 
 export function Topbar({ onMenuClick, user }: TopbarProps) {
   const [dark, setDark] = useState(false);
+  const { openSearch } = useUniversalSearch();
   const today = new Intl.DateTimeFormat("fr-FR", {
     day: "2-digit",
     month: "long",
@@ -54,8 +56,12 @@ export function Topbar({ onMenuClick, user }: TopbarProps) {
         <div className="order-2 flex min-w-full flex-1 items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5 shadow-sm shadow-slate-200/60 transition focus-within:border-hicotech-blue focus-within:ring-4 focus-within:ring-hicotech-blue/10 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none md:order-none md:min-w-72">
           <Search size={18} className="shrink-0 text-slate-400" />
           <input
+            readOnly
+            onFocus={openSearch}
+            onClick={openSearch}
             className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400 dark:text-white"
             placeholder="Rechercher un client, facture, produit, document..."
+            aria-label="Ouvrir la recherche universelle"
           />
           <span className="hidden items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-bold text-slate-400 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/70 lg:inline-flex">
             <Command size={12} />
