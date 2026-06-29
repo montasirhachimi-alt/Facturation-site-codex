@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { BusinessHealthSection } from "@/components/business-health-section";
+import { ExecutiveWorkspaceSection } from "@/components/executive-workspace-section";
 import { SmartInsightsSection } from "@/components/smart-insights-section";
 import { StatCard } from "@/components/stat-card";
 import { ProductRanking } from "@/components/product-ranking";
@@ -219,6 +220,8 @@ export default async function DashboardPage() {
           ))}
         </div>
       </section>
+
+      <ExecutiveWorkspaceSection />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
