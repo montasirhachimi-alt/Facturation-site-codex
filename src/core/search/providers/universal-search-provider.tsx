@@ -8,11 +8,17 @@ import type { ModuleSearchResult } from "../types";
 import { UniversalSearchContext } from "./universal-search-context";
 import type { UniversalSearchContextValue } from "./universal-search-context";
 
-export function UniversalSearchProvider({ children }: { children: ReactNode }) {
+type UniversalSearchProviderProps = {
+  children: ReactNode;
+  searchResults?: (query: string) => ModuleSearchResult[];
+  onSelectResult?: (result: ModuleSearchResult) => void;
+};
+
+export function UniversalSearchProvider({ children, searchResults = searchCoreModules, onSelectResult }: UniversalSearchProviderProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const results = useMemo(() => searchCoreModules(query), [query]);
+  const results = useMemo(() => searchResults(query), [query, searchResults]);
 
   const openSearch = useCallback(() => {
     setOpen(true);
@@ -34,9 +40,13 @@ export function UniversalSearchProvider({ children }: { children: ReactNode }) {
 
   const selectResult = useCallback((result?: ModuleSearchResult) => {
     if (!result) return;
-    console.log("Open module:", result.module.name);
+    if (onSelectResult) {
+      onSelectResult(result);
+    } else {
+      console.log("Open module:", result.module.name);
+    }
     closeSearch();
-  }, [closeSearch]);
+  }, [closeSearch, onSelectResult]);
 
   useEffect(() => {
     setSelectedIndex(0);

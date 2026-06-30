@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { BusinessHealthSection } from "@/components/business-health-section";
+import { DashboardWorkspaceBridge } from "@/components/dashboard-workspace-bridge";
 import { ExecutiveWorkspaceSection } from "@/components/executive-workspace-section";
 import { SmartInsightsSection } from "@/components/smart-insights-section";
 import { StatCard } from "@/components/stat-card";
@@ -139,39 +140,40 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-soft dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
-        <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[1fr_auto] lg:items-center">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-hicotech-blue/15 bg-hicotech-sky px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-hicotech-blue dark:border-hicotech-blue/30 dark:bg-hicotech-blue/15 dark:text-blue-100">
-              <Activity size={14} />
-              Centre de pilotage
+    <DashboardWorkspaceBridge>
+      <div className="space-y-6">
+        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-soft dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
+          <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[1fr_auto] lg:items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-hicotech-blue/15 bg-hicotech-sky px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-hicotech-blue dark:border-hicotech-blue/30 dark:bg-hicotech-blue/15 dark:text-blue-100">
+                <Activity size={14} />
+                Centre de pilotage
+              </div>
+              <h1 className="mt-4 font-display text-3xl font-bold leading-tight text-hicotech-navy dark:text-white md:text-4xl">
+                Bonjour, {userFirstName}
+              </h1>
+              <p className="mt-3 max-w-2xl text-base leading-7 text-slate-500 dark:text-slate-300">
+                Bienvenue sur votre centre de pilotage. Voici un aperçu de votre activité aujourd&apos;hui.
+              </p>
             </div>
-            <h1 className="mt-4 font-display text-3xl font-bold leading-tight text-hicotech-navy dark:text-white md:text-4xl">
-              Bonjour, {userFirstName}
-            </h1>
-            <p className="mt-3 max-w-2xl text-base leading-7 text-slate-500 dark:text-slate-300">
-              Bienvenue sur votre centre de pilotage. Voici un aperçu de votre activité aujourd&apos;hui.
-            </p>
-          </div>
 
-          <div className="rounded-lg border border-slate-200 bg-hicotech-cloud p-4 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50">
-            <div className="flex items-center gap-3">
-              <span className="grid size-10 place-items-center rounded-lg bg-white text-hicotech-blue shadow-sm dark:bg-hicotech-dark-card dark:text-white">
-                <Clock3 size={18} />
-              </span>
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">
-                  Dernière synchronisation
-                </p>
-                <p className="mt-1 font-display text-lg font-bold text-hicotech-navy dark:text-white">
-                  Aujourd&apos;hui à {syncTime}
-                </p>
+            <div className="rounded-lg border border-slate-200 bg-hicotech-cloud p-4 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50">
+              <div className="flex items-center gap-3">
+                <span className="grid size-10 place-items-center rounded-lg bg-white text-hicotech-blue shadow-sm dark:bg-hicotech-dark-card dark:text-white">
+                  <Clock3 size={18} />
+                </span>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">
+                    Dernière synchronisation
+                  </p>
+                  <p className="mt-1 font-display text-lg font-bold text-hicotech-navy dark:text-white">
+                    Aujourd&apos;hui à {syncTime}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
       <section className="space-y-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -310,6 +312,7 @@ export default async function DashboardPage() {
         />
       </div>
     </div>
+    </DashboardWorkspaceBridge>
   );
 }
 

@@ -31,3 +31,15 @@ Security requires dedicated planning and implementation, especially authenticati
 ## Decision 007 — Documentation Is Lightweight During Development
 
 Documentation should remain concise, current and easy to maintain while the product is still evolving quickly.
+
+## Decision 008 — Workspace Context Is a State Bridge
+
+Workspace Context exposes the active workspace state to future UI layers, but business logic remains inside WorkspaceService. React Context should delegate workspace loading, switching and snapshot refresh operations to the service layer instead of duplicating orchestration logic.
+
+## Decision 009 — Dashboard Consumes Workspace Context Without Owning Logic
+
+The Dashboard should become workspace-aware through a thin client bridge that consumes Workspace Context. Dashboard sections must not own workspace orchestration, widget runtime logic, preferences loading or business rules; those responsibilities remain in WorkspaceService and future platform services.
+
+## Decision 010 — Widget Runtime Is the Dashboard Execution Boundary
+
+Dashboard widgets should receive workspace, snapshot, preference, visibility, loading, error and permission context from a shared Widget Runtime. Individual widgets should not fetch workspace state independently or duplicate runtime concerns.

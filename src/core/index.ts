@@ -1,6 +1,7 @@
 export * from "./types";
 
 export * as CoreActivity from "./activity";
+export * as CoreAudit from "./audit";
 export * as CoreCommands from "./commands";
 export * as CoreConfig from "./config";
 export * as CoreConstants from "./constants";

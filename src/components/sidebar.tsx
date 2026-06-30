@@ -32,79 +32,42 @@ import {
   WalletCards,
   X
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { clsx } from "clsx";
 import { Logo } from "@/components/logo";
 import { branding } from "@/lib/branding";
 import { canViewModule } from "@/lib/rbac";
 import type { AuthSession, PermissionModule } from "@/lib/types";
+import { getSidebarGroups } from "@/services/navigation";
 
-const groups = [
-  {
-    label: "Home",
-    items: [
-      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, module: "dashboard" }
-    ]
-  },
-  {
-    label: "Business",
-    items: [
-      { href: "/clients", label: "Clients", icon: Users, module: "clients" },
-      { href: "/fournisseurs", label: "Fournisseurs", icon: Building2, module: "suppliers" },
-      { href: "/stock", label: "Produits & stock", icon: Boxes, module: "stock" }
-    ]
-  },
-  {
-    label: "Sales",
-    items: [
-      { href: "/ventes", label: "Documents", icon: FileText, module: "quotes" },
-      { href: "/devis", label: "Devis", icon: ClipboardList, module: "quotes" },
-      { href: "/factures", label: "Factures", icon: Receipt, module: "invoices" },
-      { href: "/livraisons", label: "Bons de livraison", icon: Truck, module: "delivery_notes" }
-    ]
-  },
-  {
-    label: "Finance",
-    items: [
-      { href: "/achats", label: "Achats", icon: HandCoins, module: "purchases" },
-      { href: "/caisse", label: "Caisse", icon: CircleDollarSign, module: "cash" },
-      { href: "/paiements", label: "Suivi paiements", icon: WalletCards, module: "payments" }
-    ]
-  },
-  {
-    label: "People",
-    items: [
-      { href: "/rh/employes", label: "Employés", icon: ContactRound, module: "hr" },
-      { href: "/rh/contrats", label: "Contrats", icon: ScrollText, module: "hr" },
-      { href: "/rh/presences", label: "Présences", icon: CalendarCheck, module: "hr" },
-      { href: "/rh/absences", label: "Absences", icon: CalendarX, module: "hr" },
-      { href: "/rh/conges", label: "Congés", icon: ShieldCheck, module: "hr" },
-      { href: "/rh/salaires", label: "Salaires", icon: Landmark, module: "hr" },
-      { href: "/rh/avances", label: "Avances", icon: WalletCards, module: "hr" },
-      { href: "/rh/documents", label: "Documents RH", icon: FileArchive, module: "hr" }
-    ]
-  },
-  {
-    label: "Analytics",
-    items: [
-      { href: "/statistiques", label: "Statistiques", icon: BarChart3, module: "reports" },
-      { href: "/rapports", label: "Rapports", icon: PackageCheck, module: "reports" },
-      { href: "/pdf", label: "Documents PDF", icon: FileOutput, module: "pdf_documents" }
-    ]
-  },
-  {
-    label: "AI",
-    items: [
-      { href: "/assistant-ia", label: "Assistant IA", icon: Bot, module: "assistant" }
-    ]
-  },
-  {
-    label: "System",
-    items: [
-      { href: "/utilisateurs", label: "Utilisateurs", icon: UserCog, module: "users" },
-      { href: "/parametres", label: "Paramètres", icon: Settings, module: "settings" }
-    ]
-  }
-];
+const sidebarIconMap: Record<string, LucideIcon> = {
+  BarChart3,
+  Bot,
+  Boxes,
+  Building2,
+  CalendarCheck,
+  CalendarX,
+  CircleDollarSign,
+  ClipboardList,
+  ContactRound,
+  FileArchive,
+  FileOutput,
+  FileText,
+  HandCoins,
+  Landmark,
+  LayoutDashboard,
+  PackageCheck,
+  Receipt,
+  ScrollText,
+  Settings,
+  ShieldCheck,
+  Truck,
+  UserCog,
+  Users,
+  WalletCards
+};
+
+const groups = getSidebarGroups();
 
 type SidebarProps = {
   collapsed: boolean;
@@ -143,7 +106,7 @@ export function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse
             )}
             <div className={clsx("space-y-1", isCollapsed && "border-t border-white/10 pt-3 first:border-t-0 first:pt-0")}>
               {group.items.map((item) => {
-                const Icon = item.icon;
+                const Icon = sidebarIconMap[item.icon] ?? FileText;
                 const active = pathname === item.href;
 
                 return (
