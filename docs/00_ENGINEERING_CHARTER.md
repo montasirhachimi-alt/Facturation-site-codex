@@ -2,62 +2,50 @@
 
 ## Purpose
 
-Define the mandatory engineering rules for every HicoPilot task.
+This charter defines the mandatory engineering rules for HicoPilot. Every implementation, refactor, bug fix, UI change or documentation update must follow these rules.
 
-## Core Principles
+## Engineering Philosophy
 
-### Security by Design
+HicoPilot is a business operating system, not a collection of isolated ERP pages. The product must evolve through stable platform foundations before visible features are expanded.
 
-Security must be considered before implementation. Authentication, permissions, tenant isolation and data protection must never be treated as optional details.
-
-### Architecture First
-
-New work should fit the existing architecture. Create foundations before adding large features.
-
-### Business Logic Separation
-
-Business rules must remain separate from presentation code. UI components should not become the source of truth for business decisions.
-
-### Reusable Components
-
-Prefer shared, reusable components and utilities over duplicated implementations.
-
-### Clean TypeScript
-
-Types should be explicit, readable and reusable. Avoid `any` unless there is a clear and documented reason.
-
-### No Duplicated Code
-
-Before creating new logic, verify whether an equivalent component, helper or pattern already exists.
-
-### Backward Compatibility
-
-Preserve existing functionality. Do not remove, rename or break working behavior without explicit approval.
-
-### Small Incremental Tasks
-
-Large changes must be split into small, reviewable steps. Each task should have a clear scope and measurable outcome.
-
-### Validation Before Completion
-
-Every completed task must be validated before delivery.
-
-### Build Must Always Pass
-
-`npm run build` must pass before a task is considered complete.
-
-### Typecheck Must Always Pass
-
-`npm run typecheck` must pass before a task is considered complete.
-
-## Development Workflow
-
-1. Inspect the current implementation.
-2. Reuse existing patterns.
-3. Implement the smallest safe change.
-4. Validate typecheck and build.
-5. Summarize changes and risks.
+| Principle | Rule |
+| --- | --- |
+| Platform First | Build shared platform capabilities before duplicating module-level behavior. |
+| Architecture Before Features | New features must fit the existing architecture and dependency direction. |
+| Services Before UI | Business orchestration belongs in services before UI consumes it. |
+| Registry as Single Source of Truth | Module definitions must come from the Core Registry where possible. |
+| Business Logic inside Services | Components, contexts and runtimes must not become business logic owners. |
+| Context Contains No Business Logic | React Context exposes state and delegates operations to services. |
+| Runtime Consumes Context | Runtime layers prepare execution context for UI surfaces. |
+| UI Consumes Runtime | UI components should receive prepared runtime data instead of assembling platform state themselves. |
+| AI Respects Permissions | Future AI features must only operate inside permitted user and workspace boundaries. |
+| Incremental Development | Prefer small, validated, reversible changes. |
+| Backward Compatibility | Existing behavior must remain stable unless explicitly changed. |
+| Strong Typing | TypeScript types should be explicit, reusable and narrow. |
+| Modular Architecture | Engines, services, contexts, runtimes and UI must remain independently understandable. |
+| Enterprise Coding Practices | Favor maintainability, observability, security and predictable validation. |
 
 ## Protected Areas
 
-Do not modify database schema, Prisma models, authentication, RBAC, routing, or business logic unless the task explicitly requires it.
+Do not modify database schema, Prisma models, routes, authentication, RBAC, permissions or business logic unless the sprint explicitly requires it.
+
+## Required Workflow
+
+1. Read the current documentation.
+2. Inspect the repository before making changes.
+3. Reuse existing engines, services and components.
+4. Implement the smallest safe change.
+5. Validate with `npm run typecheck`.
+6. Validate with `npm run build`.
+7. Document the result and remaining risks.
+
+## Definition of Done
+
+A task is complete only when:
+
+- Existing functionality still works.
+- No forbidden layer was modified.
+- Typecheck passes.
+- Build passes.
+- Documentation remains accurate.
+- Risks are clearly reported.

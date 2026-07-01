@@ -1,47 +1,79 @@
 # HicoPilot Roadmap
 
-## Purpose
+## Milestone 1 — Platform Foundation
 
-Provide the global product roadmap for HicoPilot.
+Status: Mostly complete.
 
-## EPIC 1 — Executive Dashboard
+Focus:
 
-Status: Completed
+- Product identity.
+- Executive Dashboard foundation.
+- Core Registry.
+- Core Engines.
+- Application Services.
+- Documentation baseline.
 
-Create the first executive control center experience for company owners.
+## Milestone 2 — Platform Runtime
 
-## EPIC 2 — Core Engine
+Status: In progress.
 
-Status: In Progress
+Focus:
 
-Build the shared foundations for search, commands, notifications, activity, widgets, preferences, recent items, favorites and AI integration.
+- Workspace Context.
+- Widget Runtime.
+- Runtime-to-dashboard integration.
+- Runtime validation.
+- Service orchestration hardening.
 
-## EPIC 3 — Business Modules
+## Milestone 3 — Platform Intelligence
 
-Status: Planned
+Status: Planned.
 
-Stabilize and deepen operational modules such as sales, stock, purchases, finance, clients, suppliers and HR.
+Focus:
 
-## EPIC 4 — AI Platform
+- Notification Center UI.
+- Activity Timeline integration.
+- Favorites and Recent Items UI.
+- Command Palette expansion.
+- Workspace-aware search.
 
-Status: Planned
+## Milestone 4 — Business Applications
 
-Introduce AI-powered assistance, recommendations and workflow support.
+Status: Planned.
 
-## EPIC 5 — Enterprise Security
+Focus:
 
-Status: Planned
+- Stabilize commercial modules.
+- Strengthen clients, suppliers, products, stock, purchases and cash.
+- Connect business modules to durable services and persistence.
 
-Strengthen authentication, RBAC, tenant isolation, audit logs and secure data access.
+## Milestone 5 — Enterprise AI
 
-## EPIC 6 — Integrations
+Status: Planned.
 
-Status: Planned
+Focus:
 
-Prepare integrations with external accounting, payment, communication and productivity systems.
+- AI context engine.
+- Permission-aware AI suggestions.
+- AI assistant integration with workspace, audit, notifications and activity.
 
-## EPIC 7 — Enterprise Release
+## Milestone 6 — Marketplace
 
-Status: Planned
+Status: Planned.
 
-Prepare HicoPilot for commercial deployment, onboarding, monitoring, documentation and support.
+Focus:
+
+- Plugin architecture.
+- Extension registry.
+- Marketplace-ready module contracts.
+
+## Milestone 7 — Cloud Platform
+
+Status: Planned.
+
+Focus:
+
+- Production security.
+- Deployment hardening.
+- Multi-tenant operations.
+- Observability and release governance.
