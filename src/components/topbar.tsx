@@ -3,7 +3,7 @@
 import { Bell, CalendarDays, Command, LogOut, Menu, Moon, Search, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Logo } from "@/components/logo";
-import { useUniversalSearch } from "@/core/search";
+import { useUniversalSearch } from "@/platform/search";
 import type { AuthSession } from "@/lib/types";
 
 type TopbarProps = {
