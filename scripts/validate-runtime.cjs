@@ -1319,6 +1319,116 @@ test("CRM Customers Foundation has no UI Prisma API or runtime dependency", () =
   }
 });
 
+test("CRM Shared Foundation exposes reusable search filter sort and pagination helpers", () => {
+  const {
+    filterCrmEntities,
+    paginateCrmItems,
+    searchCrmEntities,
+    sortCrmEntities
+  } = load("src/modules/crm/shared");
+  const entities = [
+    {
+      id: "entity-2",
+      workspaceId: "workspace-a",
+      displayName: "Zed Company",
+      status: "active",
+      ownerId: "user-sales",
+      tags: ["vip"],
+      archived: false,
+      createdAt: "2026-07-02T00:00:00.000Z",
+      updatedAt: "2026-07-02T00:00:00.000Z"
+    },
+    {
+      id: "entity-1",
+      workspaceId: "workspace-a",
+      displayName: "Alpha Customer",
+      status: "lead",
+      ownerId: "user-sales",
+      tags: ["new"],
+      archived: false,
+      createdAt: "2026-07-01T00:00:00.000Z",
+      updatedAt: "2026-07-01T00:00:00.000Z"
+    },
+    {
+      id: "entity-3",
+      workspaceId: "workspace-b",
+      displayName: "Other Workspace",
+      status: "active",
+      ownerId: "user-other",
+      tags: [],
+      archived: false,
+      createdAt: "2026-07-03T00:00:00.000Z",
+      updatedAt: "2026-07-03T00:00:00.000Z"
+    }
+  ];
+
+  const filtered = filterCrmEntities(entities, { workspaceId: "workspace-a", ownerId: "user-sales", archived: false });
+  const sorted = sortCrmEntities(filtered, [{ field: "displayName", direction: "asc" }]);
+  const searched = searchCrmEntities(entities, { query: "alpha", fields: ["displayName"] });
+  const page = paginateCrmItems(sorted, { page: 1, pageSize: 1 });
+
+  assert(filtered.length === 2, "CRM shared filters should support workspace and owner filters.");
+  assert(sorted[0].displayName === "Alpha Customer", "CRM shared sorting should support stable field sorting.");
+  assert(searched.length === 1 && searched[0].entity.id === "entity-1", "CRM shared search should return ranked multi-field matches.");
+  assert(page.items.length === 1 && page.pagination.hasNextPage, "CRM shared pagination should expose page metadata.");
+});
+
+test("CRM Shared Foundation exposes immutable errors events commands and utility contracts", () => {
+  const {
+    areCrmValuesEqual,
+    createCrmCommand,
+    createCrmDisplayLabel,
+    crmErrors,
+    crmEventContracts,
+    crmEventNames,
+    normalizeCrmString,
+    normalizeCrmTags
+  } = load("src/modules/crm/shared");
+  const error = crmErrors.permissionDenied();
+  const command = createCrmCommand({
+    id: "command-1",
+    type: "create",
+    entityType: "customer",
+    workspaceId: "workspace-a",
+    actorId: "user-admin",
+    payload: { displayName: "ABC SARL" }
+  });
+
+  assert(normalizeCrmString(" École  ABC ") === "ecole  abc", "CRM shared utils should normalize accents and casing.");
+  assert(normalizeCrmTags(["VIP", " vip "]).length === 1, "CRM shared utils should normalize and deduplicate tags.");
+  assert(createCrmDisplayLabel("ABC SARL", "", "Mohammedia") === "ABC SARL - Mohammedia", "CRM shared utils should create clean labels.");
+  assert(areCrmValuesEqual({ b: 2, a: 1 }, { a: 1, b: 2 }), "CRM shared utils should support stable equality checks.");
+  assert(error.code === "permission_denied" && Object.isFrozen(error), "CRM shared errors should be typed and immutable.");
+  assert(crmEventNames.customerCreated === "crm.customer.created", "CRM shared events should expose stable event names.");
+  assert(crmEventContracts.some((event) => event.name === crmEventNames.customerArchived), "CRM shared events should expose contracts.");
+  assert(command.entityType === "customer" && Object.isFrozen(command.payload), "CRM shared commands should be immutable DTOs.");
+});
+
+test("CRM Shared Foundation has no UI Prisma API or runtime dependency", () => {
+  const sharedFiles = listFiles("src/modules/crm/shared");
+  const forbiddenPatterns = [
+    /from ["']react["']/,
+    /from ["']react-dom["']/,
+    /from ["']next\//,
+    /@\/components/,
+    /@\/providers/,
+    /@\/context/,
+    /@\/app/,
+    /@\/lib\/prisma/,
+    /@\/runtime\//,
+    /fetch\(/
+  ];
+
+  assert(sharedFiles.every((file) => !file.endsWith(".tsx")), "CRM Shared foundation should not contain UI files.");
+
+  for (const file of sharedFiles.filter((item) => item.endsWith(".ts"))) {
+    const source = read(file);
+    for (const pattern of forbiddenPatterns) {
+      assert(!pattern.test(source), `CRM Shared foundation should not import forbidden dependency in ${file}.`);
+    }
+  }
+});
+
 const failures = results.filter((result) => result.status === "fail");
 
 for (const result of results) {

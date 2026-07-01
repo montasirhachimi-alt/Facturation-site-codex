@@ -100,3 +100,20 @@ It provides:
 - permission-aware operation inputs
 
 It does not add UI, Prisma, APIs or visible routes.
+
+## Shared Foundation
+
+The CRM shared foundation lives in `src/modules/crm/shared/`.
+
+It provides reusable CRM infrastructure for current and future CRM domains:
+
+- generic search helpers
+- generic filters
+- stable sorting
+- pagination contracts
+- typed CRM errors
+- CRM event contracts
+- command DTOs
+- normalization and utility helpers
+
+This layer contains no UI, Prisma, API or business-specific CRUD logic.

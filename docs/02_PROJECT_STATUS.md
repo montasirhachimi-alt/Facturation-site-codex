@@ -8,8 +8,8 @@
 | Version | Pre-Alpha |
 | Current Milestone | Milestone 3 — Business Suite |
 | Current Phase | Business Module Foundations |
-| Current Sprint | SPR-302 — CRM Customers Foundation |
-| Next Sprint | SPR-303 — CRM Customers UI Foundation |
+| Current Sprint | SPR-303 — CRM Shared Foundation |
+| Next Sprint | SPR-304 — CRM Customers UI Foundation |
 | Repository Health | Builds successfully with one known existing image optimization warning. |
 
 ## Completed Core Engines
@@ -73,6 +73,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | Plugin Runtime registers, enables, disables and tracks prepared module descriptors without executing plugin code. | Completed |
 | CRM Module Foundation exposes manifest, capabilities, permissions, navigation and routes as the first Business Suite module. | Completed |
 | CRM Customers Foundation exposes customer domain types, validation, utilities and in-memory service. | Completed |
+| CRM Shared Foundation exposes reusable CRM search, filters, sorting, pagination, errors, events, commands and utilities. | Completed |
 | Core Search React UI is separated into Platform Search. | Completed |
 | Runtime validation checks Platform Events, event subscribers, Permission Enforcement, Permission Runtime Integration, Capability Registry, Manifest System, Module Loader, Plugin Runtime, CRM Module Foundation, CRM Customers Foundation, Preferences Runtime, Widget Runtime, Workspace Context and Platform Search separation. | Completed |
 
@@ -90,6 +91,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - Plugin Runtime hosts descriptors but does not execute plugin code, load remote modules or provide an SDK yet.
 - CRM Module Foundation exists but does not implement CRM CRUD, services, persistence or UI pages yet.
 - CRM Customers Foundation is in-memory only and has no persistence, API or visible UI yet.
+- CRM Shared Foundation is generic only and is not yet consumed by every CRM domain because future CRM domains do not exist yet.
 - Documentation before SPR-207A was fragmented across several older files.
 
 ## Known Risks
@@ -103,9 +105,9 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passing during SPR-302. |
-| `npm run build` | Yes | Passing during SPR-302 with the known existing `next/image` warning in PDF preview. |
-| `npm run validate:runtime` | Yes | Passing during SPR-302. |
+| `npm run typecheck` | Yes | Passing during SPR-303. |
+| `npm run build` | Yes | Passing during SPR-303 with the known existing `next/image` warning in PDF preview. |
+| `npm run validate:runtime` | Yes | Passing during SPR-303. |
 
 ## Repository Health
 
