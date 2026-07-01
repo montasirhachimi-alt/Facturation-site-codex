@@ -1295,7 +1295,7 @@ test("CRM Customers Foundation supports update archive search and sorting", () =
 });
 
 test("CRM Customers Foundation has no UI Prisma API or runtime dependency", () => {
-  const customerFiles = listFiles("src/modules/crm/customers");
+  const customerFiles = listFiles("src/modules/crm/customers").filter((file) => !file.includes("/ui/"));
   const forbiddenPatterns = [
     /from ["']react["']/,
     /from ["']react-dom["']/,

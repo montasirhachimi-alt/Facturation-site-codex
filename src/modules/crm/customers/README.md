@@ -59,3 +59,18 @@ The in-memory store is intentionally isolated behind `CustomerService`. Future P
 
 Future UI work should consume the service/domain layer instead of reimplementing customer filtering, sorting, validation or normalization in React components.
 
+## Professional UI Foundation
+
+The visible Customers UI lives in `src/modules/crm/customers/ui/`.
+
+It provides:
+
+- professional CRM page shell
+- toolbar and filters
+- reusable enterprise customer table
+- statistics cards
+- empty, loading and error states
+- add customer dialog connected to `CustomerService`
+- pagination powered by CRM Shared Foundation
+
+The UI consumes the domain and shared layer. It does not own customer business logic.
