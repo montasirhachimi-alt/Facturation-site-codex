@@ -1,4 +1,5 @@
-import { Filter, Plus, RefreshCcw, Search } from "lucide-react";
+import { Filter, Plus, RefreshCcw } from "lucide-react";
+import { EntityFilterPanel, EntitySearchBar, EntityToolbar } from "@/ui";
 import type { CustomerStatus, CustomerType } from "../../customer.types";
 
 export function CustomersToolbar({
@@ -31,21 +32,43 @@ export function CustomersToolbar({
   type: CustomerType | "all";
 }) {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <div className="grid flex-1 gap-3 lg:grid-cols-[minmax(260px,1fr)_repeat(3,160px)]">
-          <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50">
-            <Search size={18} className="text-slate-400" />
-            <input
-              value={query}
-              onChange={(event) => {
-                setQuery(event.target.value);
-                onResetPage();
-              }}
-              className="w-full bg-transparent text-sm font-medium outline-none dark:text-white dark:placeholder:text-slate-400"
-              placeholder="Rechercher client, société, email, téléphone..."
-            />
-          </label>
+    <EntityToolbar
+      actions={
+        <>
+          <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-bold text-hicotech-navy dark:border-hicotech-dark-border dark:text-white">
+            <Filter size={16} />
+            Filtres
+          </button>
+          <button
+            type="button"
+            onClick={onRefresh}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-bold text-hicotech-navy transition hover:bg-hicotech-cloud dark:border-hicotech-dark-border dark:text-white dark:hover:bg-hicotech-dark-page"
+          >
+            <RefreshCcw size={16} />
+            Actualiser
+          </button>
+          {canCreate && (
+            <button
+              type="button"
+              onClick={onCreate}
+              className="inline-flex items-center gap-2 rounded-lg bg-hicotech-blue px-4 py-2.5 text-sm font-bold text-white shadow-soft transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/20"
+            >
+              <Plus size={18} />
+              Ajouter client
+            </button>
+          )}
+        </>
+      }
+    >
+        <EntityFilterPanel>
+          <EntitySearchBar
+            value={query}
+            onChange={(value) => {
+              setQuery(value);
+              onResetPage();
+            }}
+            placeholder="Rechercher client, société, email, téléphone..."
+          />
           <select
             value={status}
             onChange={(event) => {
@@ -88,33 +111,7 @@ export function CustomersToolbar({
               </option>
             ))}
           </select>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-bold text-hicotech-navy dark:border-hicotech-dark-border dark:text-white">
-            <Filter size={16} />
-            Filtres
-          </button>
-          <button
-            type="button"
-            onClick={onRefresh}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-bold text-hicotech-navy transition hover:bg-hicotech-cloud dark:border-hicotech-dark-border dark:text-white dark:hover:bg-hicotech-dark-page"
-          >
-            <RefreshCcw size={16} />
-            Actualiser
-          </button>
-          {canCreate && (
-            <button
-              type="button"
-              onClick={onCreate}
-              className="inline-flex items-center gap-2 rounded-lg bg-hicotech-blue px-4 py-2.5 text-sm font-bold text-white shadow-soft transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/20"
-            >
-              <Plus size={18} />
-              Ajouter client
-            </button>
-          )}
-        </div>
-      </div>
-    </section>
+        </EntityFilterPanel>
+    </EntityToolbar>
   );
 }
-

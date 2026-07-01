@@ -1,9 +1,9 @@
 import { Plus, Search } from "lucide-react";
-import { EmptyState } from "@/components/empty-state";
+import { EntityEmptyState } from "@/ui";
 
 export function CustomerEmptyState({ canCreate, onCreate }: { canCreate: boolean; onCreate: () => void }) {
   return (
-    <EmptyState
+    <EntityEmptyState
       icon={Search}
       title="Aucun client trouvé"
       description="Aucun client ne correspond aux critères sélectionnés. Ajustez la recherche ou ajoutez un nouveau client."
@@ -22,4 +22,3 @@ export function CustomerEmptyState({ canCreate, onCreate }: { canCreate: boolean
     />
   );
 }
-

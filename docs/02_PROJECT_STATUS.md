@@ -8,8 +8,8 @@
 | Version | Pre-Alpha |
 | Current Milestone | Milestone 3 — Business Suite |
 | Current Phase | Business Module Foundations |
-| Current Sprint | SPR-304 — CRM Customers Professional UI Foundation |
-| Next Sprint | SPR-305 — CRM Companies Foundation |
+| Current Sprint | SPR-305 — HicoPilot Enterprise UI Framework |
+| Next Sprint | SPR-306 — CRM Companies Foundation |
 | Repository Health | Builds successfully with one known existing image optimization warning. |
 
 ## Completed Core Engines
@@ -75,6 +75,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | CRM Customers Foundation exposes customer domain types, validation, utilities and in-memory service. | Completed |
 | CRM Shared Foundation exposes reusable CRM search, filters, sorting, pagination, errors, events, commands and utilities. | Completed |
 | CRM Customers Professional UI exposes the first visible CRM business page backed by CustomerService and CRM Shared Foundation. | Completed |
+| HicoPilot Enterprise UI Framework extracts reusable business UI primitives consumed by CRM Customers. | Completed |
 | Core Search React UI is separated into Platform Search. | Completed |
 | Runtime validation checks Platform Events, event subscribers, Permission Enforcement, Permission Runtime Integration, Capability Registry, Manifest System, Module Loader, Plugin Runtime, CRM Module Foundation, CRM Customers Foundation, Preferences Runtime, Widget Runtime, Workspace Context and Platform Search separation. | Completed |
 
@@ -94,6 +95,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - CRM Customers Foundation is in-memory only and has no persistence, API or visible UI yet.
 - CRM Shared Foundation is generic only and is not yet consumed by every CRM domain because future CRM domains do not exist yet.
 - CRM Customers UI persists changes only in memory during the current browser session.
+- Enterprise UI Framework is young and should evolve only through concrete business module needs.
 - Documentation before SPR-207A was fragmented across several older files.
 
 ## Known Risks
@@ -107,9 +109,9 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passing during SPR-304. |
-| `npm run build` | Yes | Passing during SPR-304 with the known existing `next/image` warning in PDF preview. |
-| `npm run validate:runtime` | Yes | Passing during SPR-304. |
+| `npm run typecheck` | Yes | Passing during SPR-305. |
+| `npm run build` | Yes | Passing during SPR-305 with the known existing `next/image` warning in PDF preview. |
+| `npm run validate:runtime` | Yes | Passing during SPR-305. |
 
 ## Repository Health
 
