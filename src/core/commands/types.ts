@@ -10,6 +10,8 @@ export type CommandCategory =
 
 export type CommandContext = {
   userId?: string;
+  role?: string;
+  workspaceId?: string;
   companyId?: string;
   currentPath?: string;
   selection?: unknown;

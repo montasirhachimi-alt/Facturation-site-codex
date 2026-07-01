@@ -1,6 +1,7 @@
 import { getCommands } from "@/core/commands";
 import type { CommandContext, CommandDefinition } from "@/core/commands";
 import { NavigationService } from "@/services/navigation";
+import { PermissionService } from "@/services/permissions";
 import { SearchService } from "@/services/search";
 
 export type CommandExecutionResult<TResult = unknown> = {
@@ -12,6 +13,7 @@ export type CommandExecutionResult<TResult = unknown> = {
 
 export class CommandService {
   private readonly navigationService = new NavigationService();
+  private readonly permissionService = new PermissionService();
   private readonly searchService = new SearchService();
 
   getAvailableCommands() {
@@ -28,6 +30,7 @@ export class CommandService {
       status: "active",
       category: "navigation",
       href: moduleDefinition.route,
+      permissions: moduleDefinition.permissions.filter((permission) => permission.action === "view"),
       keywords: [
         moduleDefinition.name,
         moduleDefinition.category,
@@ -57,11 +60,45 @@ export class CommandService {
     });
   }
 
-  canExecute(commandId: string) {
-    return Boolean(this.getAvailableCommands().find((command) => command.id === commandId));
+  getCommandPermissionDecision(command: CommandDefinition, context: CommandContext = {}) {
+    if (!command.permissions?.length) {
+      return [];
+    }
+
+    return this.permissionService.evaluateRequirements(
+      command.permissions,
+      {
+        id: command.id,
+        type: "command",
+        module: command.permissions[0]?.module,
+        enabled: command.status !== "disabled"
+      },
+      {
+        userId: context.userId,
+        role: context.role,
+        workspaceId: context.workspaceId,
+        companyId: context.companyId
+      }
+    );
+  }
+
+  canExecute(commandId: string, context: CommandContext = {}) {
+    const command = this.getAvailableCommands().find((item) => item.id === commandId);
+    if (!command) return false;
+
+    return this.getCommandPermissionDecision(command, context).every((decision) => decision.allowed);
   }
 
   execute<TResult = unknown>(command: CommandDefinition<TResult>, context: CommandContext = {}): CommandExecutionResult<TResult> {
+    const permissionDecisions = this.getCommandPermissionDecision(command, context);
+    if (permissionDecisions.some((decision) => !decision.allowed)) {
+      return {
+        command,
+        executed: false,
+        reason: "Command permission denied."
+      };
+    }
+
     if (!command.execute) {
       return {
         command,

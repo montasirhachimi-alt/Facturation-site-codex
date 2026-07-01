@@ -2,31 +2,46 @@
 
 import { useCallback, useMemo } from "react";
 import type { ReactNode } from "react";
-import { useWorkspace } from "@/hooks";
+import { usePreferencesRuntime } from "@/preferences";
+import { PermissionService } from "@/services/permissions";
 import { WidgetRuntimeContext } from "./widget-runtime-context";
 import type { WidgetPermissionState, WidgetRuntimeItem, WidgetVisibilityState } from "./widget-runtime.types";
 
 export function WidgetRuntimeProvider({ children }: { children: ReactNode }) {
+  const permissionService = useMemo(() => new PermissionService(), []);
+  const preferenceRuntime = usePreferencesRuntime();
   const {
     currentWorkspace,
+    preferences,
     workspaceSnapshot,
-    workspacePreferences,
     isLoading,
     error,
-    reloadSnapshot
-  } = useWorkspace();
+    refreshPreferences
+  } = preferenceRuntime;
 
   const widgets = useMemo(() => workspaceSnapshot?.widgets ?? [], [workspaceSnapshot?.widgets]);
 
   const permissions = useMemo<Record<string, WidgetPermissionState>>(() => {
     return widgets.reduce<Record<string, WidgetPermissionState>>((state, widget) => {
+      const decisions = permissionService.evaluateRequirements(
+        widget.permissions,
+        {
+          id: widget.id,
+          type: "widget",
+          module: widget.moduleId,
+          enabled: widget.enabled
+        },
+        { workspace: currentWorkspace }
+      );
+
       state[widget.id] = {
         required: widget.permissions,
-        allowed: true
+        allowed: decisions.every((decision) => decision.allowed),
+        decisions
       };
       return state;
     }, {});
-  }, [widgets]);
+  }, [currentWorkspace, permissionService, widgets]);
 
   const visibilityState = useMemo<WidgetVisibilityState>(() => {
     return widgets.reduce<WidgetVisibilityState>((state, widget) => {
@@ -48,15 +63,15 @@ export function WidgetRuntimeProvider({ children }: { children: ReactNode }) {
   );
 
   const refreshRuntime = useCallback(() => {
-    reloadSnapshot();
-  }, [reloadSnapshot]);
+    refreshPreferences();
+  }, [refreshPreferences]);
 
   const refreshWidget = useCallback(
     (widgetId: string) => {
       void widgetId;
-      reloadSnapshot();
+      refreshPreferences();
     },
-    [reloadSnapshot]
+    [refreshPreferences]
   );
 
   const getWidgetRuntime = useCallback(
@@ -68,8 +83,9 @@ export function WidgetRuntimeProvider({ children }: { children: ReactNode }) {
         widget,
         currentWorkspace,
         workspaceSnapshot,
-        workspacePreferences,
-        permissions: permissions[widget.id] ?? { required: widget.permissions, allowed: true },
+        workspacePreferences: preferences,
+        preferenceRuntime,
+        permissions: permissions[widget.id] ?? { required: widget.permissions, allowed: true, decisions: [] },
         isVisible: isWidgetVisible(widget.id),
         isLoading,
         error,
@@ -83,9 +99,10 @@ export function WidgetRuntimeProvider({ children }: { children: ReactNode }) {
       isLoading,
       isWidgetVisible,
       permissions,
+      preferenceRuntime,
       refreshWidget,
       widgets,
-      workspacePreferences,
+      preferences,
       workspaceSnapshot
     ]
   );
@@ -94,7 +111,8 @@ export function WidgetRuntimeProvider({ children }: { children: ReactNode }) {
     () => ({
       currentWorkspace,
       workspaceSnapshot,
-      workspacePreferences,
+      workspacePreferences: preferences,
+      preferenceRuntime,
       widgets,
       permissions,
       visibilityState,
@@ -122,11 +140,12 @@ export function WidgetRuntimeProvider({ children }: { children: ReactNode }) {
       isWidgetVisible,
       permissions,
       pinnedWidgetIds,
+      preferenceRuntime,
       refreshRuntime,
       refreshWidget,
       visibilityState,
       widgets,
-      workspacePreferences,
+      preferences,
       workspaceSnapshot
     ]
   );

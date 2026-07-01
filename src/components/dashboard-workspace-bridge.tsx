@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import type { ReactNode } from "react";
+import { PreferencesRuntimeProvider } from "@/preferences";
 import { useWidgetRuntime, WidgetRuntimeProvider } from "@/widgets";
 
 function DashboardRuntimeConsumer({ children }: { children: ReactNode }) {
@@ -55,8 +56,10 @@ function DashboardRuntimeConsumer({ children }: { children: ReactNode }) {
 
 export function DashboardWorkspaceBridge({ children }: { children: ReactNode }) {
   return (
-    <WidgetRuntimeProvider>
-      <DashboardRuntimeConsumer>{children}</DashboardRuntimeConsumer>
-    </WidgetRuntimeProvider>
+    <PreferencesRuntimeProvider>
+      <WidgetRuntimeProvider>
+        <DashboardRuntimeConsumer>{children}</DashboardRuntimeConsumer>
+      </WidgetRuntimeProvider>
+    </PreferencesRuntimeProvider>
   );
 }

@@ -1,3 +1,6 @@
+export * from "./capabilities";
+export * from "./manifests";
+export * from "./module-loader";
 export * from "./types";
 
 export * as CoreActivity from "./activity";

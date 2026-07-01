@@ -5,6 +5,7 @@ export * from "./commands";
 export * from "./favorites";
 export * from "./navigation";
 export * from "./notifications";
+export * from "./permissions";
 export * from "./preferences";
 export * from "./recent";
 export * from "./search";
