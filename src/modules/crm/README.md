@@ -117,3 +117,18 @@ It provides reusable CRM infrastructure for current and future CRM domains:
 - normalization and utility helpers
 
 This layer contains no UI, Prisma, API or business-specific CRUD logic.
+
+## Companies Domain Foundation
+
+The Company domain foundation lives in `src/modules/crm/companies/`.
+
+It provides:
+
+- strong TypeScript company models
+- in-memory `CompanyService`
+- validation helpers
+- CRM shared filtering, sorting and search usage
+- workspace-aware operations
+- permission-aware operation inputs
+
+It does not add UI, Prisma, APIs or visible routes.

@@ -1178,7 +1178,7 @@ test("CRM Module Foundation exposes manifest capabilities permissions navigation
 });
 
 test("CRM Module Foundation remains platform-consumer only", () => {
-  const crmFiles = listFiles("src/modules/crm").filter((file) => !file.includes("/customers/"));
+  const crmFiles = listFiles("src/modules/crm").filter((file) => !file.includes("/customers/") && !file.includes("/companies/"));
   const forbiddenPatterns = [
     /from ["']react["']/,
     /from ["']react-dom["']/,
@@ -1425,6 +1425,131 @@ test("CRM Shared Foundation has no UI Prisma API or runtime dependency", () => {
     const source = read(file);
     for (const pattern of forbiddenPatterns) {
       assert(!pattern.test(source), `CRM Shared foundation should not import forbidden dependency in ${file}.`);
+    }
+  }
+});
+
+test("CRM Companies Foundation creates validates lists and isolates workspaces", () => {
+  const { CompanyService } = load("src/modules/crm/companies");
+  const service = new CompanyService({
+    now: () => "2026-07-01T12:00:00.000Z",
+    createId: (() => {
+      let index = 0;
+      return () => `comp_${index += 1}`;
+    })()
+  });
+
+  const first = service.createCompany({
+    workspaceId: "workspace-a",
+    legalName: "ABC SARL",
+    displayName: "ABC",
+    registrationNumber: "RC-12345",
+    taxNumber: "IF-54321",
+    industry: "technology",
+    website: "abc.ma",
+    email: "CONTACT@ABC.MA",
+    phone: "+212 6 00 00 00 00",
+    city: "Casablanca",
+    tags: ["VIP", " vip "],
+    createdBy: "user-admin"
+  });
+  service.createCompany({
+    workspaceId: "workspace-b",
+    legalName: "Other Workspace SARL",
+    createdBy: "user-admin"
+  });
+  const list = service.listCompanies({ workspaceId: "workspace-a" });
+
+  assert(first.validation.valid === true, "Company creation should return a valid structured result.");
+  assert(first.company.email === "contact@abc.ma", "Company creation should normalize email values.");
+  assert(first.company.website === "https://abc.ma", "Company creation should normalize website values.");
+  assert(first.company.tags.length === 1 && first.company.tags[0] === "vip", "Company creation should normalize tags.");
+  assert(Object.isFrozen(first.company), "Created companies should be immutable.");
+  assert(list.companies.length === 1, "Company listing should stay scoped to the requested workspace.");
+});
+
+test("CRM Companies Foundation validates invalid input and permission denial", () => {
+  const { CompanyService, validateCreateCompanyInput } = load("src/modules/crm/companies");
+  const invalid = validateCreateCompanyInput({
+    workspaceId: "",
+    legalName: "",
+    email: "invalid-email",
+    website: "not a site",
+    phone: "x",
+    createdBy: ""
+  });
+  const denied = new CompanyService().createCompany({
+    workspaceId: "workspace-a",
+    legalName: "Denied Company",
+    createdBy: "user-admin",
+    permission: { allowed: false, reason: "denied_missing_permission", permission: { module: "crm.company", action: "write" }, resource: { id: "crm.company", type: "service" } }
+  });
+  const codes = invalid.issues.map((issue) => issue.code);
+
+  assert(invalid.valid === false, "Invalid company input should fail validation.");
+  assert(codes.includes("missing_company_name"), "Company validation should require company name.");
+  assert(codes.includes("missing_workspace"), "Company validation should require workspace scope.");
+  assert(codes.includes("invalid_email"), "Company validation should validate email format.");
+  assert(codes.includes("invalid_website"), "Company validation should validate website format.");
+  assert(codes.includes("invalid_phone"), "Company validation should validate phone format.");
+  assert(denied.validation.issues.some((issue) => issue.code === "permission_denied"), "Company validation should accept permission decisions.");
+  assert(!denied.company, "Permission denied company creation should not create a company.");
+});
+
+test("CRM Companies Foundation supports update archive search filtering and sorting", () => {
+  const { CompanyService } = load("src/modules/crm/companies");
+  const service = new CompanyService({
+    now: () => "2026-07-01T12:00:00.000Z",
+    createId: (() => {
+      let index = 0;
+      return () => `comp_${index += 1}`;
+    })()
+  });
+  const zed = service.createCompany({ workspaceId: "workspace-a", legalName: "Zed Company", industry: "retail", city: "Rabat", createdBy: "user-admin" }).company;
+  const alpha = service.createCompany({ workspaceId: "workspace-a", legalName: "Alpha Company", industry: "education", city: "Casablanca", tags: ["school"], createdBy: "user-admin" }).company;
+
+  const updated = service.updateCompany({
+    id: zed.id,
+    workspaceId: "workspace-a",
+    displayName: "Zed Updated",
+    status: "active",
+    updatedBy: "user-admin"
+  });
+  const search = service.searchCompanies({ workspaceId: "workspace-a", query: "alpha" });
+  const filtered = service.listCompanies({ workspaceId: "workspace-a", industry: "education", tags: ["school"] });
+  const sorted = service.listCompanies({ workspaceId: "workspace-a" }, { field: "displayName", direction: "asc" });
+  const archived = service.archiveCompany(alpha.id, "workspace-a", "user-admin");
+  const visibleAfterArchive = service.listCompanies({ workspaceId: "workspace-a" });
+
+  assert(updated.company.displayName === "Zed Updated", "Company update should update mutable fields.");
+  assert(search.companies.length === 1 && search.companies[0].id === alpha.id, "Company search should match normalized company fields.");
+  assert(filtered.companies.length === 1 && filtered.companies[0].id === alpha.id, "Company filtering should use CRM shared filters.");
+  assert(sorted.companies[0].displayName === "Alpha Company", "Company listing should support deterministic sorting.");
+  assert(archived.company.status === "archived", "Company archive should set archived status.");
+  assert(visibleAfterArchive.companies.every((company) => company.status !== "archived"), "Archived companies should be hidden by default.");
+});
+
+test("CRM Companies Foundation has no UI Prisma API or runtime dependency", () => {
+  const companyFiles = listFiles("src/modules/crm/companies").filter((file) => !file.includes("/ui/"));
+  const forbiddenPatterns = [
+    /from ["']react["']/,
+    /from ["']react-dom["']/,
+    /from ["']next\//,
+    /@\/components/,
+    /@\/providers/,
+    /@\/context/,
+    /@\/app/,
+    /@\/lib\/prisma/,
+    /@\/runtime\/plugins/,
+    /fetch\(/
+  ];
+
+  assert(companyFiles.every((file) => !file.endsWith(".tsx")), "CRM Companies foundation should not contain UI files.");
+
+  for (const file of companyFiles.filter((item) => item.endsWith(".ts"))) {
+    const source = read(file);
+    for (const pattern of forbiddenPatterns) {
+      assert(!pattern.test(source), `CRM Companies foundation should not import forbidden dependency in ${file}.`);
     }
   }
 });
