@@ -10,7 +10,7 @@ export function EntitySearchBar({
   value: string;
 }) {
   return (
-    <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50">
+    <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm shadow-slate-200/40 transition focus-within:border-hicotech-blue focus-within:ring-4 focus-within:ring-hicotech-blue/10 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:shadow-none">
       <Search size={18} className="text-slate-400" />
       <input
         value={value}
@@ -21,4 +21,3 @@ export function EntitySearchBar({
     </label>
   );
 }
-

@@ -21,7 +21,7 @@ const chartText = "#8EA8CC";
 
 export function SalesEvolutionChart() {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-soft dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
+    <section className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-sm shadow-slate-200/60 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none">
       <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="font-display text-lg font-bold text-hicotech-navy dark:text-white">
@@ -56,7 +56,7 @@ export function SalesEvolutionChart() {
 
 export function FinanceBarsChart() {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-soft dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
+    <section className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-sm shadow-slate-200/60 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none">
       <div className="mb-4">
         <h2 className="font-display text-lg font-bold text-hicotech-navy dark:text-white">
           Ventes, achats et dépenses
@@ -88,7 +88,7 @@ export function MarginDonutChart() {
   ];
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-soft dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
+    <section className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-sm shadow-slate-200/60 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none">
       <div className="mb-4">
         <h2 className="font-display text-lg font-bold text-hicotech-navy dark:text-white">
           Répartition financière
@@ -124,7 +124,7 @@ export function MarginDonutChart() {
 
 export function TopClientsPanel() {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-soft dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
+    <section className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-sm shadow-slate-200/60 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none">
       <div className="mb-4">
         <h2 className="font-display text-lg font-bold text-hicotech-navy dark:text-white">
           Top clients
@@ -136,7 +136,7 @@ export function TopClientsPanel() {
           const ratio = Math.min(100, (client.total / topClients[0].total) * 100);
 
           return (
-            <div key={client.company} className="rounded-lg border border-slate-100 p-3 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/40">
+            <div key={client.company} className="rounded-xl border border-slate-100 bg-slate-50/60 p-3 transition hover:border-hicotech-blue/25 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/40">
               <div className="flex items-center justify-between gap-3 text-sm">
                 <span className="font-bold text-hicotech-navy dark:text-white">
                   {index + 1}. {client.company}

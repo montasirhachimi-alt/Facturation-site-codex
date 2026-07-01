@@ -178,7 +178,7 @@ function HealthCard({ card, index }: { card: BusinessHealthCard; index: number }
     </>
   );
 
-  const className = `group block min-h-52 rounded-lg border border-slate-200 bg-white p-5 shadow-soft outline-none transition duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card ${classes.border}`;
+  const className = `group block min-h-52 rounded-xl border border-slate-200/90 bg-white p-5 shadow-sm shadow-slate-200/60 outline-none transition duration-200 hover:-translate-y-0.5 hover:shadow-soft focus-visible:ring-2 focus-visible:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none ${classes.border}`;
   const style = { animation: "health-card-in 320ms ease-out both", animationDelay: `${index * 150}ms` };
 
   if (card.href) {

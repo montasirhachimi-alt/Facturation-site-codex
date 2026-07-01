@@ -19,10 +19,10 @@ const toneClasses = {
 
 export function StatCard({ icon: Icon, label, value, detail, trend, tone }: StatCardProps) {
   return (
-    <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lg dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
+    <article className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-sm shadow-slate-200/60 transition duration-200 hover:-translate-y-0.5 hover:border-hicotech-blue/25 hover:shadow-soft dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold text-slate-500 dark:text-slate-300">{label}</p>
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">{label}</p>
           <p className="mt-3 font-display text-2xl font-bold text-hicotech-navy dark:text-white">
             {value}
           </p>

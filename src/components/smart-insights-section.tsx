@@ -104,7 +104,7 @@ function InsightCard({ insight, index }: { insight: SmartInsight; index: number 
     <article
       tabIndex={0}
       aria-label={`${insight.title}: ${insight.message}`}
-      className={`group min-h-40 cursor-pointer rounded-lg border border-slate-200 bg-white p-5 outline-none shadow-sm shadow-slate-200/40 transition duration-200 hover:-translate-y-0.5 hover:shadow-soft focus-visible:ring-2 focus-visible:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none ${classes.border}`}
+      className={`group min-h-40 cursor-pointer rounded-xl border border-slate-200/90 bg-white p-5 outline-none shadow-sm shadow-slate-200/60 transition duration-200 hover:-translate-y-0.5 hover:shadow-soft focus-visible:ring-2 focus-visible:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none ${classes.border}`}
       style={{ animation: "insight-card-in 300ms ease-out both", animationDelay: `${index * 150}ms` }}
     >
       <div className="flex items-start justify-between gap-4">

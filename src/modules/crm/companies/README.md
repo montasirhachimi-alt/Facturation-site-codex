@@ -78,3 +78,17 @@ It consumes:
 - Permission Runtime through configured CRM company permissions
 
 It does not add Prisma, APIs or backend persistence.
+
+## Company Details Workspace
+
+The Company Details Workspace lives in `src/modules/crm/companies/ui/details/` and is available at `/crm/companies/[companyId]`.
+
+It provides:
+
+- company header
+- summary placeholders
+- overview information
+- future tabs
+- inspector panel placeholders
+
+Only the Overview tab displays current company data. Other sections are prepared for future CRM, Sales, Projects and Billing modules.

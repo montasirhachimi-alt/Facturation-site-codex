@@ -8,8 +8,8 @@
 | Version | Pre-Alpha |
 | Current Milestone | Milestone 3 — Business Suite |
 | Current Phase | Business Module Foundations |
-| Current Sprint | SPR-307 — CRM Companies Professional Workspace |
-| Next Sprint | SPR-308 — CRM Contacts Foundation |
+| Current Sprint | SPR-309 — Business Experience Sprint |
+| Next Sprint | SPR-310 — CRM Contacts Foundation |
 | Repository Health | Builds successfully with one known existing image optimization warning. |
 
 ## Completed Core Engines
@@ -78,6 +78,8 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | HicoPilot Enterprise UI Framework extracts reusable business UI primitives consumed by CRM Customers. | Completed |
 | CRM Companies Foundation exposes company domain types, validation, utilities and in-memory service. | Completed |
 | CRM Companies Professional Workspace exposes the central CRM company page using Enterprise UI Framework. | Completed |
+| Company Details Workspace exposes a company-centric CRM surface with overview, tabs and future integration placeholders. | Completed |
+| Business Experience Sprint improves Dashboard, Navigation, Topbar, Entity Tables, Cards, Empty States and shared micro UX. | Completed |
 | Core Search React UI is separated into Platform Search. | Completed |
 | Runtime validation checks Platform Events, event subscribers, Permission Enforcement, Permission Runtime Integration, Capability Registry, Manifest System, Module Loader, Plugin Runtime, CRM Module Foundation, CRM Customers Foundation, Preferences Runtime, Widget Runtime, Workspace Context and Platform Search separation. | Completed |
 
@@ -98,6 +100,8 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - CRM Shared Foundation is generic only and is not yet consumed by every CRM domain because future CRM domains do not exist yet.
 - CRM Companies Foundation is in-memory only and has no persistence or API; the SPR-307 workspace is visible but non-persistent.
 - CRM Companies Workspace persists changes only in memory during the current browser session.
+- Company Details Workspace uses seeded in-memory company data and future-module placeholders.
+- Favorites, Pinned, Recent, Workspace switch and Command controls are experience placeholders until platform behavior is connected.
 - CRM Customers UI persists changes only in memory during the current browser session.
 - Enterprise UI Framework is young and should evolve only through concrete business module needs.
 - Documentation before SPR-207A was fragmented across several older files.
@@ -113,9 +117,9 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passing during SPR-307. |
-| `npm run build` | Yes | Passing during SPR-307 with the known existing `next/image` warning in PDF preview. |
-| `npm run validate:runtime` | Yes | Passing during SPR-307. |
+| `npm run typecheck` | Yes | Passing during SPR-309. |
+| `npm run build` | Yes | Passing during SPR-309 with the known existing `next/image` warning in PDF preview. |
+| `npm run validate:runtime` | Yes | Passing during SPR-309. |
 
 ## Repository Health
 

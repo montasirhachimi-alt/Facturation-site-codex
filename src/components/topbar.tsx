@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, CalendarDays, Command, LogOut, Menu, Moon, Search, Sun } from "lucide-react";
+import { Bell, Building2, CalendarDays, ChevronDown, Command, LogOut, Menu, Moon, Search, Sparkles, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Logo } from "@/components/logo";
 import { useUniversalSearch } from "@/platform/search";
@@ -39,7 +39,7 @@ export function Topbar({ onMenuClick, user }: TopbarProps) {
   }, [dark]);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/85 px-4 py-3 shadow-sm shadow-slate-200/30 backdrop-blur-xl dark:border-hicotech-dark-border dark:bg-hicotech-dark-sidebar/90 dark:shadow-none sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 px-4 py-3 shadow-sm shadow-slate-200/30 backdrop-blur-xl dark:border-hicotech-dark-border dark:bg-hicotech-dark-sidebar/90 dark:shadow-none sm:px-6 lg:px-8">
       <div className="flex flex-wrap items-center gap-3 lg:flex-nowrap">
         <button
           type="button"
@@ -53,7 +53,18 @@ export function Topbar({ onMenuClick, user }: TopbarProps) {
           <Logo size="sm" />
         </div>
 
-        <div className="order-2 flex min-w-full flex-1 items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5 shadow-sm shadow-slate-200/60 transition focus-within:border-hicotech-blue focus-within:ring-4 focus-within:ring-hicotech-blue/10 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none md:order-none md:min-w-72">
+        <button className="hidden items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left shadow-sm shadow-slate-200/50 transition hover:border-hicotech-blue/40 hover:bg-hicotech-sky/60 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none dark:hover:bg-hicotech-blue/15 xl:flex">
+          <span className="grid size-9 place-items-center rounded-lg bg-hicotech-sky text-hicotech-blue dark:bg-hicotech-blue/20 dark:text-white">
+            <Building2 size={18} />
+          </span>
+          <span className="leading-tight">
+            <span className="block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">Workspace</span>
+            <span className="block text-sm font-bold text-hicotech-navy dark:text-white">HicoPilot CRM</span>
+          </span>
+          <ChevronDown size={15} className="text-slate-400" />
+        </button>
+
+        <div className="order-2 flex min-w-full flex-1 items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm shadow-slate-200/60 transition focus-within:border-hicotech-blue focus-within:ring-4 focus-within:ring-hicotech-blue/10 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none md:order-none md:min-w-72">
           <Search size={18} className="shrink-0 text-slate-400" />
           <input
             readOnly
@@ -68,6 +79,11 @@ export function Topbar({ onMenuClick, user }: TopbarProps) {
             K
           </span>
         </div>
+
+        <button className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-hicotech-navy shadow-sm shadow-slate-200/50 transition hover:border-hicotech-blue/40 hover:bg-hicotech-sky/60 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white dark:shadow-none dark:hover:bg-hicotech-blue/15 lg:flex">
+          <Sparkles size={17} className="text-hicotech-blue" />
+          Command
+        </button>
 
         <button className="ml-auto hidden items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-hicotech-navy shadow-sm shadow-slate-200/50 transition hover:border-hicotech-blue/40 hover:bg-hicotech-sky/60 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white dark:shadow-none dark:hover:bg-hicotech-blue/15 md:flex">
           <span className="grid size-9 place-items-center rounded-lg bg-hicotech-sky text-hicotech-blue dark:bg-hicotech-blue/20 dark:text-white">

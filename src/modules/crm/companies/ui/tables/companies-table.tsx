@@ -1,3 +1,4 @@
+import { useRouter } from "next/navigation";
 import { Archive, Eye, Link2, MoreHorizontal, Pencil } from "lucide-react";
 import { EntityActionButton, EntityActionMenu, EntityEmptyState, EntityTable, type EntityTableColumn } from "@/ui";
 import type { Company, CompanyId } from "../../company.types";
@@ -58,6 +59,7 @@ export function CompaniesTable({
   selectedIds: readonly CompanyId[];
   sort: Readonly<{ field: CompanySortKey; direction: "asc" | "desc" }>;
 }) {
+  const router = useRouter();
   const allVisibleSelected = companies.length > 0 && companies.every((company) => selectedIds.includes(company.id));
 
   return (
@@ -73,7 +75,7 @@ export function CompaniesTable({
       onToggleRow={onToggleRow}
       renderActions={(company) => (
         <EntityActionMenu>
-          <EntityActionButton icon={<Eye size={16} />} label="Voir" />
+          <EntityActionButton icon={<Eye size={16} />} label="Voir" onClick={() => router.push(`/crm/companies/${company.id}`)} />
           <EntityActionButton icon={<Pencil size={16} />} label="Modifier" disabled={!canWrite} />
           <EntityActionButton icon={<Archive size={16} />} label="Archiver" disabled={!canWrite} onClick={() => onArchive(company)} danger />
           <EntityActionButton icon={<Link2 size={16} />} label="Relations" />
@@ -93,4 +95,3 @@ export function CompaniesTable({
 function formatShortDate(value: string) {
   return new Intl.DateTimeFormat("fr-MA", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value));
 }
-

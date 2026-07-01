@@ -6,6 +6,7 @@ import {
   Banknote,
   Boxes,
   Bot,
+  CalendarCheck,
   CheckCircle2,
   Clock3,
   ClipboardList,
@@ -142,22 +143,27 @@ export default async function DashboardPage() {
   return (
     <DashboardWorkspaceBridge>
       <div className="space-y-6">
-        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-soft dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
-          <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[1fr_auto] lg:items-center">
+        <section className="overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm shadow-slate-200/60 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none">
+          <div className="grid gap-6 p-6 sm:p-7 lg:grid-cols-[1fr_auto] lg:items-center">
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-hicotech-blue/15 bg-hicotech-sky px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-hicotech-blue dark:border-hicotech-blue/30 dark:bg-hicotech-blue/15 dark:text-blue-100">
                 <Activity size={14} />
-                Centre de pilotage
+                Pilot Center
               </div>
-              <h1 className="mt-4 font-display text-3xl font-bold leading-tight text-hicotech-navy dark:text-white md:text-4xl">
+              <h1 className="mt-4 font-display text-3xl font-bold leading-tight text-hicotech-navy dark:text-white md:text-5xl">
                 Bonjour, {userFirstName}
               </h1>
-              <p className="mt-3 max-w-2xl text-base leading-7 text-slate-500 dark:text-slate-300">
-                Bienvenue sur votre centre de pilotage. Voici un aperçu de votre activité aujourd&apos;hui.
+              <p className="mt-3 max-w-3xl text-base leading-7 text-slate-500 dark:text-slate-300">
+                Votre espace de pilotage réunit les signaux importants, les actions rapides et les priorités de la journée.
               </p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <HeroPill label="Workspace" value="HicoPilot CRM" />
+                <HeroPill label="Mode" value="Executive" />
+                <HeroPill label="Status" value="Synchronisé" />
+              </div>
             </div>
 
-            <div className="rounded-lg border border-slate-200 bg-hicotech-cloud p-4 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50">
+            <div className="rounded-xl border border-slate-200 bg-hicotech-cloud p-4 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50">
               <div className="flex items-center gap-3">
                 <span className="grid size-10 place-items-center rounded-lg bg-white text-hicotech-blue shadow-sm dark:bg-hicotech-dark-card dark:text-white">
                   <Clock3 size={18} />
@@ -174,6 +180,8 @@ export default async function DashboardPage() {
             </div>
           </div>
         </section>
+
+        <WorkspaceSummaryStrip />
 
       <section className="space-y-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -340,7 +348,7 @@ function QuickActionCard({ icon: Icon, label, description, href, tone }: QuickAc
   return (
     <Link
       href={href}
-      className="group flex min-h-32 flex-col justify-between rounded-lg border border-slate-200 bg-white p-4 shadow-soft transition duration-200 hover:-translate-y-0.5 hover:border-hicotech-blue/30 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-hicotech-blue/40 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:hover:border-hicotech-blue/50"
+      className="group flex min-h-32 flex-col justify-between rounded-xl border border-slate-200/90 bg-white p-4 shadow-sm shadow-slate-200/60 transition duration-200 hover:-translate-y-0.5 hover:border-hicotech-blue/30 hover:shadow-soft focus:outline-none focus:ring-2 focus:ring-hicotech-blue/40 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none dark:hover:border-hicotech-blue/50"
     >
       <div className="flex items-start justify-between gap-3">
         <span className={`grid size-10 shrink-0 place-items-center rounded-lg ${quickActionToneClasses[tone]}`}>
@@ -411,7 +419,7 @@ function PriorityCard({ icon: Icon, title, value, description, action, href, ton
 
   return (
     <article
-      className={`group rounded-lg border border-slate-200 bg-white p-5 shadow-soft transition duration-200 hover:-translate-y-0.5 hover:shadow-lg dark:border-hicotech-dark-border dark:bg-hicotech-dark-card ${classes.ring}`}
+      className={`group rounded-xl border border-slate-200/90 bg-white p-5 shadow-sm shadow-slate-200/60 transition duration-200 hover:-translate-y-0.5 hover:shadow-soft dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none ${classes.ring}`}
     >
       <div className="flex items-start justify-between gap-4">
         <span className={`grid size-11 shrink-0 place-items-center rounded-lg ${classes.icon}`}>
@@ -444,5 +452,44 @@ function PriorityCard({ icon: Icon, title, value, description, action, href, ton
         </button>
       )}
     </article>
+  );
+}
+
+function HeroPill({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-hicotech-navy shadow-sm dark:border-hicotech-dark-border dark:bg-hicotech-dark-page dark:text-white">
+      <span className="text-slate-400">{label}</span>
+      {value}
+    </span>
+  );
+}
+
+function WorkspaceSummaryStrip() {
+  const items = [
+    { icon: ContactRound, label: "Relations CRM", value: "Companies actives", helper: "Workspace prêt pour contacts et ventes" },
+    { icon: CalendarCheck, label: "Agenda du jour", value: "3 rendez-vous", helper: "Réunion, livraison, fournisseur" },
+    { icon: Bot, label: "AI Insights", value: "2 suggestions", helper: "Relances et stock à surveiller" }
+  ];
+
+  return (
+    <section className="grid gap-4 lg:grid-cols-3" aria-label="Résumé du workspace">
+      {items.map((item) => {
+        const Icon = item.icon;
+        return (
+          <article key={item.label} className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-sm shadow-slate-200/60 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none">
+            <div className="flex items-start gap-3">
+              <span className="grid size-10 place-items-center rounded-lg bg-hicotech-sky text-hicotech-blue dark:bg-hicotech-blue/15 dark:text-blue-100">
+                <Icon size={18} />
+              </span>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">{item.label}</p>
+                <p className="mt-1 font-display text-lg font-bold text-hicotech-navy dark:text-white">{item.value}</p>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">{item.helper}</p>
+              </div>
+            </div>
+          </article>
+        );
+      })}
+    </section>
   );
 }

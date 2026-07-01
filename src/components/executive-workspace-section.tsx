@@ -140,7 +140,7 @@ export function ExecutiveWorkspaceSection() {
                   key={`${event.label}-${event.time}`}
                   tabIndex={0}
                   aria-label={`${event.label} à ${event.time}`}
-                  className="rounded-lg border border-slate-200 bg-slate-50 p-4 outline-none transition duration-200 hover:-translate-y-0.5 hover:border-hicotech-blue/30 focus-visible:ring-2 focus-visible:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/45"
+                  className="rounded-xl border border-slate-200 bg-slate-50 p-4 outline-none transition duration-200 hover:-translate-y-0.5 hover:border-hicotech-blue/30 focus-visible:ring-2 focus-visible:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/45"
                   style={{ animation: "workspace-timeline-in 260ms ease-out both", animationDelay: `${index * 120}ms` }}
                 >
                   <div className="flex items-center gap-2 text-sm font-bold text-hicotech-navy dark:text-white">
@@ -162,7 +162,7 @@ export function ExecutiveWorkspaceSection() {
               {tasks.map((task) => (
                 <li
                   key={task.label}
-                  className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/45"
+                  className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/45"
                 >
                   {task.done ? (
                     <CheckCircle2 size={18} className="shrink-0 text-hicotech-green dark:text-emerald-100" aria-hidden="true" />
@@ -192,7 +192,7 @@ export function ExecutiveWorkspaceSection() {
 
           <blockquote
             tabIndex={0}
-            className="rounded-lg border border-slate-200 bg-white p-5 text-sm italic leading-6 text-slate-600 shadow-sm outline-none transition duration-200 hover:border-hicotech-blue/30 focus-visible:ring-2 focus-visible:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-slate-300"
+            className="rounded-xl border border-slate-200 bg-white p-5 text-sm italic leading-6 text-slate-600 shadow-sm outline-none transition duration-200 hover:border-hicotech-blue/30 focus-visible:ring-2 focus-visible:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-slate-300"
             style={{ animation: "workspace-card-in 300ms ease-out both", animationDelay: "450ms" }}
           >
             “La meilleure décision est celle prise avec les bonnes données.”
@@ -219,7 +219,7 @@ function WorkspaceCard({
   return (
     <article
       tabIndex={0}
-      className="rounded-lg border border-slate-200 bg-white p-5 shadow-soft outline-none transition duration-200 hover:-translate-y-0.5 hover:border-hicotech-blue/30 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:hover:border-hicotech-blue/50"
+      className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-sm shadow-slate-200/60 outline-none transition duration-200 hover:-translate-y-0.5 hover:border-hicotech-blue/30 hover:shadow-soft focus-visible:ring-2 focus-visible:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none dark:hover:border-hicotech-blue/50"
       style={{ animation: "workspace-card-in 300ms ease-out both", animationDelay: `${index * 120}ms` }}
     >
       <div className="mb-5 flex items-start justify-between gap-4">
