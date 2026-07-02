@@ -1,5 +1,7 @@
 import type { CoreModuleCategory } from "@/core/constants";
 import type { CoreModuleId } from "@/core/registry";
+import { crmNavigation } from "@/modules/crm/crm.navigation";
+import type { CrmNavigationItem } from "@/modules/crm/crm.types";
 import { NavigationService } from "./NavigationService";
 
 export type SidebarNavigationItem = {
@@ -40,89 +42,62 @@ const sidebarGroupLabels: Record<CoreModuleCategory, string> = {
   system: "Système"
 };
 
-const crmSidebarGroup: SidebarNavigationGroup = {
-  label: "CRM",
-  category: "business",
-  items: [
-    {
-      id: "crm",
-      href: "/crm",
-      label: "CRM",
-      icon: "ContactRound",
-      module: "clients",
-      activePaths: ["/crm"]
-    },
-    {
-      id: "crm.companies",
-      href: "/crm/companies",
-      label: "Sociétés",
-      icon: "Building2",
-      module: "clients",
-      activePaths: ["/crm/companies"]
-    },
-    {
-      id: "crm.customers",
-      href: "/clients",
-      label: "Clients",
-      icon: "Users",
-      module: "clients",
-      activePaths: ["/clients"]
-    },
-    {
-      id: "crm.opportunities",
-      href: "/crm/opportunities",
-      label: "Opportunités",
-      icon: "HandCoins",
-      module: "clients",
-      activePaths: ["/crm/opportunities"]
-    },
-    {
-      id: "crm.contacts",
-      href: "/crm/companies",
-      label: "Contacts",
-      icon: "ContactRound",
-      module: "clients",
-      badge: "via société",
-      activePaths: []
-    },
-    {
-      id: "crm.activities",
-      href: "/crm/companies",
-      label: "Activités / Timeline",
-      icon: "ClipboardList",
-      module: "clients",
-      badge: "via société",
-      activePaths: []
-    },
-    {
-      id: "crm.meetings",
-      href: "/crm/companies",
-      label: "Réunions",
-      icon: "CalendarCheck",
-      module: "clients",
-      badge: "via contact",
-      activePaths: []
-    },
-    {
-      id: "crm.tasks",
-      href: "/crm/companies",
-      label: "Tâches",
-      icon: "ScrollText",
-      module: "clients",
-      badge: "via contact",
-      activePaths: []
-    },
-    {
-      id: "crm.notes",
-      href: "/crm/companies",
-      label: "Notes",
-      icon: "FileText",
-      module: "clients",
-      badge: "via contact",
-      activePaths: []
-    }
-  ]
+const crmSidebarItemOverrides: Partial<Record<string, Partial<SidebarNavigationItem>>> = {
+  crm: {
+    icon: "ContactRound",
+    activePaths: ["/crm"]
+  },
+  "crm.companies": {
+    icon: "Building2",
+    activePaths: ["/crm/companies"]
+  },
+  "crm.customers": {
+    icon: "Users",
+    activePaths: ["/clients"]
+  },
+  "crm.opportunities": {
+    icon: "HandCoins",
+    activePaths: ["/crm/opportunities"]
+  },
+  "crm.contacts": {
+    icon: "ContactRound",
+    badge: "via société",
+    activePaths: []
+  },
+  "crm.activities": {
+    label: "Activités / Timeline",
+    icon: "ClipboardList",
+    badge: "via société",
+    activePaths: []
+  },
+  "crm.meetings": {
+    icon: "CalendarCheck",
+    badge: "via contact",
+    activePaths: []
+  },
+  "crm.tasks": {
+    icon: "ScrollText",
+    badge: "via contact",
+    activePaths: []
+  },
+  "crm.notes": {
+    icon: "FileText",
+    badge: "via contact",
+    activePaths: []
+  }
 };
+
+const crmSidebarOrder = [
+  "crm",
+  "crm.companies",
+  "crm.customers",
+  "crm.opportunities",
+  "crm.contacts",
+  "crm.activities",
+  "crm.meetings",
+  "crm.tasks",
+  "crm.notes"
+];
 
 const sidebarModuleOrder: Partial<Record<CoreModuleCategory, CoreModuleId[]>> = {
   home: ["dashboard"],
@@ -167,6 +142,33 @@ function getPermissionModule(item: ReturnType<NavigationService["getNavigationIt
   return item.permissions.find((permission) => permission.action === "view")?.module ?? item.id;
 }
 
+function mapCrmNavigationItem(item: CrmNavigationItem): SidebarNavigationItem {
+  const override = crmSidebarItemOverrides[item.id] ?? {};
+
+  return {
+    id: item.id,
+    href: item.route,
+    label: item.label,
+    icon: "FileText",
+    module: "clients",
+    activePaths: [item.route],
+    ...override
+  };
+}
+
+function getCrmSidebarGroup(): SidebarNavigationGroup {
+  const crmItems: readonly CrmNavigationItem[] = [crmNavigation, ...(crmNavigation.children ?? [])];
+  const orderedItems = crmSidebarOrder
+    .map((id) => crmItems.find((item) => item.id === id))
+    .filter((item): item is CrmNavigationItem => Boolean(item));
+
+  return {
+    label: crmNavigation.label,
+    category: "business",
+    items: orderedItems.map(mapCrmNavigationItem)
+  };
+}
+
 export function getSidebarGroups(navigationService = new NavigationService()): SidebarNavigationGroup[] {
   const navigationItems = navigationService.getNavigationItems();
 
@@ -194,7 +196,7 @@ export function getSidebarGroups(navigationService = new NavigationService()): S
 
   return [
     ...registryGroups.slice(0, 1),
-    crmSidebarGroup,
+    getCrmSidebarGroup(),
     ...registryGroups.slice(1)
   ];
 }

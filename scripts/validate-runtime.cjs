@@ -1173,7 +1173,7 @@ test("CRM Module Foundation exposes manifest capabilities permissions navigation
   assert(capabilityIds.includes("crm.note.write"), "CRM module should expose note write capability.");
   assert(permissionKeys.includes("crm.customer.read"), "CRM module should expose customer read permission.");
   assert(permissionKeys.includes("crm.note.write"), "CRM module should expose note write permission.");
-  assert(crmModule.navigation.children.length === 6, "CRM navigation should prepare six child placeholders.");
+  assert(crmModule.navigation.children.length === 8, "CRM navigation should prepare eight child placeholders.");
   assert(crmModule.routes.every((route) => route.lazy), "CRM routes should be lazy-load-ready placeholders.");
 });
 
