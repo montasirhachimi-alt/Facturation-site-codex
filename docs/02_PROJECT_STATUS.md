@@ -123,6 +123,10 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - AI features are not yet permission-aware because AI platform integration has not started.
 - Build currently reports an existing `next/image` warning in `src/components/pdf-preview.tsx`.
 
+## UX Fixes
+
+- Workspace selector in the topbar is now interactive and opens an accessible placeholder dropdown with current workspace, upcoming workspace entries and workspace management actions. Real workspace switching remains intentionally unimplemented.
+
 ## Validation Status
 
 | Command | Required | Latest Known Result |
