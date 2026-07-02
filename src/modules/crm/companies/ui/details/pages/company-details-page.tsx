@@ -3,7 +3,7 @@
 import { EntityEmptyState, EntityErrorState, EntityPageLayout } from "@/ui";
 import { Building2 } from "lucide-react";
 import { CompanyContactsWorkspace } from "@/modules/crm/contacts";
-import { CompanyActivityTimeline } from "../components/company-activity-timeline";
+import { CompanyActivityTimeline } from "@/modules/crm/activities/ui/company-activity-timeline";
 import { CompanyDetailsHeader } from "../components/company-details-header";
 import { CompanyDetailsTabs } from "../components/company-details-tabs";
 import { CompanyInspectorPanel } from "../components/company-inspector-panel";
@@ -46,7 +46,7 @@ export function CompanyDetailsPage({ companyId }: { companyId: string }) {
             <>
               <CompanyRelationshipGraph />
               <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_360px]">
-                <CompanyActivityTimeline />
+                <CompanyActivityTimeline companyId={state.company.id} />
                 <div className="space-y-6">
                   <CompanyNotesPanel />
                   <CompanyTasksWidget />

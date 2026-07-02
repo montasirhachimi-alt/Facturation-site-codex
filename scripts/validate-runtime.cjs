@@ -1178,7 +1178,7 @@ test("CRM Module Foundation exposes manifest capabilities permissions navigation
 });
 
 test("CRM Module Foundation remains platform-consumer only", () => {
-  const crmFiles = listFiles("src/modules/crm").filter((file) => !file.includes("/customers/") && !file.includes("/companies/") && !file.includes("/contacts/"));
+  const crmFiles = listFiles("src/modules/crm").filter((file) => !file.includes("/customers/") && !file.includes("/companies/") && !file.includes("/contacts/") && !file.includes("/activities/"));
   const forbiddenPatterns = [
     /from ["']react["']/,
     /from ["']react-dom["']/,
@@ -1693,6 +1693,124 @@ test("CRM Contacts Foundation has no UI Prisma API or runtime dependency", () =>
     const source = read(file);
     for (const pattern of forbiddenPatterns) {
       assert(!pattern.test(source), `CRM Contacts foundation should not import forbidden dependency in ${file}.`);
+    }
+  }
+});
+
+test("CRM Activities Foundation creates validates lists and isolates workspaces companies and contacts", () => {
+  const { ActivityService } = load("src/modules/crm/activities");
+  const service = new ActivityService({
+    now: () => "2026-07-01T12:00:00.000Z",
+    createId: (() => {
+      let index = 0;
+      return () => `act_${index += 1}`;
+    })()
+  });
+
+  const first = service.createActivity({
+    workspaceId: "workspace-a",
+    companyId: "company-a",
+    contactId: "contact-a",
+    type: "meeting",
+    title: "Discovery meeting",
+    description: "Initial CRM discussion",
+    performedBy: "user-admin",
+    tags: ["VIP", " vip "]
+  });
+  service.createActivity({ workspaceId: "workspace-a", companyId: "company-b", type: "call", title: "Other company", performedBy: "user-admin" });
+  service.createActivity({ workspaceId: "workspace-b", companyId: "company-a", type: "email", title: "Other workspace", performedBy: "user-admin" });
+
+  const workspaceList = service.listActivities({ workspaceId: "workspace-a" });
+  const companyList = service.getActivitiesByCompany("company-a", "workspace-a");
+  const contactList = service.getActivitiesByContact("contact-a", "workspace-a");
+
+  assert(first.validation.valid === true, "Activity creation should return a valid structured result.");
+  assert(first.activity.title === "Discovery meeting", "Activity creation should normalize title values.");
+  assert(first.activity.tags.length === 1 && first.activity.tags[0] === "vip", "Activity creation should normalize tags.");
+  assert(Object.isFrozen(first.activity), "Created activities should be immutable.");
+  assert(workspaceList.activities.length === 2, "Activity listing should stay scoped to the requested workspace.");
+  assert(companyList.activities.length === 1 && companyList.activities[0].companyId === "company-a", "Company activity listing should stay scoped to one company.");
+  assert(contactList.activities.length === 1 && contactList.activities[0].contactId === "contact-a", "Contact activity listing should stay scoped to one contact.");
+});
+
+test("CRM Activities Foundation validates invalid input and permission denial", () => {
+  const { ActivityService, validateCreateActivityInput } = load("src/modules/crm/activities");
+  const invalid = validateCreateActivityInput({
+    workspaceId: "",
+    companyId: "",
+    type: "meeting",
+    title: "",
+    performedBy: "",
+    performedAt: "not-a-date"
+  });
+  const denied = new ActivityService().createActivity({
+    workspaceId: "workspace-a",
+    companyId: "company-a",
+    type: "call",
+    title: "Denied Activity",
+    performedBy: "user-admin",
+    permission: { allowed: false, reason: "denied_missing_permission", permission: { module: "crm.activity", action: "write" }, resource: { id: "crm.activity", type: "service" } }
+  });
+  const codes = invalid.issues.map((issue) => issue.code);
+
+  assert(invalid.valid === false, "Invalid activity input should fail validation.");
+  assert(codes.includes("missing_workspace"), "Activity validation should require workspace scope.");
+  assert(codes.includes("missing_company"), "Activity validation should require company relationship.");
+  assert(codes.includes("missing_title"), "Activity validation should require title.");
+  assert(codes.includes("missing_user"), "Activity validation should require performer.");
+  assert(codes.includes("invalid_date"), "Activity validation should validate performed date.");
+  assert(denied.validation.issues.some((issue) => issue.code === "permission_denied"), "Activity validation should accept permission decisions.");
+  assert(!denied.activity, "Permission denied activity creation should not create an activity.");
+});
+
+test("CRM Activities Foundation supports update archive search filtering and sorting", () => {
+  const { ActivityService } = load("src/modules/crm/activities");
+  const service = new ActivityService({
+    now: () => "2026-07-01T12:00:00.000Z",
+    createId: (() => {
+      let index = 0;
+      return () => `act_${index += 1}`;
+    })()
+  });
+  const zed = service.createActivity({ workspaceId: "workspace-a", companyId: "company-a", type: "call", title: "Zed Call", priority: "normal", performedBy: "user-admin", performedAt: "2026-07-01T10:00:00.000Z" }).activity;
+  const alpha = service.createActivity({ workspaceId: "workspace-a", companyId: "company-a", contactId: "contact-a", type: "meeting", title: "Alpha Meeting", priority: "high", tags: ["important"], performedBy: "user-admin", performedAt: "2026-07-01T09:00:00.000Z" }).activity;
+
+  const updated = service.updateActivity({ id: zed.id, workspaceId: "workspace-a", title: "Zed Updated", priority: "critical" });
+  const search = service.searchActivities({ workspaceId: "workspace-a", companyId: "company-a", query: "alpha" });
+  const filtered = service.listActivities({ workspaceId: "workspace-a", companyId: "company-a", contactId: "contact-a", type: "meeting", priority: "high", tags: ["important"] });
+  const sorted = service.listActivities({ workspaceId: "workspace-a", companyId: "company-a" }, { field: "performedAt", direction: "asc" });
+  const archived = service.archiveActivity(alpha.id, "workspace-a");
+  const visibleAfterArchive = service.listActivities({ workspaceId: "workspace-a", companyId: "company-a" });
+
+  assert(updated.activity.title === "Zed Updated", "Activity update should update mutable fields.");
+  assert(search.activities.length === 1 && search.activities[0].id === alpha.id, "Activity search should match normalized activity fields.");
+  assert(filtered.activities.length === 1 && filtered.activities[0].id === alpha.id, "Activity filtering should use CRM shared filters and activity fields.");
+  assert(sorted.activities[0].title === "Alpha Meeting", "Activity listing should support deterministic sorting.");
+  assert(archived.activity.status === "archived", "Activity archive should set archived status.");
+  assert(visibleAfterArchive.activities.every((activity) => activity.status !== "archived"), "Archived activities should be hidden by default.");
+});
+
+test("CRM Activities Foundation has no UI Prisma API or runtime dependency", () => {
+  const activityFiles = listFiles("src/modules/crm/activities").filter((file) => !file.includes("/ui/"));
+  const forbiddenPatterns = [
+    /from ["']react["']/,
+    /from ["']react-dom["']/,
+    /from ["']next\//,
+    /@\/components/,
+    /@\/providers/,
+    /@\/context/,
+    /@\/app/,
+    /@\/lib\/prisma/,
+    /@\/runtime\/plugins/,
+    /fetch\(/
+  ];
+
+  assert(activityFiles.every((file) => !file.endsWith(".tsx")), "CRM Activities foundation should not contain UI files.");
+
+  for (const file of activityFiles.filter((item) => item.endsWith(".ts"))) {
+    const source = read(file);
+    for (const pattern of forbiddenPatterns) {
+      assert(!pattern.test(source), `CRM Activities foundation should not import forbidden dependency in ${file}.`);
     }
   }
 });

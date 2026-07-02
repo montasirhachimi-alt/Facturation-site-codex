@@ -6,6 +6,7 @@ export * from "./crm.navigation";
 export * from "./crm.permissions";
 export * from "./crm.routes";
 export * from "./crm.types";
+export * as CrmActivities from "./activities";
 export * as CrmCompanies from "./companies";
 export * as CrmContacts from "./contacts";
 export * as CrmCustomers from "./customers";
