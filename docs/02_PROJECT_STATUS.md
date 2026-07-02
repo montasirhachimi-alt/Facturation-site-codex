@@ -8,8 +8,8 @@
 | Version | Pre-Alpha |
 | Current Milestone | Milestone 3 — Business Suite |
 | Current Phase | Business Module Foundations |
-| Current Sprint | SPR-317 — CRM Notes Foundation |
-| Next Sprint | SPR-318 — Company Notes Integration |
+| Current Sprint | SPR-318 — CRM Home Workspace |
+| Next Sprint | SPR-319 — Company Notes Integration |
 | Repository Health | Builds successfully with one known existing image optimization warning. |
 
 ## Completed Core Engines
@@ -88,6 +88,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | CRM Meetings Foundation exposes meeting domain types, validation, utilities, in-memory service and Contact Workspace meeting integration. | Completed |
 | CRM Tasks Foundation exposes task domain types, validation, utilities, in-memory service and Contact Workspace task integration. | Completed |
 | CRM Notes Foundation exposes note domain types, validation, utilities, in-memory service and Contact Workspace notes integration. | Completed |
+| CRM Home Workspace replaces the generic `/crm` module fallback with a real French CRM landing workspace. | Completed |
 | Core Search React UI is separated into Platform Search. | Completed |
 | Runtime validation checks Platform Events, event subscribers, Permission Enforcement, Permission Runtime Integration, Capability Registry, Manifest System, Module Loader, Plugin Runtime, CRM Module Foundation, CRM Customers Foundation, Preferences Runtime, Widget Runtime, Workspace Context and Platform Search separation. | Completed |
 
@@ -133,6 +134,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 
 - Workspace selector in the topbar is now interactive and opens an accessible placeholder dropdown with current workspace, upcoming workspace entries and workspace management actions. Real workspace switching remains intentionally unimplemented.
 - CRM is now visible from the main Sidebar with direct access to CRM, Companies and Customers, plus guided nested entries for Contacts, Timeline, Meetings, Tasks and Notes.
+- CRM now opens a dedicated `/crm` workspace instead of the generic ERP module fallback, with French labels and guided access to connected CRM areas.
 
 ## Validation Status
 

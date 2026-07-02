@@ -1178,7 +1178,7 @@ test("CRM Module Foundation exposes manifest capabilities permissions navigation
 });
 
 test("CRM Module Foundation remains platform-consumer only", () => {
-  const crmFiles = listFiles("src/modules/crm").filter((file) => !file.includes("/customers/") && !file.includes("/companies/") && !file.includes("/contacts/") && !file.includes("/activities/") && !file.includes("/meetings/") && !file.includes("/tasks/") && !file.includes("/notes/"));
+  const crmFiles = listFiles("src/modules/crm").filter((file) => !file.includes("/customers/") && !file.includes("/companies/") && !file.includes("/contacts/") && !file.includes("/activities/") && !file.includes("/meetings/") && !file.includes("/tasks/") && !file.includes("/notes/") && !file.includes("/home/"));
   const forbiddenPatterns = [
     /from ["']react["']/,
     /from ["']react-dom["']/,
