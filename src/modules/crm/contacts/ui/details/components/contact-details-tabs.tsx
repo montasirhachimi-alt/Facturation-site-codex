@@ -5,6 +5,7 @@ const tabs: Array<{ id: ContactDetailsTab; label: string }> = [
   { id: "overview", label: "Overview" },
   { id: "activities", label: "Activities" },
   { id: "meetings", label: "Meetings" },
+  { id: "tasks", label: "Tasks" },
   { id: "emails", label: "Emails" },
   { id: "notes", label: "Notes" },
   { id: "documents", label: "Documents" },

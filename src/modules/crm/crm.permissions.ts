@@ -11,9 +11,12 @@ export const crmPermissions = Object.freeze([
   { module: "crm.contact", action: "write" },
   { module: "crm.activity", action: "read" },
   { module: "crm.activity", action: "write" },
+  { module: "crm.meeting", action: "read" },
+  { module: "crm.meeting", action: "write" },
+  { module: "crm.task", action: "read" },
+  { module: "crm.task", action: "write" },
   { module: "crm.note", action: "read" },
   { module: "crm.note", action: "write" }
 ] satisfies CorePermissionRequirement[]);
 
 export type CrmPermission = (typeof crmPermissions)[number];
-

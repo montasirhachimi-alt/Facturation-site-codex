@@ -7,19 +7,40 @@ import { ActivityService } from "@/modules/crm/activities";
 import { crmActivitySeed } from "@/modules/crm/activities/ui/activities.seed";
 import { CompanyService } from "@/modules/crm/companies";
 import { CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
+import { MeetingService } from "@/modules/crm/meetings";
+import { CRM_MEETINGS_WORKSPACE_ID, CRM_MEETINGS_USER_ID, crmMeetingSeed } from "@/modules/crm/meetings/ui/meetings.seed";
+import { TaskService } from "@/modules/crm/tasks";
+import { CRM_TASKS_WORKSPACE_ID, CRM_TASKS_USER_ID, crmTaskSeed } from "@/modules/crm/tasks/ui/tasks.seed";
 import type { Activity, ActivityPriority, ActivityStatus, ActivityType } from "@/modules/crm/activities";
 import type { Company } from "@/modules/crm/companies";
+import type { Meeting, MeetingStatus, MeetingType } from "@/modules/crm/meetings";
+import type { Task, TaskPriority, TaskStatus, TaskType } from "@/modules/crm/tasks";
 import { ContactService } from "../../../contact.service";
 import type { Contact, ContactId } from "../../../contact.types";
 import { CRM_CONTACTS_USER_ID, CRM_CONTACTS_WORKSPACE_ID, crmContactSeed } from "../../contacts.seed";
 
-export type ContactDetailsTab = "overview" | "activities" | "meetings" | "emails" | "notes" | "documents" | "settings";
+export type ContactDetailsTab = "overview" | "activities" | "meetings" | "tasks" | "emails" | "notes" | "documents" | "settings";
 
 export type ContactActivityFilters = Readonly<{
   query: string;
   type: ActivityType | "all";
   priority: ActivityPriority | "all";
   status: ActivityStatus | "all";
+}>;
+
+export type ContactMeetingFilters = Readonly<{
+  query: string;
+  meetingType: MeetingType | "all";
+  status: MeetingStatus | "all";
+  sortDirection: "asc" | "desc";
+}>;
+
+export type ContactTaskFilters = Readonly<{
+  query: string;
+  taskType: TaskType | "all";
+  priority: TaskPriority | "all";
+  status: TaskStatus | "all";
+  sortDirection: "asc" | "desc";
 }>;
 
 const contactPermissionService = new PermissionService(
@@ -46,6 +67,30 @@ const activityPermissionService = new PermissionService(
   })
 );
 
+const meetingPermissionService = new PermissionService(
+  new PermissionEnforcement({
+    supportedModules: ["crm.meeting"],
+    rolePermissions: {
+      COMPANY_ADMIN: { "crm.meeting": ["read", "write"] },
+      SUPER_ADMIN: { "crm.meeting": ["read", "write"] },
+      SALES: { "crm.meeting": ["read", "write"] },
+      READ_ONLY: { "crm.meeting": ["read"] }
+    }
+  })
+);
+
+const taskPermissionService = new PermissionService(
+  new PermissionEnforcement({
+    supportedModules: ["crm.task"],
+    rolePermissions: {
+      COMPANY_ADMIN: { "crm.task": ["read", "write"] },
+      SUPER_ADMIN: { "crm.task": ["read", "write"] },
+      SALES: { "crm.task": ["read", "write"] },
+      READ_ONLY: { "crm.task": ["read"] }
+    }
+  })
+);
+
 export function useContactDetails(contactId: string) {
   const [activeTab, setActiveTab] = useState<ContactDetailsTab>("overview");
   const [activityFilters, setActivityFilters] = useState<ContactActivityFilters>({
@@ -54,9 +99,24 @@ export function useContactDetails(contactId: string) {
     priority: "all",
     status: "all"
   });
+  const [meetingFilters, setMeetingFilters] = useState<ContactMeetingFilters>({
+    query: "",
+    meetingType: "all",
+    status: "all",
+    sortDirection: "asc"
+  });
+  const [taskFilters, setTaskFilters] = useState<ContactTaskFilters>({
+    query: "",
+    taskType: "all",
+    priority: "all",
+    status: "all",
+    sortDirection: "asc"
+  });
   const [contactService] = useState(() => new ContactService({ seed: crmContactSeed }));
   const [companyService] = useState(() => new CompanyService({ seed: crmCompanySeed }));
   const [activityService] = useState(() => new ActivityService({ seed: crmActivitySeed }));
+  const [meetingService] = useState(() => new MeetingService({ seed: crmMeetingSeed }));
+  const [taskService] = useState(() => new TaskService({ seed: crmTaskSeed }));
 
   const readDecision = useMemo(
     () =>
@@ -84,6 +144,26 @@ export function useContactDetails(contactId: string) {
         { module: "crm.activity", action: "read" },
         { id: "crm.contact.activities", type: "widget", module: "crm.activity", enabled: true },
         { role: "COMPANY_ADMIN", workspaceId: CRM_CONTACTS_WORKSPACE_ID, userId: CRM_CONTACTS_USER_ID }
+      ),
+    []
+  );
+
+  const meetingReadDecision = useMemo(
+    () =>
+      meetingPermissionService.evaluateRequirement(
+        { module: "crm.meeting", action: "read" },
+        { id: "crm.contact.meetings", type: "widget", module: "crm.meeting", enabled: true },
+        { role: "COMPANY_ADMIN", workspaceId: CRM_MEETINGS_WORKSPACE_ID, userId: CRM_MEETINGS_USER_ID }
+      ),
+    []
+  );
+
+  const taskReadDecision = useMemo(
+    () =>
+      taskPermissionService.evaluateRequirement(
+        { module: "crm.task", action: "read" },
+        { id: "crm.contact.tasks", type: "widget", module: "crm.task", enabled: true },
+        { role: "COMPANY_ADMIN", workspaceId: CRM_TASKS_WORKSPACE_ID, userId: CRM_TASKS_USER_ID }
       ),
     []
   );
@@ -120,7 +200,66 @@ export function useContactDetails(contactId: string) {
     }).activities.filter((activity) => base.some((item) => item.id === activity.id));
   }, [activityFilters, activityReadDecision, activityService, contact]);
 
-  const summary = useMemo(() => buildContactSummary(activities), [activities]);
+  const meetings = useMemo(() => {
+    if (!contact) return [];
+
+    const base = meetingService.listMeetings(
+      {
+        workspaceId: CRM_MEETINGS_WORKSPACE_ID,
+        contactId: contact.id,
+        meetingType: meetingFilters.meetingType === "all" ? undefined : meetingFilters.meetingType,
+        status: meetingFilters.status === "all" ? undefined : meetingFilters.status,
+        includeCancelled: true,
+        permission: meetingReadDecision
+      },
+      { field: "startAt", direction: meetingFilters.sortDirection }
+    ).meetings;
+
+    if (!meetingFilters.query.trim()) return base;
+
+    return meetingService.searchMeetings(
+      {
+        workspaceId: CRM_MEETINGS_WORKSPACE_ID,
+        contactId: contact.id,
+        query: meetingFilters.query,
+        includeCancelled: true,
+        permission: meetingReadDecision
+      },
+      { field: "startAt", direction: meetingFilters.sortDirection }
+    ).meetings.filter((meeting) => base.some((item) => item.id === meeting.id));
+  }, [contact, meetingFilters, meetingReadDecision, meetingService]);
+
+  const tasks = useMemo(() => {
+    if (!contact) return [];
+
+    const base = taskService.listTasks(
+      {
+        workspaceId: CRM_TASKS_WORKSPACE_ID,
+        contactId: contact.id,
+        taskType: taskFilters.taskType === "all" ? undefined : taskFilters.taskType,
+        priority: taskFilters.priority === "all" ? undefined : taskFilters.priority,
+        status: taskFilters.status === "all" ? undefined : taskFilters.status,
+        includeCancelled: true,
+        permission: taskReadDecision
+      },
+      { field: "dueDate", direction: taskFilters.sortDirection }
+    ).tasks;
+
+    if (!taskFilters.query.trim()) return base;
+
+    return taskService.searchTasks(
+      {
+        workspaceId: CRM_TASKS_WORKSPACE_ID,
+        contactId: contact.id,
+        query: taskFilters.query,
+        includeCancelled: true,
+        permission: taskReadDecision
+      },
+      { field: "dueDate", direction: taskFilters.sortDirection }
+    ).tasks.filter((task) => base.some((item) => item.id === task.id));
+  }, [contact, taskFilters, taskReadDecision, taskService]);
+
+  const summary = useMemo(() => buildContactSummary(activities, meetings, tasks), [activities, meetings, tasks]);
 
   return {
     activities,
@@ -130,26 +269,30 @@ export function useContactDetails(contactId: string) {
     canWrite: writeDecision.allowed,
     company,
     contact,
+    meetingFilters,
+    meetings,
     readDecision,
     setActiveTab,
     setActivityFilters,
+    setMeetingFilters,
+    setTaskFilters,
     summary,
+    taskFilters,
+    tasks,
     writeDecision
   };
 }
 
-function buildContactSummary(activities: readonly Activity[]) {
+function buildContactSummary(activities: readonly Activity[], meetings: readonly Meeting[], tasks: readonly Task[]) {
   const openActivities = activities.filter((activity) => activity.status === "open").length;
-  const meetings = activities.filter((activity) => activity.type === "meeting").length;
-  const tasks = activities.filter((activity) => activity.type === "task").length;
   const emails = activities.filter((activity) => activity.type === "email").length;
   const notes = activities.filter((activity) => activity.type === "note").length;
   const lastInteraction = activities[0]?.performedAt;
 
   return {
     openActivities,
-    meetings,
-    tasks,
+    meetings: meetings.length,
+    tasks: tasks.filter((task) => task.status !== "completed" && task.status !== "cancelled").length,
     emails,
     notes,
     lastInteraction: lastInteraction ? formatDate(lastInteraction) : "Aucune interaction"

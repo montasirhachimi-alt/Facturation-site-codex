@@ -13,7 +13,7 @@ export const crmManifest = createManifest({
   id: CRM_MODULE_ID,
   name: CRM_MODULE_NAME,
   displayName: CRM_MODULE_DISPLAY_NAME,
-  description: "CRM business application foundation for customers, companies, contacts, activities and notes.",
+  description: "CRM business application foundation for customers, companies, contacts, activities, meetings, tasks and notes.",
   author: "HicoPilot",
   vendor: "HicoPilot",
   version: CRM_MODULE_VERSION,
@@ -35,4 +35,3 @@ export const crmManifest = createManifest({
     phase: "business-suite"
   }
 });
-

@@ -1178,7 +1178,7 @@ test("CRM Module Foundation exposes manifest capabilities permissions navigation
 });
 
 test("CRM Module Foundation remains platform-consumer only", () => {
-  const crmFiles = listFiles("src/modules/crm").filter((file) => !file.includes("/customers/") && !file.includes("/companies/") && !file.includes("/contacts/") && !file.includes("/activities/"));
+  const crmFiles = listFiles("src/modules/crm").filter((file) => !file.includes("/customers/") && !file.includes("/companies/") && !file.includes("/contacts/") && !file.includes("/activities/") && !file.includes("/meetings/") && !file.includes("/tasks/"));
   const forbiddenPatterns = [
     /from ["']react["']/,
     /from ["']react-dom["']/,
@@ -1811,6 +1811,271 @@ test("CRM Activities Foundation has no UI Prisma API or runtime dependency", () 
     const source = read(file);
     for (const pattern of forbiddenPatterns) {
       assert(!pattern.test(source), `CRM Activities foundation should not import forbidden dependency in ${file}.`);
+    }
+  }
+});
+
+test("CRM Meetings Foundation creates validates lists and isolates workspaces companies and contacts", () => {
+  const { MeetingService } = load("src/modules/crm/meetings");
+  let preparedActivity;
+  const service = new MeetingService({
+    now: () => "2026-07-01T12:00:00.000Z",
+    createId: (() => {
+      let index = 0;
+      return () => `meet_${index += 1}`;
+    })(),
+    createActivity: (input) => {
+      preparedActivity = input;
+      return undefined;
+    }
+  });
+
+  const first = service.createMeeting({
+    workspaceId: "workspace-a",
+    companyId: "company-a",
+    contactIds: ["contact-a", "contact-a"],
+    title: " Discovery meeting ",
+    startAt: "2026-07-05T09:00:00.000Z",
+    endAt: "2026-07-05T10:00:00.000Z",
+    organizerId: "user-admin",
+    tags: ["VIP", " vip "]
+  });
+  service.createMeeting({ workspaceId: "workspace-a", companyId: "company-b", contactIds: ["contact-b"], title: "Other company", startAt: "2026-07-06T09:00:00.000Z", endAt: "2026-07-06T10:00:00.000Z", organizerId: "user-admin" });
+  service.createMeeting({ workspaceId: "workspace-b", companyId: "company-a", contactIds: ["contact-a"], title: "Other workspace", startAt: "2026-07-07T09:00:00.000Z", endAt: "2026-07-07T10:00:00.000Z", organizerId: "user-admin" });
+
+  const workspaceList = service.listMeetings({ workspaceId: "workspace-a" });
+  const companyList = service.getMeetingsByCompany("company-a", "workspace-a");
+  const contactList = service.getMeetingsByContact("contact-a", "workspace-a");
+
+  assert(first.validation.valid === true, "Meeting creation should return a valid structured result.");
+  assert(first.meeting.title === "Discovery meeting", "Meeting creation should normalize title values.");
+  assert(first.meeting.contactIds.length === 1, "Meeting creation should normalize duplicate contact ids.");
+  assert(first.meeting.tags.length === 1 && first.meeting.tags[0] === "vip", "Meeting creation should normalize tags.");
+  assert(Object.isFrozen(first.meeting), "Created meetings should be immutable.");
+  assert(preparedActivity?.type === "meeting", "Meeting creation should prepare a meeting activity input.");
+  assert(workspaceList.meetings.length === 2, "Meeting listing should stay scoped to the requested workspace.");
+  assert(companyList.meetings.length === 1 && companyList.meetings[0].companyId === "company-a", "Company meeting listing should stay scoped to one company.");
+  assert(contactList.meetings.length === 1 && contactList.meetings[0].contactIds.includes("contact-a"), "Contact meeting listing should stay scoped to one contact.");
+});
+
+test("CRM Meetings Foundation validates invalid input and permission denial", () => {
+  const { MeetingService, validateCreateMeetingInput } = load("src/modules/crm/meetings");
+  const invalid = validateCreateMeetingInput({
+    workspaceId: "",
+    companyId: "",
+    contactIds: [],
+    title: "",
+    startAt: "not-a-date",
+    endAt: "2026-07-01T08:00:00.000Z",
+    organizerId: ""
+  });
+  const denied = new MeetingService().createMeeting({
+    workspaceId: "workspace-a",
+    companyId: "company-a",
+    contactIds: ["contact-a"],
+    title: "Denied Meeting",
+    startAt: "2026-07-01T09:00:00.000Z",
+    endAt: "2026-07-01T10:00:00.000Z",
+    organizerId: "user-admin",
+    permission: { allowed: false, reason: "denied_missing_permission", permission: { module: "crm.meeting", action: "write" }, resource: { id: "crm.meeting", type: "service" } }
+  });
+  const codes = invalid.issues.map((issue) => issue.code);
+
+  assert(invalid.valid === false, "Invalid meeting input should fail validation.");
+  assert(codes.includes("missing_workspace"), "Meeting validation should require workspace scope.");
+  assert(codes.includes("missing_company"), "Meeting validation should require company relationship.");
+  assert(codes.includes("missing_contact"), "Meeting validation should require at least one contact.");
+  assert(codes.includes("missing_title"), "Meeting validation should require title.");
+  assert(codes.includes("missing_organizer"), "Meeting validation should require organizer.");
+  assert(codes.includes("invalid_start_date"), "Meeting validation should validate start date.");
+  assert(denied.validation.issues.some((issue) => issue.code === "permission_denied"), "Meeting validation should accept permission decisions.");
+  assert(!denied.meeting, "Permission denied meeting creation should not create a meeting.");
+});
+
+test("CRM Meetings Foundation supports update cancel complete search filtering and sorting", () => {
+  const { MeetingService } = load("src/modules/crm/meetings");
+  const service = new MeetingService({
+    now: () => "2026-07-01T12:00:00.000Z",
+    createId: (() => {
+      let index = 0;
+      return () => `meet_${index += 1}`;
+    })()
+  });
+  const zed = service.createMeeting({ workspaceId: "workspace-a", companyId: "company-a", contactIds: ["contact-a"], title: "Zed Meeting", meetingType: "online", startAt: "2026-07-05T10:00:00.000Z", endAt: "2026-07-05T11:00:00.000Z", organizerId: "user-admin" }).meeting;
+  const alpha = service.createMeeting({ workspaceId: "workspace-a", companyId: "company-a", contactIds: ["contact-a"], title: "Alpha Demo", meetingType: "demo", status: "confirmed", tags: ["important"], startAt: "2026-07-04T09:00:00.000Z", endAt: "2026-07-04T10:00:00.000Z", organizerId: "user-admin" }).meeting;
+
+  const updated = service.updateMeeting({ id: zed.id, workspaceId: "workspace-a", title: "Zed Updated", status: "confirmed" });
+  const search = service.searchMeetings({ workspaceId: "workspace-a", companyId: "company-a", contactId: "contact-a", query: "alpha" });
+  const filtered = service.listMeetings({ workspaceId: "workspace-a", companyId: "company-a", contactId: "contact-a", meetingType: "demo", status: "confirmed", tags: ["important"] });
+  const sorted = service.listMeetings({ workspaceId: "workspace-a", companyId: "company-a" }, { field: "startAt", direction: "asc" });
+  const completed = service.completeMeeting(alpha.id, "workspace-a");
+  const cancelled = service.cancelMeeting(zed.id, "workspace-a");
+  const visibleAfterCancel = service.listMeetings({ workspaceId: "workspace-a", companyId: "company-a" });
+
+  assert(updated.meeting.title === "Zed Updated", "Meeting update should update mutable fields.");
+  assert(search.meetings.length === 1 && search.meetings[0].id === alpha.id, "Meeting search should match normalized meeting fields.");
+  assert(filtered.meetings.length === 1 && filtered.meetings[0].id === alpha.id, "Meeting filtering should use CRM shared filters and meeting fields.");
+  assert(sorted.meetings[0].title === "Alpha Demo", "Meeting listing should support deterministic sorting.");
+  assert(completed.meeting.status === "completed", "Meeting complete should set completed status.");
+  assert(cancelled.meeting.status === "cancelled", "Meeting cancel should set cancelled status.");
+  assert(visibleAfterCancel.meetings.every((meeting) => meeting.status !== "cancelled"), "Cancelled meetings should be hidden by default.");
+});
+
+test("CRM Meetings Foundation has no Prisma API or platform runtime dependency", () => {
+  const meetingFiles = listFiles("src/modules/crm/meetings").filter((file) => !file.includes("/ui/"));
+  const forbiddenPatterns = [
+    /from ["']react["']/,
+    /from ["']react-dom["']/,
+    /from ["']next\//,
+    /@\/components/,
+    /@\/providers/,
+    /@\/context/,
+    /@\/app/,
+    /@\/lib\/prisma/,
+    /@\/runtime\/plugins/,
+    /fetch\(/
+  ];
+
+  assert(meetingFiles.every((file) => !file.endsWith(".tsx")), "CRM Meetings foundation should not contain UI files.");
+
+  for (const file of meetingFiles.filter((item) => item.endsWith(".ts"))) {
+    const source = read(file);
+    for (const pattern of forbiddenPatterns) {
+      assert(!pattern.test(source), `CRM Meetings foundation should not import forbidden dependency in ${file}.`);
+    }
+  }
+});
+
+test("CRM Tasks Foundation creates validates lists and isolates workspaces companies contacts and meetings", () => {
+  const { TaskService } = load("src/modules/crm/tasks");
+  let preparedActivity;
+  const service = new TaskService({
+    now: () => "2026-07-01T12:00:00.000Z",
+    createId: (() => {
+      let index = 0;
+      return () => `task_${index += 1}`;
+    })(),
+    createActivity: (input) => {
+      preparedActivity = input;
+      return undefined;
+    }
+  });
+
+  const first = service.createTask({
+    workspaceId: "workspace-a",
+    companyId: "company-a",
+    contactId: "contact-a",
+    meetingId: "meeting-a",
+    title: " Follow up proposal ",
+    dueDate: "2026-07-05T09:00:00.000Z",
+    assignedTo: "user-admin",
+    tags: ["VIP", " vip "]
+  });
+  service.createTask({ workspaceId: "workspace-a", companyId: "company-b", contactId: "contact-b", title: "Other company", dueDate: "2026-07-06T09:00:00.000Z", assignedTo: "user-admin" });
+  service.createTask({ workspaceId: "workspace-b", companyId: "company-a", contactId: "contact-a", title: "Other workspace", dueDate: "2026-07-07T09:00:00.000Z", assignedTo: "user-admin" });
+
+  const workspaceList = service.listTasks({ workspaceId: "workspace-a" });
+  const companyList = service.getTasksByCompany("company-a", "workspace-a");
+  const contactList = service.getTasksByContact("contact-a", "workspace-a");
+  const meetingList = service.getTasksByMeeting("meeting-a", "workspace-a");
+
+  assert(first.validation.valid === true, "Task creation should return a valid structured result.");
+  assert(first.task.title === "Follow up proposal", "Task creation should normalize title values.");
+  assert(first.task.tags.length === 1 && first.task.tags[0] === "vip", "Task creation should normalize tags.");
+  assert(Object.isFrozen(first.task), "Created tasks should be immutable.");
+  assert(preparedActivity?.type === "task", "Task creation should prepare a task activity input.");
+  assert(workspaceList.tasks.length === 2, "Task listing should stay scoped to the requested workspace.");
+  assert(companyList.tasks.length === 1 && companyList.tasks[0].companyId === "company-a", "Company task listing should stay scoped to one company.");
+  assert(contactList.tasks.length === 1 && contactList.tasks[0].contactId === "contact-a", "Contact task listing should stay scoped to one contact.");
+  assert(meetingList.tasks.length === 1 && meetingList.tasks[0].meetingId === "meeting-a", "Meeting task listing should stay scoped to one meeting.");
+});
+
+test("CRM Tasks Foundation validates invalid input and permission denial", () => {
+  const { TaskService, validateCreateTaskInput } = load("src/modules/crm/tasks");
+  const invalid = validateCreateTaskInput({
+    workspaceId: "",
+    companyId: "",
+    contactId: "",
+    title: "",
+    dueDate: "not-a-date",
+    assignedTo: ""
+  });
+  const denied = new TaskService().createTask({
+    workspaceId: "workspace-a",
+    companyId: "company-a",
+    contactId: "contact-a",
+    title: "Denied Task",
+    dueDate: "2026-07-01T09:00:00.000Z",
+    assignedTo: "user-admin",
+    permission: { allowed: false, reason: "denied_missing_permission", permission: { module: "crm.task", action: "write" }, resource: { id: "crm.task", type: "service" } }
+  });
+  const codes = invalid.issues.map((issue) => issue.code);
+
+  assert(invalid.valid === false, "Invalid task input should fail validation.");
+  assert(codes.includes("missing_workspace"), "Task validation should require workspace scope.");
+  assert(codes.includes("missing_company"), "Task validation should require company relationship.");
+  assert(codes.includes("missing_contact"), "Task validation should require contact relationship.");
+  assert(codes.includes("missing_title"), "Task validation should require title.");
+  assert(codes.includes("missing_assignee"), "Task validation should require assignee.");
+  assert(codes.includes("invalid_due_date"), "Task validation should validate due date.");
+  assert(denied.validation.issues.some((issue) => issue.code === "permission_denied"), "Task validation should accept permission decisions.");
+  assert(!denied.task, "Permission denied task creation should not create a task.");
+});
+
+test("CRM Tasks Foundation supports update complete cancel search filtering and sorting", () => {
+  const { TaskService } = load("src/modules/crm/tasks");
+  const service = new TaskService({
+    now: (() => {
+      let index = 0;
+      const values = ["2026-07-01T12:00:00.000Z", "2026-07-01T12:05:00.000Z", "2026-07-01T12:10:00.000Z", "2026-07-01T12:15:00.000Z", "2026-07-01T12:20:00.000Z"];
+      return () => values[Math.min(index++, values.length - 1)];
+    })(),
+    createId: (() => {
+      let index = 0;
+      return () => `task_${index += 1}`;
+    })()
+  });
+  const zed = service.createTask({ workspaceId: "workspace-a", companyId: "company-a", contactId: "contact-a", title: "Zed Task", taskType: "call", priority: "medium", dueDate: "2026-07-05T10:00:00.000Z", assignedTo: "user-admin" }).task;
+  const alpha = service.createTask({ workspaceId: "workspace-a", companyId: "company-a", contactId: "contact-a", meetingId: "meeting-a", title: "Alpha Follow-up", taskType: "follow_up", priority: "high", status: "in_progress", tags: ["important"], dueDate: "2026-07-04T09:00:00.000Z", assignedTo: "user-admin" }).task;
+
+  const updated = service.updateTask({ id: zed.id, workspaceId: "workspace-a", title: "Zed Updated", priority: "urgent" });
+  const search = service.searchTasks({ workspaceId: "workspace-a", companyId: "company-a", contactId: "contact-a", query: "alpha" });
+  const filtered = service.listTasks({ workspaceId: "workspace-a", companyId: "company-a", contactId: "contact-a", meetingId: "meeting-a", taskType: "follow_up", priority: "high", status: "in_progress", tags: ["important"] });
+  const sorted = service.listTasks({ workspaceId: "workspace-a", companyId: "company-a" }, { field: "dueDate", direction: "asc" });
+  const completed = service.completeTask(alpha.id, "workspace-a");
+  const cancelled = service.cancelTask(zed.id, "workspace-a");
+  const visibleAfterCancel = service.listTasks({ workspaceId: "workspace-a", companyId: "company-a" });
+
+  assert(updated.task.title === "Zed Updated", "Task update should update mutable fields.");
+  assert(search.tasks.length === 1 && search.tasks[0].id === alpha.id, "Task search should match normalized task fields.");
+  assert(filtered.tasks.length === 1 && filtered.tasks[0].id === alpha.id, "Task filtering should use CRM shared filters and task fields.");
+  assert(sorted.tasks[0].title === "Alpha Follow-up", "Task listing should support deterministic sorting.");
+  assert(completed.task.status === "completed" && Boolean(completed.activityInput), "Task complete should set completed status and prepare activity.");
+  assert(cancelled.task.status === "cancelled" && Boolean(cancelled.activityInput), "Task cancel should set cancelled status and prepare activity.");
+  assert(visibleAfterCancel.tasks.every((task) => task.status !== "cancelled"), "Cancelled tasks should be hidden by default.");
+});
+
+test("CRM Tasks Foundation has no Prisma API or platform runtime dependency", () => {
+  const taskFiles = listFiles("src/modules/crm/tasks").filter((file) => !file.includes("/ui/"));
+  const forbiddenPatterns = [
+    /from ["']react["']/,
+    /from ["']react-dom["']/,
+    /from ["']next\//,
+    /@\/components/,
+    /@\/providers/,
+    /@\/context/,
+    /@\/app/,
+    /@\/lib\/prisma/,
+    /@\/runtime\/plugins/,
+    /fetch\(/
+  ];
+
+  assert(taskFiles.every((file) => !file.endsWith(".tsx")), "CRM Tasks foundation should not contain UI files.");
+
+  for (const file of taskFiles.filter((item) => item.endsWith(".ts"))) {
+    const source = read(file);
+    for (const pattern of forbiddenPatterns) {
+      assert(!pattern.test(source), `CRM Tasks foundation should not import forbidden dependency in ${file}.`);
     }
   }
 });
