@@ -7,6 +7,7 @@ export type CrmRouteId =
   | "crm.customers"
   | "crm.companies"
   | "crm.contacts"
+  | "crm.contact.details"
   | "crm.activities"
   | "crm.notes";
 
@@ -39,4 +40,3 @@ export type CrmModuleDefinition = Readonly<{
   routes: readonly CrmRouteDefinition[];
   navigation: CrmNavigationItem;
 }>;
-

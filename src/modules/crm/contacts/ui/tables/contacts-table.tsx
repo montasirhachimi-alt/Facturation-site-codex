@@ -1,4 +1,5 @@
 import { Archive, CalendarClock, Edit3, Eye, Mail, MoreHorizontal, UsersRound } from "lucide-react";
+import Link from "next/link";
 import { EntityActionButton, EntityActionMenu, EntityEmptyState, EntityTable, type EntityTableColumn } from "@/ui";
 import { getContactAvatarLabel } from "../../contact.utils";
 import type { Contact, ContactId } from "../../contact.types";
@@ -77,7 +78,13 @@ export function ContactsTable({
       onToggleRow={onToggleRow}
       renderActions={(contact) => (
         <EntityActionMenu>
-          <EntityActionButton icon={<Eye size={16} />} label="Voir" />
+          <Link
+            href={`/crm/contacts/${contact.id}`}
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-2 text-xs font-bold text-hicotech-navy transition hover:bg-hicotech-cloud focus:outline-none focus:ring-4 focus:ring-hicotech-blue/10 dark:border-hicotech-dark-border dark:text-white dark:hover:bg-hicotech-dark-page"
+          >
+            <Eye size={16} />
+            Voir
+          </Link>
           <EntityActionButton icon={<Edit3 size={16} />} label="Modifier" disabled={!canWrite} onClick={() => onEdit(contact)} />
           <EntityActionButton icon={<Archive size={16} />} label="Archiver" disabled={!canWrite} onClick={() => onArchive(contact)} danger />
           <EntityActionButton icon={<CalendarClock size={16} />} label="Activités" disabled />
