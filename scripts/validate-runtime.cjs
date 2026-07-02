@@ -1178,7 +1178,7 @@ test("CRM Module Foundation exposes manifest capabilities permissions navigation
 });
 
 test("CRM Module Foundation remains platform-consumer only", () => {
-  const crmFiles = listFiles("src/modules/crm").filter((file) => !file.includes("/customers/") && !file.includes("/companies/"));
+  const crmFiles = listFiles("src/modules/crm").filter((file) => !file.includes("/customers/") && !file.includes("/companies/") && !file.includes("/contacts/"));
   const forbiddenPatterns = [
     /from ["']react["']/,
     /from ["']react-dom["']/,
@@ -1550,6 +1550,149 @@ test("CRM Companies Foundation has no UI Prisma API or runtime dependency", () =
     const source = read(file);
     for (const pattern of forbiddenPatterns) {
       assert(!pattern.test(source), `CRM Companies foundation should not import forbidden dependency in ${file}.`);
+    }
+  }
+});
+
+test("CRM Contacts Foundation creates validates lists and isolates workspaces and companies", () => {
+  const { ContactService } = load("src/modules/crm/contacts");
+  const service = new ContactService({
+    now: () => "2026-07-01T12:00:00.000Z",
+    createId: (() => {
+      let index = 0;
+      return () => `cont_${index += 1}`;
+    })()
+  });
+
+  const first = service.createContact({
+    workspaceId: "workspace-a",
+    companyId: "company-a",
+    firstName: "Sara",
+    lastName: "Amrani",
+    jobTitle: "Directrice achats",
+    email: "SARA@ABC.MA",
+    mobilePhone: "+212 6 00 00 00 00",
+    tags: ["VIP", " vip "],
+    isPrimaryContact: true,
+    isDecisionMaker: true,
+    createdBy: "user-admin"
+  });
+  service.createContact({
+    workspaceId: "workspace-a",
+    companyId: "company-b",
+    firstName: "Other",
+    lastName: "Company",
+    createdBy: "user-admin"
+  });
+  service.createContact({
+    workspaceId: "workspace-b",
+    companyId: "company-a",
+    firstName: "Other",
+    lastName: "Workspace",
+    createdBy: "user-admin"
+  });
+
+  const workspaceList = service.listContacts({ workspaceId: "workspace-a" });
+  const companyList = service.getContactsByCompany("company-a", "workspace-a");
+
+  assert(first.validation.valid === true, "Contact creation should return a valid structured result.");
+  assert(first.contact.email === "sara@abc.ma", "Contact creation should normalize email values.");
+  assert(first.contact.fullName === "Sara Amrani", "Contact creation should derive full name.");
+  assert(first.contact.tags.length === 1 && first.contact.tags[0] === "vip", "Contact creation should normalize tags.");
+  assert(Object.isFrozen(first.contact), "Created contacts should be immutable.");
+  assert(workspaceList.contacts.length === 2, "Contact listing should stay scoped to the requested workspace.");
+  assert(companyList.contacts.length === 1 && companyList.contacts[0].companyId === "company-a", "Company contact listing should stay scoped to one company.");
+});
+
+test("CRM Contacts Foundation validates invalid input and permission denial", () => {
+  const { ContactService, validateCreateContactInput } = load("src/modules/crm/contacts");
+  const invalid = validateCreateContactInput({
+    workspaceId: "",
+    companyId: "",
+    firstName: "",
+    lastName: "",
+    email: "invalid-email",
+    mobilePhone: "x",
+    linkedin: "not-linkedin",
+    createdBy: ""
+  });
+  const denied = new ContactService().createContact({
+    workspaceId: "workspace-a",
+    companyId: "company-a",
+    firstName: "Denied",
+    lastName: "Contact",
+    createdBy: "user-admin",
+    permission: { allowed: false, reason: "denied_missing_permission", permission: { module: "crm.contact", action: "write" }, resource: { id: "crm.contact", type: "service" } }
+  });
+  const codes = invalid.issues.map((issue) => issue.code);
+
+  assert(invalid.valid === false, "Invalid contact input should fail validation.");
+  assert(codes.includes("missing_workspace"), "Contact validation should require workspace scope.");
+  assert(codes.includes("missing_company"), "Contact validation should require company relationship.");
+  assert(codes.includes("missing_first_name"), "Contact validation should require first name.");
+  assert(codes.includes("missing_last_name"), "Contact validation should require last name.");
+  assert(codes.includes("invalid_email"), "Contact validation should validate email format.");
+  assert(codes.includes("invalid_phone"), "Contact validation should validate phone format.");
+  assert(codes.includes("invalid_linkedin"), "Contact validation should validate LinkedIn profile format.");
+  assert(denied.validation.issues.some((issue) => issue.code === "permission_denied"), "Contact validation should accept permission decisions.");
+  assert(!denied.contact, "Permission denied contact creation should not create a contact.");
+});
+
+test("CRM Contacts Foundation supports update archive search filtering and sorting", () => {
+  const { ContactService } = load("src/modules/crm/contacts");
+  const service = new ContactService({
+    now: () => "2026-07-01T12:00:00.000Z",
+    createId: (() => {
+      let index = 0;
+      return () => `cont_${index += 1}`;
+    })()
+  });
+  const zed = service.createContact({ workspaceId: "workspace-a", companyId: "company-a", firstName: "Zed", lastName: "Contact", department: "Sales", createdBy: "user-admin" }).contact;
+  const alpha = service.createContact({ workspaceId: "workspace-a", companyId: "company-a", firstName: "Alpha", lastName: "Contact", department: "Finance", tags: ["decision"], isDecisionMaker: true, createdBy: "user-admin" }).contact;
+
+  const updated = service.updateContact({
+    id: zed.id,
+    workspaceId: "workspace-a",
+    firstName: "Zed Updated",
+    status: "active",
+    updatedBy: "user-admin"
+  });
+  const search = service.searchContacts({ workspaceId: "workspace-a", companyId: "company-a", query: "alpha" });
+  const filtered = service.listContacts({ workspaceId: "workspace-a", companyId: "company-a", department: "Finance", tags: ["decision"], isDecisionMaker: true });
+  const sorted = service.listContacts({ workspaceId: "workspace-a", companyId: "company-a" }, { field: "fullName", direction: "asc" });
+  const archived = service.archiveContact(alpha.id, "workspace-a", "user-admin");
+  const visibleAfterArchive = service.listContacts({ workspaceId: "workspace-a", companyId: "company-a" });
+
+  assert(updated.contact.firstName === "Zed Updated", "Contact update should update mutable fields.");
+  assert(updated.contact.fullName === "Zed Updated Contact", "Contact update should recalculate full name.");
+  assert(search.contacts.length === 1 && search.contacts[0].id === alpha.id, "Contact search should match normalized contact fields.");
+  assert(filtered.contacts.length === 1 && filtered.contacts[0].id === alpha.id, "Contact filtering should use CRM shared filters and contact fields.");
+  assert(sorted.contacts[0].fullName === "Alpha Contact", "Contact listing should support deterministic sorting.");
+  assert(archived.contact.status === "archived", "Contact archive should set archived status.");
+  assert(visibleAfterArchive.contacts.every((contact) => contact.status !== "archived"), "Archived contacts should be hidden by default.");
+});
+
+test("CRM Contacts Foundation has no UI Prisma API or runtime dependency", () => {
+  const contactFiles = listFiles("src/modules/crm/contacts").filter((file) => !file.includes("/ui/"));
+  const forbiddenPatterns = [
+    /from ["']react["']/,
+    /from ["']react-dom["']/,
+    /from ["']next\//,
+    /@\/components/,
+    /@\/providers/,
+    /@\/context/,
+    /@\/app/,
+    /@\/lib\/prisma/,
+    /@\/runtime\/plugins/,
+    /fetch\(/
+  ];
+
+  assert(contactFiles.every((file) => !file.endsWith(".tsx")), "CRM Contacts foundation should not contain UI files.");
+
+  for (const file of contactFiles.filter((item) => item.endsWith(".ts"))) {
+    const source = read(file);
+    for (const pattern of forbiddenPatterns) {
+      assert(!pattern.test(source), `CRM Contacts foundation should not import forbidden dependency in ${file}.`);
     }
   }
 });

@@ -1,11 +1,13 @@
-import { Activity, CalendarClock, Pin, StickyNote } from "lucide-react";
+import { Activity, CalendarClock, FileText, FolderOpen, Pin, StickyNote } from "lucide-react";
 import { SectionCard } from "@/ui";
 
 const inspectorSections = [
-  { icon: Activity, title: "Recent Activity", text: "Available in future module" },
-  { icon: StickyNote, title: "Recent Notes", text: "Available in future module" },
-  { icon: Pin, title: "Pinned Items", text: "Available in future module" },
-  { icon: CalendarClock, title: "Upcoming Tasks", text: "Available in future module" }
+  { icon: Activity, title: "Recent Activity", text: "5 mock interactions prepared" },
+  { icon: Pin, title: "Pinned", text: "Strategic account placeholder" },
+  { icon: FolderOpen, title: "Files", text: "Available in future module" },
+  { icon: CalendarClock, title: "Upcoming Meetings", text: "1 meeting placeholder" },
+  { icon: FileText, title: "Recent Documents", text: "Available in future module" },
+  { icon: StickyNote, title: "Recent Notes", text: "3 mock notes prepared" }
 ];
 
 export function CompanyInspectorPanel() {
@@ -13,8 +15,8 @@ export function CompanyInspectorPanel() {
     <aside className="space-y-4">
       <SectionCard className="p-4">
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">Inspector</p>
-        <h2 className="mt-2 font-display text-lg font-bold text-hicotech-navy dark:text-white">Future workspace context</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-300">This panel will collect live context around the company.</p>
+        <h2 className="mt-2 font-display text-lg font-bold text-hicotech-navy dark:text-white">Company context</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-300">A compact view of what matters around this company.</p>
       </SectionCard>
 
       {inspectorSections.map((section) => {

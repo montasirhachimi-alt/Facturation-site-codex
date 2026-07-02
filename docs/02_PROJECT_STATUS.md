@@ -8,8 +8,8 @@
 | Version | Pre-Alpha |
 | Current Milestone | Milestone 3 — Business Suite |
 | Current Phase | Business Module Foundations |
-| Current Sprint | SPR-309 — Business Experience Sprint |
-| Next Sprint | SPR-310 — CRM Contacts Foundation |
+| Current Sprint | SPR-312 — Company Contacts Workspace |
+| Next Sprint | SPR-313 — CRM Contact Details Workspace |
 | Repository Health | Builds successfully with one known existing image optimization warning. |
 
 ## Completed Core Engines
@@ -80,6 +80,9 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | CRM Companies Professional Workspace exposes the central CRM company page using Enterprise UI Framework. | Completed |
 | Company Details Workspace exposes a company-centric CRM surface with overview, tabs and future integration placeholders. | Completed |
 | Business Experience Sprint improves Dashboard, Navigation, Topbar, Entity Tables, Cards, Empty States and shared micro UX. | Completed |
+| Company Workspace 2.0 upgrades the company page into an enterprise CRM workspace with timeline, notes, tasks, graph and inspector. | Completed |
+| CRM Contacts Foundation exposes company-scoped contact domain types, validation, utilities and in-memory service. | Completed |
+| Company Contacts Workspace makes the Contacts tab inside Company Workspace operational with search, filters, table, add, edit and archive. | Completed |
 | Core Search React UI is separated into Platform Search. | Completed |
 | Runtime validation checks Platform Events, event subscribers, Permission Enforcement, Permission Runtime Integration, Capability Registry, Manifest System, Module Loader, Plugin Runtime, CRM Module Foundation, CRM Customers Foundation, Preferences Runtime, Widget Runtime, Workspace Context and Platform Search separation. | Completed |
 
@@ -102,6 +105,9 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - CRM Companies Workspace persists changes only in memory during the current browser session.
 - Company Details Workspace uses seeded in-memory company data and future-module placeholders.
 - Favorites, Pinned, Recent, Workspace switch and Command controls are experience placeholders until platform behavior is connected.
+- Company Workspace 2.0 uses mock timeline, notes, tasks, relationship graph and KPI placeholders.
+- CRM Contacts Foundation is in-memory only and has no UI, persistence, API or database-backed referential integrity yet.
+- Company Contacts Workspace persists contact changes only in memory during the current browser session.
 - CRM Customers UI persists changes only in memory during the current browser session.
 - Enterprise UI Framework is young and should evolve only through concrete business module needs.
 - Documentation before SPR-207A was fragmented across several older files.
@@ -117,9 +123,9 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passing during SPR-309. |
-| `npm run build` | Yes | Passing during SPR-309 with the known existing `next/image` warning in PDF preview. |
-| `npm run validate:runtime` | Yes | Passing during SPR-309. |
+| `npm run typecheck` | Yes | Passing during SPR-312. |
+| `npm run build` | Yes | Passing during SPR-312 with the known existing `next/image` warning in PDF preview. |
+| `npm run validate:runtime` | Yes | Passing during SPR-312. |
 
 ## Repository Health
 

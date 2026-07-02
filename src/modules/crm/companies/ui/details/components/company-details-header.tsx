@@ -1,24 +1,26 @@
 import Link from "next/link";
-import { ArrowLeft, Building2, Mail, Pencil, Phone, Plus, Settings } from "lucide-react";
+import { ArrowLeft, Building2, Mail, Pencil, Phone, Pin, Plus, Settings, Star } from "lucide-react";
 import { InfoCard, SectionCard } from "@/ui";
 import type { Company } from "../../../company.types";
 import { CompanyStatusBadge } from "../../components/company-status-badge";
 
 export function CompanyDetailsHeader({ canWrite, company }: { canWrite: boolean; company: Company }) {
   return (
-    <SectionCard className="p-5">
-      <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center">
-          <div className="grid size-16 place-items-center rounded-xl bg-hicotech-navy text-xl font-bold text-white shadow-soft dark:bg-hicotech-blue">
+    <SectionCard className="overflow-hidden">
+      <div className="border-b border-slate-200 bg-slate-50/70 px-5 py-3 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/40">
+        <Link href="/crm/companies" className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 transition hover:text-hicotech-blue dark:text-slate-300">
+          <ArrowLeft size={14} />
+          Companies
+        </Link>
+      </div>
+      <div className="grid gap-6 p-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
+        <div className="flex flex-col gap-5 md:flex-row md:items-center">
+          <div className="grid size-20 place-items-center rounded-2xl bg-hicotech-navy text-2xl font-bold text-white shadow-soft dark:bg-hicotech-blue">
             {company.displayName.slice(0, 2).toUpperCase()}
           </div>
           <div>
-            <Link href="/crm/companies" className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 transition hover:text-hicotech-blue dark:text-slate-300">
-              <ArrowLeft size={14} />
-              Companies
-            </Link>
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <h1 className="font-display text-2xl font-bold text-hicotech-navy dark:text-white md:text-3xl">{company.displayName}</h1>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="font-display text-3xl font-bold text-hicotech-navy dark:text-white md:text-4xl">{company.displayName}</h1>
               <CompanyStatusBadge status={company.status} />
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-3 text-sm font-medium text-slate-500 dark:text-slate-300">
@@ -31,7 +33,9 @@ export function CompanyDetailsHeader({ canWrite, company }: { canWrite: boolean;
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 xl:justify-end">
+          <QuickAction icon={<Star size={16} />} label="Favori" />
+          <QuickAction icon={<Pin size={16} />} label="Épingler" />
           <QuickAction href={company.email ? `mailto:${company.email}` : undefined} icon={<Mail size={16} />} label="Email" />
           <QuickAction href={company.phone ? `tel:${company.phone}` : undefined} icon={<Phone size={16} />} label="Appeler" />
           <QuickAction disabled={!canWrite} icon={<Pencil size={16} />} label="Modifier" />
@@ -40,7 +44,7 @@ export function CompanyDetailsHeader({ canWrite, company }: { canWrite: boolean;
         </div>
       </div>
 
-      <div className="mt-5 grid gap-3 md:grid-cols-3">
+      <div className="grid gap-3 border-t border-slate-200 px-5 py-4 dark:border-hicotech-dark-border md:grid-cols-3">
         <InfoCard>
           <span className="inline-flex items-center gap-2">
             <Building2 size={16} />

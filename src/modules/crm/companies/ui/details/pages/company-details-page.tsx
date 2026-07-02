@@ -2,12 +2,17 @@
 
 import { EntityEmptyState, EntityErrorState, EntityPageLayout } from "@/ui";
 import { Building2 } from "lucide-react";
+import { CompanyContactsWorkspace } from "@/modules/crm/contacts";
+import { CompanyActivityTimeline } from "../components/company-activity-timeline";
 import { CompanyDetailsHeader } from "../components/company-details-header";
 import { CompanyDetailsTabs } from "../components/company-details-tabs";
 import { CompanyInspectorPanel } from "../components/company-inspector-panel";
+import { CompanyNotesPanel } from "../components/company-notes-panel";
 import { CompanyOverview } from "../components/company-overview";
 import { CompanyPlaceholderTab } from "../components/company-placeholder-tab";
+import { CompanyRelationshipGraph } from "../components/company-relationship-graph";
 import { CompanySummaryCards } from "../components/company-summary-cards";
+import { CompanyTasksWidget } from "../components/company-tasks-widget";
 import { useCompanyDetails } from "../hooks/use-company-details";
 
 export function CompanyDetailsPage({ companyId }: { companyId: string }) {
@@ -36,7 +41,25 @@ export function CompanyDetailsPage({ companyId }: { companyId: string }) {
       <CompanyDetailsTabs activeTab={state.activeTab} onChange={state.setActiveTab} />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <main>{state.activeTab === "overview" ? <CompanyOverview company={state.company} /> : <CompanyPlaceholderTab label={state.activeTab} />}</main>
+        <main className="space-y-6">
+          {state.activeTab === "overview" ? (
+            <>
+              <CompanyRelationshipGraph />
+              <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_360px]">
+                <CompanyActivityTimeline />
+                <div className="space-y-6">
+                  <CompanyNotesPanel />
+                  <CompanyTasksWidget />
+                </div>
+              </div>
+              <CompanyOverview company={state.company} />
+            </>
+          ) : state.activeTab === "contacts" ? (
+            <CompanyContactsWorkspace companyId={state.company.id} />
+          ) : (
+            <CompanyPlaceholderTab label={state.activeTab} />
+          )}
+        </main>
         <CompanyInspectorPanel />
       </div>
     </EntityPageLayout>
