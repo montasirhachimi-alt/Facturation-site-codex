@@ -18,7 +18,7 @@ const columns: Array<EntityTableColumn<Contact, ContactSortKey>> = [
   },
   {
     key: "fullName",
-    label: "Full Name",
+    label: "Nom complet",
     sortable: true,
     sortKey: "fullName",
     render: (contact) => (
@@ -28,14 +28,14 @@ const columns: Array<EntityTableColumn<Contact, ContactSortKey>> = [
       </div>
     )
   },
-  { key: "jobTitle", label: "Job Title", sortable: true, sortKey: "jobTitle", render: (contact) => <span className="text-slate-600 dark:text-slate-300">{contact.jobTitle ?? "-"}</span> },
-  { key: "department", label: "Department", sortable: true, sortKey: "department", render: (contact) => <span className="font-semibold text-slate-700 dark:text-slate-200">{contact.department ?? "-"}</span> },
+  { key: "jobTitle", label: "Fonction", sortable: true, sortKey: "jobTitle", render: (contact) => <span className="text-slate-600 dark:text-slate-300">{contact.jobTitle ?? "-"}</span> },
+  { key: "department", label: "Département", sortable: true, sortKey: "department", render: (contact) => <span className="font-semibold text-slate-700 dark:text-slate-200">{contact.department ?? "-"}</span> },
   { key: "email", label: "Email", sortable: true, sortKey: "email", render: (contact) => <span className="text-slate-600 dark:text-slate-300">{contact.email ?? "-"}</span> },
   { key: "mobilePhone", label: "Mobile", sortable: true, sortKey: "mobilePhone", render: (contact) => <span className="text-slate-600 dark:text-slate-300">{contact.mobilePhone ?? "-"}</span> },
-  { key: "status", label: "Status", sortable: true, sortKey: "status", render: (contact) => <ContactStatusBadge status={contact.status} /> },
-  { key: "primary", label: "Primary Contact", render: (contact) => <BooleanChip active={contact.isPrimaryContact} /> },
-  { key: "decision", label: "Decision Maker", render: (contact) => <BooleanChip active={contact.isDecisionMaker} /> },
-  { key: "updatedAt", label: "Updated", sortable: true, sortKey: "updatedAt", render: (contact) => <span className="text-slate-600 dark:text-slate-300">{formatShortDate(contact.updatedAt)}</span> }
+  { key: "status", label: "Statut", sortable: true, sortKey: "status", render: (contact) => <ContactStatusBadge status={contact.status} /> },
+  { key: "primary", label: "Contact principal", render: (contact) => <BooleanChip active={contact.isPrimaryContact} /> },
+  { key: "decision", label: "Décideur", render: (contact) => <BooleanChip active={contact.isDecisionMaker} /> },
+  { key: "updatedAt", label: "Mis à jour", sortable: true, sortKey: "updatedAt", render: (contact) => <span className="text-slate-600 dark:text-slate-300">{formatShortDate(contact.updatedAt)}</span> }
 ];
 
 export function ContactsTable({

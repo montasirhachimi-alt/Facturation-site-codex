@@ -24,6 +24,7 @@ HicoPilot is a business operating system, not a collection of isolated ERP pages
 | Strong Typing | TypeScript types should be explicit, reusable and narrow. |
 | Modular Architecture | Engines, services, contexts, runtimes and UI must remain independently understandable. |
 | Enterprise Coding Practices | Favor maintainability, observability, security and predictable validation. |
+| French-First UI | Every new visible UI element must follow `docs/08_LOCALIZATION_GUIDE.md`. Mixed-language UI is not allowed. |
 
 ## Protected Areas
 

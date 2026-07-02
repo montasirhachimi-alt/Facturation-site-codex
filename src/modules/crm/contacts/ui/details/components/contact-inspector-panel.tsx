@@ -6,21 +6,21 @@ import type { Contact } from "../../../contact.types";
 
 export function ContactInspectorPanel({ company, contact }: { company?: Company; contact: Contact }) {
   const sections = [
-    { icon: Building2, title: "Company", text: company?.displayName ?? "Non définie", href: company ? `/crm/companies/${company.id}` : undefined },
-    { icon: UserRound, title: "Owner", text: contact.ownerId ?? "Non assigné" },
-    { icon: Pin, title: "Status", text: contact.status },
-    { icon: CalendarClock, title: "Created", text: formatDate(contact.createdAt) },
-    { icon: CalendarClock, title: "Updated", text: formatDate(contact.updatedAt) },
-    { icon: FileText, title: "Documents", text: "Future module" },
-    { icon: Link2, title: "Quick links", text: "Meetings, emails and sales ready" }
+    { icon: Building2, title: "Société", text: company?.displayName ?? "Non définie", href: company ? `/crm/companies/${company.id}` : undefined },
+    { icon: UserRound, title: "Responsable", text: contact.ownerId ?? "Non assigné" },
+    { icon: Pin, title: "Statut", text: contact.status },
+    { icon: CalendarClock, title: "Créé", text: formatDate(contact.createdAt) },
+    { icon: CalendarClock, title: "Mis à jour", text: formatDate(contact.updatedAt) },
+    { icon: FileText, title: "Documents", text: "Module à venir" },
+    { icon: Link2, title: "Liens rapides", text: "Réunions, emails et ventes prêts" }
   ];
 
   return (
     <aside className="space-y-4">
       <SectionCard className="p-4">
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">Inspector</p>
-        <h2 className="mt-2 font-display text-lg font-bold text-hicotech-navy dark:text-white">Contact context</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-300">Company, ownership and future interaction shortcuts.</p>
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">Inspecteur</p>
+        <h2 className="mt-2 font-display text-lg font-bold text-hicotech-navy dark:text-white">Contexte contact</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-300">Société, responsabilité et raccourcis d&apos;interaction futurs.</p>
       </SectionCard>
 
       {sections.map((section) => {

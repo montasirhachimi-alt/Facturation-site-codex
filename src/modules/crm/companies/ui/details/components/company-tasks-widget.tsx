@@ -16,7 +16,7 @@ export function CompanyTasksWidget() {
         </span>
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">Tasks</p>
-          <h2 className="font-display text-lg font-bold text-hicotech-navy dark:text-white">Upcoming Tasks</h2>
+          <h2 className="font-display text-lg font-bold text-hicotech-navy dark:text-white">Tâches à venir</h2>
         </div>
       </div>
 

@@ -3,7 +3,7 @@ import type { CustomerStatus } from "../../customer.types";
 
 const labels: Record<CustomerStatus, string> = {
   active: "Actif",
-  archived: "Archive",
+  archived: "Archivé",
   inactive: "Inactif",
   lead: "Prospect"
 };
@@ -22,4 +22,3 @@ export function CustomerStatusBadge({ status }: { status: CustomerStatus }) {
     </span>
   );
 }
-

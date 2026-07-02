@@ -3,7 +3,7 @@ import type { CompanyStatus } from "../../company.types";
 
 const labels: Record<CompanyStatus, string> = {
   active: "Active",
-  archived: "Archive",
+  archived: "Archivée",
   inactive: "Inactive",
   lead: "Prospect"
 };
@@ -18,4 +18,3 @@ const styles: Record<CompanyStatus, string> = {
 export function CompanyStatusBadge({ status }: { status: CompanyStatus }) {
   return <span className={clsx("inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ring-1", styles[status])}>{labels[status]}</span>;
 }
-

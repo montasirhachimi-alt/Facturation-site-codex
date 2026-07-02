@@ -8,7 +8,7 @@ const summaryCards = [
   { icon: ReceiptText, label: "Factures", value: "0", helper: "Connexion facturation future" },
   { icon: HandCoins, label: "Opportunités ouvertes", value: "Voir", helper: "Pipeline commercial préparé" },
   { icon: FileText, label: "Devis ouverts", value: "0", helper: "Module devis à connecter" },
-  { icon: ShoppingCart, label: "Commandes ouvertes", value: "0", helper: "Sales Engine futur" },
+  { icon: ShoppingCart, label: "Commandes ouvertes", value: "0", helper: "Moteur de ventes futur" },
   { icon: TrendingUp, label: "Revenu", value: "0 MAD", helper: "Placeholder financier" }
 ];
 

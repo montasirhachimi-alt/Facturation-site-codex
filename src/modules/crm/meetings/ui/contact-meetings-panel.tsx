@@ -22,8 +22,8 @@ export function ContactMeetingsPanel({
     <SectionCard className="p-5">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-hicotech-blue">Meetings</p>
-          <h2 className="mt-2 font-display text-lg font-bold text-hicotech-navy dark:text-white">Contact Meetings</h2>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-hicotech-blue">Réunions</p>
+          <h2 className="mt-2 font-display text-lg font-bold text-hicotech-navy dark:text-white">Réunions du contact</h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">Réunions liées à ce contact et prêtes pour la future intégration calendrier.</p>
         </div>
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
@@ -33,19 +33,19 @@ export function ContactMeetingsPanel({
           </label>
           <select value={filters.meetingType} onChange={(event) => onFiltersChange({ ...filters, meetingType: event.target.value as MeetingType | "all" })} className={entityInputClassName}>
             <option value="all">Tous types</option>
-            <option value="on_site">On-site</option>
-            <option value="online">Online</option>
-            <option value="phone_call">Phone call</option>
-            <option value="demo">Demo</option>
-            <option value="sales_meeting">Sales meeting</option>
-            <option value="customer_success">Customer success</option>
+            <option value="on_site">Sur site</option>
+            <option value="online">En ligne</option>
+            <option value="phone_call">Appel téléphonique</option>
+            <option value="demo">Démonstration</option>
+            <option value="sales_meeting">Réunion commerciale</option>
+            <option value="customer_success">Suivi client</option>
           </select>
           <select value={filters.status} onChange={(event) => onFiltersChange({ ...filters, status: event.target.value as MeetingStatus | "all" })} className={entityInputClassName}>
             <option value="all">Tous statuts</option>
-            <option value="planned">Planned</option>
-            <option value="confirmed">Confirmed</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
+            <option value="planned">Planifiée</option>
+            <option value="confirmed">Confirmée</option>
+            <option value="completed">Terminée</option>
+            <option value="cancelled">Annulée</option>
           </select>
           <select value={filters.sortDirection} onChange={(event) => onFiltersChange({ ...filters, sortDirection: event.target.value as "asc" | "desc" })} className={entityInputClassName}>
             <option value="asc">Plus proches</option>
@@ -55,8 +55,8 @@ export function ContactMeetingsPanel({
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
-        <MeetingColumn emptyText="Aucune réunion à venir pour ce contact." meetings={upcoming} title="Upcoming Meetings" />
-        <MeetingColumn emptyText="Aucune réunion passée pour ce contact." meetings={past} title="Past Meetings" />
+        <MeetingColumn emptyText="Aucune réunion à venir pour ce contact." meetings={upcoming} title="Réunions à venir" />
+        <MeetingColumn emptyText="Aucune réunion passée pour ce contact." meetings={past} title="Réunions passées" />
       </div>
     </SectionCard>
   );
@@ -126,7 +126,7 @@ function MeetingStatusBadge({ status }: { status: MeetingStatus }) {
   return (
     <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${styles[status]}`}>
       <Icon size={13} />
-      {status}
+      {formatMeetingStatus(status)}
     </span>
   );
 }
@@ -136,7 +136,27 @@ function Badge({ label }: { label: string }) {
 }
 
 function formatMeetingType(type: MeetingType) {
-  return type.replaceAll("_", " ");
+  const labels: Record<MeetingType, string> = {
+    on_site: "Sur site",
+    online: "En ligne",
+    phone_call: "Appel téléphonique",
+    demo: "Démonstration",
+    sales_meeting: "Réunion commerciale",
+    internal: "Interne",
+    customer_success: "Suivi client",
+    custom: "Personnalisée"
+  };
+  return labels[type];
+}
+
+function formatMeetingStatus(status: MeetingStatus) {
+  const labels: Record<MeetingStatus, string> = {
+    planned: "Planifiée",
+    confirmed: "Confirmée",
+    completed: "Terminée",
+    cancelled: "Annulée"
+  };
+  return labels[status];
 }
 
 function formatDate(value: string) {

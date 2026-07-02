@@ -157,9 +157,9 @@ export default async function DashboardPage() {
                 Votre espace de pilotage réunit les signaux importants, les actions rapides et les priorités de la journée.
               </p>
               <div className="mt-5 flex flex-wrap gap-2">
-                <HeroPill label="Workspace" value="HicoPilot CRM" />
+                <HeroPill label="Espace de travail" value="HicoPilot CRM" />
                 <HeroPill label="Mode" value="Executive" />
-                <HeroPill label="Status" value="Synchronisé" />
+                <HeroPill label="Statut" value="Synchronisé" />
               </div>
             </div>
 
@@ -466,7 +466,7 @@ function HeroPill({ label, value }: { label: string; value: string }) {
 
 function WorkspaceSummaryStrip() {
   const items = [
-    { icon: ContactRound, label: "Relations CRM", value: "Companies actives", helper: "Workspace prêt pour contacts et ventes" },
+    { icon: ContactRound, label: "Relations CRM", value: "Sociétés actives", helper: "Espace prêt pour contacts et ventes" },
     { icon: CalendarCheck, label: "Agenda du jour", value: "3 rendez-vous", helper: "Réunion, livraison, fournisseur" },
     { icon: Bot, label: "AI Insights", value: "2 suggestions", helper: "Relances et stock à surveiller" }
   ];

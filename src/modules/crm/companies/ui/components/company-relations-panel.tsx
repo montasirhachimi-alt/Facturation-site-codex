@@ -3,12 +3,12 @@ import { SectionCard } from "@/ui";
 
 const relations = [
   { label: "Contacts", icon: UsersRound, value: "Bientôt" },
-  { label: "Customers", icon: UsersRound, value: "Bientôt" },
-  { label: "Projects", icon: BriefcaseBusiness, value: "Bientôt" },
-  { label: "Invoices", icon: ReceiptText, value: "Bientôt" },
-  { label: "Opportunities", icon: HandCoins, value: "Bientôt" },
-  { label: "Quotes", icon: FileText, value: "Bientôt" },
-  { label: "Orders", icon: ShoppingCart, value: "Bientôt" }
+  { label: "Clients", icon: UsersRound, value: "Bientôt" },
+  { label: "Projets", icon: BriefcaseBusiness, value: "Bientôt" },
+  { label: "Factures", icon: ReceiptText, value: "Bientôt" },
+  { label: "Opportunités", icon: HandCoins, value: "Bientôt" },
+  { label: "Devis", icon: FileText, value: "Bientôt" },
+  { label: "Commandes", icon: ShoppingCart, value: "Bientôt" }
 ];
 
 export function CompanyRelationsPanel() {
@@ -16,7 +16,7 @@ export function CompanyRelationsPanel() {
     <SectionCard className="p-4">
       <div className="flex flex-col gap-1">
         <h2 className="font-display text-base font-bold text-hicotech-navy dark:text-white">Relations futures</h2>
-        <p className="text-xs font-medium text-slate-500 dark:text-slate-300">Points d&apos;intégration préparés autour de Company.</p>
+        <p className="text-xs font-medium text-slate-500 dark:text-slate-300">Points d&apos;intégration préparés autour de la société.</p>
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
         {relations.map((relation) => {

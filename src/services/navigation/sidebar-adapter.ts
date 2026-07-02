@@ -30,14 +30,14 @@ const sidebarCategoryOrder: CoreModuleCategory[] = [
 ];
 
 const sidebarGroupLabels: Record<CoreModuleCategory, string> = {
-  home: "Home",
-  business: "Business",
-  sales: "Sales",
+  home: "Accueil",
+  business: "Activité",
+  sales: "Ventes",
   finance: "Finance",
-  people: "People",
-  analytics: "Analytics",
+  people: "Équipe",
+  analytics: "Analyse",
   ai: "AI",
-  system: "System"
+  system: "Système"
 };
 
 const crmSidebarGroup: SidebarNavigationGroup = {
@@ -55,7 +55,7 @@ const crmSidebarGroup: SidebarNavigationGroup = {
     {
       id: "crm.companies",
       href: "/crm/companies",
-      label: "Companies",
+      label: "Sociétés",
       icon: "Building2",
       module: "clients",
       activePaths: ["/crm/companies"]
@@ -63,7 +63,7 @@ const crmSidebarGroup: SidebarNavigationGroup = {
     {
       id: "crm.customers",
       href: "/clients",
-      label: "Customers",
+      label: "Clients",
       icon: "Users",
       module: "clients",
       activePaths: ["/clients"]
@@ -80,7 +80,7 @@ const crmSidebarGroup: SidebarNavigationGroup = {
     {
       id: "crm.activities",
       href: "/crm/companies",
-      label: "Activities / Timeline",
+      label: "Activités / Timeline",
       icon: "ClipboardList",
       module: "clients",
       badge: "via société",
@@ -89,7 +89,7 @@ const crmSidebarGroup: SidebarNavigationGroup = {
     {
       id: "crm.meetings",
       href: "/crm/companies",
-      label: "Meetings",
+      label: "Réunions",
       icon: "CalendarCheck",
       module: "clients",
       badge: "via contact",
@@ -98,7 +98,7 @@ const crmSidebarGroup: SidebarNavigationGroup = {
     {
       id: "crm.tasks",
       href: "/crm/companies",
-      label: "Tasks",
+      label: "Tâches",
       icon: "ScrollText",
       module: "clients",
       badge: "via contact",
@@ -128,7 +128,7 @@ const sidebarModuleOrder: Partial<Record<CoreModuleCategory, CoreModuleId[]>> = 
 };
 
 const sidebarLabels: Partial<Record<CoreModuleId, string>> = {
-  dashboard: "Dashboard",
+  dashboard: "Tableau de bord",
   clients: "Clients",
   suppliers: "Fournisseurs",
   products: "Produits & stock",

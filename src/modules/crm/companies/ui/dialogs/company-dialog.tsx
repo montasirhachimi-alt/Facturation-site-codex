@@ -23,7 +23,7 @@ export function CompanyDialog({
       open={open}
       eyebrow="CRM"
       title="Ajouter société"
-      description="Création en mémoire via CompanyService."
+      description="Création en mémoire via le service Sociétés."
       error={error}
       onClose={onClose}
       onSubmit={() => {
@@ -85,4 +85,3 @@ export function CompanyDialog({
     </EntityDialog>
   );
 }
-

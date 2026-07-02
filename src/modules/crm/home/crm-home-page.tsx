@@ -135,7 +135,7 @@ export function CrmHomePage() {
 
       <div className="grid gap-5 xl:grid-cols-3">
         <SectionCard className="p-5">
-          <SectionTitle icon={HandCoins} title="Opportunités commerciales" description="Pipeline de démonstration préparé pour le Sales Engine." />
+          <SectionTitle icon={HandCoins} title="Opportunités commerciales" description="Pipeline de démonstration préparé pour le moteur de ventes." />
           <div className="mt-5 space-y-3">
             {openOpportunities.slice(0, 4).map((opportunity) => (
               <CompactItem

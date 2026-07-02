@@ -7,49 +7,49 @@ export function ContactOverview({ company, contact }: { company?: Company; conta
   return (
     <div className="grid gap-6 2xl:grid-cols-2">
       <SectionCard className="p-5">
-        <SectionTitle eyebrow="Overview" title="Personal information" />
+        <SectionTitle eyebrow="Vue d'ensemble" title="Informations personnelles" />
         <InfoRows
           rows={[
-            ["Full name", contact.fullName, UserRound],
-            ["First name", contact.firstName, UserRound],
-            ["Last name", contact.lastName, UserRound],
-            ["Status", contact.status, UserRound],
-            ["Role", contact.role ?? "Non défini", UserRound]
+            ["Nom complet", contact.fullName, UserRound],
+            ["Prénom", contact.firstName, UserRound],
+            ["Nom", contact.lastName, UserRound],
+            ["Statut", contact.status, UserRound],
+            ["Rôle", contact.role ?? "Non défini", UserRound]
           ]}
         />
       </SectionCard>
 
       <SectionCard className="p-5">
-        <SectionTitle eyebrow="Work" title="Professional information" />
+        <SectionTitle eyebrow="Travail" title="Informations professionnelles" />
         <InfoRows
           rows={[
-            ["Company", company?.displayName ?? "Société non définie", Building2],
-            ["Job title", contact.jobTitle ?? "Non défini", UserRound],
-            ["Department", contact.department ?? "Non défini", Building2],
-            ["Owner", contact.ownerId ?? "Non assigné", UserRound]
+            ["Société", company?.displayName ?? "Société non définie", Building2],
+            ["Fonction", contact.jobTitle ?? "Non défini", UserRound],
+            ["Département", contact.department ?? "Non défini", Building2],
+            ["Responsable", contact.ownerId ?? "Non assigné", UserRound]
           ]}
         />
       </SectionCard>
 
       <SectionCard className="p-5">
-        <SectionTitle eyebrow="Communication" title="Contact details" />
+        <SectionTitle eyebrow="Communication" title="Coordonnées" />
         <InfoRows
           rows={[
             ["Email", contact.email ?? "Non renseigné", Mail],
             ["Mobile", contact.mobilePhone ?? "Non renseigné", Phone],
-            ["Office phone", contact.officePhone ?? "Non renseigné", Phone],
+            ["Téléphone bureau", contact.officePhone ?? "Non renseigné", Phone],
             ["LinkedIn", contact.linkedin ?? "Non renseigné", UserRound]
           ]}
         />
       </SectionCard>
 
       <SectionCard className="p-5">
-        <SectionTitle eyebrow="Context" title="Localization and tags" />
+        <SectionTitle eyebrow="Contexte" title="Localisation et tags" />
         <InfoRows
           rows={[
-            ["Language", contact.preferredLanguage ?? "Non défini", Languages],
-            ["Timezone", contact.timezone ?? "Non défini", Clock],
-            ["Company country", company?.country ?? "Non défini", MapPin],
+            ["Langue", contact.preferredLanguage ?? "Non défini", Languages],
+            ["Fuseau horaire", contact.timezone ?? "Non défini", Clock],
+            ["Pays société", company?.country ?? "Non défini", MapPin],
             ["Tags", contact.tags.length > 0 ? contact.tags.join(", ") : "Aucun tag", Tags]
           ]}
         />

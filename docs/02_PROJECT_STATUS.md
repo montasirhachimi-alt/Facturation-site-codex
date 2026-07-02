@@ -8,7 +8,7 @@
 | Version | Pre-Alpha |
 | Current Milestone | Milestone 3 — Business Suite |
 | Current Phase | Business Module Foundations |
-| Current Sprint | SPR-319 — Sales Opportunities Foundation |
+| Current Sprint | SPR-319A — Product Consistency & French Localization |
 | Next Sprint | SPR-320 — Opportunities Pipeline Workspace |
 | Repository Health | Builds successfully with one known existing image optimization warning. |
 
@@ -90,6 +90,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | CRM Notes Foundation exposes note domain types, validation, utilities, in-memory service and Contact Workspace notes integration. | Completed |
 | CRM Home Workspace replaces the generic `/crm` module fallback with a real French CRM landing workspace. | Completed |
 | Sales Opportunities Foundation introduces the first Sales Engine domain and exposes opportunities in CRM Home, Company Workspace and Contact Workspace. | Completed |
+| Product Consistency & French Localization standardizes visible CRM, Sidebar and Topbar terminology around French-first product language. | Completed |
 | Core Search React UI is separated into Platform Search. | Completed |
 | Runtime validation checks Platform Events, event subscribers, Permission Enforcement, Permission Runtime Integration, Capability Registry, Manifest System, Module Loader, Plugin Runtime, CRM Module Foundation, CRM Customers Foundation, Preferences Runtime, Widget Runtime, Workspace Context and Platform Search separation. | Completed |
 
@@ -137,6 +138,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - CRM is now visible from the main Sidebar with direct access to CRM, Companies and Customers, plus guided nested entries for Contacts, Timeline, Meetings, Tasks and Notes.
 - CRM now opens a dedicated `/crm` workspace instead of the generic ERP module fallback, with French labels and guided access to connected CRM areas.
 - CRM now surfaces Opportunities as the first Sales Engine concept, improves French CRM wording and makes the pipeline discoverable from CRM Home, Company Workspace and Contact Workspace.
+- Visible CRM, Sidebar and Topbar copy has been polished toward French-first terminology, and a localization guide now defines official vocabulary for future sprints.
 
 ## Validation Status
 

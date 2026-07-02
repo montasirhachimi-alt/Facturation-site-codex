@@ -23,7 +23,7 @@ export function ContactNotesPanel({
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-hicotech-blue">Notes</p>
-          <h2 className="mt-2 font-display text-lg font-bold text-hicotech-navy dark:text-white">Contact Knowledge</h2>
+          <h2 className="mt-2 font-display text-lg font-bold text-hicotech-navy dark:text-white">Connaissance contact</h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">Notes CRM liées au contact et prêtes pour les futurs contextes IA.</p>
         </div>
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -33,9 +33,9 @@ export function ContactNotesPanel({
           </label>
           <select value={filters.visibility} onChange={(event) => onFiltersChange({ ...filters, visibility: event.target.value as NoteVisibility | "all" })} className={entityInputClassName}>
             <option value="all">Toutes visibilités</option>
-            <option value="private">Private</option>
-            <option value="team">Team</option>
-            <option value="company">Company</option>
+            <option value="private">Privée</option>
+            <option value="team">Équipe</option>
+            <option value="company">Société</option>
           </select>
           <select value={filters.sortDirection} onChange={(event) => onFiltersChange({ ...filters, sortDirection: event.target.value as "asc" | "desc" })} className={entityInputClassName}>
             <option value="desc">Plus récentes</option>
@@ -45,8 +45,8 @@ export function ContactNotesPanel({
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-        <NoteColumn emptyText="Aucune note épinglée pour ce contact." notes={pinnedNotes} title="Pinned Notes" variant="pinned" />
-        <NoteColumn emptyText="Aucune note récente pour ce contact." notes={recentNotes} title="Recent Notes" variant="recent" />
+        <NoteColumn emptyText="Aucune note épinglée pour ce contact." notes={pinnedNotes} title="Notes épinglées" variant="pinned" />
+        <NoteColumn emptyText="Aucune note récente pour ce contact." notes={recentNotes} title="Notes récentes" variant="recent" />
       </div>
     </SectionCard>
   );
@@ -85,7 +85,7 @@ function NoteCard({ note }: { note: Note }) {
         {note.tags.map((tag) => (
           <Badge key={tag} label={tag} />
         ))}
-        {note.attachments.length > 0 && <Badge label={`${note.attachments.length} attachment(s)`} />}
+        {note.attachments.length > 0 && <Badge label={`${note.attachments.length} pièce(s) jointe(s)`} />}
       </div>
       <p className="mt-3 text-xs font-semibold text-slate-400">
         {note.authorId} · {formatDate(note.updatedAt)}
@@ -105,7 +105,7 @@ function VisibilityBadge({ visibility }: { visibility: NoteVisibility }) {
   return (
     <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${styles[visibility]}`}>
       <Icon size={13} />
-      {visibility}
+      {formatNoteVisibility(visibility)}
     </span>
   );
 }
@@ -117,6 +117,15 @@ function Badge({ label }: { label: string }) {
       {label}
     </span>
   );
+}
+
+function formatNoteVisibility(visibility: NoteVisibility) {
+  const labels: Record<NoteVisibility, string> = {
+    private: "Privée",
+    team: "Équipe",
+    company: "Société"
+  };
+  return labels[visibility];
 }
 
 function formatDate(value: string) {

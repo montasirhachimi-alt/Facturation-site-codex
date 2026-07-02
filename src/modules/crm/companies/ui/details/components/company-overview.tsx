@@ -5,29 +5,29 @@ import type { Company } from "../../../company.types";
 export function CompanyOverview({ company }: { company: Company }) {
   return (
     <div className="grid gap-4 xl:grid-cols-2">
-      <DetailsSection title="General Information">
-        <DetailItem icon={<Hash size={16} />} label="Legal name" value={company.legalName} />
-        <DetailItem icon={<Hash size={16} />} label="Registration number" value={company.registrationNumber} />
-        <DetailItem icon={<Hash size={16} />} label="Tax number" value={company.taxNumber} />
-        <DetailItem icon={<UserRound size={16} />} label="Owner" value={company.ownerId} />
+      <DetailsSection title="Informations générales">
+        <DetailItem icon={<Hash size={16} />} label="Raison sociale" value={company.legalName} />
+        <DetailItem icon={<Hash size={16} />} label="Registre de commerce" value={company.registrationNumber} />
+        <DetailItem icon={<Hash size={16} />} label="Identifiant fiscal" value={company.taxNumber} />
+        <DetailItem icon={<UserRound size={16} />} label="Responsable" value={company.ownerId} />
       </DetailsSection>
 
       <DetailsSection title="Communication">
         <DetailItem icon={<Mail size={16} />} label="Email" value={company.email} />
-        <DetailItem icon={<Phone size={16} />} label="Phone" value={company.phone} />
-        <DetailItem icon={<Hash size={16} />} label="Website" value={company.website} />
+        <DetailItem icon={<Phone size={16} />} label="Téléphone" value={company.phone} />
+        <DetailItem icon={<Hash size={16} />} label="Site web" value={company.website} />
       </DetailsSection>
 
-      <DetailsSection title="Address">
-        <DetailItem icon={<MapPinned size={16} />} label="Address" value={company.address} />
-        <DetailItem icon={<MapPinned size={16} />} label="City" value={company.city} />
-        <DetailItem icon={<MapPinned size={16} />} label="Country" value={company.country} />
+      <DetailsSection title="Adresse">
+        <DetailItem icon={<MapPinned size={16} />} label="Adresse" value={company.address} />
+        <DetailItem icon={<MapPinned size={16} />} label="Ville" value={company.city} />
+        <DetailItem icon={<MapPinned size={16} />} label="Pays" value={company.country} />
       </DetailsSection>
 
-      <DetailsSection title="Workspace">
-        <DetailItem icon={<CalendarDays size={16} />} label="Created" value={formatDate(company.createdAt)} />
-        <DetailItem icon={<CalendarDays size={16} />} label="Updated" value={formatDate(company.updatedAt)} />
-        <DetailItem icon={<Hash size={16} />} label="Workspace" value={company.workspaceId} />
+      <DetailsSection title="Espace de travail">
+        <DetailItem icon={<CalendarDays size={16} />} label="Créé" value={formatDate(company.createdAt)} />
+        <DetailItem icon={<CalendarDays size={16} />} label="Mis à jour" value={formatDate(company.updatedAt)} />
+        <DetailItem icon={<Hash size={16} />} label="Espace" value={company.workspaceId} />
       </DetailsSection>
 
       <DetailsSection title="Tags">

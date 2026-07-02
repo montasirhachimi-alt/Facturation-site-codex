@@ -15,10 +15,10 @@ export function CompaniesPage() {
   return (
     <EntityPageLayout>
       <EntityHeader
-        breadcrumb={["CRM", "Companies"]}
-        title="Companies"
+        breadcrumb={["CRM", "Sociétés"]}
+        title="Sociétés"
         description="Le centre de gravité CRM pour connecter contacts, opportunités, devis, commandes, projets et factures."
-        meta={<InfoCard>Workspace actif : HicoPilot CRM</InfoCard>}
+        meta={<InfoCard>Espace actif : HicoPilot CRM</InfoCard>}
       />
 
       <EntityStatsCards
@@ -27,7 +27,7 @@ export function CompaniesPage() {
           { icon: Layers3, label: "Actives", value: String(state.stats.active), helper: "Sociétés opérationnelles" },
           { icon: Globe2, label: "Industries", value: String(state.stats.industries), helper: "Segments couverts" },
           { icon: MapPinned, label: "Pays", value: String(state.stats.countries), helper: "Présence commerciale" },
-          { icon: HandCoins, label: "Future revenue", value: state.stats.futureRevenue, helper: "Placeholder ventes" }
+          { icon: HandCoins, label: "Revenu futur", value: state.stats.futureRevenue, helper: "Prévision ventes" }
         ]}
       />
 
@@ -113,4 +113,3 @@ export function CompaniesPage() {
     </EntityPageLayout>
   );
 }
-

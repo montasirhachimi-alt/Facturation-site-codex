@@ -4,7 +4,7 @@ const tabs: Array<{ id: CompanyDetailsTab; label: string }> = [
   { id: "overview", label: "Vue d'ensemble" },
   { id: "contacts", label: "Contacts" },
   { id: "opportunities", label: "Opportunités" },
-  { id: "customers", label: "Customers" },
+  { id: "customers", label: "Clients liés" },
   { id: "sales", label: "Ventes" },
   { id: "projects", label: "Projets" },
   { id: "invoices", label: "Factures" },
@@ -22,7 +22,7 @@ export function CompanyDetailsTabs({
 }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-200/90 bg-white p-2 shadow-sm shadow-slate-200/60 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none">
-      <div className="flex min-w-max gap-1" role="tablist" aria-label="Company workspace tabs">
+      <div className="flex min-w-max gap-1" role="tablist" aria-label="Onglets du workspace société">
         {tabs.map((tab) => (
           <button
             key={tab.id}

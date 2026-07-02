@@ -2,21 +2,21 @@ import { Activity, CalendarClock, FileText, FolderOpen, Pin, StickyNote } from "
 import { SectionCard } from "@/ui";
 
 const inspectorSections = [
-  { icon: Activity, title: "Recent Activity", text: "5 mock interactions prepared" },
-  { icon: Pin, title: "Pinned", text: "Strategic account placeholder" },
-  { icon: FolderOpen, title: "Files", text: "Available in future module" },
-  { icon: CalendarClock, title: "Upcoming Meetings", text: "1 meeting placeholder" },
-  { icon: FileText, title: "Recent Documents", text: "Available in future module" },
-  { icon: StickyNote, title: "Recent Notes", text: "3 mock notes prepared" }
+  { icon: Activity, title: "Activité récente", text: "5 interactions de démonstration préparées" },
+  { icon: Pin, title: "Épinglé", text: "Compte stratégique en préparation" },
+  { icon: FolderOpen, title: "Fichiers", text: "Disponible dans un futur module" },
+  { icon: CalendarClock, title: "Réunions à venir", text: "1 réunion de démonstration" },
+  { icon: FileText, title: "Documents récents", text: "Disponible dans un futur module" },
+  { icon: StickyNote, title: "Notes récentes", text: "3 notes de démonstration préparées" }
 ];
 
 export function CompanyInspectorPanel() {
   return (
     <aside className="space-y-4">
       <SectionCard className="p-4">
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">Inspector</p>
-        <h2 className="mt-2 font-display text-lg font-bold text-hicotech-navy dark:text-white">Company context</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-300">A compact view of what matters around this company.</p>
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">Inspecteur</p>
+        <h2 className="mt-2 font-display text-lg font-bold text-hicotech-navy dark:text-white">Contexte société</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-300">Une vue compacte de ce qui compte autour de cette société.</p>
       </SectionCard>
 
       {inspectorSections.map((section) => {

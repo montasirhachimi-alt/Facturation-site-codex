@@ -4,7 +4,7 @@ import { SectionCard } from "@/ui";
 const notes = [
   "Décideur principal à identifier lors du prochain échange.",
   "Préparer une offre de maintenance annuelle.",
-  "Segment prioritaire pour futures intégrations Sales."
+  "Segment prioritaire pour futures intégrations commerciales."
 ];
 
 export function CompanyNotesPanel() {

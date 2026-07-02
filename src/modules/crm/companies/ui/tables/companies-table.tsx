@@ -17,7 +17,7 @@ const columns: Array<EntityTableColumn<Company, CompanySortKey>> = [
   },
   {
     key: "displayName",
-    label: "Company",
+    label: "Société",
     sortable: true,
     sortKey: "displayName",
     render: (company) => (
@@ -27,13 +27,13 @@ const columns: Array<EntityTableColumn<Company, CompanySortKey>> = [
       </div>
     )
   },
-  { key: "industry", label: "Industry", sortable: true, sortKey: "industry", render: (company) => <span className="font-semibold text-slate-700 dark:text-slate-200">{company.industry}</span> },
-  { key: "country", label: "Country", sortable: true, sortKey: "country", render: (company) => <span className="text-slate-600 dark:text-slate-300">{company.country ?? "-"}</span> },
-  { key: "owner", label: "Owner", render: (company) => <span className="text-slate-600 dark:text-slate-300">{company.ownerId ?? "-"}</span> },
+  { key: "industry", label: "Secteur", sortable: true, sortKey: "industry", render: (company) => <span className="font-semibold text-slate-700 dark:text-slate-200">{company.industry}</span> },
+  { key: "country", label: "Pays", sortable: true, sortKey: "country", render: (company) => <span className="text-slate-600 dark:text-slate-300">{company.country ?? "-"}</span> },
+  { key: "owner", label: "Responsable", render: (company) => <span className="text-slate-600 dark:text-slate-300">{company.ownerId ?? "-"}</span> },
   { key: "email", label: "Email", sortable: true, sortKey: "email", render: (company) => <span className="text-slate-600 dark:text-slate-300">{company.email ?? "-"}</span> },
-  { key: "phone", label: "Phone", sortable: true, sortKey: "phone", render: (company) => <span className="text-slate-600 dark:text-slate-300">{company.phone ?? "-"}</span> },
-  { key: "status", label: "Status", sortable: true, sortKey: "status", render: (company) => <CompanyStatusBadge status={company.status} /> },
-  { key: "updatedAt", label: "Updated", sortable: true, sortKey: "updatedAt", render: (company) => <span className="text-slate-600 dark:text-slate-300">{formatShortDate(company.updatedAt)}</span> }
+  { key: "phone", label: "Téléphone", sortable: true, sortKey: "phone", render: (company) => <span className="text-slate-600 dark:text-slate-300">{company.phone ?? "-"}</span> },
+  { key: "status", label: "Statut", sortable: true, sortKey: "status", render: (company) => <CompanyStatusBadge status={company.status} /> },
+  { key: "updatedAt", label: "Mis à jour", sortable: true, sortKey: "updatedAt", render: (company) => <span className="text-slate-600 dark:text-slate-300">{formatShortDate(company.updatedAt)}</span> }
 ];
 
 export function CompaniesTable({
@@ -87,7 +87,7 @@ export function CompaniesTable({
       selectedIds={selectedIds}
       sort={sort}
       subtitle="Sociétés centrales reliées aux futurs contacts, opportunités, devis, commandes et factures."
-      title="Companies"
+      title="Sociétés"
     />
   );
 }

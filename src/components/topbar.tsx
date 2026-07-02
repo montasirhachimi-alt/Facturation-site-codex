@@ -86,13 +86,13 @@ export function Topbar({ onMenuClick, user }: TopbarProps) {
             className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left shadow-sm shadow-slate-200/50 transition hover:border-hicotech-blue/40 hover:bg-hicotech-sky/60 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/10 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none dark:hover:bg-hicotech-blue/15"
             aria-expanded={workspaceOpen}
             aria-haspopup="menu"
-            aria-label="Ouvrir le sélecteur de workspace"
+            aria-label="Ouvrir le sélecteur d'espace de travail"
           >
             <span className="grid size-9 place-items-center rounded-lg bg-hicotech-sky text-hicotech-blue dark:bg-hicotech-blue/20 dark:text-white">
               <Building2 size={18} />
             </span>
             <span className="leading-tight">
-              <span className="block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">Workspace</span>
+              <span className="block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">Espace de travail</span>
               <span className="block text-sm font-bold text-hicotech-navy dark:text-white">HicoPilot CRM</span>
             </span>
             <ChevronDown size={15} className={`text-slate-400 transition ${workspaceOpen ? "rotate-180" : ""}`} />
@@ -119,7 +119,7 @@ export function Topbar({ onMenuClick, user }: TopbarProps) {
 
         <button className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-hicotech-navy shadow-sm shadow-slate-200/50 transition hover:border-hicotech-blue/40 hover:bg-hicotech-sky/60 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white dark:shadow-none dark:hover:bg-hicotech-blue/15 lg:flex">
           <Sparkles size={17} className="text-hicotech-blue" />
-          Command
+          Commande
         </button>
 
         <button className="ml-auto hidden items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-hicotech-navy shadow-sm shadow-slate-200/50 transition hover:border-hicotech-blue/40 hover:bg-hicotech-sky/60 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white dark:shadow-none dark:hover:bg-hicotech-blue/15 md:flex">
@@ -185,7 +185,7 @@ export function Topbar({ onMenuClick, user }: TopbarProps) {
 function WorkspaceSelectorMenu({ onClose }: { onClose: () => void }) {
   const workspaces = [
     { name: "HicoPilot CRM", active: true, available: true },
-    { name: "HicoPilot Sales", active: false, available: false },
+    { name: "HicoPilot Ventes", active: false, available: false },
     { name: "HicoPilot Finance", active: false, available: false }
   ];
 
@@ -196,7 +196,7 @@ function WorkspaceSelectorMenu({ onClose }: { onClose: () => void }) {
       className="absolute left-0 top-full z-50 mt-3 w-80 rounded-xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-200/70 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-black/30"
     >
       <div className="px-3 py-2">
-        <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">Workspace actuel</p>
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">Espace de travail actuel</p>
         <p className="mt-1 text-sm font-bold text-hicotech-navy dark:text-white">HicoPilot CRM</p>
       </div>
 
@@ -220,7 +220,7 @@ function WorkspaceSelectorMenu({ onClose }: { onClose: () => void }) {
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-bold text-hicotech-navy dark:text-white">{workspace.name}</span>
               <span className="block text-xs font-semibold text-slate-400">
-                {workspace.active ? "Actif" : "Coming soon"}
+                {workspace.active ? "Actif" : "Bientôt disponible"}
               </span>
             </span>
             {workspace.active && <Check size={17} className="text-hicotech-blue" />}
@@ -231,8 +231,8 @@ function WorkspaceSelectorMenu({ onClose }: { onClose: () => void }) {
       <div className="my-2 h-px bg-slate-100 dark:bg-hicotech-dark-border" />
 
       <div className="space-y-1">
-        <WorkspaceMenuAction icon={<Settings size={16} />} label="Workspace settings" onClick={onClose} />
-        <WorkspaceMenuAction icon={<Wrench size={16} />} label="Manage workspaces" onClick={onClose} />
+        <WorkspaceMenuAction icon={<Settings size={16} />} label="Paramètres de l'espace" onClick={onClose} />
+        <WorkspaceMenuAction icon={<Wrench size={16} />} label="Gérer les espaces" onClick={onClose} />
       </div>
     </div>
   );

@@ -8,7 +8,7 @@ import { CustomerStatusBadge } from "../components/customer-status-badge";
 const columns: Array<EntityTableColumn<Customer, CustomerSortKey>> = [
   {
     key: "displayName",
-    label: "Customer",
+    label: "Client",
     sortable: true,
     sortKey: "displayName",
     render: (customer) => (
@@ -25,7 +25,7 @@ const columns: Array<EntityTableColumn<Customer, CustomerSortKey>> = [
   },
   {
     key: "companyName",
-    label: "Company",
+    label: "Société",
     sortable: true,
     sortKey: "companyName",
     render: (customer) => <span className="font-semibold text-slate-700 dark:text-slate-200">{customer.companyName ?? "-"}</span>
@@ -39,21 +39,21 @@ const columns: Array<EntityTableColumn<Customer, CustomerSortKey>> = [
   },
   {
     key: "phone",
-    label: "Phone",
+    label: "Téléphone",
     sortable: true,
     sortKey: "phone",
     render: (customer) => <span className="text-slate-600 dark:text-slate-300">{customer.phone ?? "-"}</span>
   },
   {
     key: "status",
-    label: "Status",
+    label: "Statut",
     sortable: true,
     sortKey: "status",
     render: (customer) => <CustomerStatusBadge status={customer.status} />
   },
   {
     key: "updatedAt",
-    label: "Updated",
+    label: "Mis à jour",
     sortable: true,
     sortKey: "updatedAt",
     render: (customer) => <span className="text-slate-600 dark:text-slate-300">{formatShortDate(customer.updatedAt)}</span>
@@ -116,7 +116,7 @@ export function CustomersTable({
       selectedIds={selectedIds}
       sort={sort}
       subtitle="Vue commerciale centralisée du portefeuille client."
-      title="Customers"
+      title="Clients"
     />
   );
 }

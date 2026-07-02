@@ -14,10 +14,10 @@ export function CustomersPage() {
   return (
     <EntityPageLayout>
       <EntityHeader
-        breadcrumb={["CRM", "Customers"]}
-        title="Customers"
-        description="Un portefeuille client professionnel, prêt pour les futures vues Companies, Contacts, Activities et Notes."
-        meta={<InfoCard>Workspace actif : HicoPilot CRM</InfoCard>}
+        breadcrumb={["CRM", "Clients"]}
+        title="Clients"
+        description="Un portefeuille client professionnel, prêt pour les futures vues sociétés, contacts, activités et notes."
+        meta={<InfoCard>Espace actif : HicoPilot CRM</InfoCard>}
       />
 
       <EntityStatsCards

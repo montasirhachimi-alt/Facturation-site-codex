@@ -12,7 +12,7 @@ export function ContactDetailsHeader({ canWrite, company, contact }: { canWrite:
       <div className="border-b border-slate-200 bg-slate-50/70 px-5 py-3 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/40">
         <Link href={company ? `/crm/companies/${company.id}` : "/crm/companies"} className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 transition hover:text-hicotech-blue dark:text-slate-300">
           <ArrowLeft size={14} />
-          {company ? company.displayName : "Companies"}
+          {company ? company.displayName : "Sociétés"}
         </Link>
       </div>
       <div className="grid gap-6 p-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
@@ -24,8 +24,8 @@ export function ContactDetailsHeader({ canWrite, company, contact }: { canWrite:
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="font-display text-3xl font-bold text-hicotech-navy dark:text-white md:text-4xl">{contact.fullName}</h1>
               <ContactStatusBadge status={contact.status} />
-              {contact.isPrimaryContact && <Badge label="Primary Contact" />}
-              {contact.isDecisionMaker && <Badge label="Decision Maker" />}
+              {contact.isPrimaryContact && <Badge label="Contact principal" />}
+              {contact.isDecisionMaker && <Badge label="Décideur" />}
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-3 text-sm font-medium text-slate-500 dark:text-slate-300">
               <span>{contact.jobTitle ?? "Fonction non définie"}</span>
