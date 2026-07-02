@@ -120,7 +120,9 @@ export function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse
             <div className={clsx("space-y-1", isCollapsed && "border-t border-white/10 pt-3 first:border-t-0 first:pt-0")}>
               {group.items.map((item) => {
                 const Icon = sidebarIconMap[item.icon] ?? FileText;
-                const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+                const active = item.activePaths
+                  ? item.activePaths.some((path) => pathname === path || (path !== "/crm" && pathname.startsWith(`${path}/`)))
+                  : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
                 return (
                   <Link
@@ -137,7 +139,16 @@ export function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse
                     )}
                   >
                     <Icon size={19} />
-                    {!isCollapsed && <span className="truncate">{item.label}</span>}
+                    {!isCollapsed && (
+                      <>
+                        <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                        {item.badge && (
+                          <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold text-cyan-100/70">
+                            {item.badge}
+                          </span>
+                        )}
+                      </>
+                    )}
                   </Link>
                 );
               })}

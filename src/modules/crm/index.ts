@@ -11,5 +11,6 @@ export * as CrmCompanies from "./companies";
 export * as CrmContacts from "./contacts";
 export * as CrmCustomers from "./customers";
 export * as CrmMeetings from "./meetings";
+export * as CrmNotes from "./notes";
 export * as CrmShared from "./shared";
 export * as CrmTasks from "./tasks";

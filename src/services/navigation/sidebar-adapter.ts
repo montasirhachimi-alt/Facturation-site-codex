@@ -8,6 +8,8 @@ export type SidebarNavigationItem = {
   label: string;
   icon: string;
   module: string;
+  badge?: string;
+  activePaths?: string[];
 };
 
 export type SidebarNavigationGroup = {
@@ -36,6 +38,82 @@ const sidebarGroupLabels: Record<CoreModuleCategory, string> = {
   analytics: "Analytics",
   ai: "AI",
   system: "System"
+};
+
+const crmSidebarGroup: SidebarNavigationGroup = {
+  label: "CRM",
+  category: "business",
+  items: [
+    {
+      id: "crm",
+      href: "/crm",
+      label: "CRM",
+      icon: "ContactRound",
+      module: "clients",
+      activePaths: ["/crm"]
+    },
+    {
+      id: "crm.companies",
+      href: "/crm/companies",
+      label: "Companies",
+      icon: "Building2",
+      module: "clients",
+      activePaths: ["/crm/companies"]
+    },
+    {
+      id: "crm.customers",
+      href: "/clients",
+      label: "Customers",
+      icon: "Users",
+      module: "clients",
+      activePaths: ["/clients"]
+    },
+    {
+      id: "crm.contacts",
+      href: "/crm/companies",
+      label: "Contacts",
+      icon: "ContactRound",
+      module: "clients",
+      badge: "via société",
+      activePaths: []
+    },
+    {
+      id: "crm.activities",
+      href: "/crm/companies",
+      label: "Activities / Timeline",
+      icon: "ClipboardList",
+      module: "clients",
+      badge: "via société",
+      activePaths: []
+    },
+    {
+      id: "crm.meetings",
+      href: "/crm/companies",
+      label: "Meetings",
+      icon: "CalendarCheck",
+      module: "clients",
+      badge: "via contact",
+      activePaths: []
+    },
+    {
+      id: "crm.tasks",
+      href: "/crm/companies",
+      label: "Tasks",
+      icon: "ScrollText",
+      module: "clients",
+      badge: "via contact",
+      activePaths: []
+    },
+    {
+      id: "crm.notes",
+      href: "/crm/companies",
+      label: "Notes",
+      icon: "FileText",
+      module: "clients",
+      badge: "via contact",
+      activePaths: []
+    }
+  ]
 };
 
 const sidebarModuleOrder: Partial<Record<CoreModuleCategory, CoreModuleId[]>> = {
@@ -84,7 +162,7 @@ function getPermissionModule(item: ReturnType<NavigationService["getNavigationIt
 export function getSidebarGroups(navigationService = new NavigationService()): SidebarNavigationGroup[] {
   const navigationItems = navigationService.getNavigationItems();
 
-  return sidebarCategoryOrder
+  const registryGroups = sidebarCategoryOrder
     .map((category) => {
       const order = sidebarModuleOrder[category] ?? [];
       const items = order
@@ -105,4 +183,10 @@ export function getSidebarGroups(navigationService = new NavigationService()): S
       };
     })
     .filter((group) => group.items.length > 0);
+
+  return [
+    ...registryGroups.slice(0, 1),
+    crmSidebarGroup,
+    ...registryGroups.slice(1)
+  ];
 }

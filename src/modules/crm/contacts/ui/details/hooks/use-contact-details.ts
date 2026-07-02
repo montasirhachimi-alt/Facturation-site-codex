@@ -9,11 +9,14 @@ import { CompanyService } from "@/modules/crm/companies";
 import { CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
 import { MeetingService } from "@/modules/crm/meetings";
 import { CRM_MEETINGS_WORKSPACE_ID, CRM_MEETINGS_USER_ID, crmMeetingSeed } from "@/modules/crm/meetings/ui/meetings.seed";
+import { NoteService } from "@/modules/crm/notes";
+import { CRM_NOTES_WORKSPACE_ID, CRM_NOTES_USER_ID, crmNoteSeed } from "@/modules/crm/notes/ui/notes.seed";
 import { TaskService } from "@/modules/crm/tasks";
 import { CRM_TASKS_WORKSPACE_ID, CRM_TASKS_USER_ID, crmTaskSeed } from "@/modules/crm/tasks/ui/tasks.seed";
 import type { Activity, ActivityPriority, ActivityStatus, ActivityType } from "@/modules/crm/activities";
 import type { Company } from "@/modules/crm/companies";
 import type { Meeting, MeetingStatus, MeetingType } from "@/modules/crm/meetings";
+import type { Note, NoteVisibility } from "@/modules/crm/notes";
 import type { Task, TaskPriority, TaskStatus, TaskType } from "@/modules/crm/tasks";
 import { ContactService } from "../../../contact.service";
 import type { Contact, ContactId } from "../../../contact.types";
@@ -40,6 +43,12 @@ export type ContactTaskFilters = Readonly<{
   taskType: TaskType | "all";
   priority: TaskPriority | "all";
   status: TaskStatus | "all";
+  sortDirection: "asc" | "desc";
+}>;
+
+export type ContactNoteFilters = Readonly<{
+  query: string;
+  visibility: NoteVisibility | "all";
   sortDirection: "asc" | "desc";
 }>;
 
@@ -91,6 +100,18 @@ const taskPermissionService = new PermissionService(
   })
 );
 
+const notePermissionService = new PermissionService(
+  new PermissionEnforcement({
+    supportedModules: ["crm.note"],
+    rolePermissions: {
+      COMPANY_ADMIN: { "crm.note": ["read", "write"] },
+      SUPER_ADMIN: { "crm.note": ["read", "write"] },
+      SALES: { "crm.note": ["read", "write"] },
+      READ_ONLY: { "crm.note": ["read"] }
+    }
+  })
+);
+
 export function useContactDetails(contactId: string) {
   const [activeTab, setActiveTab] = useState<ContactDetailsTab>("overview");
   const [activityFilters, setActivityFilters] = useState<ContactActivityFilters>({
@@ -112,10 +133,16 @@ export function useContactDetails(contactId: string) {
     status: "all",
     sortDirection: "asc"
   });
+  const [noteFilters, setNoteFilters] = useState<ContactNoteFilters>({
+    query: "",
+    visibility: "all",
+    sortDirection: "desc"
+  });
   const [contactService] = useState(() => new ContactService({ seed: crmContactSeed }));
   const [companyService] = useState(() => new CompanyService({ seed: crmCompanySeed }));
   const [activityService] = useState(() => new ActivityService({ seed: crmActivitySeed }));
   const [meetingService] = useState(() => new MeetingService({ seed: crmMeetingSeed }));
+  const [noteService] = useState(() => new NoteService({ seed: crmNoteSeed }));
   const [taskService] = useState(() => new TaskService({ seed: crmTaskSeed }));
 
   const readDecision = useMemo(
@@ -164,6 +191,16 @@ export function useContactDetails(contactId: string) {
         { module: "crm.task", action: "read" },
         { id: "crm.contact.tasks", type: "widget", module: "crm.task", enabled: true },
         { role: "COMPANY_ADMIN", workspaceId: CRM_TASKS_WORKSPACE_ID, userId: CRM_TASKS_USER_ID }
+      ),
+    []
+  );
+
+  const noteReadDecision = useMemo(
+    () =>
+      notePermissionService.evaluateRequirement(
+        { module: "crm.note", action: "read" },
+        { id: "crm.contact.notes", type: "widget", module: "crm.note", enabled: true },
+        { role: "COMPANY_ADMIN", workspaceId: CRM_NOTES_WORKSPACE_ID, userId: CRM_NOTES_USER_ID }
       ),
     []
   );
@@ -259,7 +296,33 @@ export function useContactDetails(contactId: string) {
     ).tasks.filter((task) => base.some((item) => item.id === task.id));
   }, [contact, taskFilters, taskReadDecision, taskService]);
 
-  const summary = useMemo(() => buildContactSummary(activities, meetings, tasks), [activities, meetings, tasks]);
+  const notes = useMemo(() => {
+    if (!contact) return [];
+
+    const base = noteService.listNotes(
+      {
+        workspaceId: CRM_NOTES_WORKSPACE_ID,
+        contactId: contact.id,
+        visibility: noteFilters.visibility === "all" ? undefined : noteFilters.visibility,
+        permission: noteReadDecision
+      },
+      { field: "updatedAt", direction: noteFilters.sortDirection }
+    ).notes;
+
+    if (!noteFilters.query.trim()) return base;
+
+    return noteService.searchNotes(
+      {
+        workspaceId: CRM_NOTES_WORKSPACE_ID,
+        contactId: contact.id,
+        query: noteFilters.query,
+        permission: noteReadDecision
+      },
+      { field: "updatedAt", direction: noteFilters.sortDirection }
+    ).notes.filter((note) => base.some((item) => item.id === note.id));
+  }, [contact, noteFilters, noteReadDecision, noteService]);
+
+  const summary = useMemo(() => buildContactSummary(activities, meetings, tasks, notes), [activities, meetings, notes, tasks]);
 
   return {
     activities,
@@ -271,10 +334,13 @@ export function useContactDetails(contactId: string) {
     contact,
     meetingFilters,
     meetings,
+    noteFilters,
+    notes,
     readDecision,
     setActiveTab,
     setActivityFilters,
     setMeetingFilters,
+    setNoteFilters,
     setTaskFilters,
     summary,
     taskFilters,
@@ -283,10 +349,9 @@ export function useContactDetails(contactId: string) {
   };
 }
 
-function buildContactSummary(activities: readonly Activity[], meetings: readonly Meeting[], tasks: readonly Task[]) {
+function buildContactSummary(activities: readonly Activity[], meetings: readonly Meeting[], tasks: readonly Task[], notes: readonly Note[]) {
   const openActivities = activities.filter((activity) => activity.status === "open").length;
   const emails = activities.filter((activity) => activity.type === "email").length;
-  const notes = activities.filter((activity) => activity.type === "note").length;
   const lastInteraction = activities[0]?.performedAt;
 
   return {
@@ -294,7 +359,7 @@ function buildContactSummary(activities: readonly Activity[], meetings: readonly
     meetings: meetings.length,
     tasks: tasks.filter((task) => task.status !== "completed" && task.status !== "cancelled").length,
     emails,
-    notes,
+    notes: notes.length,
     lastInteraction: lastInteraction ? formatDate(lastInteraction) : "Aucune interaction"
   };
 }

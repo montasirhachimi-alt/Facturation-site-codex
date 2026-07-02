@@ -1178,7 +1178,7 @@ test("CRM Module Foundation exposes manifest capabilities permissions navigation
 });
 
 test("CRM Module Foundation remains platform-consumer only", () => {
-  const crmFiles = listFiles("src/modules/crm").filter((file) => !file.includes("/customers/") && !file.includes("/companies/") && !file.includes("/contacts/") && !file.includes("/activities/") && !file.includes("/meetings/") && !file.includes("/tasks/"));
+  const crmFiles = listFiles("src/modules/crm").filter((file) => !file.includes("/customers/") && !file.includes("/companies/") && !file.includes("/contacts/") && !file.includes("/activities/") && !file.includes("/meetings/") && !file.includes("/tasks/") && !file.includes("/notes/"));
   const forbiddenPatterns = [
     /from ["']react["']/,
     /from ["']react-dom["']/,
@@ -2076,6 +2076,138 @@ test("CRM Tasks Foundation has no Prisma API or platform runtime dependency", ()
     const source = read(file);
     for (const pattern of forbiddenPatterns) {
       assert(!pattern.test(source), `CRM Tasks foundation should not import forbidden dependency in ${file}.`);
+    }
+  }
+});
+
+test("CRM Notes Foundation creates validates lists and isolates workspaces relationships", () => {
+  const { NoteService } = load("src/modules/crm/notes");
+  let preparedActivity;
+  const service = new NoteService({
+    now: () => "2026-07-01T12:00:00.000Z",
+    createId: (() => {
+      let index = 0;
+      return () => `note_${index += 1}`;
+    })(),
+    createActivity: (input) => {
+      preparedActivity = input;
+      return undefined;
+    }
+  });
+
+  const first = service.createNote({
+    workspaceId: "workspace-a",
+    companyId: "company-a",
+    contactId: "contact-a",
+    meetingId: "meeting-a",
+    taskId: "task-a",
+    title: " Strategic context ",
+    content: "Important account notes",
+    authorId: "user-admin",
+    tags: ["Pinned", " pinned "]
+  });
+  service.createNote({ workspaceId: "workspace-a", companyId: "company-b", title: "Other company", content: "Other", authorId: "user-admin" });
+  service.createNote({ workspaceId: "workspace-b", companyId: "company-a", contactId: "contact-a", title: "Other workspace", content: "Other", authorId: "user-admin" });
+
+  const workspaceList = service.listNotes({ workspaceId: "workspace-a" });
+  const companyList = service.getNotesByCompany("company-a", "workspace-a");
+  const contactList = service.getNotesByContact("contact-a", "workspace-a");
+  const meetingList = service.getNotesByMeeting("meeting-a", "workspace-a");
+  const taskList = service.getNotesByTask("task-a", "workspace-a");
+
+  assert(first.validation.valid === true, "Note creation should return a valid structured result.");
+  assert(first.note.title === "Strategic context", "Note creation should normalize title values.");
+  assert(first.note.tags.length === 1 && first.note.tags[0] === "pinned", "Note creation should normalize tags.");
+  assert(Object.isFrozen(first.note), "Created notes should be immutable.");
+  assert(preparedActivity?.type === "note", "Note creation should prepare a note activity input.");
+  assert(workspaceList.notes.length === 2, "Note listing should stay scoped to the requested workspace.");
+  assert(companyList.notes.length === 1 && companyList.notes[0].companyId === "company-a", "Company note listing should stay scoped to one company.");
+  assert(contactList.notes.length === 1 && contactList.notes[0].contactId === "contact-a", "Contact note listing should stay scoped to one contact.");
+  assert(meetingList.notes.length === 1 && meetingList.notes[0].meetingId === "meeting-a", "Meeting note listing should stay scoped to one meeting.");
+  assert(taskList.notes.length === 1 && taskList.notes[0].taskId === "task-a", "Task note listing should stay scoped to one task.");
+});
+
+test("CRM Notes Foundation validates invalid input and permission denial", () => {
+  const { NoteService, validateCreateNoteInput } = load("src/modules/crm/notes");
+  const invalid = validateCreateNoteInput({
+    workspaceId: "",
+    companyId: "",
+    title: "",
+    content: "",
+    authorId: ""
+  });
+  const denied = new NoteService().createNote({
+    workspaceId: "workspace-a",
+    companyId: "company-a",
+    title: "Denied Note",
+    content: "Denied",
+    authorId: "user-admin",
+    permission: { allowed: false, reason: "denied_missing_permission", permission: { module: "crm.note", action: "write" }, resource: { id: "crm.note", type: "service" } }
+  });
+  const codes = invalid.issues.map((issue) => issue.code);
+
+  assert(invalid.valid === false, "Invalid note input should fail validation.");
+  assert(codes.includes("missing_workspace"), "Note validation should require workspace scope.");
+  assert(codes.includes("missing_company"), "Note validation should require company relationship.");
+  assert(codes.includes("missing_title"), "Note validation should require title.");
+  assert(codes.includes("missing_content"), "Note validation should require content.");
+  assert(codes.includes("missing_author"), "Note validation should require author.");
+  assert(denied.validation.issues.some((issue) => issue.code === "permission_denied"), "Note validation should accept permission decisions.");
+  assert(!denied.note, "Permission denied note creation should not create a note.");
+});
+
+test("CRM Notes Foundation supports update archive search filtering and sorting", () => {
+  const { NoteService } = load("src/modules/crm/notes");
+  const service = new NoteService({
+    now: (() => {
+      let index = 0;
+      const values = ["2026-07-01T12:00:00.000Z", "2026-07-01T12:05:00.000Z", "2026-07-01T12:10:00.000Z", "2026-07-01T12:15:00.000Z"];
+      return () => values[Math.min(index++, values.length - 1)];
+    })(),
+    createId: (() => {
+      let index = 0;
+      return () => `note_${index += 1}`;
+    })()
+  });
+  const zed = service.createNote({ workspaceId: "workspace-a", companyId: "company-a", contactId: "contact-a", title: "Zed Note", content: "Call later", visibility: "team", authorId: "user-admin" }).note;
+  const alpha = service.createNote({ workspaceId: "workspace-a", companyId: "company-a", contactId: "contact-a", meetingId: "meeting-a", taskId: "task-a", title: "Alpha Insight", content: "Important AI knowledge", visibility: "private", tags: ["important"], authorId: "user-admin" }).note;
+
+  const updated = service.updateNote({ id: zed.id, workspaceId: "workspace-a", title: "Zed Updated", content: "Updated content" });
+  const search = service.searchNotes({ workspaceId: "workspace-a", companyId: "company-a", contactId: "contact-a", query: "alpha" });
+  const filtered = service.listNotes({ workspaceId: "workspace-a", companyId: "company-a", contactId: "contact-a", meetingId: "meeting-a", taskId: "task-a", visibility: "private", tags: ["important"] });
+  const sorted = service.listNotes({ workspaceId: "workspace-a", companyId: "company-a" }, { field: "title", direction: "asc" });
+  const archived = service.archiveNote(alpha.id, "workspace-a");
+  const visibleAfterArchive = service.listNotes({ workspaceId: "workspace-a", companyId: "company-a" });
+
+  assert(updated.note.title === "Zed Updated" && Boolean(updated.activityInput), "Note update should update fields and prepare activity.");
+  assert(search.notes.length === 1 && search.notes[0].id === alpha.id, "Note search should match normalized note fields.");
+  assert(filtered.notes.length === 1 && filtered.notes[0].id === alpha.id, "Note filtering should use relationships and CRM shared filters.");
+  assert(sorted.notes[0].title === "Alpha Insight", "Note listing should support deterministic sorting.");
+  assert(Boolean(archived.note.archivedAt) && Boolean(archived.activityInput), "Note archive should set archivedAt and prepare activity.");
+  assert(visibleAfterArchive.notes.every((note) => !note.archivedAt), "Archived notes should be hidden by default.");
+});
+
+test("CRM Notes Foundation has no Prisma API or platform runtime dependency", () => {
+  const noteFiles = listFiles("src/modules/crm/notes").filter((file) => !file.includes("/ui/"));
+  const forbiddenPatterns = [
+    /from ["']react["']/,
+    /from ["']react-dom["']/,
+    /from ["']next\//,
+    /@\/components/,
+    /@\/providers/,
+    /@\/context/,
+    /@\/app/,
+    /@\/lib\/prisma/,
+    /@\/runtime\/plugins/,
+    /fetch\(/
+  ];
+
+  assert(noteFiles.every((file) => !file.endsWith(".tsx")), "CRM Notes foundation should not contain UI files.");
+
+  for (const file of noteFiles.filter((item) => item.endsWith(".ts"))) {
+    const source = read(file);
+    for (const pattern of forbiddenPatterns) {
+      assert(!pattern.test(source), `CRM Notes foundation should not import forbidden dependency in ${file}.`);
     }
   }
 });

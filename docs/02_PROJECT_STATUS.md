@@ -8,8 +8,8 @@
 | Version | Pre-Alpha |
 | Current Milestone | Milestone 3 — Business Suite |
 | Current Phase | Business Module Foundations |
-| Current Sprint | SPR-316 — CRM Tasks Foundation |
-| Next Sprint | SPR-317 — CRM Notes Foundation |
+| Current Sprint | SPR-317 — CRM Notes Foundation |
+| Next Sprint | SPR-318 — Company Notes Integration |
 | Repository Health | Builds successfully with one known existing image optimization warning. |
 
 ## Completed Core Engines
@@ -87,6 +87,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | CRM Contact Details Workspace exposes a contact-centric CRM workspace with overview, activities, inspector and Company navigation. | Completed |
 | CRM Meetings Foundation exposes meeting domain types, validation, utilities, in-memory service and Contact Workspace meeting integration. | Completed |
 | CRM Tasks Foundation exposes task domain types, validation, utilities, in-memory service and Contact Workspace task integration. | Completed |
+| CRM Notes Foundation exposes note domain types, validation, utilities, in-memory service and Contact Workspace notes integration. | Completed |
 | Core Search React UI is separated into Platform Search. | Completed |
 | Runtime validation checks Platform Events, event subscribers, Permission Enforcement, Permission Runtime Integration, Capability Registry, Manifest System, Module Loader, Plugin Runtime, CRM Module Foundation, CRM Customers Foundation, Preferences Runtime, Widget Runtime, Workspace Context and Platform Search separation. | Completed |
 
@@ -116,6 +117,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - CRM Contact Details Workspace uses seeded in-memory contact, company and activity data until CRM persistence is introduced.
 - CRM Meetings Foundation is in-memory only and prepares Activity entries without backend persistence or calendar integration.
 - CRM Tasks Foundation is in-memory only and prepares Activity entries without backend persistence or workflow automation.
+- CRM Notes Foundation is in-memory only and prepares Activity entries without backend persistence or AI knowledge indexing.
 - CRM Customers UI persists changes only in memory during the current browser session.
 - Enterprise UI Framework is young and should evolve only through concrete business module needs.
 - Documentation before SPR-207A was fragmented across several older files.
@@ -130,14 +132,15 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 ## UX Fixes
 
 - Workspace selector in the topbar is now interactive and opens an accessible placeholder dropdown with current workspace, upcoming workspace entries and workspace management actions. Real workspace switching remains intentionally unimplemented.
+- CRM is now visible from the main Sidebar with direct access to CRM, Companies and Customers, plus guided nested entries for Contacts, Timeline, Meetings, Tasks and Notes.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passing during SPR-316. |
-| `npm run build` | Yes | Passing during SPR-316 with the known existing `next/image` warning in PDF preview. |
-| `npm run validate:runtime` | Yes | Passing during SPR-316. |
+| `npm run typecheck` | Yes | Passing during SPR-317. |
+| `npm run build` | Yes | Passing during SPR-317 with the known existing `next/image` warning in PDF preview. |
+| `npm run validate:runtime` | Yes | Passing during SPR-317. |
 
 ## Repository Health
 
