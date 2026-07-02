@@ -14,5 +14,10 @@ export function ContactPlaceholderTab({ label }: { label: string }) {
 }
 
 function formatLabel(label: string) {
-  return label.charAt(0).toUpperCase() + label.slice(1);
+  const labels: Record<string, string> = {
+    emails: "Emails",
+    documents: "Documents",
+    settings: "Paramètres"
+  };
+  return labels[label] ?? label.charAt(0).toUpperCase() + label.slice(1);
 }

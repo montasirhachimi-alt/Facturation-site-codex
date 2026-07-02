@@ -5,6 +5,7 @@ import { UserRound } from "lucide-react";
 import { ContactActivitiesPanel } from "../widgets/contact-activities-panel";
 import { ContactMeetingsPanel } from "@/modules/crm/meetings/ui/contact-meetings-panel";
 import { ContactNotesPanel } from "@/modules/crm/notes/ui/contact-notes-panel";
+import { ContactOpportunitiesPanel } from "@/modules/crm/opportunities/ui/contact-opportunities-panel";
 import { ContactTasksPanel } from "@/modules/crm/tasks/ui/contact-tasks-panel";
 import { ContactDetailsHeader } from "../components/contact-details-header";
 import { ContactDetailsTabs } from "../components/contact-details-tabs";
@@ -44,8 +45,11 @@ export function ContactDetailsPage({ contactId }: { contactId: string }) {
           {state.activeTab === "overview" ? (
             <>
               <ContactOverview company={state.company} contact={state.contact} />
+              <ContactOpportunitiesPanel contactId={state.contact.id} />
               <ContactActivitiesPanel activities={state.activities} filters={state.activityFilters} onFiltersChange={state.setActivityFilters} />
             </>
+          ) : state.activeTab === "opportunities" ? (
+            <ContactOpportunitiesPanel contactId={state.contact.id} />
           ) : state.activeTab === "activities" ? (
             <ContactActivitiesPanel activities={state.activities} filters={state.activityFilters} onFiltersChange={state.setActivityFilters} />
           ) : state.activeTab === "meetings" ? (

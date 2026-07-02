@@ -14,12 +14,12 @@ export function ContactSummaryCards({
   }>;
 }) {
   const cards = [
-    { icon: Target, label: "Open Activities", value: String(summary.openActivities), helper: "Linked to this contact" },
-    { icon: CalendarClock, label: "Meetings", value: String(summary.meetings), helper: "Future meetings ready" },
-    { icon: MessageSquareText, label: "Tasks", value: String(summary.tasks), helper: "Follow-up actions" },
-    { icon: Mail, label: "Emails", value: String(summary.emails), helper: "Future email module" },
-    { icon: StickyNote, label: "Notes", value: String(summary.notes), helper: "Future notes module" },
-    { icon: Timer, label: "Last Interaction", value: summary.lastInteraction, helper: "From ActivityService" }
+    { icon: Target, label: "Activités ouvertes", value: String(summary.openActivities), helper: "Liées à ce contact" },
+    { icon: CalendarClock, label: "Réunions", value: String(summary.meetings), helper: "Workflow réunions actif" },
+    { icon: MessageSquareText, label: "Tâches", value: String(summary.tasks), helper: "Actions de suivi" },
+    { icon: Mail, label: "Emails", value: String(summary.emails), helper: "Module email futur" },
+    { icon: StickyNote, label: "Notes", value: String(summary.notes), helper: "Contexte commercial" },
+    { icon: Timer, label: "Dernière interaction", value: summary.lastInteraction, helper: "Depuis ActivityService" }
   ];
 
   return (

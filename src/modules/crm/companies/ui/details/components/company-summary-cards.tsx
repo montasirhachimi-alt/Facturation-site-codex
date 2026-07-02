@@ -2,14 +2,14 @@ import { BriefcaseBusiness, FileText, HandCoins, ReceiptText, ShoppingCart, Tren
 import { MetricCard } from "@/ui";
 
 const summaryCards = [
-  { icon: UsersRound, label: "Contacts", value: "0", helper: "Available in future module" },
-  { icon: UsersRound, label: "Customers", value: "0", helper: "Available in future module" },
-  { icon: BriefcaseBusiness, label: "Projects", value: "0", helper: "Available in future module" },
-  { icon: ReceiptText, label: "Invoices", value: "0", helper: "Available in future module" },
-  { icon: HandCoins, label: "Open opportunities", value: "0", helper: "Available in future module" },
-  { icon: FileText, label: "Open quotes", value: "0", helper: "Available in future module" },
-  { icon: ShoppingCart, label: "Open orders", value: "0", helper: "Available in future module" },
-  { icon: TrendingUp, label: "Revenue", value: "0 MAD", helper: "Placeholder revenue" }
+  { icon: UsersRound, label: "Contacts", value: "0", helper: "Disponibles via l'onglet Contacts" },
+  { icon: UsersRound, label: "Clients liés", value: "0", helper: "Module client connecté plus tard" },
+  { icon: BriefcaseBusiness, label: "Projets", value: "0", helper: "Module projets à venir" },
+  { icon: ReceiptText, label: "Factures", value: "0", helper: "Connexion facturation future" },
+  { icon: HandCoins, label: "Opportunités ouvertes", value: "Voir", helper: "Pipeline commercial préparé" },
+  { icon: FileText, label: "Devis ouverts", value: "0", helper: "Module devis à connecter" },
+  { icon: ShoppingCart, label: "Commandes ouvertes", value: "0", helper: "Sales Engine futur" },
+  { icon: TrendingUp, label: "Revenu", value: "0 MAD", helper: "Placeholder financier" }
 ];
 
 export function CompanySummaryCards() {

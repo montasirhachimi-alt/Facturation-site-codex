@@ -1178,7 +1178,7 @@ test("CRM Module Foundation exposes manifest capabilities permissions navigation
 });
 
 test("CRM Module Foundation remains platform-consumer only", () => {
-  const crmFiles = listFiles("src/modules/crm").filter((file) => !file.includes("/customers/") && !file.includes("/companies/") && !file.includes("/contacts/") && !file.includes("/activities/") && !file.includes("/meetings/") && !file.includes("/tasks/") && !file.includes("/notes/") && !file.includes("/home/"));
+  const crmFiles = listFiles("src/modules/crm").filter((file) => !file.includes("/customers/") && !file.includes("/companies/") && !file.includes("/contacts/") && !file.includes("/activities/") && !file.includes("/meetings/") && !file.includes("/tasks/") && !file.includes("/notes/") && !file.includes("/opportunities/") && !file.includes("/home/"));
   const forbiddenPatterns = [
     /from ["']react["']/,
     /from ["']react-dom["']/,
@@ -2208,6 +2208,138 @@ test("CRM Notes Foundation has no Prisma API or platform runtime dependency", ()
     const source = read(file);
     for (const pattern of forbiddenPatterns) {
       assert(!pattern.test(source), `CRM Notes foundation should not import forbidden dependency in ${file}.`);
+    }
+  }
+});
+
+test("CRM Opportunities Foundation creates validates lists and isolates sales relationships", () => {
+  const { OpportunityService } = load("src/modules/crm/opportunities");
+  let preparedActivity;
+  const service = new OpportunityService({
+    now: () => "2026-07-01T12:00:00.000Z",
+    createId: (() => {
+      let index = 0;
+      return () => `opp_${index += 1}`;
+    })(),
+    createActivity: (input) => {
+      preparedActivity = input;
+      return undefined;
+    }
+  });
+
+  const first = service.createOpportunity({
+    workspaceId: "workspace-a",
+    companyId: "company-a",
+    primaryContactId: "contact-a",
+    title: " Strategic deal ",
+    estimatedValue: { amount: 120000, currency: "MAD" },
+    ownerId: "user-admin",
+    tags: ["Sales", " sales "]
+  });
+  service.createOpportunity({ workspaceId: "workspace-a", companyId: "company-b", primaryContactId: "contact-b", title: "Other company", estimatedValue: { amount: 50000, currency: "MAD" }, ownerId: "user-admin" });
+  service.createOpportunity({ workspaceId: "workspace-b", companyId: "company-a", primaryContactId: "contact-a", title: "Other workspace", estimatedValue: { amount: 70000, currency: "MAD" }, ownerId: "user-admin" });
+
+  const workspaceList = service.listOpportunities({ workspaceId: "workspace-a" });
+  const companyList = service.listByCompany("company-a", "workspace-a");
+  const contactList = service.listByContact("contact-a", "workspace-a");
+
+  assert(first.validation.valid === true, "Opportunity creation should return a valid structured result.");
+  assert(first.opportunity.title === "Strategic deal", "Opportunity creation should normalize title values.");
+  assert(first.opportunity.tags.length === 1 && first.opportunity.tags[0] === "sales", "Opportunity creation should normalize tags.");
+  assert(first.opportunity.stage === "lead" && first.opportunity.status === "open", "Opportunity creation should apply pipeline defaults.");
+  assert(Object.isFrozen(first.opportunity), "Created opportunities should be immutable.");
+  assert(preparedActivity?.type === "system", "Opportunity creation should prepare an activity input.");
+  assert(workspaceList.opportunities.length === 2, "Opportunity listing should stay scoped to the requested workspace.");
+  assert(companyList.opportunities.length === 1 && companyList.opportunities[0].companyId === "company-a", "Company opportunity listing should stay scoped to one company.");
+  assert(contactList.opportunities.length === 1 && contactList.opportunities[0].primaryContactId === "contact-a", "Contact opportunity listing should stay scoped to one contact.");
+});
+
+test("CRM Opportunities Foundation validates invalid input and permission denial", () => {
+  const { OpportunityService, validateCreateOpportunityInput } = load("src/modules/crm/opportunities");
+  const invalid = validateCreateOpportunityInput({
+    workspaceId: "",
+    companyId: "",
+    primaryContactId: "",
+    title: "",
+    probability: 120,
+    estimatedValue: { amount: -1, currency: "MAD" },
+    ownerId: ""
+  });
+  const denied = new OpportunityService().createOpportunity({
+    workspaceId: "workspace-a",
+    companyId: "company-a",
+    primaryContactId: "contact-a",
+    title: "Denied Opportunity",
+    estimatedValue: { amount: 10000, currency: "MAD" },
+    ownerId: "user-admin",
+    permission: { allowed: false, reason: "denied_missing_permission", permission: { module: "crm.opportunity", action: "write" }, resource: { id: "crm.opportunity", type: "service" } }
+  });
+  const fields = invalid.issues.map((issue) => issue.field);
+
+  assert(invalid.valid === false, "Invalid opportunity input should fail validation.");
+  assert(fields.includes("workspaceId"), "Opportunity validation should require workspace scope.");
+  assert(fields.includes("companyId"), "Opportunity validation should require company relationship.");
+  assert(fields.includes("primaryContactId"), "Opportunity validation should require contact relationship.");
+  assert(fields.includes("title"), "Opportunity validation should require title.");
+  assert(fields.includes("probability"), "Opportunity validation should validate probability.");
+  assert(fields.includes("estimatedValue"), "Opportunity validation should validate estimated value.");
+  assert(fields.includes("ownerId"), "Opportunity validation should require owner.");
+  assert(denied.validation.issues.some((issue) => issue.field === "permission"), "Opportunity validation should accept permission decisions.");
+  assert(!denied.opportunity, "Permission denied opportunity creation should not create an opportunity.");
+});
+
+test("CRM Opportunities Foundation supports update archive search filtering and sorting", () => {
+  const { OpportunityService } = load("src/modules/crm/opportunities");
+  const service = new OpportunityService({
+    now: (() => {
+      let index = 0;
+      const values = ["2026-07-01T12:00:00.000Z", "2026-07-01T12:05:00.000Z", "2026-07-01T12:10:00.000Z", "2026-07-01T12:15:00.000Z"];
+      return () => values[Math.min(index++, values.length - 1)];
+    })(),
+    createId: (() => {
+      let index = 0;
+      return () => `opp_${index += 1}`;
+    })()
+  });
+  const alpha = service.createOpportunity({ workspaceId: "workspace-a", companyId: "company-a", primaryContactId: "contact-a", title: "Alpha Deal", stage: "proposal", priority: "high", probability: 60, estimatedValue: { amount: 120000, currency: "MAD" }, ownerId: "user-admin", tags: ["important"] }).opportunity;
+  const zed = service.createOpportunity({ workspaceId: "workspace-a", companyId: "company-a", primaryContactId: "contact-b", title: "Zed Deal", stage: "qualified", priority: "medium", estimatedValue: { amount: 80000, currency: "MAD" }, ownerId: "user-admin" }).opportunity;
+
+  const updated = service.updateOpportunity({ id: zed.id, workspaceId: "workspace-a", stage: "negotiation", probability: 72 });
+  const search = service.searchOpportunities({ workspaceId: "workspace-a", companyId: "company-a", query: "alpha" });
+  const filtered = service.listOpportunities({ workspaceId: "workspace-a", companyId: "company-a", contactId: "contact-a", stage: "proposal", priority: "high", tags: ["important"] });
+  const sorted = service.listOpportunities({ workspaceId: "workspace-a", companyId: "company-a" }, { field: "estimatedValue", direction: "desc" });
+  const archived = service.archiveOpportunity(alpha.id, "workspace-a");
+  const visibleAfterArchive = service.listOpportunities({ workspaceId: "workspace-a", companyId: "company-a" });
+
+  assert(updated.opportunity.stage === "negotiation" && updated.activityInput, "Opportunity update should update fields and prepare activity.");
+  assert(search.opportunities.length === 1 && search.opportunities[0].id === alpha.id, "Opportunity search should match normalized opportunity fields.");
+  assert(filtered.opportunities.length === 1 && filtered.opportunities[0].id === alpha.id, "Opportunity filtering should use relationships and CRM shared tags.");
+  assert(sorted.opportunities[0].id === alpha.id, "Opportunity listing should support deterministic value sorting.");
+  assert(Boolean(archived.opportunity.archivedAt) && Boolean(archived.activityInput), "Opportunity archive should set archivedAt and prepare activity.");
+  assert(visibleAfterArchive.opportunities.every((opportunity) => opportunity.status !== "archived"), "Archived opportunities should be hidden by default.");
+});
+
+test("CRM Opportunities Foundation has no Prisma API or platform runtime dependency", () => {
+  const opportunityFiles = listFiles("src/modules/crm/opportunities").filter((file) => !file.includes("/ui/"));
+  const forbiddenPatterns = [
+    /from ["']react["']/,
+    /from ["']react-dom["']/,
+    /from ["']next\//,
+    /@\/components/,
+    /@\/providers/,
+    /@\/context/,
+    /@\/app/,
+    /@\/lib\/prisma/,
+    /@\/runtime\/plugins/,
+    /fetch\(/
+  ];
+
+  assert(opportunityFiles.every((file) => !file.endsWith(".tsx")), "CRM Opportunities foundation should not contain UI files.");
+
+  for (const file of opportunityFiles.filter((item) => item.endsWith(".ts"))) {
+    const source = read(file);
+    for (const pattern of forbiddenPatterns) {
+      assert(!pattern.test(source), `CRM Opportunities foundation should not import forbidden dependency in ${file}.`);
     }
   }
 });

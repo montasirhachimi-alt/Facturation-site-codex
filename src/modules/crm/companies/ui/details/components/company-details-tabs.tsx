@@ -1,15 +1,16 @@
 import type { CompanyDetailsTab } from "../hooks/use-company-details";
 
 const tabs: Array<{ id: CompanyDetailsTab; label: string }> = [
-  { id: "overview", label: "Overview" },
+  { id: "overview", label: "Vue d'ensemble" },
   { id: "contacts", label: "Contacts" },
+  { id: "opportunities", label: "Opportunités" },
   { id: "customers", label: "Customers" },
-  { id: "sales", label: "Sales" },
-  { id: "projects", label: "Projects" },
-  { id: "invoices", label: "Invoices" },
-  { id: "activity", label: "Activity" },
+  { id: "sales", label: "Ventes" },
+  { id: "projects", label: "Projets" },
+  { id: "invoices", label: "Factures" },
+  { id: "activity", label: "Activité" },
   { id: "notes", label: "Notes" },
-  { id: "settings", label: "Settings" }
+  { id: "settings", label: "Paramètres" }
 ];
 
 export function CompanyDetailsTabs({

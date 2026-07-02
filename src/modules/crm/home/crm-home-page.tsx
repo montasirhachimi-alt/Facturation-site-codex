@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   ClipboardList,
   ContactRound,
+  HandCoins,
   MessageSquareText,
   NotebookPen,
   Plus,
@@ -25,6 +26,8 @@ import { MeetingService } from "../meetings";
 import { crmMeetingSeed } from "../meetings/ui/meetings.seed";
 import { NoteService } from "../notes";
 import { crmNoteSeed } from "../notes/ui/notes.seed";
+import { OpportunityService, formatOpportunityValue } from "../opportunities";
+import { crmOpportunitySeed } from "../opportunities/ui/opportunities.seed";
 import { TaskService } from "../tasks";
 import { crmTaskSeed } from "../tasks/ui/tasks.seed";
 
@@ -36,6 +39,7 @@ const activityService = new ActivityService({ seed: crmActivitySeed });
 const meetingService = new MeetingService({ seed: crmMeetingSeed });
 const taskService = new TaskService({ seed: crmTaskSeed });
 const noteService = new NoteService({ seed: crmNoteSeed });
+const opportunityService = new OpportunityService({ seed: crmOpportunitySeed });
 
 const companies = companyService.listCompanies({ workspaceId }).companies;
 const contacts = contactService.listContacts({ workspaceId }).contacts;
@@ -43,8 +47,10 @@ const activities = activityService.listActivities({ workspaceId }).activities;
 const meetings = meetingService.listMeetings({ workspaceId }).meetings;
 const tasks = taskService.listTasks({ workspaceId }).tasks;
 const notes = noteService.listNotes({ workspaceId }).notes;
+const opportunities = opportunityService.listOpportunities({ workspaceId }).opportunities;
 
 const openTasks = tasks.filter((task) => !["completed", "cancelled"].includes(task.status));
+const openOpportunities = opportunities.filter((opportunity) => opportunity.status === "open");
 const upcomingMeetings = meetings.filter((meeting) => ["planned", "confirmed"].includes(meeting.status));
 const primaryContacts = contacts.filter((contact) => contact.isPrimaryContact);
 const decisionMakers = contacts.filter((contact) => contact.isDecisionMaker);
@@ -55,7 +61,7 @@ export function CrmHomePage() {
       <EntityHeader
         breadcrumb={["CRM", "Vue d'ensemble CRM"]}
         title="Centre de relation client"
-        description="Pilotez vos sociétés, contacts, activités, réunions, tâches et notes depuis un espace CRM unifié."
+        description="Pilotez vos sociétés, contacts, opportunités, activités, réunions, tâches et notes depuis un espace CRM unifié."
         meta={
           <div className="flex flex-wrap items-center gap-2">
             <InfoCard>Workspace : HicoPilot CRM</InfoCard>
@@ -74,9 +80,10 @@ export function CrmHomePage() {
         <QuickAction href="/crm/companies" icon={NotebookPen} label="Nouvelle note" helper="Via une fiche contact" />
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6" aria-label="Indicateurs CRM">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7" aria-label="Indicateurs CRM">
         <MetricCard icon={Building2} label="Sociétés" value={String(companies.length)} helper="Données de démonstration" />
         <MetricCard icon={ContactRound} label="Contacts" value={String(contacts.length)} helper="Reliés aux sociétés" />
+        <MetricCard icon={HandCoins} label="Opportunités" value={String(openOpportunities.length)} helper={formatOpportunityValue(totalPipelineValue(openOpportunities))} />
         <MetricCard icon={CalendarCheck} label="Réunions" value={String(meetings.length)} helper={`${upcomingMeetings.length} à venir`} />
         <MetricCard icon={ClipboardList} label="Tâches ouvertes" value={String(openTasks.length)} helper="À traiter depuis les contacts" />
         <MetricCard icon={NotebookPen} label="Notes" value={String(notes.length)} helper="Base de connaissance CRM" />
@@ -128,6 +135,20 @@ export function CrmHomePage() {
 
       <div className="grid gap-5 xl:grid-cols-3">
         <SectionCard className="p-5">
+          <SectionTitle icon={HandCoins} title="Opportunités commerciales" description="Pipeline de démonstration préparé pour le Sales Engine." />
+          <div className="mt-5 space-y-3">
+            {openOpportunities.slice(0, 4).map((opportunity) => (
+              <CompactItem
+                key={opportunity.id}
+                title={opportunity.title}
+                description={`${formatOpportunityValue(opportunity.estimatedValue)} • ${opportunity.probability}%`}
+                badge={opportunityStageLabel(opportunity.stage)}
+              />
+            ))}
+          </div>
+        </SectionCard>
+
+        <SectionCard className="p-5">
           <SectionTitle icon={ClipboardList} title="Tâches ouvertes" description="Les prochaines actions CRM à suivre." />
           <div className="mt-5 space-y-3">
             {openTasks.slice(0, 4).map((task) => (
@@ -145,24 +166,6 @@ export function CrmHomePage() {
           </div>
         </SectionCard>
 
-        <SectionCard className="p-5">
-          <SectionTitle icon={Building2} title="Sociétés ajoutées récemment" description="Accédez au workspace société pour approfondir." />
-          <div className="mt-5 space-y-3">
-            {companies.slice(0, 4).map((company) => (
-              <Link
-                key={company.id}
-                href={`/crm/companies/${company.id}`}
-                className="group flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 transition hover:border-hicotech-blue/30 hover:bg-white focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:bg-slate-900/30 dark:hover:bg-hicotech-dark-card"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-hicotech-navy dark:text-white">{company.displayName}</p>
-                  <p className="text-xs font-medium text-slate-500 dark:text-slate-300">{company.city ?? "Ville non renseignée"} • {company.status}</p>
-                </div>
-                <ArrowRight size={16} className="text-slate-400 transition group-hover:text-hicotech-blue" />
-              </Link>
-            ))}
-          </div>
-        </SectionCard>
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[0.75fr_1.25fr]">
@@ -185,10 +188,29 @@ export function CrmHomePage() {
           <div className="mt-5 grid gap-3 md:grid-cols-3">
             <NavigationHint title="Sociétés" description="Point d'entrée central pour comptes, contacts et timeline." href="/crm/companies" />
             <NavigationHint title="Contacts" description="Ouvrez une société, puis l'onglet Contacts." href="/crm/companies" />
-            <NavigationHint title="Réunions, tâches, notes" description="Ouvrez une fiche contact depuis une société." href="/crm/companies" />
+            <NavigationHint title="Opportunités et actions" description="Ouvrez une société ou une fiche contact pour suivre le pipeline." href="/crm/companies" />
           </div>
         </SectionCard>
       </div>
+
+      <SectionCard className="p-5">
+        <SectionTitle icon={Building2} title="Sociétés ajoutées récemment" description="Accédez au workspace société pour approfondir." />
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {companies.slice(0, 4).map((company) => (
+            <Link
+              key={company.id}
+              href={`/crm/companies/${company.id}`}
+              className="group flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 transition hover:border-hicotech-blue/30 hover:bg-white focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:bg-slate-900/30 dark:hover:bg-hicotech-dark-card"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-hicotech-navy dark:text-white">{company.displayName}</p>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-300">{company.city ?? "Ville non renseignée"} • {company.status}</p>
+              </div>
+              <ArrowRight size={16} className="text-slate-400 transition group-hover:text-hicotech-blue" />
+            </Link>
+          ))}
+        </div>
+      </SectionCard>
     </EntityPageLayout>
   );
 }
@@ -343,4 +365,23 @@ function noteVisibilityLabel(visibility: string) {
     company: "Société"
   };
   return labels[visibility] ?? "Note";
+}
+
+function opportunityStageLabel(stage: string) {
+  const labels: Record<string, string> = {
+    lead: "Lead",
+    qualified: "Qualifiée",
+    proposal: "Proposition",
+    negotiation: "Négociation",
+    won: "Gagnée",
+    lost: "Perdue"
+  };
+  return labels[stage] ?? "Pipeline";
+}
+
+function totalPipelineValue(items: typeof openOpportunities) {
+  return {
+    amount: items.reduce((total, item) => total + item.estimatedValue.amount, 0),
+    currency: "MAD" as const
+  };
 }

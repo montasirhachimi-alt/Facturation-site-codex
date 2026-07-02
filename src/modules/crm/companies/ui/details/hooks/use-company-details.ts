@@ -7,7 +7,7 @@ import { CompanyService } from "../../../company.service";
 import type { CompanyId } from "../../../company.types";
 import { CRM_COMPANIES_USER_ID, CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "../../companies.seed";
 
-export type CompanyDetailsTab = "overview" | "contacts" | "customers" | "sales" | "projects" | "invoices" | "activity" | "notes" | "settings";
+export type CompanyDetailsTab = "overview" | "contacts" | "opportunities" | "customers" | "sales" | "projects" | "invoices" | "activity" | "notes" | "settings";
 
 const permissionService = new PermissionService(
   new PermissionEnforcement({

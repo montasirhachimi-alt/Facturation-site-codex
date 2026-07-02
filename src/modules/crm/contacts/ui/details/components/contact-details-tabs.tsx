@@ -2,14 +2,15 @@ import { clsx } from "clsx";
 import type { ContactDetailsTab } from "../hooks/use-contact-details";
 
 const tabs: Array<{ id: ContactDetailsTab; label: string }> = [
-  { id: "overview", label: "Overview" },
-  { id: "activities", label: "Activities" },
-  { id: "meetings", label: "Meetings" },
-  { id: "tasks", label: "Tasks" },
+  { id: "overview", label: "Vue d'ensemble" },
+  { id: "opportunities", label: "Opportunités" },
+  { id: "activities", label: "Activités" },
+  { id: "meetings", label: "Réunions" },
+  { id: "tasks", label: "Tâches" },
   { id: "emails", label: "Emails" },
   { id: "notes", label: "Notes" },
   { id: "documents", label: "Documents" },
-  { id: "settings", label: "Settings" }
+  { id: "settings", label: "Paramètres" }
 ];
 
 export function ContactDetailsTabs({ activeTab, onChange }: { activeTab: ContactDetailsTab; onChange: (tab: ContactDetailsTab) => void }) {

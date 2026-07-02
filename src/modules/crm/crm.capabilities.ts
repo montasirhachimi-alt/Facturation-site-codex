@@ -20,7 +20,9 @@ export const crmCapabilities = Object.freeze([
   defineCrmCapability("crm.task.read", "Read CRM Tasks", "crm.task", "read"),
   defineCrmCapability("crm.task.write", "Write CRM Tasks", "crm.task", "write"),
   defineCrmCapability("crm.note.read", "Read CRM Notes", "crm.note", "read"),
-  defineCrmCapability("crm.note.write", "Write CRM Notes", "crm.note", "write")
+  defineCrmCapability("crm.note.write", "Write CRM Notes", "crm.note", "write"),
+  defineCrmCapability("crm.opportunity.read", "Read CRM Opportunities", "crm.opportunity", "read"),
+  defineCrmCapability("crm.opportunity.write", "Write CRM Opportunities", "crm.opportunity", "write")
 ] satisfies PlatformCapabilityInput[]);
 
 function defineCrmCapability(id: string, name: string, module: string, action: "read" | "write"): PlatformCapabilityInput {
