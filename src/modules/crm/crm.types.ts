@@ -9,6 +9,7 @@ export type CrmRouteId =
   | "crm.contacts"
   | "crm.contact.details"
   | "crm.activities"
+  | "crm.opportunities"
   | "crm.notes";
 
 export type CrmNavigationItem = Readonly<{

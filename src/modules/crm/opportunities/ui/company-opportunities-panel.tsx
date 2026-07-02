@@ -49,7 +49,7 @@ export function CompanyOpportunitiesPanel({ companyId }: { companyId: CompanyId 
     <SectionCard className="p-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-hicotech-blue">Sales Engine</p>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-hicotech-blue">Moteur de ventes</p>
           <h2 className="mt-2 font-display text-lg font-bold text-hicotech-navy dark:text-white">Opportunités</h2>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-300">
             Pipeline commercial préparé pour relier cette société aux futurs devis, commandes et factures.
@@ -68,7 +68,7 @@ export function CompanyOpportunitiesPanel({ companyId }: { companyId: CompanyId 
           <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm dark:border-hicotech-dark-border dark:bg-slate-900/30">
             <p className="font-bold text-hicotech-navy dark:text-white">Aucune opportunité ouverte</p>
             <p className="mt-1 leading-6 text-slate-500 dark:text-slate-300">
-              Les opportunités seront créées depuis le futur workflow Sales Engine.
+              Les opportunités seront créées depuis le futur workflow commercial.
             </p>
           </div>
         )}

@@ -8,8 +8,8 @@
 | Version | Pre-Alpha |
 | Current Milestone | Milestone 3 — Business Suite |
 | Current Phase | Business Module Foundations |
-| Current Sprint | SPR-319A — Product Consistency & French Localization |
-| Next Sprint | SPR-320 — Opportunities Pipeline Workspace |
+| Current Sprint | SPR-320 — Sales Pipeline Workspace |
+| Next Sprint | SPR-321 — Opportunity Details Workspace |
 | Repository Health | Builds successfully with one known existing image optimization warning. |
 
 ## Completed Core Engines
@@ -91,6 +91,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | CRM Home Workspace replaces the generic `/crm` module fallback with a real French CRM landing workspace. | Completed |
 | Sales Opportunities Foundation introduces the first Sales Engine domain and exposes opportunities in CRM Home, Company Workspace and Contact Workspace. | Completed |
 | Product Consistency & French Localization standardizes visible CRM, Sidebar and Topbar terminology around French-first product language. | Completed |
+| Sales Pipeline Workspace exposes a professional `/crm/opportunities` Kanban-style pipeline and connects CRM Home, Sidebar, Company Workspace and Contact Workspace discovery. | Completed |
 | Core Search React UI is separated into Platform Search. | Completed |
 | Runtime validation checks Platform Events, event subscribers, Permission Enforcement, Permission Runtime Integration, Capability Registry, Manifest System, Module Loader, Plugin Runtime, CRM Module Foundation, CRM Customers Foundation, Preferences Runtime, Widget Runtime, Workspace Context and Platform Search separation. | Completed |
 
@@ -139,14 +140,15 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - CRM now opens a dedicated `/crm` workspace instead of the generic ERP module fallback, with French labels and guided access to connected CRM areas.
 - CRM now surfaces Opportunities as the first Sales Engine concept, improves French CRM wording and makes the pipeline discoverable from CRM Home, Company Workspace and Contact Workspace.
 - Visible CRM, Sidebar and Topbar copy has been polished toward French-first terminology, and a localization guide now defines official vocabulary for future sprints.
+- CRM now exposes a dedicated Opportunités entry and a professional visual sales pipeline at `/crm/opportunities`, with French labels and guided access from CRM Home.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passing during SPR-319. |
-| `npm run build` | Yes | Passing during SPR-319 with the known existing `next/image` warning in PDF preview. |
-| `npm run validate:runtime` | Yes | Passing during SPR-319. |
+| `npm run typecheck` | Yes | To run during SPR-320 completion. |
+| `npm run build` | Yes | To run during SPR-320 completion. |
+| `npm run validate:runtime` | Yes | To run during SPR-320 completion. |
 
 ## Repository Health
 

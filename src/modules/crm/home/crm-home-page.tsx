@@ -64,7 +64,7 @@ export function CrmHomePage() {
         description="Pilotez vos sociétés, contacts, opportunités, activités, réunions, tâches et notes depuis un espace CRM unifié."
         meta={
           <div className="flex flex-wrap items-center gap-2">
-            <InfoCard>Workspace : HicoPilot CRM</InfoCard>
+            <InfoCard>Espace : HicoPilot CRM</InfoCard>
             <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-200">
               CRM opérationnel
             </span>
@@ -77,7 +77,7 @@ export function CrmHomePage() {
         <QuickAction href="/crm/companies" icon={ContactRound} label="Nouveau contact" helper="Via une fiche société" />
         <QuickAction href="/crm/companies" icon={CalendarCheck} label="Planifier une réunion" helper="Via une fiche contact" />
         <QuickAction href="/crm/companies" icon={CheckCircle2} label="Nouvelle tâche" helper="Via une fiche contact" />
-        <QuickAction href="/crm/companies" icon={NotebookPen} label="Nouvelle note" helper="Via une fiche contact" />
+        <QuickAction href="/crm/opportunities" icon={HandCoins} label="Voir le pipeline" helper="Opportunités commerciales" />
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7" aria-label="Indicateurs CRM">
@@ -135,7 +135,7 @@ export function CrmHomePage() {
 
       <div className="grid gap-5 xl:grid-cols-3">
         <SectionCard className="p-5">
-          <SectionTitle icon={HandCoins} title="Opportunités commerciales" description="Pipeline de démonstration préparé pour le moteur de ventes." />
+          <SectionTitle icon={HandCoins} title="Pipeline commercial" description="Suivez les opportunités par étape, valeur et probabilité." />
           <div className="mt-5 space-y-3">
             {openOpportunities.slice(0, 4).map((opportunity) => (
               <CompactItem
@@ -146,6 +146,13 @@ export function CrmHomePage() {
               />
             ))}
           </div>
+          <Link
+            href="/crm/opportunities"
+            className="mt-5 inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-hicotech-blue transition hover:border-hicotech-blue/40 hover:bg-hicotech-sky focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:hover:bg-hicotech-blue/10"
+          >
+            Ouvrir le pipeline
+            <ArrowRight size={14} />
+          </Link>
         </SectionCard>
 
         <SectionCard className="p-5">
@@ -188,7 +195,7 @@ export function CrmHomePage() {
           <div className="mt-5 grid gap-3 md:grid-cols-3">
             <NavigationHint title="Sociétés" description="Point d'entrée central pour comptes, contacts et timeline." href="/crm/companies" />
             <NavigationHint title="Contacts" description="Ouvrez une société, puis l'onglet Contacts." href="/crm/companies" />
-            <NavigationHint title="Opportunités et actions" description="Ouvrez une société ou une fiche contact pour suivre le pipeline." href="/crm/companies" />
+            <NavigationHint title="Opportunités et actions" description="Ouvrez le pipeline pour suivre toutes les opportunités." href="/crm/opportunities" />
           </div>
         </SectionCard>
       </div>

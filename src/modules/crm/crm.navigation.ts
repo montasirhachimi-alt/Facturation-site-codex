@@ -15,6 +15,7 @@ export const crmNavigation = Object.freeze({
     { id: "crm.companies", label: "Sociétés", route: `${CRM_MODULE_ROUTE}/companies`, permission: "crm.company.read" },
     { id: "crm.contacts", label: "Contacts", route: `${CRM_MODULE_ROUTE}/contacts`, permission: "crm.contact.read" },
     { id: "crm.activities", label: "Activités", route: `${CRM_MODULE_ROUTE}/activities`, permission: "crm.activity.read" },
+    { id: "crm.opportunities", label: "Opportunités", route: `${CRM_MODULE_ROUTE}/opportunities`, permission: "crm.opportunity.read" },
     { id: "crm.notes", label: "Notes", route: `${CRM_MODULE_ROUTE}/notes`, permission: "crm.note.read" }
   ] satisfies CrmNavigationItem[])
 } satisfies CrmNavigationItem);

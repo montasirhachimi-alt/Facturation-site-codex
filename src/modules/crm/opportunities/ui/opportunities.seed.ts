@@ -78,5 +78,41 @@ export const crmOpportunitySeed = Object.freeze([
     tags: Object.freeze(["operations", "support"]),
     createdAt: "2026-06-20T13:00:00.000Z",
     updatedAt: "2026-07-02T08:45:00.000Z"
+  },
+  {
+    id: "opportunity-lumiere-maintenance" as OpportunityId,
+    workspaceId: CRM_OPPORTUNITIES_WORKSPACE_ID,
+    companyId: "company-lumiere" as CompanyId,
+    primaryContactId: "contact-sara-amrani" as ContactId,
+    title: "Maintenance équipements médicaux",
+    description: "Contrat annuel validé pour le support technique.",
+    stage: "won",
+    probability: 100,
+    estimatedValue: Object.freeze({ amount: 118000, currency: "MAD" }),
+    expectedCloseDate: "2026-07-01T00:00:00.000Z",
+    ownerId: CRM_OPPORTUNITIES_USER_ID,
+    status: "won",
+    priority: "high",
+    tags: Object.freeze(["sante", "maintenance"]),
+    createdAt: "2026-06-12T10:00:00.000Z",
+    updatedAt: "2026-07-01T15:20:00.000Z"
+  },
+  {
+    id: "opportunity-noor-finance" as OpportunityId,
+    workspaceId: CRM_OPPORTUNITIES_WORKSPACE_ID,
+    companyId: "company-noor" as CompanyId,
+    primaryContactId: "contact-nadia-bennani" as ContactId,
+    title: "Audit parc informatique",
+    description: "Opportunité perdue après arbitrage budgétaire.",
+    stage: "lost",
+    probability: 0,
+    estimatedValue: Object.freeze({ amount: 64000, currency: "MAD" }),
+    expectedCloseDate: "2026-07-03T00:00:00.000Z",
+    ownerId: CRM_OPPORTUNITIES_USER_ID,
+    status: "lost",
+    priority: "low",
+    tags: Object.freeze(["finance", "audit"]),
+    createdAt: "2026-06-10T09:30:00.000Z",
+    updatedAt: "2026-07-03T11:00:00.000Z"
   }
 ] satisfies readonly Opportunity[]);

@@ -69,6 +69,14 @@ const crmSidebarGroup: SidebarNavigationGroup = {
       activePaths: ["/clients"]
     },
     {
+      id: "crm.opportunities",
+      href: "/crm/opportunities",
+      label: "Opportunités",
+      icon: "HandCoins",
+      module: "clients",
+      activePaths: ["/crm/opportunities"]
+    },
+    {
       id: "crm.contacts",
       href: "/crm/companies",
       label: "Contacts",

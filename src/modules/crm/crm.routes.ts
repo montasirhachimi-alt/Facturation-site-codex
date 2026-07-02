@@ -8,6 +8,7 @@ export const crmRoutes = Object.freeze([
   defineRoute("crm.contacts", `${CRM_MODULE_ROUTE}/contacts`, "crm.contact.read", "Future CRM contacts route."),
   defineRoute("crm.contact.details", `${CRM_MODULE_ROUTE}/contacts/[contactId]`, "crm.contact.read", "CRM contact details workspace route."),
   defineRoute("crm.activities", `${CRM_MODULE_ROUTE}/activities`, "crm.activity.read", "Future CRM activities route."),
+  defineRoute("crm.opportunities", `${CRM_MODULE_ROUTE}/opportunities`, "crm.opportunity.read", "CRM sales pipeline workspace route."),
   defineRoute("crm.notes", `${CRM_MODULE_ROUTE}/notes`, "crm.note.read", "Future CRM notes route.")
 ] satisfies CrmRouteDefinition[]);
 

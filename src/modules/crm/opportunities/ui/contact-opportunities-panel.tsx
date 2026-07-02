@@ -48,7 +48,7 @@ export function ContactOpportunitiesPanel({ contactId }: { contactId: ContactId 
           <HandCoins size={19} />
         </div>
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-hicotech-blue">Sales Engine</p>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-hicotech-blue">Moteur de ventes</p>
           <h2 className="mt-1 font-display text-lg font-bold text-hicotech-navy dark:text-white">Opportunités liées</h2>
           <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-300">
             Premiers signaux commerciaux rattachés à ce contact.
@@ -75,7 +75,7 @@ export function ContactOpportunitiesPanel({ contactId }: { contactId: ContactId 
           <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm dark:border-hicotech-dark-border dark:bg-slate-900/30">
             <p className="font-bold text-hicotech-navy dark:text-white">Aucune opportunité liée</p>
             <p className="mt-1 leading-6 text-slate-500 dark:text-slate-300">
-              Les opportunités de ce contact seront visibles ici lorsque le workflow Sales sera activé.
+              Les opportunités de ce contact seront visibles ici lorsque le workflow commercial sera activé.
             </p>
           </div>
         )}
