@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, Building2, CalendarClock, FileText, HandCoins, NotebookPen } from "lucide-react";
 import { CompanyService } from "@/modules/crm/companies";
 import { CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
@@ -12,6 +13,7 @@ import type { QuoteId } from "../quote.types";
 import { formatQuoteMoney, getQuoteTotals } from "../quote.utils";
 import { SALES_QUOTES_WORKSPACE_ID, quoteSeed } from "../quotes.seed";
 import { QuoteStatusBadge } from "./quotes-workspace";
+import { invoiceService } from "@/modules/sales/invoices";
 
 const quoteService = new QuoteService({ seed: quoteSeed });
 const companyService = new CompanyService({ seed: crmCompanySeed });
@@ -22,6 +24,7 @@ const companyById = new Map(companies.map((company) => [company.id, company]));
 const opportunityById = new Map(opportunities.map((opportunity) => [opportunity.id, opportunity]));
 
 export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
+  const router = useRouter();
   const quote = quoteService.getQuote(quoteId as QuoteId, SALES_QUOTES_WORKSPACE_ID);
 
   if (!quote) {
@@ -32,9 +35,16 @@ export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
     );
   }
 
-  const totals = getQuoteTotals(quote);
-  const company = companyById.get(quote.companyId);
-  const opportunity = quote.opportunityId ? opportunityById.get(quote.opportunityId) : undefined;
+  const quoteValue = quote;
+  const totals = getQuoteTotals(quoteValue);
+  const company = companyById.get(quoteValue.companyId);
+  const opportunity = quoteValue.opportunityId ? opportunityById.get(quoteValue.opportunityId) : undefined;
+  const linkedInvoice = invoiceService.getInvoiceByQuote(quoteValue.id, quoteValue.workspaceId);
+
+  function createInvoice() {
+    const invoice = invoiceService.createFromQuote(quoteValue);
+    router.push(`/sales/invoices/${invoice.id}`);
+  }
 
   return (
     <EntityPageLayout>
@@ -46,6 +56,17 @@ export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
           <div className="flex flex-wrap items-center gap-2">
             <InfoCard>{quote.customerName}</InfoCard>
             <QuoteStatusBadge status={quote.status} />
+            {quote.status === "accepted" && (
+              linkedInvoice ? (
+                <Link href={`/sales/invoices/${linkedInvoice.id}`} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white">
+                  Facture créée
+                </Link>
+              ) : (
+                <button type="button" onClick={createInvoice} className="inline-flex items-center gap-2 rounded-lg bg-hicotech-blue px-3 py-2 text-xs font-bold text-white">
+                  Créer une facture
+                </button>
+              )
+            )}
             <Link href="/sales/quotes" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-hicotech-blue dark:border-hicotech-dark-border">
               <ArrowLeft size={14} />
               Retour aux devis

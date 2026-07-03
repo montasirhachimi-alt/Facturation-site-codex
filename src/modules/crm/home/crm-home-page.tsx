@@ -30,6 +30,7 @@ import { crmNoteSeed } from "../notes/ui/notes.seed";
 import { OpportunityService, formatOpportunityValue } from "../opportunities";
 import { crmOpportunitySeed } from "../opportunities/ui/opportunities.seed";
 import { QuoteService, formatQuoteMoney, getQuoteTotals, quoteSeed, SALES_QUOTES_WORKSPACE_ID } from "@/modules/sales/quotes";
+import { invoiceService, getInvoiceTotals } from "@/modules/sales/invoices";
 import { TaskService } from "../tasks";
 import { crmTaskSeed } from "../tasks/ui/tasks.seed";
 
@@ -52,6 +53,7 @@ const tasks = taskService.listTasks({ workspaceId }).tasks;
 const notes = noteService.listNotes({ workspaceId }).notes;
 const opportunities = opportunityService.listOpportunities({ workspaceId }).opportunities;
 const quotes = quoteService.listQuotes({ workspaceId: SALES_QUOTES_WORKSPACE_ID }).quotes;
+const invoices = invoiceService.listInvoices({ workspaceId: SALES_QUOTES_WORKSPACE_ID }).invoices;
 
 const openTasks = tasks.filter((task) => !["completed", "cancelled"].includes(task.status));
 const openOpportunities = opportunities.filter((opportunity) => opportunity.status === "open");
@@ -137,7 +139,7 @@ export function CrmHomePage() {
         </SectionCard>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-4">
+      <div className="grid gap-5 xl:grid-cols-5">
         <SectionCard className="p-5">
           <SectionTitle icon={HandCoins} title="Pipeline commercial" description="Suivez les opportunités par étape, valeur et probabilité." />
           <div className="mt-5 space-y-3">
@@ -194,6 +196,27 @@ export function CrmHomePage() {
             className="mt-5 inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-hicotech-blue transition hover:border-hicotech-blue/40 hover:bg-hicotech-sky focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:hover:bg-hicotech-blue/10"
           >
             Ouvrir les devis
+            <ArrowRight size={14} />
+          </Link>
+        </SectionCard>
+
+        <SectionCard className="p-5">
+          <SectionTitle icon={FileText} title="Factures récentes" description="Factures générées depuis les devis acceptés." />
+          <div className="mt-5 space-y-3">
+            {invoices.slice(0, 3).map((invoice) => {
+              const totals = getInvoiceTotals(invoice);
+              return (
+                <Link key={invoice.id} href={`/sales/invoices/${invoice.id}`} className="block">
+                  <CompactItem title={invoice.number} description={`${invoice.customerName} • ${formatQuoteMoney(totals.total, totals.currency)}`} badge="Facture" />
+                </Link>
+              );
+            })}
+          </div>
+          <Link
+            href="/sales/invoices"
+            className="mt-5 inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-hicotech-blue transition hover:border-hicotech-blue/40 hover:bg-hicotech-sky focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:hover:bg-hicotech-blue/10"
+          >
+            Ouvrir les factures
             <ArrowRight size={14} />
           </Link>
         </SectionCard>

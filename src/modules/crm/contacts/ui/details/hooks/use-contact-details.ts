@@ -22,7 +22,7 @@ import { ContactService } from "../../../contact.service";
 import type { Contact, ContactId } from "../../../contact.types";
 import { CRM_CONTACTS_USER_ID, CRM_CONTACTS_WORKSPACE_ID, crmContactSeed } from "../../contacts.seed";
 
-export type ContactDetailsTab = "overview" | "opportunities" | "quotes" | "activities" | "meetings" | "tasks" | "emails" | "notes" | "documents" | "settings";
+export type ContactDetailsTab = "overview" | "opportunities" | "quotes" | "invoices" | "activities" | "meetings" | "tasks" | "emails" | "notes" | "documents" | "settings";
 
 export type ContactActivityFilters = Readonly<{
   query: string;

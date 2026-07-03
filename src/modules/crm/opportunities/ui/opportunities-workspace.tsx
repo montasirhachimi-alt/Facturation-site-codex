@@ -28,6 +28,7 @@ import { formatOpportunityValue } from "../opportunity.utils";
 import { OPPORTUNITY_PRIORITY_LABELS, OPPORTUNITY_STAGE_LABELS, OPPORTUNITY_STAGES, OPPORTUNITY_STATUS_LABELS } from "../opportunity.constants";
 import { CRM_OPPORTUNITIES_WORKSPACE_ID, crmOpportunitySeed } from "./opportunities.seed";
 import { OpportunityQuoteAction } from "@/modules/sales/quotes/ui";
+import { invoiceService } from "@/modules/sales/invoices";
 
 const workspaceId = CRM_OPPORTUNITIES_WORKSPACE_ID;
 const opportunityService = new OpportunityService({ seed: crmOpportunitySeed });
@@ -218,6 +219,7 @@ function PipelineBoard({
 function OpportunityPipelineCard({ onSelect, opportunity, selected }: { onSelect: () => void; opportunity: Opportunity; selected: boolean }) {
   const company = companyById.get(opportunity.companyId);
   const contact = contactById.get(opportunity.primaryContactId);
+  const relatedInvoice = invoiceService.listInvoices({ workspaceId, includeArchived: true }).invoices.find((invoice) => invoice.opportunityId === opportunity.id);
 
   return (
     <button
@@ -247,6 +249,9 @@ function OpportunityPipelineCard({ onSelect, opportunity, selected }: { onSelect
       <div className="mt-4 flex flex-wrap gap-2">
         <Badge label={OPPORTUNITY_PRIORITY_LABELS[opportunity.priority]} tone={opportunity.priority} />
         <Badge label={OPPORTUNITY_STATUS_LABELS[opportunity.status]} />
+        {opportunity.status === "won" || opportunity.stage === "won" ? (
+          <Badge label={relatedInvoice ? "Facture créée" : "Facture en attente"} />
+        ) : null}
         {opportunity.tags.slice(0, 2).map((tag) => <Badge key={tag} label={tag} />)}
       </div>
       <div className="mt-4 flex items-center justify-between text-xs font-bold text-slate-400">
@@ -269,6 +274,7 @@ function PipelineInspector({ opportunity }: { opportunity?: Opportunity }) {
 
   const company = companyById.get(opportunity.companyId);
   const contact = contactById.get(opportunity.primaryContactId);
+  const relatedInvoice = invoiceService.listInvoices({ workspaceId, includeArchived: true }).invoices.find((invoice) => invoice.opportunityId === opportunity.id);
 
   return (
     <aside className="space-y-4">
@@ -283,6 +289,7 @@ function PipelineInspector({ opportunity }: { opportunity?: Opportunity }) {
           <InspectorRow label="Probabilité" value={`${opportunity.probability}%`} />
           <InspectorRow label="Responsable" value={opportunity.ownerId} />
           <InspectorRow label="Clôture attendue" value={opportunity.expectedCloseDate ? formatDate(opportunity.expectedCloseDate) : "À définir"} />
+          <InspectorRow label="Facturation" value={relatedInvoice ? `Facture créée : ${relatedInvoice.number}` : "Facture en attente"} href={relatedInvoice ? `/sales/invoices/${relatedInvoice.id}` : undefined} />
         </div>
         <div className="mt-5">
           <OpportunityQuoteAction opportunityId={opportunity.id} />

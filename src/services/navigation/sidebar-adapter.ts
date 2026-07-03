@@ -147,6 +147,15 @@ const salesQuotesSidebarItem: SidebarNavigationItem = {
   activePaths: ["/sales/quotes"]
 };
 
+const salesInvoicesSidebarItem: SidebarNavigationItem = {
+  id: "sales.invoices",
+  href: "/sales/invoices",
+  label: "Factures",
+  icon: "Receipt",
+  module: "invoices",
+  activePaths: ["/sales/invoices"]
+};
+
 function getPermissionModule(item: ReturnType<NavigationService["getNavigationItems"]>[number]) {
   return item.permissions.find((permission) => permission.action === "view")?.module ?? item.id;
 }
@@ -211,7 +220,8 @@ export function getSidebarGroups(navigationService = new NavigationService()): S
           ...group,
           items: [
             salesQuotesSidebarItem,
-            ...group.items.filter((item) => item.href !== "/devis")
+            salesInvoicesSidebarItem,
+            ...group.items.filter((item) => !["/devis", "/factures"].includes(item.href))
           ]
         }
       : group)

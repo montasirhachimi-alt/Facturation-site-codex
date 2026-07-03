@@ -8,6 +8,7 @@ import { ContactNotesPanel } from "@/modules/crm/notes/ui/contact-notes-panel";
 import { ContactOpportunitiesPanel } from "@/modules/crm/opportunities/ui/contact-opportunities-panel";
 import { ContactTasksPanel } from "@/modules/crm/tasks/ui/contact-tasks-panel";
 import { ContactQuotesPanel } from "@/modules/sales/quotes/ui";
+import { ContactInvoicesPanel } from "@/modules/sales/invoices/ui";
 import { ContactDetailsHeader } from "../components/contact-details-header";
 import { ContactDetailsTabs } from "../components/contact-details-tabs";
 import { ContactInspectorPanel } from "../components/contact-inspector-panel";
@@ -48,12 +49,15 @@ export function ContactDetailsPage({ contactId }: { contactId: string }) {
               <ContactOverview company={state.company} contact={state.contact} />
               <ContactOpportunitiesPanel contactId={state.contact.id} />
               <ContactQuotesPanel contactId={state.contact.id} />
+              <ContactInvoicesPanel contactId={state.contact.id} />
               <ContactActivitiesPanel activities={state.activities} filters={state.activityFilters} onFiltersChange={state.setActivityFilters} />
             </>
           ) : state.activeTab === "opportunities" ? (
             <ContactOpportunitiesPanel contactId={state.contact.id} />
           ) : state.activeTab === "quotes" ? (
             <ContactQuotesPanel contactId={state.contact.id} />
+          ) : state.activeTab === "invoices" ? (
+            <ContactInvoicesPanel contactId={state.contact.id} />
           ) : state.activeTab === "activities" ? (
             <ContactActivitiesPanel activities={state.activities} filters={state.activityFilters} onFiltersChange={state.setActivityFilters} />
           ) : state.activeTab === "meetings" ? (
