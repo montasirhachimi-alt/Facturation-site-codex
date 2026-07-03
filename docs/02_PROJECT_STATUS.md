@@ -8,7 +8,7 @@
 | Version | Pre-Alpha |
 | Current Milestone | Milestone 3 — Business Suite |
 | Current Phase | Business Module Foundations |
-| Current Sprint | SPR-322 — Quote → Invoice Workflow |
+| Current Sprint | SPR-322A — Sales Navigation Integration |
 | Next Sprint | SPR-323 — Payments Workflow Foundation |
 | Repository Health | Builds successfully with one known existing image optimization warning. |
 
@@ -94,6 +94,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | Sales Pipeline Workspace exposes a professional `/crm/opportunities` Kanban-style pipeline and connects CRM Home, Sidebar, Company Workspace and Contact Workspace discovery. | Completed |
 | Quotes Workspace exposes `/sales/quotes`, quote details, in-memory quote creation and CRM quote panels connected to companies, contacts and opportunities. | Completed |
 | Quote → Invoice Workflow exposes `/sales/invoices`, invoice details and one-click invoice generation from accepted quotes. | Completed |
+| Sales Navigation Integration exposes official Sales navigation metadata and renders Ventes → Devis / Factures from the sidebar adapter. | Completed |
 | Core Search React UI is separated into Platform Search. | Completed |
 | Runtime validation checks Platform Events, event subscribers, Permission Enforcement, Permission Runtime Integration, Capability Registry, Manifest System, Module Loader, Plugin Runtime, CRM Module Foundation, CRM Customers Foundation, Preferences Runtime, Widget Runtime, Workspace Context and Platform Search separation. | Completed |
 
@@ -147,14 +148,15 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - CRM now exposes a dedicated Opportunités entry and a professional visual sales pipeline at `/crm/opportunities`, with French labels and guided access from CRM Home.
 - Ventes now exposes a dedicated Devis workspace at `/sales/quotes`, with CRM Home recent quotes and company/contact quote panels.
 - Ventes now exposes Factures at `/sales/invoices`, and accepted quotes can generate invoices in one click.
+- The visible Sidebar now reads the official Sales navigation source, matching the CRM integration pattern.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | To run during SPR-322 completion. |
-| `npm run build` | Yes | To run during SPR-322 completion. |
-| `npm run validate:runtime` | Yes | To run during SPR-322 completion. |
+| `npm run typecheck` | Yes | To run during SPR-322A completion. |
+| `npm run build` | Yes | To run during SPR-322A completion. |
+| `npm run validate:runtime` | Yes | To run during SPR-322A completion. |
 
 ## Repository Health
 

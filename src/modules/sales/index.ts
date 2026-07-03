@@ -1,2 +1,10 @@
+export * from "./sales.capabilities";
+export * from "./sales.constants";
+export * from "./sales.manifest";
+export * from "./sales.module";
+export * from "./sales.navigation";
+export * from "./sales.permissions";
+export * from "./sales.routes";
+export * from "./sales.types";
 export * as SalesQuotes from "./quotes";
 export * as SalesInvoices from "./invoices";

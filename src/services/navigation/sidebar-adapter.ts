@@ -2,6 +2,8 @@ import type { CoreModuleCategory } from "@/core/constants";
 import type { CoreModuleId } from "@/core/registry";
 import { crmNavigation } from "@/modules/crm/crm.navigation";
 import type { CrmNavigationItem } from "@/modules/crm/crm.types";
+import { salesNavigation } from "@/modules/sales/sales.navigation";
+import type { SalesNavigationItem } from "@/modules/sales/sales.types";
 import { NavigationService } from "./NavigationService";
 
 export type SidebarNavigationItem = {
@@ -138,24 +140,6 @@ const sidebarLabels: Partial<Record<CoreModuleId, string>> = {
   settings: "Paramètres"
 };
 
-const salesQuotesSidebarItem: SidebarNavigationItem = {
-  id: "sales.quotes",
-  href: "/sales/quotes",
-  label: "Devis",
-  icon: "FileText",
-  module: "quotes",
-  activePaths: ["/sales/quotes"]
-};
-
-const salesInvoicesSidebarItem: SidebarNavigationItem = {
-  id: "sales.invoices",
-  href: "/sales/invoices",
-  label: "Factures",
-  icon: "Receipt",
-  module: "invoices",
-  activePaths: ["/sales/invoices"]
-};
-
 function getPermissionModule(item: ReturnType<NavigationService["getNavigationItems"]>[number]) {
   return item.permissions.find((permission) => permission.action === "view")?.module ?? item.id;
 }
@@ -187,6 +171,43 @@ function getCrmSidebarGroup(): SidebarNavigationGroup {
   };
 }
 
+const salesSidebarItemOverrides: Partial<Record<string, Partial<SidebarNavigationItem>>> = {
+  "sales.quotes": {
+    icon: "FileText",
+    module: "quotes",
+    activePaths: ["/sales/quotes"]
+  },
+  "sales.invoices": {
+    icon: "Receipt",
+    module: "invoices",
+    activePaths: ["/sales/invoices"]
+  }
+};
+
+function mapSalesNavigationItem(item: SalesNavigationItem): SidebarNavigationItem {
+  const override = salesSidebarItemOverrides[item.id] ?? {};
+
+  return {
+    id: item.id,
+    href: item.route,
+    label: item.label,
+    icon: "FileText",
+    module: "quotes",
+    activePaths: [item.route],
+    ...override
+  };
+}
+
+function getSalesSidebarGroup(): SidebarNavigationGroup {
+  const salesItems: readonly SalesNavigationItem[] = salesNavigation.children ?? [];
+
+  return {
+    label: salesNavigation.label,
+    category: "sales",
+    items: salesItems.map(mapSalesNavigationItem)
+  };
+}
+
 export function getSidebarGroups(navigationService = new NavigationService()): SidebarNavigationGroup[] {
   const navigationItems = navigationService.getNavigationItems();
 
@@ -215,15 +236,7 @@ export function getSidebarGroups(navigationService = new NavigationService()): S
   return [
     ...registryGroups.slice(0, 1),
     getCrmSidebarGroup(),
-    ...registryGroups.slice(1).map((group) => group.category === "sales"
-      ? {
-          ...group,
-          items: [
-            salesQuotesSidebarItem,
-            salesInvoicesSidebarItem,
-            ...group.items.filter((item) => !["/devis", "/factures"].includes(item.href))
-          ]
-        }
-      : group)
+    getSalesSidebarGroup(),
+    ...registryGroups.slice(1).filter((group) => group.category !== "sales")
   ];
 }
