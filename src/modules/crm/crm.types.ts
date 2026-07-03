@@ -12,8 +12,14 @@ export type CrmRouteId =
   | "crm.opportunities"
   | "crm.notes";
 
+export type CrmContextualNavigationId =
+  | "crm.meetings"
+  | "crm.tasks";
+
+export type CrmNavigationId = CrmRouteId | CrmContextualNavigationId;
+
 export type CrmNavigationItem = Readonly<{
-  id: CrmRouteId;
+  id: CrmNavigationId;
   label: string;
   route: string;
   permission: string;
