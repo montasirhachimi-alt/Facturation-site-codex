@@ -126,7 +126,7 @@ export function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse
 
                 return (
                   <Link
-                    key={item.href}
+                    key={item.id}
                     href={item.href as LinkProps<string>["href"]}
                     onClick={onCloseMobile}
                     title={isCollapsed ? item.label : undefined}

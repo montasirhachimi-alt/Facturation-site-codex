@@ -1,9 +1,6 @@
 import type { CoreModuleCategory } from "@/core/constants";
 import type { CoreModuleId } from "@/core/registry";
-import { crmNavigation } from "@/modules/crm/crm.navigation";
-import type { CrmNavigationItem } from "@/modules/crm/crm.types";
-import { salesNavigation } from "@/modules/sales/sales.navigation";
-import type { SalesNavigationItem } from "@/modules/sales/sales.types";
+import { getBusinessModules } from "@/modules/business-modules";
 import { NavigationService } from "./NavigationService";
 
 export type SidebarNavigationItem = {
@@ -21,6 +18,15 @@ export type SidebarNavigationGroup = {
   category: CoreModuleCategory;
   items: SidebarNavigationItem[];
 };
+
+type ModuleNavigationItem = Readonly<{
+  id: string;
+  label: string;
+  route: string;
+  permission: string;
+  children?: readonly ModuleNavigationItem[];
+  metadata?: Record<string, string | number | boolean | null | undefined>;
+}>;
 
 const sidebarCategoryOrder: CoreModuleCategory[] = [
   "home",
@@ -43,63 +49,6 @@ const sidebarGroupLabels: Record<CoreModuleCategory, string> = {
   ai: "AI",
   system: "Système"
 };
-
-const crmSidebarItemOverrides: Partial<Record<string, Partial<SidebarNavigationItem>>> = {
-  crm: {
-    icon: "ContactRound",
-    activePaths: ["/crm"]
-  },
-  "crm.companies": {
-    icon: "Building2",
-    activePaths: ["/crm/companies"]
-  },
-  "crm.customers": {
-    icon: "Users",
-    activePaths: ["/clients"]
-  },
-  "crm.opportunities": {
-    icon: "HandCoins",
-    activePaths: ["/crm/opportunities"]
-  },
-  "crm.contacts": {
-    icon: "ContactRound",
-    badge: "via société",
-    activePaths: []
-  },
-  "crm.activities": {
-    label: "Activités / Timeline",
-    icon: "ClipboardList",
-    badge: "via société",
-    activePaths: []
-  },
-  "crm.meetings": {
-    icon: "CalendarCheck",
-    badge: "via contact",
-    activePaths: []
-  },
-  "crm.tasks": {
-    icon: "ScrollText",
-    badge: "via contact",
-    activePaths: []
-  },
-  "crm.notes": {
-    icon: "FileText",
-    badge: "via contact",
-    activePaths: []
-  }
-};
-
-const crmSidebarOrder = [
-  "crm",
-  "crm.companies",
-  "crm.customers",
-  "crm.opportunities",
-  "crm.contacts",
-  "crm.activities",
-  "crm.meetings",
-  "crm.tasks",
-  "crm.notes"
-];
 
 const sidebarModuleOrder: Partial<Record<CoreModuleCategory, CoreModuleId[]>> = {
   home: ["dashboard"],
@@ -144,68 +93,63 @@ function getPermissionModule(item: ReturnType<NavigationService["getNavigationIt
   return item.permissions.find((permission) => permission.action === "view")?.module ?? item.id;
 }
 
-function mapCrmNavigationItem(item: CrmNavigationItem): SidebarNavigationItem {
-  const override = crmSidebarItemOverrides[item.id] ?? {};
-
-  return {
-    id: item.id,
-    href: item.route,
-    label: item.label,
-    icon: "FileText",
-    module: "clients",
-    activePaths: [item.route],
-    ...override
-  };
+function getMetadataString(
+  metadata: ModuleNavigationItem["metadata"] | undefined,
+  key: string,
+  fallback: string
+) {
+  const value = metadata?.[key];
+  return typeof value === "string" && value.length > 0 ? value : fallback;
 }
 
-function getCrmSidebarGroup(): SidebarNavigationGroup {
-  const crmItems: readonly CrmNavigationItem[] = [crmNavigation, ...(crmNavigation.children ?? [])];
-  const orderedItems = crmSidebarOrder
-    .map((id) => crmItems.find((item) => item.id === id))
-    .filter((item): item is CrmNavigationItem => Boolean(item));
-
-  return {
-    label: crmNavigation.label,
-    category: "business",
-    items: orderedItems.map(mapCrmNavigationItem)
-  };
+function getMetadataBadge(metadata: ModuleNavigationItem["metadata"] | undefined) {
+  const value = metadata?.badge;
+  return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
-const salesSidebarItemOverrides: Partial<Record<string, Partial<SidebarNavigationItem>>> = {
-  "sales.quotes": {
-    icon: "FileText",
-    module: "quotes",
-    activePaths: ["/sales/quotes"]
-  },
-  "sales.invoices": {
-    icon: "Receipt",
-    module: "invoices",
-    activePaths: ["/sales/invoices"]
+function getModuleCategory(moduleId: string): CoreModuleCategory {
+  if (moduleId === "crm") {
+    return "business";
   }
-};
 
-function mapSalesNavigationItem(item: SalesNavigationItem): SidebarNavigationItem {
-  const override = salesSidebarItemOverrides[item.id] ?? {};
+  if (moduleId === "sales") {
+    return "sales";
+  }
 
+  return "business";
+}
+
+function getActivePaths(item: ModuleNavigationItem) {
+  const activePath = item.metadata?.activePath;
+  const isContextual = item.metadata?.contextual === true;
+
+  if (typeof activePath === "string" && activePath.length > 0) {
+    return [activePath];
+  }
+
+  return isContextual ? [] : [item.route];
+}
+
+function mapBusinessNavigationItem(item: ModuleNavigationItem): SidebarNavigationItem {
   return {
     id: item.id,
     href: item.route,
     label: item.label,
-    icon: "FileText",
-    module: "quotes",
-    activePaths: [item.route],
-    ...override
+    icon: getMetadataString(item.metadata, "icon", "FileText"),
+    module: getMetadataString(item.metadata, "permissionModule", item.id),
+    badge: getMetadataBadge(item.metadata),
+    activePaths: getActivePaths(item)
   };
 }
 
-function getSalesSidebarGroup(): SidebarNavigationGroup {
-  const salesItems: readonly SalesNavigationItem[] = salesNavigation.children ?? [];
-
-  return {
-    label: salesNavigation.label,
-    category: "sales",
-    items: salesItems.map(mapSalesNavigationItem)
-  };
+function getBusinessModuleSidebarGroups(): SidebarNavigationGroup[] {
+  return getBusinessModules()
+    .map((moduleDefinition) => ({
+      label: moduleDefinition.navigation.label,
+      category: getModuleCategory(moduleDefinition.id),
+      items: (moduleDefinition.navigation.children ?? []).map(mapBusinessNavigationItem)
+    }))
+    .filter((group) => group.items.length > 0);
 }
 
 export function getSidebarGroups(navigationService = new NavigationService()): SidebarNavigationGroup[] {
@@ -235,8 +179,7 @@ export function getSidebarGroups(navigationService = new NavigationService()): S
 
   return [
     ...registryGroups.slice(0, 1),
-    getCrmSidebarGroup(),
-    getSalesSidebarGroup(),
+    ...getBusinessModuleSidebarGroups(),
     ...registryGroups.slice(1).filter((group) => group.category !== "sales")
   ];
 }
