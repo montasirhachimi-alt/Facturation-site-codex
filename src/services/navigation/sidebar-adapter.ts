@@ -138,6 +138,15 @@ const sidebarLabels: Partial<Record<CoreModuleId, string>> = {
   settings: "Paramètres"
 };
 
+const salesQuotesSidebarItem: SidebarNavigationItem = {
+  id: "sales.quotes",
+  href: "/sales/quotes",
+  label: "Devis",
+  icon: "FileText",
+  module: "quotes",
+  activePaths: ["/sales/quotes"]
+};
+
 function getPermissionModule(item: ReturnType<NavigationService["getNavigationItems"]>[number]) {
   return item.permissions.find((permission) => permission.action === "view")?.module ?? item.id;
 }
@@ -197,6 +206,14 @@ export function getSidebarGroups(navigationService = new NavigationService()): S
   return [
     ...registryGroups.slice(0, 1),
     getCrmSidebarGroup(),
-    ...registryGroups.slice(1)
+    ...registryGroups.slice(1).map((group) => group.category === "sales"
+      ? {
+          ...group,
+          items: [
+            salesQuotesSidebarItem,
+            ...group.items.filter((item) => item.href !== "/devis")
+          ]
+        }
+      : group)
   ];
 }

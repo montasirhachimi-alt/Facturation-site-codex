@@ -13,6 +13,7 @@ import {
   MessageSquareText,
   NotebookPen,
   Plus,
+  FileText,
   Users
 } from "lucide-react";
 import { EntityHeader, EntityPageLayout, InfoCard, MetricCard, SectionCard } from "@/ui";
@@ -28,6 +29,7 @@ import { NoteService } from "../notes";
 import { crmNoteSeed } from "../notes/ui/notes.seed";
 import { OpportunityService, formatOpportunityValue } from "../opportunities";
 import { crmOpportunitySeed } from "../opportunities/ui/opportunities.seed";
+import { QuoteService, formatQuoteMoney, getQuoteTotals, quoteSeed, SALES_QUOTES_WORKSPACE_ID } from "@/modules/sales/quotes";
 import { TaskService } from "../tasks";
 import { crmTaskSeed } from "../tasks/ui/tasks.seed";
 
@@ -40,6 +42,7 @@ const meetingService = new MeetingService({ seed: crmMeetingSeed });
 const taskService = new TaskService({ seed: crmTaskSeed });
 const noteService = new NoteService({ seed: crmNoteSeed });
 const opportunityService = new OpportunityService({ seed: crmOpportunitySeed });
+const quoteService = new QuoteService({ seed: quoteSeed });
 
 const companies = companyService.listCompanies({ workspaceId }).companies;
 const contacts = contactService.listContacts({ workspaceId }).contacts;
@@ -48,6 +51,7 @@ const meetings = meetingService.listMeetings({ workspaceId }).meetings;
 const tasks = taskService.listTasks({ workspaceId }).tasks;
 const notes = noteService.listNotes({ workspaceId }).notes;
 const opportunities = opportunityService.listOpportunities({ workspaceId }).opportunities;
+const quotes = quoteService.listQuotes({ workspaceId: SALES_QUOTES_WORKSPACE_ID }).quotes;
 
 const openTasks = tasks.filter((task) => !["completed", "cancelled"].includes(task.status));
 const openOpportunities = opportunities.filter((opportunity) => opportunity.status === "open");
@@ -133,7 +137,7 @@ export function CrmHomePage() {
         </SectionCard>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-3">
+      <div className="grid gap-5 xl:grid-cols-4">
         <SectionCard className="p-5">
           <SectionTitle icon={HandCoins} title="Pipeline commercial" description="Suivez les opportunités par étape, valeur et probabilité." />
           <div className="mt-5 space-y-3">
@@ -171,6 +175,27 @@ export function CrmHomePage() {
               <CompactItem key={note.id} title={note.title} description={note.content} badge={noteVisibilityLabel(note.visibility)} />
             ))}
           </div>
+        </SectionCard>
+
+        <SectionCard className="p-5">
+          <SectionTitle icon={FileText} title="Devis récents" description="Dernières propositions commerciales préparées." />
+          <div className="mt-5 space-y-3">
+            {quotes.slice(0, 3).map((quote) => {
+              const totals = getQuoteTotals(quote);
+              return (
+                <Link key={quote.id} href={`/sales/quotes/${quote.id}`} className="block">
+                  <CompactItem title={quote.number} description={`${quote.customerName} • ${formatQuoteMoney(totals.total, totals.currency)}`} badge="Devis" />
+                </Link>
+              );
+            })}
+          </div>
+          <Link
+            href="/sales/quotes"
+            className="mt-5 inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-hicotech-blue transition hover:border-hicotech-blue/40 hover:bg-hicotech-sky focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:hover:bg-hicotech-blue/10"
+          >
+            Ouvrir les devis
+            <ArrowRight size={14} />
+          </Link>
         </SectionCard>
 
       </div>

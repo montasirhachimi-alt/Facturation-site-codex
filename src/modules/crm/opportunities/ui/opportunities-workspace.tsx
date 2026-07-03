@@ -27,6 +27,7 @@ import type { Opportunity, OpportunityPriority, OpportunityStage, OpportunitySta
 import { formatOpportunityValue } from "../opportunity.utils";
 import { OPPORTUNITY_PRIORITY_LABELS, OPPORTUNITY_STAGE_LABELS, OPPORTUNITY_STAGES, OPPORTUNITY_STATUS_LABELS } from "../opportunity.constants";
 import { CRM_OPPORTUNITIES_WORKSPACE_ID, crmOpportunitySeed } from "./opportunities.seed";
+import { OpportunityQuoteAction } from "@/modules/sales/quotes/ui";
 
 const workspaceId = CRM_OPPORTUNITIES_WORKSPACE_ID;
 const opportunityService = new OpportunityService({ seed: crmOpportunitySeed });
@@ -282,6 +283,9 @@ function PipelineInspector({ opportunity }: { opportunity?: Opportunity }) {
           <InspectorRow label="Probabilité" value={`${opportunity.probability}%`} />
           <InspectorRow label="Responsable" value={opportunity.ownerId} />
           <InspectorRow label="Clôture attendue" value={opportunity.expectedCloseDate ? formatDate(opportunity.expectedCloseDate) : "À définir"} />
+        </div>
+        <div className="mt-5">
+          <OpportunityQuoteAction opportunityId={opportunity.id} />
         </div>
       </SectionCard>
 

@@ -4,6 +4,7 @@ import type { ContactDetailsTab } from "../hooks/use-contact-details";
 const tabs: Array<{ id: ContactDetailsTab; label: string }> = [
   { id: "overview", label: "Vue d'ensemble" },
   { id: "opportunities", label: "Opportunités" },
+  { id: "quotes", label: "Devis" },
   { id: "activities", label: "Activités" },
   { id: "meetings", label: "Réunions" },
   { id: "tasks", label: "Tâches" },

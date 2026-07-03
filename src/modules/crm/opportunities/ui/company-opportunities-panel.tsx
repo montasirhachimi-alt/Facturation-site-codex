@@ -11,6 +11,7 @@ import type { Opportunity } from "../opportunity.types";
 import { formatOpportunityValue } from "../opportunity.utils";
 import { OPPORTUNITY_STAGE_LABELS } from "../opportunity.constants";
 import { CRM_OPPORTUNITIES_USER_ID, CRM_OPPORTUNITIES_WORKSPACE_ID, crmOpportunitySeed } from "./opportunities.seed";
+import { OpportunityQuoteAction } from "@/modules/sales/quotes/ui";
 
 const permissionService = new PermissionService(
   new PermissionEnforcement({
@@ -99,6 +100,9 @@ function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
             <span>{formatDate(opportunity.expectedCloseDate)}</span>
           </>
         )}
+      </div>
+      <div className="mt-4">
+        <OpportunityQuoteAction opportunityId={opportunity.id} />
       </div>
     </article>
   );

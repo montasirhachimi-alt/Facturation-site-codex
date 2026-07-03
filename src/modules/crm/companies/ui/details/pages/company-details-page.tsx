@@ -5,6 +5,7 @@ import { Building2 } from "lucide-react";
 import { CompanyContactsWorkspace } from "@/modules/crm/contacts";
 import { CompanyActivityTimeline } from "@/modules/crm/activities/ui/company-activity-timeline";
 import { CompanyOpportunitiesPanel } from "@/modules/crm/opportunities/ui/company-opportunities-panel";
+import { CompanyQuotesPanel } from "@/modules/sales/quotes/ui";
 import { CompanyDetailsHeader } from "../components/company-details-header";
 import { CompanyDetailsTabs } from "../components/company-details-tabs";
 import { CompanyInspectorPanel } from "../components/company-inspector-panel";
@@ -59,6 +60,8 @@ export function CompanyDetailsPage({ companyId }: { companyId: string }) {
             <CompanyContactsWorkspace companyId={state.company.id} />
           ) : state.activeTab === "opportunities" ? (
             <CompanyOpportunitiesPanel companyId={state.company.id} />
+          ) : state.activeTab === "quotes" ? (
+            <CompanyQuotesPanel companyId={state.company.id} />
           ) : (
             <CompanyPlaceholderTab label={state.activeTab} />
           )}

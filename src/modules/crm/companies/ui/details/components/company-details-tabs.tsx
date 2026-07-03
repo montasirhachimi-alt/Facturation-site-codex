@@ -6,6 +6,7 @@ const tabs: Array<{ id: CompanyDetailsTab; label: string }> = [
   { id: "opportunities", label: "Opportunités" },
   { id: "customers", label: "Clients liés" },
   { id: "sales", label: "Ventes" },
+  { id: "quotes", label: "Devis" },
   { id: "projects", label: "Projets" },
   { id: "invoices", label: "Factures" },
   { id: "activity", label: "Activité" },
