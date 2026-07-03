@@ -8,7 +8,11 @@ export const crmNavigation = Object.freeze({
   permission: "crm.read",
   metadata: {
     module: "crm",
-    placement: "business-suite"
+    placement: "business-suite",
+    icon: "ContactRound",
+    permissionModule: "clients",
+    activePath: CRM_MODULE_ROUTE,
+    sidebarRoot: true
   },
   children: Object.freeze([
     {

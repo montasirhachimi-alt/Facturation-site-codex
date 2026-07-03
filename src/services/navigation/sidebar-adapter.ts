@@ -3,6 +3,8 @@ import type { CoreModuleId } from "@/core/registry";
 import { getBusinessModules } from "@/modules/business-modules";
 import { NavigationService } from "./NavigationService";
 
+type SidebarCategory = CoreModuleCategory | "stock";
+
 export type SidebarNavigationItem = {
   id: CoreModuleId;
   href: string;
@@ -15,7 +17,7 @@ export type SidebarNavigationItem = {
 
 export type SidebarNavigationGroup = {
   label: string;
-  category: CoreModuleCategory;
+  category: SidebarCategory;
   items: SidebarNavigationItem[];
 };
 
@@ -28,51 +30,54 @@ type ModuleNavigationItem = Readonly<{
   metadata?: Record<string, string | number | boolean | null | undefined>;
 }>;
 
-const sidebarCategoryOrder: CoreModuleCategory[] = [
-  "home",
-  "business",
-  "sales",
-  "finance",
-  "people",
-  "analytics",
-  "ai",
-  "system"
+const legacySidebarGroups: readonly Readonly<{
+  label: string;
+  category: SidebarCategory;
+  modules: readonly CoreModuleId[];
+}>[] = [
+  {
+    label: "Accueil",
+    category: "home",
+    modules: ["dashboard"]
+  },
+  {
+    label: "Stock",
+    category: "stock",
+    modules: ["products"]
+  },
+  {
+    label: "Finance",
+    category: "finance",
+    modules: ["cash", "payments", "purchases"]
+  },
+  {
+    label: "Équipe",
+    category: "people",
+    modules: ["employees", "contracts", "attendance", "absences", "leaves", "payroll", "advances", "hr_documents"]
+  },
+  {
+    label: "Analyse",
+    category: "analytics",
+    modules: ["statistics", "reports", "pdf"]
+  },
+  {
+    label: "IA",
+    category: "ai",
+    modules: ["ai_assistant"]
+  },
+  {
+    label: "Système",
+    category: "system",
+    modules: ["users", "settings"]
+  }
 ];
 
-const sidebarGroupLabels: Record<CoreModuleCategory, string> = {
-  home: "Accueil",
-  business: "Activité",
-  sales: "Ventes",
-  finance: "Finance",
-  people: "Équipe",
-  analytics: "Analyse",
-  ai: "AI",
-  system: "Système"
-};
-
-const sidebarModuleOrder: Partial<Record<CoreModuleCategory, CoreModuleId[]>> = {
-  home: ["dashboard"],
-  business: ["clients", "suppliers", "products"],
-  sales: ["documents", "quotes", "invoices", "delivery_notes"],
-  finance: ["purchases", "cash", "payments"],
-  people: ["employees", "contracts", "attendance", "absences", "leaves", "payroll", "advances", "hr_documents"],
-  analytics: ["statistics", "reports", "pdf"],
-  ai: ["ai_assistant"],
-  system: ["users", "settings"]
-};
-
-const sidebarLabels: Partial<Record<CoreModuleId, string>> = {
+const legacySidebarLabels: Partial<Record<CoreModuleId, string>> = {
   dashboard: "Tableau de bord",
-  clients: "Clients",
-  suppliers: "Fournisseurs",
   products: "Produits & stock",
-  documents: "Documents",
-  quotes: "Devis",
-  invoices: "Factures",
-  delivery_notes: "Bons de livraison",
-  purchases: "Achats",
   cash: "Caisse",
   payments: "Suivi paiements",
+  purchases: "Achats",
   employees: "Employés",
   contracts: "Contrats",
   attendance: "Présences",
@@ -107,7 +112,7 @@ function getMetadataBadge(metadata: ModuleNavigationItem["metadata"] | undefined
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
-function getModuleCategory(moduleId: string): CoreModuleCategory {
+function getModuleCategory(moduleId: string): SidebarCategory {
   if (moduleId === "crm") {
     return "business";
   }
@@ -142,12 +147,19 @@ function mapBusinessNavigationItem(item: ModuleNavigationItem): SidebarNavigatio
   };
 }
 
+function getBusinessModuleItems(moduleNavigation: ModuleNavigationItem) {
+  const includeRoot = moduleNavigation.metadata?.sidebarRoot === true;
+  const items = includeRoot ? [moduleNavigation, ...(moduleNavigation.children ?? [])] : moduleNavigation.children ?? [];
+
+  return items.map(mapBusinessNavigationItem);
+}
+
 function getBusinessModuleSidebarGroups(): SidebarNavigationGroup[] {
   return getBusinessModules()
     .map((moduleDefinition) => ({
       label: moduleDefinition.navigation.label,
       category: getModuleCategory(moduleDefinition.id),
-      items: (moduleDefinition.navigation.children ?? []).map(mapBusinessNavigationItem)
+      items: getBusinessModuleItems(moduleDefinition.navigation)
     }))
     .filter((group) => group.items.length > 0);
 }
@@ -155,31 +167,30 @@ function getBusinessModuleSidebarGroups(): SidebarNavigationGroup[] {
 export function getSidebarGroups(navigationService = new NavigationService()): SidebarNavigationGroup[] {
   const navigationItems = navigationService.getNavigationItems();
 
-  const registryGroups = sidebarCategoryOrder
-    .map((category) => {
-      const order = sidebarModuleOrder[category] ?? [];
-      const items = order
+  const registryGroups = legacySidebarGroups
+    .map((legacyGroup) => {
+      const items = legacyGroup.modules
         .map((moduleId) => navigationItems.find((item) => item.id === moduleId))
         .filter((item): item is NonNullable<typeof item> => Boolean(item))
         .map((item) => ({
           id: item.id,
           href: item.route,
-          label: sidebarLabels[item.id] ?? item.name,
+          label: legacySidebarLabels[item.id] ?? item.name,
           icon: item.icon,
           module: getPermissionModule(item)
         }));
 
       return {
-        label: sidebarGroupLabels[category],
-        category,
+        label: legacyGroup.label,
+        category: legacyGroup.category,
         items
       };
     })
     .filter((group) => group.items.length > 0);
 
-  return [
-    ...registryGroups.slice(0, 1),
-    ...getBusinessModuleSidebarGroups(),
-    ...registryGroups.slice(1).filter((group) => group.category !== "sales")
-  ];
+  const [homeGroup, ...remainingRegistryGroups] = registryGroups;
+
+  return [homeGroup, ...getBusinessModuleSidebarGroups(), ...remainingRegistryGroups].filter(
+    (group): group is SidebarNavigationGroup => Boolean(group)
+  );
 }

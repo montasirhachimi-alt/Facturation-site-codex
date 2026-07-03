@@ -95,6 +95,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | Quotes Workspace exposes `/sales/quotes`, quote details, in-memory quote creation and CRM quote panels connected to companies, contacts and opportunities. | Completed |
 | Quote → Invoice Workflow exposes `/sales/invoices`, invoice details and one-click invoice generation from accepted quotes. | Completed |
 | Sales Navigation Integration exposes official Sales navigation metadata and renders Ventes → Devis / Factures from the sidebar adapter. | Completed |
+| Sidebar Architecture Cleanup separates official business modules from legacy navigation groups and removes duplicated CRM/Sales sidebar entries. | Completed |
 | Core Search React UI is separated into Platform Search. | Completed |
 | Runtime validation checks Platform Events, event subscribers, Permission Enforcement, Permission Runtime Integration, Capability Registry, Manifest System, Module Loader, Plugin Runtime, CRM Module Foundation, CRM Customers Foundation, Preferences Runtime, Widget Runtime, Workspace Context and Platform Search separation. | Completed |
 
@@ -149,14 +150,15 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - Ventes now exposes a dedicated Devis workspace at `/sales/quotes`, with CRM Home recent quotes and company/contact quote panels.
 - Ventes now exposes Factures at `/sales/invoices`, and accepted quotes can generate invoices in one click.
 - The visible Sidebar now reads the official Sales navigation source, matching the CRM integration pattern.
+- The visible Sidebar now follows the official product structure: Accueil, CRM, Ventes, Stock, Finance, Équipe, Analyse, IA and Système, with CRM and Ventes driven by registered business modules.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | To run during SPR-322A completion. |
-| `npm run build` | Yes | To run during SPR-322A completion. |
-| `npm run validate:runtime` | Yes | To run during SPR-322A completion. |
+| `npm run typecheck` | Yes | Passed during SPR-322B completion. |
+| `npm run build` | Yes | Passed during SPR-322B completion. |
+| `npm run validate:runtime` | Yes | Passed during SPR-322B completion. |
 
 ## Repository Health
 
