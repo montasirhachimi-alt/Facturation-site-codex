@@ -67,7 +67,7 @@ export function CrmHomePage() {
       <EntityHeader
         breadcrumb={["CRM", "Vue d'ensemble CRM"]}
         title="Centre de relation client"
-        description="Pilotez vos sociétés, contacts, opportunités, activités, réunions, tâches et notes depuis un espace CRM unifié."
+        description="Pilotez vos sociétés, contacts, activités, réunions, tâches et notes depuis un espace CRM unifié."
         meta={
           <div className="flex flex-wrap items-center gap-2">
             <InfoCard>Espace : HicoPilot CRM</InfoCard>
@@ -83,13 +83,13 @@ export function CrmHomePage() {
         <QuickAction href="/crm/companies" icon={ContactRound} label="Nouveau contact" helper="Via une fiche société" />
         <QuickAction href="/crm/companies" icon={CalendarCheck} label="Planifier une réunion" helper="Via une fiche contact" />
         <QuickAction href="/crm/companies" icon={CheckCircle2} label="Nouvelle tâche" helper="Via une fiche contact" />
-        <QuickAction href="/crm/opportunities" icon={HandCoins} label="Voir le pipeline" helper="Opportunités commerciales" />
+        <QuickAction href="/crm/opportunities" icon={HandCoins} label="Pipeline commercial" helper="Espace Ventes" />
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7" aria-label="Indicateurs CRM">
         <MetricCard icon={Building2} label="Sociétés" value={String(companies.length)} helper="Données de démonstration" />
         <MetricCard icon={ContactRound} label="Contacts" value={String(contacts.length)} helper="Reliés aux sociétés" />
-        <MetricCard icon={HandCoins} label="Opportunités" value={String(openOpportunities.length)} helper={formatOpportunityValue(totalPipelineValue(openOpportunities))} />
+        <MetricCard icon={HandCoins} label="Pipeline commercial" value={String(openOpportunities.length)} helper={formatOpportunityValue(totalPipelineValue(openOpportunities))} />
         <MetricCard icon={CalendarCheck} label="Réunions" value={String(meetings.length)} helper={`${upcomingMeetings.length} à venir`} />
         <MetricCard icon={ClipboardList} label="Tâches ouvertes" value={String(openTasks.length)} helper="À traiter depuis les contacts" />
         <MetricCard icon={NotebookPen} label="Notes" value={String(notes.length)} helper="Base de connaissance CRM" />
@@ -243,7 +243,7 @@ export function CrmHomePage() {
           <div className="mt-5 grid gap-3 md:grid-cols-3">
             <NavigationHint title="Sociétés" description="Point d'entrée central pour comptes, contacts et timeline." href="/crm/companies" />
             <NavigationHint title="Contacts" description="Ouvrez une société, puis l'onglet Contacts." href="/crm/companies" />
-            <NavigationHint title="Opportunités et actions" description="Ouvrez le pipeline pour suivre toutes les opportunités." href="/crm/opportunities" />
+            <NavigationHint title="Pipeline commercial" description="Ouvrez l'espace Ventes pour suivre toutes les opportunités." href="/crm/opportunities" />
           </div>
         </SectionCard>
       </div>

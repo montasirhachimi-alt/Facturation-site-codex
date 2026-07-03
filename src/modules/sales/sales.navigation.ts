@@ -11,6 +11,13 @@ export const salesNavigation = Object.freeze({
   },
   children: Object.freeze([
     {
+      id: "sales.pipeline",
+      label: "Pipeline commercial",
+      route: "/crm/opportunities",
+      permission: "crm.opportunity.read",
+      metadata: { icon: "HandCoins", permissionModule: "clients", activePath: "/crm/opportunities" }
+    },
+    {
       id: "sales.quotes",
       label: "Devis",
       route: "/sales/quotes",

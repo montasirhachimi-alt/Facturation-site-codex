@@ -1173,8 +1173,20 @@ test("CRM Module Foundation exposes manifest capabilities permissions navigation
   assert(capabilityIds.includes("crm.note.write"), "CRM module should expose note write capability.");
   assert(permissionKeys.includes("crm.customer.read"), "CRM module should expose customer read permission.");
   assert(permissionKeys.includes("crm.note.write"), "CRM module should expose note write permission.");
-  assert(crmModule.navigation.children.length === 8, "CRM navigation should prepare eight child placeholders.");
+  assert(crmModule.navigation.children.length === 7, "CRM navigation should prepare seven CRM child entries.");
+  assert(crmModule.navigation.metadata.sidebarLabel === "Vue d'ensemble", "CRM navigation should expose a non-duplicated sidebar root label.");
+  assert(!crmModule.navigation.children.some((item) => item.id === "crm.opportunities"), "CRM navigation should not duplicate the Sales pipeline entry.");
   assert(crmModule.routes.every((route) => route.lazy), "CRM routes should be lazy-load-ready placeholders.");
+});
+
+test("Sales Navigation exposes commercial pipeline without changing the route", () => {
+  const { salesModule } = load("src/modules/sales");
+  const salesNavigationIds = salesModule.navigation.children.map((item) => item.id);
+  const pipelineItem = salesModule.navigation.children.find((item) => item.id === "sales.pipeline");
+
+  assert(salesNavigationIds[0] === "sales.pipeline", "Sales navigation should expose Pipeline commercial before quotes and invoices.");
+  assert(pipelineItem?.label === "Pipeline commercial", "Sales pipeline navigation should use French commercial wording.");
+  assert(pipelineItem?.route === "/crm/opportunities", "Sales pipeline navigation should preserve the existing opportunities route.");
 });
 
 test("CRM Module Foundation remains platform-consumer only", () => {

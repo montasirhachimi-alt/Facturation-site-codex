@@ -12,6 +12,7 @@ export const crmNavigation = Object.freeze({
     icon: "ContactRound",
     permissionModule: "clients",
     activePath: CRM_MODULE_ROUTE,
+    sidebarLabel: "Vue d'ensemble",
     sidebarRoot: true
   },
   children: Object.freeze([
@@ -28,13 +29,6 @@ export const crmNavigation = Object.freeze({
       route: "/clients",
       permission: "crm.customer.read",
       metadata: { icon: "Users", permissionModule: "clients", activePath: "/clients" }
-    },
-    {
-      id: "crm.opportunities",
-      label: "Opportunités",
-      route: `${CRM_MODULE_ROUTE}/opportunities`,
-      permission: "crm.opportunity.read",
-      metadata: { icon: "HandCoins", permissionModule: "clients", activePath: `${CRM_MODULE_ROUTE}/opportunities` }
     },
     {
       id: "crm.contacts",

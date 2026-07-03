@@ -69,7 +69,7 @@ export function OpportunitiesWorkspace() {
   return (
     <EntityPageLayout>
       <EntityHeader
-        breadcrumb={["CRM", "Opportunités"]}
+        breadcrumb={["Ventes", "Pipeline commercial"]}
         title="Pipeline commercial"
         description="Suivez les opportunités depuis le premier signal jusqu'à la conclusion commerciale."
         meta={
@@ -79,7 +79,7 @@ export function OpportunitiesWorkspace() {
               href="/crm"
               className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-hicotech-navy transition hover:border-hicotech-blue/30 hover:bg-hicotech-sky focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white"
             >
-              Vue CRM
+              Vue d&apos;ensemble CRM
               <ArrowRight size={14} />
             </Link>
           </div>

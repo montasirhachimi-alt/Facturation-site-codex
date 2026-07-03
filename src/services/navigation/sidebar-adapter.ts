@@ -139,7 +139,7 @@ function mapBusinessNavigationItem(item: ModuleNavigationItem): SidebarNavigatio
   return {
     id: item.id,
     href: item.route,
-    label: item.label,
+    label: getMetadataString(item.metadata, "sidebarLabel", item.label),
     icon: getMetadataString(item.metadata, "icon", "FileText"),
     module: getMetadataString(item.metadata, "permissionModule", item.id),
     badge: getMetadataBadge(item.metadata),
