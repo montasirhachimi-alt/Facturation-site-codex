@@ -72,7 +72,7 @@ function InfoRows({ rows }: { rows: Array<[string, string, React.ComponentType<{
   return (
     <dl className="mt-5 space-y-3">
       {rows.map(([label, value, Icon]) => (
-        <div key={label} className="flex items-start justify-between gap-4 rounded-xl border border-slate-100 bg-white px-4 py-3 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/40">
+        <div key={label} className="flex items-start justify-between gap-4 rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/40">
           <dt className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-slate-400">
             <Icon size={15} />
             {label}

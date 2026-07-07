@@ -13,7 +13,7 @@ const columns: Array<EntityTableColumn<Customer, CustomerSortKey>> = [
     sortKey: "displayName",
     render: (customer) => (
       <div className="flex items-center gap-3">
-        <div className="grid size-10 place-items-center rounded-lg bg-hicotech-navy text-sm font-bold text-white dark:bg-hicotech-blue">
+        <div className="grid size-11 place-items-center rounded-xl bg-hicotech-navy text-sm font-bold text-white shadow-sm shadow-slate-300/60 dark:bg-hicotech-blue dark:shadow-none">
           {customer.displayName.slice(0, 2).toUpperCase()}
         </div>
         <div>
@@ -106,7 +106,7 @@ export function CustomersTable({
           <EntityActionButton icon={<Archive size={16} />} label="Archiver" disabled={!canEdit} onClick={() => onArchive(customer)} danger />
           <button
             type="button"
-            className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:bg-hicotech-cloud dark:border-hicotech-dark-border dark:text-slate-300 dark:hover:bg-hicotech-dark-page"
+            className="rounded-xl border border-slate-200 p-2 text-slate-500 transition hover:border-hicotech-blue/30 hover:bg-hicotech-sky/50 dark:border-hicotech-dark-border dark:text-slate-300 dark:hover:bg-hicotech-dark-page"
             aria-label="Plus d'actions"
           >
             <MoreHorizontal size={16} />

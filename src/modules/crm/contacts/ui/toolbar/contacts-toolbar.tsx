@@ -40,12 +40,12 @@ export function ContactsToolbar({
     <EntityToolbar
       actions={
         <>
-          <button type="button" onClick={onRefresh} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-hicotech-navy transition hover:bg-hicotech-cloud dark:border-hicotech-dark-border dark:bg-hicotech-dark-page dark:text-white">
+          <button type="button" onClick={onRefresh} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-hicotech-navy transition hover:border-hicotech-blue/30 hover:bg-hicotech-sky/50 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page dark:text-white">
             <RefreshCw size={16} />
             Actualiser
           </button>
           {canCreate && (
-            <button type="button" onClick={onCreate} className="inline-flex items-center gap-2 rounded-lg bg-hicotech-blue px-3 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-blue-600">
+            <button type="button" onClick={onCreate} className="inline-flex items-center gap-2 rounded-xl bg-hicotech-blue px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-blue-200/60 transition hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-200/70">
               <Plus size={16} />
               Ajouter contact
             </button>

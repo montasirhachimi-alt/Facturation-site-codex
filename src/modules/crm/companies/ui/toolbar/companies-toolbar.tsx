@@ -49,16 +49,16 @@ export function CompaniesToolbar({
     <EntityToolbar
       actions={
         <>
-          <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-bold text-hicotech-navy dark:border-hicotech-dark-border dark:text-white">
+          <button type="button" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-hicotech-navy transition hover:border-hicotech-blue/30 hover:bg-hicotech-sky/50 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page dark:text-white">
             <Filter size={16} />
             Filtres
           </button>
-          <button type="button" onClick={onRefresh} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-bold text-hicotech-navy transition hover:bg-hicotech-cloud dark:border-hicotech-dark-border dark:text-white dark:hover:bg-hicotech-dark-page">
+          <button type="button" onClick={onRefresh} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-hicotech-navy transition hover:border-hicotech-blue/30 hover:bg-hicotech-sky/50 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page dark:text-white">
             <RefreshCcw size={16} />
             Actualiser
           </button>
           {canCreate && (
-            <button type="button" onClick={onCreate} className="inline-flex items-center gap-2 rounded-lg bg-hicotech-blue px-4 py-2.5 text-sm font-bold text-white shadow-soft transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/20">
+            <button type="button" onClick={onCreate} className="inline-flex items-center gap-2 rounded-xl bg-hicotech-blue px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-blue-200/60 transition hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-200/70 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/20">
               <Plus size={18} />
               Ajouter société
             </button>
@@ -98,5 +98,4 @@ export function CompaniesToolbar({
   );
 }
 
-const selectClassName = "rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-hicotech-navy outline-none dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white";
-
+const selectClassName = "rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-hicotech-navy outline-none transition focus:border-hicotech-blue focus:ring-4 focus:ring-hicotech-blue/10 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white";

@@ -12,8 +12,8 @@ const inspectorSections = [
 
 export function CompanyInspectorPanel() {
   return (
-    <aside className="space-y-4">
-      <SectionCard className="p-4">
+    <aside className="space-y-4 xl:sticky xl:top-40 xl:self-start">
+      <SectionCard className="p-5">
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">Inspecteur</p>
         <h2 className="mt-2 font-display text-lg font-bold text-hicotech-navy dark:text-white">Contexte société</h2>
         <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-300">Une vue compacte de ce qui compte autour de cette société.</p>
@@ -22,9 +22,9 @@ export function CompanyInspectorPanel() {
       {inspectorSections.map((section) => {
         const Icon = section.icon;
         return (
-          <SectionCard key={section.title} className="p-4">
+          <SectionCard key={section.title} className="p-4 transition hover:-translate-y-0.5 hover:border-hicotech-blue/25">
             <div className="flex items-start gap-3">
-              <div className="grid size-9 place-items-center rounded-lg bg-hicotech-sky text-hicotech-blue dark:bg-hicotech-blue/20">
+              <div className="grid size-9 place-items-center rounded-xl bg-hicotech-sky text-hicotech-blue dark:bg-hicotech-blue/20">
                 <Icon size={17} />
               </div>
               <div>

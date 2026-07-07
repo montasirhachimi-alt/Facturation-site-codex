@@ -39,7 +39,7 @@ export function EntityTable<TEntity extends { id: string }, TSortKey extends str
 }) {
   return (
     <SectionCard className="overflow-hidden">
-      <div className="flex flex-col gap-3 border-b border-slate-200/80 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-hicotech-dark-border">
+      <div className="flex flex-col gap-3 border-b border-slate-200/80 bg-slate-50/50 px-5 py-5 sm:flex-row sm:items-center sm:justify-between dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/30">
         <div>
           <h2 className="font-display text-lg font-bold text-hicotech-navy dark:text-white">{title}</h2>
           <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-300">{subtitle}</p>
@@ -58,7 +58,7 @@ export function EntityTable<TEntity extends { id: string }, TSortKey extends str
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1040px] border-collapse text-sm">
-            <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/80 text-left text-hicotech-navy dark:border-hicotech-dark-border dark:bg-hicotech-dark-page dark:text-white">
+            <thead className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 text-left text-hicotech-navy backdrop-blur dark:border-hicotech-dark-border dark:bg-hicotech-dark-card/95 dark:text-white">
               <tr>
                 <th className="w-12 px-5 py-3">
                   <input

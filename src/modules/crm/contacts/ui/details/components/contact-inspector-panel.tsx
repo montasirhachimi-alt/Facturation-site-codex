@@ -16,8 +16,8 @@ export function ContactInspectorPanel({ company, contact }: { company?: Company;
   ];
 
   return (
-    <aside className="space-y-4">
-      <SectionCard className="p-4">
+    <aside className="space-y-4 xl:sticky xl:top-40 xl:self-start">
+      <SectionCard className="p-5">
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">Inspecteur</p>
         <h2 className="mt-2 font-display text-lg font-bold text-hicotech-navy dark:text-white">Contexte contact</h2>
         <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-300">Société, responsabilité et raccourcis d&apos;interaction futurs.</p>
@@ -27,7 +27,7 @@ export function ContactInspectorPanel({ company, contact }: { company?: Company;
         const Icon = section.icon;
         const content = (
           <div className="flex items-start gap-3">
-            <div className="grid size-9 place-items-center rounded-lg bg-hicotech-sky text-hicotech-blue dark:bg-hicotech-blue/20">
+              <div className="grid size-9 place-items-center rounded-xl bg-hicotech-sky text-hicotech-blue dark:bg-hicotech-blue/20">
               <Icon size={17} />
             </div>
             <div>
@@ -38,7 +38,7 @@ export function ContactInspectorPanel({ company, contact }: { company?: Company;
         );
 
         return (
-          <SectionCard key={section.title} className="p-4">
+          <SectionCard key={section.title} className="p-4 transition hover:-translate-y-0.5 hover:border-hicotech-blue/25">
             {section.href ? (
               <Link href={section.href} className="block rounded-lg transition hover:opacity-80 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/10">
                 {content}

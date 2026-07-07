@@ -1,27 +1,19 @@
 "use client";
 
-import { useCallback } from "react";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
 import { Topbar } from "@/components/topbar";
-import type { ModuleSearchResult } from "@/core/search";
 import { UniversalSearchProvider } from "@/platform/search";
 import type { AuthSession } from "@/lib/types";
 import { WorkspaceProvider } from "@/providers";
-import { getCommandPaletteItems } from "@/services/commands";
 
 export function ErpShell({ children, user }: { children: React.ReactNode; user: AuthSession | null }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const router = useRouter();
-  const handleSearchSelect = useCallback((result: ModuleSearchResult) => {
-    router.push(result.route);
-  }, [router]);
 
   return (
     <WorkspaceProvider>
-      <UniversalSearchProvider searchResults={getCommandPaletteItems} onSelectResult={handleSearchSelect}>
+      <UniversalSearchProvider>
         <div className="min-h-screen bg-slate-50 text-hicotech-ink dark:bg-hicotech-dark-page dark:text-white">
           <Sidebar
             collapsed={collapsed}

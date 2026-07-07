@@ -54,7 +54,7 @@ export function CompanyOverview({ company }: { company: Company }) {
 
 function DetailsSection({ children, title }: { children: React.ReactNode; title: string }) {
   return (
-    <SectionCard className="p-5">
+    <SectionCard className="p-5 transition hover:border-hicotech-blue/20">
       <h2 className="font-display text-lg font-bold text-hicotech-navy dark:text-white">{title}</h2>
       <div className="mt-4 space-y-3">{children}</div>
     </SectionCard>
@@ -63,7 +63,7 @@ function DetailsSection({ children, title }: { children: React.ReactNode; title:
 
 function DetailItem({ icon, label, value }: { icon: React.ReactNode; label: string; value?: string }) {
   return (
-    <div className="flex items-start gap-3 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-3 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50">
+    <div className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50/80 px-3 py-3 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50">
       <span className="mt-0.5 text-hicotech-blue">{icon}</span>
       <div>
         <p className="text-xs font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">{label}</p>

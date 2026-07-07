@@ -17,7 +17,7 @@ const tabs: Array<{ id: ContactDetailsTab; label: string }> = [
 
 export function ContactDetailsTabs({ activeTab, onChange }: { activeTab: ContactDetailsTab; onChange: (tab: ContactDetailsTab) => void }) {
   return (
-    <div className="flex gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-soft dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
+    <div className="sticky top-[4.75rem] z-20 flex gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-hicotech-dark-border dark:bg-hicotech-dark-card/95 dark:shadow-none">
       {tabs.map((tab) => (
         <button
           key={tab.id}

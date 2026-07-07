@@ -8,7 +8,7 @@
 | Version | Pre-Alpha |
 | Current Milestone | Milestone 3 — Business Suite |
 | Current Phase | Business Module Foundations |
-| Current Sprint | SPR-325 — CRM Navigation Clarity Continuation |
+| Current Sprint | SPR-327 — CRM Experience 2.0 |
 | Next Sprint | To define |
 | Repository Health | Builds successfully with one known existing image optimization warning. |
 
@@ -100,6 +100,8 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | Payments Workflow Foundation exposes `/sales/payments`, payment details, in-memory payment recording from invoice details and Sales navigation metadata. | Completed |
 | Product Experience Redesign Phase 1 simplifies the Dashboard, lightens the Sidebar and polishes shared CRM/Sales UI primitives without changing business logic. | Completed |
 | CRM Navigation Clarity removes visible contextual sidebar badges and clarifies where Contacts, Activités, Réunions, Tâches and Notes live without creating standalone pages. | Completed |
+| Global Search Foundation introduces a premium topbar search trigger and a sectioned UI-only search dialog ready for future providers. | Completed |
+| CRM Experience 2.0 upgrades CRM home, companies, contacts, pipeline, contextual panels and shared CRM UI primitives for a more premium SaaS demo experience. | Completed |
 | Core Search React UI is separated into Platform Search. | Completed |
 | Runtime validation checks Platform Events, event subscribers, Permission Enforcement, Permission Runtime Integration, Capability Registry, Manifest System, Module Loader, Plugin Runtime, CRM Module Foundation, CRM Customers Foundation, Preferences Runtime, Widget Runtime, Workspace Context and Platform Search separation. | Completed |
 
@@ -163,14 +165,20 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - CRM contextual sidebar entries no longer show visible `via contact` or `via société` badges; contextual metadata remains internal for helper titles and routing.
 - Contacts and Activités guide users to Sociétés, while Réunions, Tâches and Notes guide users to an existing contact workspace.
 - CRM overview and contextual panels now use calmer French wording to explain that contacts live under societies and meetings, tasks, notes and contact activity live under contact workspaces.
+- Global Search now has a calm topbar entry point with platform-aware `⌘K` / `Ctrl+K` shortcut display.
+- The search dialog opens from click or keyboard shortcut, closes with ESC or outside click, traps focus and presents Recent, Suggestions and Navigation sections as UI placeholders.
+- The search platform now exposes a section resolver contract so future sprints can inject real search providers without changing the shell.
+- CRM Experience 2.0 improves visible hierarchy, spacing, hover states, rounded surfaces, empty states, tables, filters, sticky tabs and inspectors across CRM home, companies, contacts and pipeline screens.
+- CRM detail workspaces now present company/contact identity, actions, related panels and contextual timelines with a calmer, more executive visual rhythm.
+- Opportunity cards and pipeline stages now scan faster with richer card hierarchy, sticky inspector context and clearer commercial metrics.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passed during SPR-325 continuation via the local `tsc --noEmit` script equivalent because `npm` is unavailable in this environment. |
-| `npm run build` | Yes | Passed during SPR-325 continuation via the local `next build` script equivalent because `npm` is unavailable in this environment; known existing `next/image` warning remains. |
-| `npm run validate:runtime` | No for SPR-325 | Not rerun during SPR-325 continuation; no Runtime changes were made. |
+| `npm run typecheck` | Yes | Passed during SPR-327 via the local `tsc --noEmit` script equivalent because `npm` is unavailable in this environment. |
+| `npm run build` | Yes | Passed during SPR-327 via the local `next build` script equivalent because `npm` is unavailable in this environment; known existing `next/image` warning remains. |
+| `npm run validate:runtime` | No for SPR-327 | Not requested during SPR-327; no Runtime changes were made. |
 
 ## Repository Health
 

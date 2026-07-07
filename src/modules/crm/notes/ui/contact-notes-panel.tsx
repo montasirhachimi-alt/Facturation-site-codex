@@ -27,7 +27,7 @@ export function ContactNotesPanel({
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">Notes CRM liées au contact et prêtes pour les futurs contextes IA.</p>
         </div>
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50">
+          <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm shadow-slate-200/30 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:shadow-none">
             <Search size={16} className="text-slate-400" />
             <input value={filters.query} onChange={(event) => onFiltersChange({ ...filters, query: event.target.value })} className="w-full bg-transparent text-sm outline-none dark:text-white" placeholder="Rechercher..." />
           </label>
@@ -56,7 +56,7 @@ function NoteColumn({ emptyText, notes, title, variant }: { emptyText: string; n
   const Icon = variant === "pinned" ? Star : FileText;
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/30">
+    <section className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/30">
       <div className="flex items-center justify-between gap-3">
         <h3 className="inline-flex items-center gap-2 font-display text-sm font-bold text-hicotech-navy dark:text-white">
           <Icon size={16} />
@@ -65,7 +65,7 @@ function NoteColumn({ emptyText, notes, title, variant }: { emptyText: string; n
         <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-slate-500 dark:bg-white/10 dark:text-slate-300">{notes.length}</span>
       </div>
       <div className="mt-4 space-y-3">
-        {notes.length > 0 ? notes.map((note) => <NoteCard key={note.id} note={note} />) : <p className="rounded-xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-slate-300">{emptyText}</p>}
+        {notes.length > 0 ? notes.map((note) => <NoteCard key={note.id} note={note} />) : <p className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-slate-300">{emptyText}</p>}
       </div>
     </section>
   );
@@ -73,7 +73,7 @@ function NoteColumn({ emptyText, notes, title, variant }: { emptyText: string; n
 
 function NoteCard({ note }: { note: Note }) {
   return (
-    <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-hicotech-blue/30 hover:shadow-soft dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
+    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-hicotech-blue/30 hover:shadow-md hover:shadow-slate-200/50 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:hover:shadow-none">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h4 className="font-display text-sm font-bold text-hicotech-navy dark:text-white">{note.title}</h4>

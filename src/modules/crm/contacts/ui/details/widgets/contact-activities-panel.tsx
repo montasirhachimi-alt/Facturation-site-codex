@@ -37,7 +37,7 @@ export function ContactActivitiesPanel({
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">Historique contextuel des échanges liés uniquement à ce contact.</p>
         </div>
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-          <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50">
+          <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm shadow-slate-200/30 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:shadow-none">
             <Search size={16} className="text-slate-400" />
             <input value={filters.query} onChange={(event) => onFiltersChange({ ...filters, query: event.target.value })} className="w-full bg-transparent text-sm outline-none dark:text-white" placeholder="Rechercher..." />
           </label>
@@ -70,7 +70,7 @@ export function ContactActivitiesPanel({
         {activities.length > 0 ? (
           activities.map((activity) => <ContactActivityItem key={activity.id} activity={activity} />)
         ) : (
-          <li className="rounded-xl border border-dashed border-slate-300 bg-slate-50/70 p-5 text-sm text-slate-500 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/40 dark:text-slate-300">
+          <li className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 p-5 text-sm text-slate-500 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/40 dark:text-slate-300">
             Aucune activité ne correspond à ce contact.
           </li>
         )}
@@ -83,7 +83,7 @@ function ContactActivityItem({ activity }: { activity: Activity }) {
   const Icon = typeIcons[activity.type];
 
   return (
-    <li className="flex gap-4 border-b border-slate-100 py-4 first:pt-0 last:border-b-0 last:pb-0 dark:border-hicotech-dark-border">
+    <li className="flex gap-4 rounded-xl border border-transparent px-2 py-4 transition hover:border-slate-200 hover:bg-slate-50/80 dark:hover:border-hicotech-dark-border dark:hover:bg-hicotech-dark-page/40">
       <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-hicotech-sky text-hicotech-blue dark:bg-hicotech-blue/20 dark:text-blue-100">
         <Icon size={18} />
       </span>

@@ -11,7 +11,7 @@ const columns: Array<EntityTableColumn<Contact, ContactSortKey>> = [
     key: "avatar",
     label: "Avatar",
     render: (contact) => (
-      <div className="grid size-10 place-items-center rounded-xl bg-hicotech-navy text-sm font-bold text-white dark:bg-hicotech-blue">
+      <div className="grid size-11 place-items-center rounded-xl bg-hicotech-navy text-sm font-bold text-white shadow-sm shadow-slate-300/60 dark:bg-hicotech-blue dark:shadow-none">
         {getContactAvatarLabel(contact)}
       </div>
     )
@@ -70,7 +70,7 @@ export function ContactsTable({
       allVisibleSelected={allVisibleSelected}
       bulkLabel={`${selectedIds.length} contact(s) sélectionné(s)`}
       columns={columns}
-      emptyState={<EntityEmptyState icon={UsersRound} title="Aucun contact pour cette société" description="Ajoutez les personnes clés de cette société pour préparer les futurs workflows CRM, emails, réunions et opportunités." action={canCreate ? <button type="button" onClick={onCreate} className="rounded-lg bg-hicotech-blue px-4 py-2.5 text-sm font-bold text-white">Ajouter contact</button> : null} />}
+      emptyState={<EntityEmptyState icon={UsersRound} title="Aucun contact pour cette société" description="Ajoutez les personnes clés pour préparer les échanges, réunions et opportunités." action={canCreate ? <button type="button" onClick={onCreate} className="rounded-xl bg-hicotech-blue px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-blue-200/60 transition hover:bg-blue-700">Ajouter contact</button> : null} />}
       getRowLabel={(contact) => contact.fullName}
       items={contacts}
       onSort={onSort}
@@ -80,7 +80,7 @@ export function ContactsTable({
         <EntityActionMenu>
           <Link
             href={`/crm/contacts/${contact.id}`}
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-2 text-xs font-bold text-hicotech-navy transition hover:bg-hicotech-cloud focus:outline-none focus:ring-4 focus:ring-hicotech-blue/10 dark:border-hicotech-dark-border dark:text-white dark:hover:bg-hicotech-dark-page"
+            className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-2.5 py-2 text-xs font-bold text-hicotech-navy transition hover:border-hicotech-blue/30 hover:bg-hicotech-sky/50 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/10 dark:border-hicotech-dark-border dark:text-white dark:hover:bg-hicotech-dark-page"
           >
             <Eye size={16} />
             Voir

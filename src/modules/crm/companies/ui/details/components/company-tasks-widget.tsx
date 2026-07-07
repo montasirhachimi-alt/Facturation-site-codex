@@ -15,14 +15,14 @@ export function CompanyTasksWidget() {
           <ListChecks size={18} />
         </span>
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">Tasks</p>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">Tâches</p>
           <h2 className="font-display text-lg font-bold text-hicotech-navy dark:text-white">Tâches à venir</h2>
         </div>
       </div>
 
       <ul className="mt-5 space-y-3">
         {tasks.map((task) => (
-          <li key={task.label} className="flex items-start gap-3 rounded-xl border border-slate-100 bg-slate-50/80 p-3 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50">
+          <li key={task.label} className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50/80 p-3 transition hover:border-hicotech-blue/25 hover:bg-white dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:hover:bg-hicotech-dark-card">
             {task.done ? <CheckCircle2 size={18} className="mt-0.5 text-emerald-600" /> : <Circle size={18} className="mt-0.5 text-slate-400" />}
             <div>
               <p className={`text-sm font-bold ${task.done ? "text-slate-400 line-through" : "text-hicotech-navy dark:text-white"}`}>{task.label}</p>

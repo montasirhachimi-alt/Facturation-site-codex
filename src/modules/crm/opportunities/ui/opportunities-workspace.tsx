@@ -71,7 +71,7 @@ export function OpportunitiesWorkspace() {
       <EntityHeader
         breadcrumb={["Ventes", "Pipeline commercial"]}
         title="Pipeline commercial"
-        description="Suivez les opportunités depuis le premier signal jusqu'à la conclusion commerciale."
+        description="Une vue claire du revenu futur, des priorités commerciales et des prochaines clôtures."
         meta={
           <div className="flex flex-wrap items-center gap-2">
             <InfoCard>Espace actif : HicoPilot CRM</InfoCard>
@@ -95,10 +95,10 @@ export function OpportunitiesWorkspace() {
         <MetricCard icon={CalendarClock} label="Clôtures proches" value={String(stats.upcomingClosings)} helper="30 prochains jours" />
       </section>
 
-      <SectionCard className="p-4">
+      <SectionCard className="p-5">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-start gap-3">
-            <div className="grid size-10 place-items-center rounded-lg bg-hicotech-sky text-hicotech-blue dark:bg-hicotech-blue/20">
+            <div className="grid size-10 place-items-center rounded-xl bg-hicotech-sky text-hicotech-blue dark:bg-hicotech-blue/20">
               <Filter size={18} />
             </div>
             <div>
@@ -108,14 +108,14 @@ export function OpportunitiesWorkspace() {
           </div>
           <Link
             href="/crm/companies"
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-hicotech-blue px-4 py-2.5 text-sm font-bold text-white shadow-soft transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-hicotech-blue px-4 py-3 text-sm font-bold text-white shadow-sm shadow-blue-200/60 transition hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-200/70 focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50"
           >
             Créer depuis une société
           </Link>
         </div>
 
         <div className="mt-5 grid gap-3 lg:grid-cols-2 xl:grid-cols-6">
-          <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 xl:col-span-2 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50">
+          <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm shadow-slate-200/30 xl:col-span-2 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:shadow-none">
             <Search size={16} className="text-slate-400" />
             <input
               value={filters.query}
@@ -157,7 +157,7 @@ export function OpportunitiesWorkspace() {
         </div>
       </SectionCard>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <PipelineBoard opportunities={filtered} selectedId={selectedOpportunity?.id} onSelect={setSelectedId} />
         <PipelineInspector opportunity={selectedOpportunity} />
       </div>
@@ -181,7 +181,7 @@ function PipelineBoard({
           const stageItems = opportunities.filter((opportunity) => opportunity.stage === stage);
           const stageValue = stageItems.reduce((total, opportunity) => total + opportunity.estimatedValue.amount, 0);
           return (
-            <section key={stage} className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/40">
+            <section key={stage} className="min-h-[28rem] rounded-2xl border border-slate-200 bg-slate-50/80 p-3 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/40">
               <div className="mb-3 flex items-start justify-between gap-3">
                 <div>
                   <h2 className="font-display text-sm font-bold text-hicotech-navy dark:text-white">{OPPORTUNITY_STAGE_LABELS[stage]}</h2>
@@ -189,7 +189,7 @@ function PipelineBoard({
                     {stageItems.length} opportunité(s) • {formatOpportunityValue({ amount: stageValue, currency: "MAD" })}
                   </p>
                 </div>
-                <span className="rounded-full bg-white px-2 py-0.5 text-xs font-bold text-slate-500 ring-1 ring-slate-200 dark:bg-hicotech-dark-card dark:ring-hicotech-dark-border">
+                <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-slate-500 ring-1 ring-slate-200 dark:bg-hicotech-dark-card dark:ring-hicotech-dark-border">
                   {stageItems.length}
                 </span>
               </div>
@@ -224,7 +224,7 @@ function OpportunityPipelineCard({ onSelect, opportunity, selected }: { onSelect
     <button
       type="button"
       onClick={onSelect}
-      className={`group w-full rounded-xl border bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-hicotech-blue/35 hover:shadow-soft focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50 dark:bg-hicotech-dark-card ${
+      className={`group w-full rounded-2xl border bg-white p-4 text-left shadow-sm shadow-slate-200/50 transition hover:-translate-y-0.5 hover:border-hicotech-blue/35 hover:shadow-lg hover:shadow-slate-200/70 focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50 dark:bg-hicotech-dark-card dark:shadow-none ${
         selected ? "border-hicotech-blue ring-2 ring-hicotech-blue/20" : "border-slate-200 dark:border-hicotech-dark-border"
       }`}
     >
@@ -240,10 +240,10 @@ function OpportunityPipelineCard({ onSelect, opportunity, selected }: { onSelect
         <UserRound size={14} />
         {contact?.fullName ?? "Contact non défini"}
       </p>
-      <div className="mt-4 grid gap-2 text-xs font-semibold text-slate-500 dark:text-slate-300">
-        <span>{formatOpportunityValue(opportunity.estimatedValue)}</span>
-        <span>{opportunity.probability}% de probabilité</span>
-        <span>{opportunity.expectedCloseDate ? `Clôture ${formatDate(opportunity.expectedCloseDate)}` : "Date à définir"}</span>
+      <div className="mt-4 grid grid-cols-2 gap-2 text-xs font-semibold text-slate-500 dark:text-slate-300">
+        <span className="rounded-lg bg-slate-50 px-2 py-2 dark:bg-white/5">{formatOpportunityValue(opportunity.estimatedValue)}</span>
+        <span className="rounded-lg bg-slate-50 px-2 py-2 dark:bg-white/5">{opportunity.probability}% prob.</span>
+        <span className="col-span-2 rounded-lg bg-slate-50 px-2 py-2 dark:bg-white/5">{opportunity.expectedCloseDate ? `Clôture ${formatDate(opportunity.expectedCloseDate)}` : "Date à définir"}</span>
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
         <Badge label={OPPORTUNITY_PRIORITY_LABELS[opportunity.priority]} tone={opportunity.priority} />
@@ -276,7 +276,7 @@ function PipelineInspector({ opportunity }: { opportunity?: Opportunity }) {
   const relatedInvoice = invoiceService.listInvoices({ workspaceId, includeArchived: true }).invoices.find((invoice) => invoice.opportunityId === opportunity.id);
 
   return (
-    <aside className="space-y-4">
+    <aside className="space-y-4 xl:sticky xl:top-24 xl:self-start">
       <SectionCard className="p-5">
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-hicotech-blue">Détail opportunité</p>
         <h2 className="mt-2 font-display text-xl font-bold text-hicotech-navy dark:text-white">{opportunity.title}</h2>
@@ -307,7 +307,7 @@ function PipelineInspector({ opportunity }: { opportunity?: Opportunity }) {
 
 function PipelineEmptyState({ stage }: { stage: OpportunityStage }) {
   return (
-    <div className="rounded-xl border border-dashed border-slate-300 bg-white p-4 text-sm dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
+    <div className="rounded-2xl border border-dashed border-slate-300 bg-white/80 p-4 text-sm dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
       <p className="font-bold text-hicotech-navy dark:text-white">Aucune opportunité</p>
       <p className="mt-1 leading-6 text-slate-500 dark:text-slate-300">
         Les opportunités au stade {OPPORTUNITY_STAGE_LABELS[stage].toLowerCase()} apparaîtront ici.
@@ -318,7 +318,7 @@ function PipelineEmptyState({ stage }: { stage: OpportunityStage }) {
 
 function InspectorRow({ href, label, value }: { href?: string; label: string; value: string }) {
   const content = (
-    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 dark:border-hicotech-dark-border dark:bg-slate-900/30">
+    <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-3 dark:border-hicotech-dark-border dark:bg-slate-900/30">
       <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">{label}</p>
       <p className="mt-1 text-sm font-bold text-hicotech-navy dark:text-white">{value}</p>
     </div>

@@ -67,7 +67,7 @@ export function CrmHomePage() {
       <EntityHeader
         breadcrumb={["CRM", "Vue d'ensemble CRM"]}
         title="Centre de relation client"
-        description="Pilotez vos sociétés, contacts, activités, réunions, tâches et notes depuis un espace CRM unifié."
+        description="Un cockpit calme pour comprendre vos comptes, prioriser les échanges et garder le pipeline commercial lisible."
         meta={
           <div className="flex flex-wrap items-center gap-2">
             <InfoCard>Espace : HicoPilot CRM</InfoCard>
@@ -285,13 +285,15 @@ function QuickAction({
   return (
     <Link
       href={href}
-      className="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/60 transition hover:-translate-y-0.5 hover:border-hicotech-blue/30 hover:shadow-soft focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none"
+      className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/60 transition duration-200 hover:-translate-y-0.5 hover:border-hicotech-blue/30 hover:shadow-lg hover:shadow-slate-200/70 focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none"
     >
       <div className="flex items-start justify-between gap-3">
-        <span className="grid size-10 place-items-center rounded-lg bg-hicotech-sky text-hicotech-blue dark:bg-hicotech-blue/20">
+        <span className="grid size-11 place-items-center rounded-xl bg-hicotech-sky text-hicotech-blue transition group-hover:bg-hicotech-blue group-hover:text-white dark:bg-hicotech-blue/20">
           <Icon size={19} />
         </span>
-        <Plus size={17} className="text-slate-400 transition group-hover:text-hicotech-blue" />
+        <span className="grid size-8 place-items-center rounded-lg border border-slate-200 text-slate-400 transition group-hover:border-hicotech-blue/30 group-hover:text-hicotech-blue dark:border-hicotech-dark-border">
+          <Plus size={16} />
+        </span>
       </div>
       <p className="mt-4 text-sm font-bold text-hicotech-navy dark:text-white">{label}</p>
       <p className="mt-1 text-xs font-medium leading-5 text-slate-500 dark:text-slate-300">{helper}</p>
@@ -310,7 +312,7 @@ function SectionTitle({
 }) {
   return (
     <div className="flex items-start gap-3">
-      <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-hicotech-sky text-hicotech-blue dark:bg-hicotech-blue/20">
+      <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-hicotech-sky text-hicotech-blue dark:bg-hicotech-blue/20">
         <Icon size={19} />
       </div>
       <div>
@@ -323,9 +325,10 @@ function SectionTitle({
 
 function TimelineRow({ badge, description, meta, title }: { badge: string; description?: string; meta: string; title: string }) {
   return (
-    <article className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-hicotech-dark-border dark:bg-slate-900/30">
+    <article className="relative rounded-xl border border-slate-200 bg-slate-50/80 p-4 transition hover:border-hicotech-blue/25 hover:bg-white dark:border-hicotech-dark-border dark:bg-slate-900/30 dark:hover:bg-hicotech-dark-card">
+      <span className="absolute left-0 top-4 h-8 w-1 rounded-r-full bg-hicotech-blue/70" />
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div>
+        <div className="pl-2">
           <p className="text-sm font-bold text-hicotech-navy dark:text-white">{title}</p>
           {description && <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-300">{description}</p>}
         </div>
@@ -340,7 +343,7 @@ function TimelineRow({ badge, description, meta, title }: { badge: string; descr
 
 function CompactItem({ badge, description, title }: { badge: string; description?: string; title: string }) {
   return (
-    <article className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 dark:border-hicotech-dark-border dark:bg-slate-900/30">
+    <article className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-3 transition hover:border-hicotech-blue/25 hover:bg-white dark:border-hicotech-dark-border dark:bg-slate-900/30 dark:hover:bg-hicotech-dark-card">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-bold text-hicotech-navy dark:text-white">{title}</p>
@@ -356,7 +359,7 @@ function CompactItem({ badge, description, title }: { badge: string; description
 
 function ContactSummary({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-hicotech-dark-border dark:bg-slate-900/30">
+    <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-hicotech-dark-border dark:bg-slate-900/30">
       <p className="font-display text-2xl font-bold text-hicotech-navy dark:text-white">{value}</p>
       <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">{label}</p>
     </div>
@@ -367,7 +370,7 @@ function NavigationHint({ description, href, title }: { description: string; hre
   return (
     <Link
       href={href}
-      className="rounded-lg border border-slate-200 bg-slate-50 p-4 transition hover:border-hicotech-blue/30 hover:bg-white focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:bg-slate-900/30 dark:hover:bg-hicotech-dark-card"
+      className="group rounded-xl border border-slate-200 bg-slate-50/80 p-4 transition hover:-translate-y-0.5 hover:border-hicotech-blue/30 hover:bg-white focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:bg-slate-900/30 dark:hover:bg-hicotech-dark-card"
     >
       <p className="text-sm font-bold text-hicotech-navy dark:text-white">{title}</p>
       <p className="mt-2 text-xs font-medium leading-5 text-slate-500 dark:text-slate-300">{description}</p>

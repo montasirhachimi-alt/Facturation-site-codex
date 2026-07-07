@@ -66,7 +66,7 @@ export function CompanyOpportunitiesPanel({ companyId }: { companyId: CompanyId 
         {openOpportunities.length > 0 ? (
           openOpportunities.map((opportunity) => <OpportunityCard key={opportunity.id} opportunity={opportunity} />)
         ) : (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm dark:border-hicotech-dark-border dark:bg-slate-900/30">
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/80 p-5 text-sm dark:border-hicotech-dark-border dark:bg-slate-900/30">
             <p className="font-bold text-hicotech-navy dark:text-white">Aucune opportunité ouverte</p>
             <p className="mt-1 leading-6 text-slate-500 dark:text-slate-300">
               Les opportunités seront créées depuis le futur workflow commercial.
@@ -80,7 +80,7 @@ export function CompanyOpportunitiesPanel({ companyId }: { companyId: CompanyId 
 
 function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
   return (
-    <article className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-hicotech-dark-border dark:bg-slate-900/30">
+    <article className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 transition hover:-translate-y-0.5 hover:border-hicotech-blue/25 hover:bg-white hover:shadow-md hover:shadow-slate-200/50 dark:border-hicotech-dark-border dark:bg-slate-900/30 dark:hover:bg-hicotech-dark-card dark:hover:shadow-none">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="truncate font-display text-sm font-bold text-hicotech-navy dark:text-white">{opportunity.title}</h3>
@@ -110,7 +110,7 @@ function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
 
 function MiniMetric({ icon: Icon, label, value }: { icon: typeof HandCoins | typeof TrendingUp; label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-hicotech-dark-border dark:bg-slate-900/30">
+    <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 dark:border-hicotech-dark-border dark:bg-slate-900/30">
       <Icon size={17} className="text-hicotech-blue" />
       <p className="mt-2 font-display text-lg font-bold text-hicotech-navy dark:text-white">{value}</p>
       <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">{label}</p>

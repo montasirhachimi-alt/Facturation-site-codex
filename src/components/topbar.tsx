@@ -13,6 +13,7 @@ type TopbarProps = {
 
 export function Topbar({ onMenuClick, user }: TopbarProps) {
   const [dark, setDark] = useState(false);
+  const [shortcutLabel, setShortcutLabel] = useState("Ctrl+K");
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const workspaceMenuRef = useRef<HTMLDivElement | null>(null);
   const { openSearch } = useUniversalSearch();
@@ -33,6 +34,7 @@ export function Topbar({ onMenuClick, user }: TopbarProps) {
     const storedTheme = window.localStorage.getItem("hicotech-theme");
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     setDark(storedTheme ? storedTheme === "dark" : prefersDark);
+    setShortcutLabel(isMacPlatform() ? "⌘K" : "Ctrl+K");
   }, []);
 
   useEffect(() => {
@@ -101,21 +103,19 @@ export function Topbar({ onMenuClick, user }: TopbarProps) {
           {workspaceOpen && <WorkspaceSelectorMenu onClose={() => setWorkspaceOpen(false)} />}
         </div>
 
-        <div className="order-2 flex min-w-full flex-1 items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm shadow-slate-200/60 transition focus-within:border-hicotech-blue focus-within:ring-4 focus-within:ring-hicotech-blue/10 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none md:order-none md:min-w-72">
+        <button
+          type="button"
+          onClick={openSearch}
+          className="order-2 flex min-w-full flex-1 items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left shadow-sm shadow-slate-200/60 transition hover:border-hicotech-blue/30 hover:bg-hicotech-sky/40 focus:outline-none focus:ring-2 focus:ring-hicotech-blue/40 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none dark:hover:bg-hicotech-blue/15 md:order-none md:min-w-72"
+          aria-label="Ouvrir la recherche globale"
+        >
           <Search size={18} className="shrink-0 text-slate-400" />
-          <input
-            readOnly
-            onFocus={openSearch}
-            onClick={openSearch}
-            className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400 dark:text-white"
-            placeholder="Rechercher un client, facture, produit, document..."
-            aria-label="Ouvrir la recherche universelle"
-          />
+          <span className="min-w-0 flex-1 text-sm font-medium text-slate-400">Rechercher...</span>
           <span className="hidden items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-bold text-slate-400 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/70 lg:inline-flex">
-            <Command size={12} />
-            K
+            {shortcutLabel === "⌘K" && <Command size={12} />}
+            {shortcutLabel}
           </span>
-        </div>
+        </button>
 
         <button className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-hicotech-navy shadow-sm shadow-slate-200/50 transition hover:border-hicotech-blue/40 hover:bg-hicotech-sky/60 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white dark:shadow-none dark:hover:bg-hicotech-blue/15 lg:flex">
           <Sparkles size={17} className="text-hicotech-blue" />
@@ -267,4 +267,10 @@ function getRoleLabel(role: AuthSession["role"] | undefined) {
   };
 
   return role ? labels[role] : "Administrateur";
+}
+
+function isMacPlatform() {
+  const platform = navigator.platform.toLowerCase();
+  const userAgent = navigator.userAgent.toLowerCase();
+  return platform.includes("mac") || userAgent.includes("mac os");
 }

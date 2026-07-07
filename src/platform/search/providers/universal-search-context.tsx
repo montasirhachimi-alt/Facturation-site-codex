@@ -1,20 +1,21 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import type { ModuleSearchResult } from "@/core/search";
+import type { UniversalSearchItem, UniversalSearchSection } from "../universal-search.types";
 
 export type UniversalSearchContextValue = {
   open: boolean;
   query: string;
-  selectedIndex: number;
-  results: ModuleSearchResult[];
+  activeIndex: number;
+  sections: readonly UniversalSearchSection[];
+  flatItems: readonly UniversalSearchItem[];
   openSearch: () => void;
   closeSearch: () => void;
   setQuery: (query: string) => void;
-  setSelectedIndex: (index: number) => void;
   selectNext: () => void;
   selectPrevious: () => void;
-  selectResult: (result?: ModuleSearchResult) => void;
+  setActiveIndex: (index: number) => void;
+  selectItem: (item?: UniversalSearchItem) => void;
 };
 
 export const UniversalSearchContext = createContext<UniversalSearchContextValue | null>(null);

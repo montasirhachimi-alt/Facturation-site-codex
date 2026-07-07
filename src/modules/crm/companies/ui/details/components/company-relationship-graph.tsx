@@ -27,7 +27,7 @@ export function CompanyRelationshipGraph() {
           const Icon = node.icon;
           return (
             <div key={node.label} className="relative">
-              <div className={`rounded-xl border p-4 text-center ${node.active ? "border-hicotech-blue bg-hicotech-sky dark:bg-hicotech-blue/20" : "border-slate-200 bg-white dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50"}`}>
+              <div className={`rounded-2xl border p-4 text-center transition hover:-translate-y-0.5 hover:border-hicotech-blue/25 ${node.active ? "border-hicotech-blue bg-hicotech-sky shadow-sm shadow-blue-100/70 dark:bg-hicotech-blue/20 dark:shadow-none" : "border-slate-200 bg-white dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50"}`}>
                 <span className="mx-auto grid size-10 place-items-center rounded-xl bg-white text-hicotech-blue shadow-sm dark:bg-hicotech-dark-card dark:text-blue-100">
                   <Icon size={18} />
                 </span>
