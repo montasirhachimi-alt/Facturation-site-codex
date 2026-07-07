@@ -6,7 +6,9 @@ export const salesPermissions = Object.freeze([
   { module: "sales.quote", action: "read" },
   { module: "sales.quote", action: "write" },
   { module: "sales.invoice", action: "read" },
-  { module: "sales.invoice", action: "write" }
+  { module: "sales.invoice", action: "write" },
+  { module: "sales.payment", action: "read" },
+  { module: "sales.payment", action: "write" }
 ] satisfies CorePermissionRequirement[]);
 
 export type SalesPermission = (typeof salesPermissions)[number];

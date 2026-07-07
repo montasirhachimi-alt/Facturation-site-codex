@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Building2, CalendarClock, FileText, NotebookPen, WalletCards } from "lucide-react";
+import { useState } from "react";
+import { ArrowLeft, ArrowRight, Building2, CalendarClock, FileText, NotebookPen, Plus, WalletCards } from "lucide-react";
 import { CompanyService } from "@/modules/crm/companies";
 import { CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
 import { QuoteService, quoteSeed, SALES_QUOTES_WORKSPACE_ID, formatQuoteMoney } from "@/modules/sales/quotes";
+import { paymentService, PAYMENT_METHOD_LABELS } from "@/modules/sales/payments";
+import { PaymentStatusBadge } from "@/modules/sales/payments/ui";
 import { EntityEmptyState, EntityHeader, EntityPageLayout, InfoCard, MetricCard, SectionCard } from "@/ui";
 import { invoiceService } from "../invoice.store";
 import type { InvoiceId } from "../invoice.types";
@@ -19,6 +22,7 @@ const companyById = new Map(companies.map((company) => [company.id, company]));
 const quoteById = new Map(quotes.map((quote) => [quote.id, quote]));
 
 export function InvoiceDetailsWorkspace({ invoiceId }: { invoiceId: string }) {
+  const [, setPaymentVersion] = useState(0);
   const invoice = invoiceService.getInvoice(invoiceId as InvoiceId, SALES_QUOTES_WORKSPACE_ID);
 
   if (!invoice) {
@@ -29,9 +33,17 @@ export function InvoiceDetailsWorkspace({ invoiceId }: { invoiceId: string }) {
     );
   }
 
-  const totals = getInvoiceTotals(invoice);
-  const company = companyById.get(invoice.companyId);
-  const quote = invoice.quoteId ? quoteById.get(invoice.quoteId) : undefined;
+  const invoiceValue = invoice;
+  const totals = getInvoiceTotals(invoiceValue);
+  const company = companyById.get(invoiceValue.companyId);
+  const quote = invoiceValue.quoteId ? quoteById.get(invoiceValue.quoteId) : undefined;
+  const payments = paymentService.listPaymentsForInvoice(invoiceValue.id, SALES_QUOTES_WORKSPACE_ID);
+
+  function recordPayment() {
+    const payment = paymentService.createFromInvoice(invoiceValue);
+    if (!payment) return;
+    setPaymentVersion((value) => value + 1);
+  }
 
   return (
     <EntityPageLayout>
@@ -47,6 +59,15 @@ export function InvoiceDetailsWorkspace({ invoiceId }: { invoiceId: string }) {
               <ArrowLeft size={14} />
               Retour aux factures
             </Link>
+            <button
+              type="button"
+              disabled={totals.remaining <= 0}
+              onClick={recordPayment}
+              className="inline-flex items-center gap-2 rounded-lg bg-hicotech-blue px-3 py-2 text-xs font-bold text-white shadow-soft transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Plus size={14} />
+              Enregistrer un paiement
+            </button>
           </div>
         }
       />
@@ -98,6 +119,34 @@ export function InvoiceDetailsWorkspace({ invoiceId }: { invoiceId: string }) {
                 </tbody>
               </table>
             </div>
+          </SectionCard>
+
+          <SectionCard className="overflow-hidden">
+            <div className="border-b border-slate-200 px-5 py-4 dark:border-hicotech-dark-border">
+              <h2 className="font-display text-lg font-bold text-hicotech-navy dark:text-white">Paiements liés</h2>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">Encaissements enregistrés pour cette facture.</p>
+            </div>
+            {payments.length > 0 ? (
+              <div className="divide-y divide-slate-100 dark:divide-hicotech-dark-border">
+                {payments.map((payment) => (
+                  <Link key={payment.id} href={`/sales/payments/${payment.id}`} className="flex flex-col gap-3 px-5 py-4 transition hover:bg-hicotech-cloud/70 md:flex-row md:items-center md:justify-between dark:hover:bg-hicotech-dark-page/60">
+                    <div>
+                      <p className="font-display text-sm font-bold text-hicotech-navy dark:text-white">{payment.number}</p>
+                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">{PAYMENT_METHOD_LABELS[payment.method]} • {formatDate(payment.receivedAt)}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <PaymentStatusBadge status={payment.status} />
+                      <p className="font-bold text-hicotech-navy dark:text-white">{formatQuoteMoney(payment.amount, payment.currency)}</p>
+                      <ArrowRight size={15} className="text-hicotech-blue" />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="p-5 text-sm leading-6 text-slate-500 dark:text-slate-300">
+                Aucun paiement enregistré. Utilisez le bouton de paiement pour encaisser le reste à payer.
+              </div>
+            )}
           </SectionCard>
         </main>
 

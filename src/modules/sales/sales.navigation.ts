@@ -30,6 +30,13 @@ export const salesNavigation = Object.freeze({
       route: "/sales/invoices",
       permission: "sales.invoice.read",
       metadata: { icon: "Receipt", permissionModule: "invoices", activePath: "/sales/invoices" }
+    },
+    {
+      id: "sales.payments",
+      label: "Paiements",
+      route: "/sales/payments",
+      permission: "sales.payment.read",
+      metadata: { icon: "WalletCards", permissionModule: "payments", activePath: "/sales/payments" }
     }
   ] satisfies SalesNavigationItem[])
 } satisfies SalesNavigationItem);

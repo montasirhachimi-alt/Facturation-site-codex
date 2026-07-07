@@ -8,8 +8,8 @@
 | Version | Pre-Alpha |
 | Current Milestone | Milestone 3 — Business Suite |
 | Current Phase | Business Module Foundations |
-| Current Sprint | SPR-322A — Sales Navigation Integration |
-| Next Sprint | SPR-323 — Payments Workflow Foundation |
+| Current Sprint | SPR-323 — Payments Workflow Foundation |
+| Next Sprint | SPR-324 — Sales PDF Generation Foundation |
 | Repository Health | Builds successfully with one known existing image optimization warning. |
 
 ## Completed Core Engines
@@ -97,6 +97,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | Sales Navigation Integration exposes official Sales navigation metadata and renders Ventes → Devis / Factures from the sidebar adapter. | Completed |
 | Sidebar Architecture Cleanup separates official business modules from legacy navigation groups and removes duplicated CRM/Sales sidebar entries. | Completed |
 | CRM & Sales Navigation UX Cleanup removes the duplicated CRM menu entry and places the commercial pipeline under Ventes. | Completed |
+| Payments Workflow Foundation exposes `/sales/payments`, payment details, in-memory payment recording from invoice details and Sales navigation metadata. | Completed |
 | Core Search React UI is separated into Platform Search. | Completed |
 | Runtime validation checks Platform Events, event subscribers, Permission Enforcement, Permission Runtime Integration, Capability Registry, Manifest System, Module Loader, Plugin Runtime, CRM Module Foundation, CRM Customers Foundation, Preferences Runtime, Widget Runtime, Workspace Context and Platform Search separation. | Completed |
 
@@ -128,7 +129,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - CRM Tasks Foundation is in-memory only and prepares Activity entries without backend persistence or workflow automation.
 - CRM Notes Foundation is in-memory only and prepares Activity entries without backend persistence or AI knowledge indexing.
 - Quotes Workspace is in-memory only and does not persist quote creation across reloads.
-- Invoice Workspace is in-memory only and payment state is a foundation for a future payment workflow.
+- Invoice and Payment Workspaces are in-memory only and do not persist payment recording across reloads.
 - CRM Customers UI persists changes only in memory during the current browser session.
 - Enterprise UI Framework is young and should evolve only through concrete business module needs.
 - Documentation before SPR-207A was fragmented across several older files.
@@ -150,6 +151,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - CRM now exposes a dedicated Opportunités entry and a professional visual sales pipeline at `/crm/opportunities`, with French labels and guided access from CRM Home.
 - Ventes now exposes a dedicated Devis workspace at `/sales/quotes`, with CRM Home recent quotes and company/contact quote panels.
 - Ventes now exposes Factures at `/sales/invoices`, and accepted quotes can generate invoices in one click.
+- Ventes now exposes Paiements at `/sales/payments`, and open invoice details can register an in-memory payment against the remaining balance.
 - The visible Sidebar now reads the official Sales navigation source, matching the CRM integration pattern.
 - The visible Sidebar now follows the official product structure: Accueil, CRM, Ventes, Stock, Finance, Équipe, Analyse, IA and Système, with CRM and Ventes driven by registered business modules.
 - CRM now shows `Vue d'ensemble` as its home entry, while `Pipeline commercial` lives under Ventes and keeps the existing `/crm/opportunities` route.
@@ -158,9 +160,9 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passed during SPR-322C completion. |
-| `npm run build` | Yes | Passed during SPR-322C completion. |
-| `npm run validate:runtime` | Yes | Passed during SPR-322C completion. |
+| `npm run typecheck` | Yes | Passed during SPR-323 completion. |
+| `npm run build` | Yes | Passed during SPR-323 completion with the known existing `next/image` warning. |
+| `npm run validate:runtime` | Yes | Passed during SPR-323 completion. |
 
 ## Repository Health
 

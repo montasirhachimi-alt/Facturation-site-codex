@@ -10,7 +10,9 @@ export const salesCapabilities = Object.freeze([
   defineSalesCapability("sales.quote.read", "Read Sales Quotes", "sales.quote", "read"),
   defineSalesCapability("sales.quote.write", "Write Sales Quotes", "sales.quote", "write"),
   defineSalesCapability("sales.invoice.read", "Read Sales Invoices", "sales.invoice", "read"),
-  defineSalesCapability("sales.invoice.write", "Write Sales Invoices", "sales.invoice", "write")
+  defineSalesCapability("sales.invoice.write", "Write Sales Invoices", "sales.invoice", "write"),
+  defineSalesCapability("sales.payment.read", "Read Sales Payments", "sales.payment", "read"),
+  defineSalesCapability("sales.payment.write", "Write Sales Payments", "sales.payment", "write")
 ] satisfies PlatformCapabilityInput[]);
 
 function defineSalesCapability(id: string, name: string, module: string, action: "read" | "write"): PlatformCapabilityInput {

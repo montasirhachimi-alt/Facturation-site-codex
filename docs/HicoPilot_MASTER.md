@@ -46,15 +46,15 @@ See: `docs/02_PROJECT_STATUS.md`
 
 ## Current Sprint
 
-Sprint 2 — Core Engine.
+SPR-323 — Payments Workflow Foundation.
 
 ## Current Task
 
-HCP-100.1 — Project Foundation.
+Business Suite payment workflow foundation.
 
 ## Next Task
 
-HCP-101.
+SPR-324 — Sales PDF Generation Foundation.
 
 ## Roadmap
 
