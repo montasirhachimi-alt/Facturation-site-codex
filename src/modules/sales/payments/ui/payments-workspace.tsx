@@ -101,12 +101,18 @@ export function PaymentsWorkspace() {
 function PaymentsTable({ onSort, payments, sort }: { onSort: (field: PaymentSort["field"]) => void; payments: readonly Payment[]; sort: PaymentSort }) {
   if (payments.length === 0) {
     return (
-      <SectionCard className="p-8 text-center">
-        <WalletCards size={36} className="mx-auto text-hicotech-blue" />
+      <SectionCard className="p-10 text-center">
+        <div className="mx-auto grid size-16 place-items-center rounded-full bg-slate-50 text-hicotech-blue ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10">
+          <WalletCards size={28} />
+        </div>
         <h2 className="mt-4 font-display text-xl font-bold text-hicotech-navy dark:text-white">Aucun paiement trouvé</h2>
         <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-500 dark:text-slate-300">
-          Les paiements sont enregistrés depuis les factures ouvertes. Ouvrez une facture avec un reste à payer pour créer le premier règlement.
+          Les paiements sont enregistrés depuis les factures ouvertes.
         </p>
+        <Link href="/sales/invoices" className="mt-5 inline-flex items-center justify-center gap-2 rounded-lg bg-hicotech-blue px-4 py-2.5 text-sm font-bold text-white shadow-soft transition hover:bg-blue-700">
+          Ouvrir les factures
+          <ArrowRight size={16} />
+        </Link>
       </SectionCard>
     );
   }
@@ -128,28 +134,28 @@ function PaymentsTable({ onSort, payments, sort }: { onSort: (field: PaymentSort
                 ["amount", "Montant"],
                 ["ownerId", "Responsable"]
               ].map(([field, label]) => (
-                <th key={field} className="px-5 py-3.5 font-display text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
+                <th key={field} className="px-5 py-3 font-display text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
                   {field === "company" ? label : (
                     <button type="button" onClick={() => onSort(field as PaymentSort["field"])}>{label}{sort.field === field ? sort.direction === "asc" ? " ↑" : " ↓" : ""}</button>
                   )}
                 </th>
               ))}
-              <th className="px-5 py-3.5 font-display text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">Actions</th>
+              <th className="px-5 py-3 font-display text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">Actions</th>
             </tr>
           </thead>
           <tbody>
             {payments.map((payment) => (
-              <tr key={payment.id} className="border-t border-slate-100 transition hover:bg-hicotech-cloud/70 dark:border-hicotech-dark-border dark:hover:bg-hicotech-dark-page/60">
-                <td className="px-5 py-5 font-bold text-hicotech-navy dark:text-white">{payment.number}</td>
-                <td className="px-5 py-5 text-slate-600 dark:text-slate-300">{payment.invoiceNumber}</td>
-                <td className="px-5 py-5 text-slate-600 dark:text-slate-300">{payment.customerName}</td>
-                <td className="px-5 py-5 text-slate-600 dark:text-slate-300">{companyById.get(payment.companyId)?.displayName ?? "Non définie"}</td>
-                <td className="px-5 py-5 text-slate-600 dark:text-slate-300">{PAYMENT_METHOD_LABELS[payment.method]}</td>
-                <td className="px-5 py-5 text-slate-600 dark:text-slate-300">{formatDate(payment.receivedAt)}</td>
-                <td className="px-5 py-5"><PaymentStatusBadge status={payment.status} /></td>
-                <td className="px-5 py-5 font-bold text-hicotech-navy dark:text-white">{formatQuoteMoney(payment.amount, payment.currency)}</td>
-                <td className="px-5 py-5 text-slate-600 dark:text-slate-300">{payment.ownerId}</td>
-                <td className="px-5 py-5">
+              <tr key={payment.id} className="border-t border-slate-100 transition hover:bg-slate-50/90 dark:border-hicotech-dark-border dark:hover:bg-hicotech-dark-page/60">
+                <td className="px-5 py-4 font-bold text-hicotech-navy dark:text-white">{payment.number}</td>
+                <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{payment.invoiceNumber}</td>
+                <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{payment.customerName}</td>
+                <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{companyById.get(payment.companyId)?.displayName ?? "Non définie"}</td>
+                <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{PAYMENT_METHOD_LABELS[payment.method]}</td>
+                <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{formatDate(payment.receivedAt)}</td>
+                <td className="px-5 py-4"><PaymentStatusBadge status={payment.status} /></td>
+                <td className="px-5 py-4 font-bold text-hicotech-navy dark:text-white">{formatQuoteMoney(payment.amount, payment.currency)}</td>
+                <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{payment.ownerId}</td>
+                <td className="px-5 py-4">
                   <Link href={`/sales/payments/${payment.id}`} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-hicotech-blue transition hover:bg-hicotech-sky dark:border-hicotech-dark-border">
                     Voir
                     <ArrowRight size={14} />

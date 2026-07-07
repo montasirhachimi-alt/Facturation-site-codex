@@ -12,11 +12,8 @@ import {
   CalendarX,
   ChevronsLeft,
   ChevronsRight,
-  Clock3,
   CircleDollarSign,
   ClipboardList,
-  Pin,
-  Star,
   ContactRound,
   FileArchive,
   FileOutput,
@@ -91,29 +88,24 @@ export function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse
 
   const renderContent = (isCollapsed: boolean) => (
     <>
-      <div className={clsx("mb-6 rounded-lg bg-white/5 dark:bg-hicotech-dark-card", isCollapsed ? "p-2" : "p-4")}>
+      <div className={clsx("mb-6 rounded-lg border border-white/10 bg-white/[0.04] dark:bg-hicotech-dark-card", isCollapsed ? "p-2" : "p-4")}>
         <Logo variant={isCollapsed ? "icon" : "full"} tone="dark" size={isCollapsed ? "sm" : "md"} className="mx-auto" />
         {!isCollapsed && (
           <>
             <p className="mt-4 text-center font-display text-sm font-bold text-white">
               {branding.productName}
             </p>
-            <p className="mt-1 text-center text-[11px] font-semibold text-cyan-100/55">Business Operating System</p>
+            <p className="mt-1 text-center text-[11px] font-semibold leading-5 text-cyan-100/60">
+              Piloter clients, ventes et finance
+            </p>
           </>
         )}
       </div>
-      {!isCollapsed && (
-        <div className="mb-5 grid grid-cols-3 gap-2">
-          <SidebarPlaceholder icon={Star} label="Favoris" />
-          <SidebarPlaceholder icon={Pin} label="Épinglés" />
-          <SidebarPlaceholder icon={Clock3} label="Récents" />
-        </div>
-      )}
-      <nav className="flex-1 space-y-7 overflow-y-auto pr-1">
+      <nav className="flex-1 space-y-6 overflow-y-auto pr-1">
         {visibleGroups.map((group) => (
-          <div key={group.label} className="space-y-2">
+          <div key={group.label} className="space-y-2.5">
             {!isCollapsed && (
-              <p className="px-3 text-[10px] font-bold uppercase tracking-[0.22em] text-cyan-100/60">
+              <p className="px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-100/55">
                 {group.label}
               </p>
             )}
@@ -131,19 +123,19 @@ export function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse
                     onClick={onCloseMobile}
                     title={isCollapsed ? item.label : undefined}
                     className={clsx(
-                      "flex h-11 items-center rounded-lg text-sm font-semibold transition duration-200 focus:outline-none focus:ring-2 focus:ring-hicotech-blue/60",
+                      "flex h-10 items-center rounded-lg text-sm font-semibold transition duration-200 focus:outline-none focus:ring-2 focus:ring-hicotech-blue/60",
                       isCollapsed ? "justify-center px-0" : "gap-3 px-3",
                       active
-                        ? "bg-hicotech-blue text-white shadow-lg shadow-blue-950/20"
+                        ? "bg-white text-hicotech-navy shadow-sm"
                         : "text-slate-300 hover:bg-white/10 hover:text-white dark:text-slate-100 dark:hover:bg-hicotech-dark-card"
                     )}
                   >
-                    <Icon size={19} />
+                    <Icon size={18} />
                     {!isCollapsed && (
                       <>
                         <span className="min-w-0 flex-1 truncate">{item.label}</span>
                         {item.badge && (
-                          <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold text-cyan-100/70">
+                          <span className={clsx("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold", active ? "bg-slate-100 text-slate-500" : "bg-white/10 text-cyan-100/70")}>
                             {item.badge}
                           </span>
                         )}
@@ -173,7 +165,7 @@ export function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse
       <aside
         className={clsx(
           "fixed inset-y-0 left-0 z-40 hidden flex-col bg-hicotech-navy px-4 py-5 text-white shadow-soft transition-[width] duration-300 dark:bg-hicotech-dark-sidebar lg:flex",
-          collapsed ? "w-24" : "w-80"
+          collapsed ? "w-24" : "w-72"
         )}
       >
         {renderContent(collapsed)}
@@ -206,19 +198,5 @@ export function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse
         </div>
       )}
     </>
-  );
-}
-
-function SidebarPlaceholder({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
-  return (
-    <button
-      type="button"
-      className="rounded-lg border border-white/10 bg-white/5 px-2 py-2 text-[11px] font-bold text-cyan-100/70 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-hicotech-blue/60"
-      aria-label={`${label} bientôt disponible`}
-      title={`${label} bientôt disponible`}
-    >
-      <Icon size={15} className="mx-auto mb-1" />
-      {label}
-    </button>
   );
 }

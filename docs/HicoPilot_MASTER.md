@@ -46,15 +46,15 @@ See: `docs/02_PROJECT_STATUS.md`
 
 ## Current Sprint
 
-SPR-323 — Payments Workflow Foundation.
+SPR-324 — Product Experience Redesign (Phase 1).
 
 ## Current Task
 
-Business Suite payment workflow foundation.
+Business Suite product experience polish.
 
 ## Next Task
 
-SPR-324 — Sales PDF Generation Foundation.
+SPR-325 — Product Experience Redesign (Phase 2).
 
 ## Roadmap
 

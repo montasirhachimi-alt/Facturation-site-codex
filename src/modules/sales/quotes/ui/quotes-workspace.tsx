@@ -133,7 +133,7 @@ export function QuotesWorkspace() {
         </div>
       </SectionCard>
 
-      <QuotesTable quotes={paginatedQuotes} sort={sort} onSort={updateSort} />
+      <QuotesTable quotes={paginatedQuotes} sort={sort} onCreate={() => setDialogOpen(true)} onSort={updateSort} />
 
       <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
         <p className="text-sm font-semibold text-slate-500 dark:text-slate-300">Page {page} sur {totalPages} • {quotes.length} devis</p>
@@ -153,15 +153,21 @@ export function QuotesWorkspace() {
   );
 }
 
-function QuotesTable({ onSort, quotes, sort }: { onSort: (field: QuoteSort["field"]) => void; quotes: readonly Quote[]; sort: QuoteSort }) {
+function QuotesTable({ onCreate, onSort, quotes, sort }: { onCreate: () => void; onSort: (field: QuoteSort["field"]) => void; quotes: readonly Quote[]; sort: QuoteSort }) {
   if (quotes.length === 0) {
     return (
-      <SectionCard className="p-8 text-center">
-        <FileText size={36} className="mx-auto text-hicotech-blue" />
+      <SectionCard className="p-10 text-center">
+        <div className="mx-auto grid size-16 place-items-center rounded-full bg-slate-50 text-hicotech-blue ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10">
+          <FileText size={28} />
+        </div>
         <h2 className="mt-4 font-display text-xl font-bold text-hicotech-navy dark:text-white">Aucun devis trouvé</h2>
         <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-500 dark:text-slate-300">
-          Les devis structurent la proposition commerciale avant commande ou facture. Créez un devis depuis une société, une opportunité ou ce workspace.
+          Les devis structurent la proposition commerciale avant commande ou facture.
         </p>
+        <button type="button" onClick={onCreate} className="mt-5 inline-flex items-center justify-center gap-2 rounded-lg bg-hicotech-blue px-4 py-2.5 text-sm font-bold text-white shadow-soft transition hover:bg-blue-700">
+          <Plus size={17} />
+          Créer votre premier devis
+        </button>
       </SectionCard>
     );
   }
@@ -187,7 +193,7 @@ function QuotesTable({ onSort, quotes, sort }: { onSort: (field: QuoteSort["fiel
                 ["total", "Montant"],
                 ["ownerId", "Responsable"]
               ].map(([field, label]) => (
-                <th key={field} className="px-5 py-3.5 font-display text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
+                <th key={field} className="px-5 py-3 font-display text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
                   {["company", "opportunity"].includes(field) ? label : (
                     <button type="button" onClick={() => onSort(field as QuoteSort["field"])} className="rounded-md focus:outline-none focus:ring-2 focus:ring-hicotech-blue/30">
                       {label}{sort.field === field ? sort.direction === "asc" ? " ↑" : " ↓" : ""}
@@ -202,17 +208,17 @@ function QuotesTable({ onSort, quotes, sort }: { onSort: (field: QuoteSort["fiel
             {quotes.map((quote) => {
               const totals = getQuoteTotals(quote);
               return (
-                <tr key={quote.id} className="border-t border-slate-100 transition hover:bg-hicotech-cloud/70 dark:border-hicotech-dark-border dark:hover:bg-hicotech-dark-page/60">
-                  <td className="px-5 py-5 font-bold text-hicotech-navy dark:text-white">{quote.number}</td>
-                  <td className="px-5 py-5 text-slate-600 dark:text-slate-300">{quote.customerName}</td>
-                  <td className="px-5 py-5 text-slate-600 dark:text-slate-300">{companyById.get(quote.companyId)?.displayName ?? "Non définie"}</td>
-                  <td className="px-5 py-5 text-slate-600 dark:text-slate-300">{quote.opportunityId ? opportunityById.get(quote.opportunityId)?.title ?? "Opportunité" : "-"}</td>
-                  <td className="px-5 py-5"><QuoteStatusBadge status={quote.status} /></td>
-                  <td className="px-5 py-5 text-slate-600 dark:text-slate-300">{formatDate(quote.issueDate)}</td>
-                  <td className="px-5 py-5 text-slate-600 dark:text-slate-300">{formatDate(quote.expirationDate)}</td>
-                  <td className="px-5 py-5 font-bold text-hicotech-navy dark:text-white">{formatQuoteMoney(totals.total, totals.currency)}</td>
-                  <td className="px-5 py-5 text-slate-600 dark:text-slate-300">{quote.ownerId}</td>
-                  <td className="px-5 py-5">
+                <tr key={quote.id} className="border-t border-slate-100 transition hover:bg-slate-50/90 dark:border-hicotech-dark-border dark:hover:bg-hicotech-dark-page/60">
+                  <td className="px-5 py-4 font-bold text-hicotech-navy dark:text-white">{quote.number}</td>
+                  <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{quote.customerName}</td>
+                  <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{companyById.get(quote.companyId)?.displayName ?? "Non définie"}</td>
+                  <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{quote.opportunityId ? opportunityById.get(quote.opportunityId)?.title ?? "Opportunité" : "-"}</td>
+                  <td className="px-5 py-4"><QuoteStatusBadge status={quote.status} /></td>
+                  <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{formatDate(quote.issueDate)}</td>
+                  <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{formatDate(quote.expirationDate)}</td>
+                  <td className="px-5 py-4 font-bold text-hicotech-navy dark:text-white">{formatQuoteMoney(totals.total, totals.currency)}</td>
+                  <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{quote.ownerId}</td>
+                  <td className="px-5 py-4">
                     <Link href={`/sales/quotes/${quote.id}`} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-hicotech-blue transition hover:bg-hicotech-sky dark:border-hicotech-dark-border">
                       Voir
                       <ArrowRight size={14} />

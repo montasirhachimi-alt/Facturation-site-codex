@@ -31,10 +31,10 @@ export function EntityDialog({
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-hicotech-dark-sidebar/70 px-4 backdrop-blur-sm">
-      <form onSubmit={submit} className="w-full max-w-2xl rounded-lg border border-slate-200 bg-white p-6 shadow-soft dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
+      <form onSubmit={submit} className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-slate-200 bg-white p-6 shadow-xl shadow-slate-950/20 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="font-display text-sm font-bold uppercase tracking-[0.16em] text-hicotech-blue">{eyebrow}</p>
+            <p className="font-display text-xs font-bold uppercase tracking-[0.16em] text-hicotech-blue">{eyebrow}</p>
             <h2 className="mt-2 font-display text-2xl font-bold text-hicotech-navy dark:text-white">{title}</h2>
             {description && <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">{description}</p>}
           </div>
@@ -56,4 +56,3 @@ export function EntityDialog({
     </div>
   );
 }
-

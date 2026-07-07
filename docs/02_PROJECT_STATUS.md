@@ -8,8 +8,8 @@
 | Version | Pre-Alpha |
 | Current Milestone | Milestone 3 — Business Suite |
 | Current Phase | Business Module Foundations |
-| Current Sprint | SPR-323 — Payments Workflow Foundation |
-| Next Sprint | SPR-324 — Sales PDF Generation Foundation |
+| Current Sprint | SPR-324 — Product Experience Redesign (Phase 1) |
+| Next Sprint | SPR-325 — Product Experience Redesign (Phase 2) |
 | Repository Health | Builds successfully with one known existing image optimization warning. |
 
 ## Completed Core Engines
@@ -98,6 +98,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | Sidebar Architecture Cleanup separates official business modules from legacy navigation groups and removes duplicated CRM/Sales sidebar entries. | Completed |
 | CRM & Sales Navigation UX Cleanup removes the duplicated CRM menu entry and places the commercial pipeline under Ventes. | Completed |
 | Payments Workflow Foundation exposes `/sales/payments`, payment details, in-memory payment recording from invoice details and Sales navigation metadata. | Completed |
+| Product Experience Redesign Phase 1 simplifies the Dashboard, lightens the Sidebar and polishes shared CRM/Sales UI primitives without changing business logic. | Completed |
 | Core Search React UI is separated into Platform Search. | Completed |
 | Runtime validation checks Platform Events, event subscribers, Permission Enforcement, Permission Runtime Integration, Capability Registry, Manifest System, Module Loader, Plugin Runtime, CRM Module Foundation, CRM Customers Foundation, Preferences Runtime, Widget Runtime, Workspace Context and Platform Search separation. | Completed |
 
@@ -155,14 +156,17 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - The visible Sidebar now reads the official Sales navigation source, matching the CRM integration pattern.
 - The visible Sidebar now follows the official product structure: Accueil, CRM, Ventes, Stock, Finance, Équipe, Analyse, IA and Système, with CRM and Ventes driven by registered business modules.
 - CRM now shows `Vue d'ensemble` as its home entry, while `Pipeline commercial` lives under Ventes and keeps the existing `/crm/opportunities` route.
+- Dashboard now opens with a guided business cockpit: greeting, five primary actions, focused KPIs, today's priorities and compact recent activity.
+- Sidebar spacing, hierarchy and active states have been softened to reduce visual noise and explain the product faster.
+- Shared CRM/Sales cards, headers, tables, filters, empty states, pagination and forms now use calmer spacing, typography and interaction states.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passed during SPR-323 completion. |
-| `npm run build` | Yes | Passed during SPR-323 completion with the known existing `next/image` warning. |
-| `npm run validate:runtime` | Yes | Passed during SPR-323 completion. |
+| `npm run typecheck` | Yes | Passed during SPR-324 completion. |
+| `npm run build` | Yes | Passed during SPR-324 completion with the known existing `next/image` warning. |
+| `npm run validate:runtime` | Yes | Passed during SPR-324 completion. |
 
 ## Repository Health
 
