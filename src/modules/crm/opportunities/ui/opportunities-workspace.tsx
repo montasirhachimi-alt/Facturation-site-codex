@@ -110,8 +110,7 @@ export function OpportunitiesWorkspace() {
             href="/crm/companies"
             className="inline-flex items-center justify-center gap-2 rounded-lg bg-hicotech-blue px-4 py-2.5 text-sm font-bold text-white shadow-soft transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50"
           >
-            Nouvelle opportunité
-            <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px]">via société</span>
+            Créer depuis une société
           </Link>
         </div>
 

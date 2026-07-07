@@ -93,7 +93,7 @@ export function CompanyActivityTimeline({ companyId }: { companyId: CompanyId })
             <option value="email">Email</option>
             <option value="task">Tâche</option>
             <option value="note">Note</option>
-          <option value="document">Document</option>
+            <option value="document">Document</option>
           </select>
           <select value={priority} onChange={(event) => setPriority(event.target.value as ActivityPriority | "all")} className={entityInputClassName}>
             <option value="all">Toutes priorités</option>

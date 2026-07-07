@@ -32,9 +32,9 @@ export function ContactActivitiesPanel({
     <SectionCard className="p-5">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-hicotech-blue">Activities</p>
-          <h2 className="mt-2 font-display text-lg font-bold text-hicotech-navy dark:text-white">Contact Timeline</h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">Activités liées uniquement à ce contact.</p>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-hicotech-blue">Activités</p>
+          <h2 className="mt-2 font-display text-lg font-bold text-hicotech-navy dark:text-white">Timeline du contact</h2>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">Historique contextuel des échanges liés uniquement à ce contact.</p>
         </div>
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
           <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50">
@@ -43,25 +43,25 @@ export function ContactActivitiesPanel({
           </label>
           <select value={filters.type} onChange={(event) => onFiltersChange({ ...filters, type: event.target.value as ActivityType | "all" })} className={entityInputClassName}>
             <option value="all">Tous types</option>
-            <option value="call">Call</option>
-            <option value="meeting">Meeting</option>
+            <option value="call">Appel</option>
+            <option value="meeting">Réunion</option>
             <option value="email">Email</option>
-            <option value="task">Task</option>
+            <option value="task">Tâche</option>
             <option value="note">Note</option>
             <option value="document">Document</option>
           </select>
           <select value={filters.priority} onChange={(event) => onFiltersChange({ ...filters, priority: event.target.value as ActivityPriority | "all" })} className={entityInputClassName}>
             <option value="all">Toutes priorités</option>
-            <option value="low">Low</option>
+            <option value="low">Basse</option>
             <option value="normal">Normal</option>
-            <option value="high">High</option>
-            <option value="critical">Critical</option>
+            <option value="high">Haute</option>
+            <option value="critical">Critique</option>
           </select>
           <select value={filters.status} onChange={(event) => onFiltersChange({ ...filters, status: event.target.value as ActivityStatus | "all" })} className={entityInputClassName}>
             <option value="all">Tous statuts</option>
-            <option value="open">Open</option>
-            <option value="completed">Completed</option>
-            <option value="archived">Archived</option>
+            <option value="open">Ouverte</option>
+            <option value="completed">Terminée</option>
+            <option value="archived">Archivée</option>
           </select>
         </div>
       </div>
@@ -90,9 +90,9 @@ function ContactActivityItem({ activity }: { activity: Activity }) {
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="font-display text-sm font-bold text-hicotech-navy dark:text-white">{activity.title}</h3>
-          <Badge label={activity.type} />
-          <Badge label={activity.priority} />
-          <Badge label={activity.status} />
+          <Badge label={formatActivityType(activity.type)} />
+          <Badge label={formatActivityPriority(activity.priority)} />
+          <Badge label={formatActivityStatus(activity.status)} />
         </div>
         {activity.description && <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-300">{activity.description}</p>}
         <p className="mt-2 text-xs font-semibold text-slate-400">
@@ -105,6 +105,41 @@ function ContactActivityItem({ activity }: { activity: Activity }) {
 
 function Badge({ label }: { label: string }) {
   return <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold uppercase text-slate-500 dark:bg-white/10 dark:text-slate-300">{label}</span>;
+}
+
+function formatActivityType(type: ActivityType) {
+  const labels: Record<ActivityType, string> = {
+    call: "Appel",
+    meeting: "Réunion",
+    email: "Email",
+    task: "Tâche",
+    note: "Note",
+    comment: "Commentaire",
+    status_change: "Statut",
+    document: "Document",
+    system: "Système",
+    custom: "Personnalisée"
+  };
+  return labels[type];
+}
+
+function formatActivityPriority(priority: ActivityPriority) {
+  const labels: Record<ActivityPriority, string> = {
+    low: "Basse",
+    normal: "Normale",
+    high: "Haute",
+    critical: "Critique"
+  };
+  return labels[priority];
+}
+
+function formatActivityStatus(status: ActivityStatus) {
+  const labels: Record<ActivityStatus, string> = {
+    open: "Ouverte",
+    completed: "Terminée",
+    archived: "Archivée"
+  };
+  return labels[status];
 }
 
 function formatDate(value: string) {

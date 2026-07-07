@@ -8,8 +8,8 @@
 | Version | Pre-Alpha |
 | Current Milestone | Milestone 3 — Business Suite |
 | Current Phase | Business Module Foundations |
-| Current Sprint | SPR-324 — Product Experience Redesign (Phase 1) |
-| Next Sprint | SPR-325 — Product Experience Redesign (Phase 2) |
+| Current Sprint | SPR-325 — CRM Navigation Clarity Continuation |
+| Next Sprint | To define |
 | Repository Health | Builds successfully with one known existing image optimization warning. |
 
 ## Completed Core Engines
@@ -99,6 +99,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | CRM & Sales Navigation UX Cleanup removes the duplicated CRM menu entry and places the commercial pipeline under Ventes. | Completed |
 | Payments Workflow Foundation exposes `/sales/payments`, payment details, in-memory payment recording from invoice details and Sales navigation metadata. | Completed |
 | Product Experience Redesign Phase 1 simplifies the Dashboard, lightens the Sidebar and polishes shared CRM/Sales UI primitives without changing business logic. | Completed |
+| CRM Navigation Clarity removes visible contextual sidebar badges and clarifies where Contacts, Activités, Réunions, Tâches and Notes live without creating standalone pages. | Completed |
 | Core Search React UI is separated into Platform Search. | Completed |
 | Runtime validation checks Platform Events, event subscribers, Permission Enforcement, Permission Runtime Integration, Capability Registry, Manifest System, Module Loader, Plugin Runtime, CRM Module Foundation, CRM Customers Foundation, Preferences Runtime, Widget Runtime, Workspace Context and Platform Search separation. | Completed |
 
@@ -159,14 +160,17 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - Dashboard now opens with a guided business cockpit: greeting, five primary actions, focused KPIs, today's priorities and compact recent activity.
 - Sidebar spacing, hierarchy and active states have been softened to reduce visual noise and explain the product faster.
 - Shared CRM/Sales cards, headers, tables, filters, empty states, pagination and forms now use calmer spacing, typography and interaction states.
+- CRM contextual sidebar entries no longer show visible `via contact` or `via société` badges; contextual metadata remains internal for helper titles and routing.
+- Contacts and Activités guide users to Sociétés, while Réunions, Tâches and Notes guide users to an existing contact workspace.
+- CRM overview and contextual panels now use calmer French wording to explain that contacts live under societies and meetings, tasks, notes and contact activity live under contact workspaces.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passed during SPR-324 completion. |
-| `npm run build` | Yes | Passed during SPR-324 completion with the known existing `next/image` warning. |
-| `npm run validate:runtime` | Yes | Passed during SPR-324 completion. |
+| `npm run typecheck` | Yes | Passed during SPR-325 continuation via the local `tsc --noEmit` script equivalent because `npm` is unavailable in this environment. |
+| `npm run build` | Yes | Passed during SPR-325 continuation via the local `next build` script equivalent because `npm` is unavailable in this environment; known existing `next/image` warning remains. |
+| `npm run validate:runtime` | No for SPR-325 | Not rerun during SPR-325 continuation; no Runtime changes were made. |
 
 ## Repository Health
 
