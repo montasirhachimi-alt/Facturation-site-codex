@@ -10,13 +10,17 @@ import {
   ClipboardList,
   ContactRound,
   HandCoins,
+  Layers3,
   MessageSquareText,
   NotebookPen,
   Plus,
   FileText,
+  Sparkles,
+  ShieldCheck,
+  TrendingUp,
   Users
 } from "lucide-react";
-import { EntityHeader, EntityPageLayout, InfoCard, MetricCard, SectionCard } from "@/ui";
+import { EntityPageLayout, MetricCard, SectionCard } from "@/ui";
 import { ActivityService } from "../activities";
 import { crmActivitySeed } from "../activities/ui/activities.seed";
 import { CompanyService } from "../companies";
@@ -64,21 +68,10 @@ const decisionMakers = contacts.filter((contact) => contact.isDecisionMaker);
 export function CrmHomePage() {
   return (
     <EntityPageLayout>
-      <EntityHeader
-        breadcrumb={["CRM", "Vue d'ensemble CRM"]}
-        title="Centre de relation client"
-        description="Un cockpit calme pour comprendre vos comptes, prioriser les échanges et garder le pipeline commercial lisible."
-        meta={
-          <div className="flex flex-wrap items-center gap-2">
-            <InfoCard>Espace : HicoPilot CRM</InfoCard>
-            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-200">
-              CRM opérationnel
-            </span>
-          </div>
-        }
-      />
+      <CrmHero />
+      <CrmCommandStrip />
 
-      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5" aria-label="Actions rapides CRM">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5" aria-label="Actions rapides CRM">
         <QuickAction href="/crm/companies" icon={Building2} label="Nouvelle société" helper="Créer le compte central" />
         <QuickAction href="/crm/companies" icon={ContactRound} label="Nouveau contact" helper="Depuis l'onglet Contacts d'une société" />
         <QuickAction href="/crm/contacts/contact-sara-amrani" icon={CalendarCheck} label="Planifier une réunion" helper="Depuis une fiche contact" />
@@ -256,18 +249,165 @@ export function CrmHomePage() {
             <Link
               key={company.id}
               href={`/crm/companies/${company.id}`}
-              className="group flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 transition hover:border-hicotech-blue/30 hover:bg-white focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:bg-slate-900/30 dark:hover:bg-hicotech-dark-card"
+              className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-lg shadow-slate-200/60 transition hover:-translate-y-1 hover:border-hicotech-blue/30 hover:shadow-xl hover:shadow-slate-300/70 focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:bg-slate-900/30 dark:shadow-none dark:hover:bg-hicotech-dark-card"
             >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-bold text-hicotech-navy dark:text-white">{company.displayName}</p>
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-300">{company.city ?? "Ville non renseignée"} • {company.status}</p>
+              <span className="absolute inset-x-0 top-0 h-1 bg-hicotech-blue/80" />
+              <div className="flex items-start justify-between gap-3">
+                <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-hicotech-navy text-sm font-bold text-white dark:bg-hicotech-blue">
+                  {company.displayName.slice(0, 2).toUpperCase()}
+                </div>
+                <ArrowRight size={16} className="mt-1 text-slate-400 transition group-hover:text-hicotech-blue" />
               </div>
-              <ArrowRight size={16} className="text-slate-400 transition group-hover:text-hicotech-blue" />
+              <div className="mt-4 min-w-0">
+                <p className="truncate text-base font-bold text-hicotech-navy dark:text-white">{company.displayName}</p>
+                <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-300">{company.city ?? "Ville non renseignée"} • {company.status}</p>
+              </div>
             </Link>
           ))}
         </div>
       </SectionCard>
     </EntityPageLayout>
+  );
+}
+
+function CrmHero() {
+  return (
+    <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-hicotech-navy text-white shadow-[0_30px_90px_rgba(10,30,63,0.30)] dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none">
+      <div className="grid gap-0 xl:grid-cols-[minmax(0,1.16fr)_minmax(380px,0.84fr)]">
+        <div className="relative p-6 sm:p-9">
+          <div className="absolute right-7 top-7 hidden rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-bold text-cyan-50 backdrop-blur sm:block">
+            CRM prêt pour la démo
+          </div>
+          <p className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-cyan-50">
+            <ShieldCheck size={14} />
+            Relation client augmentée
+          </p>
+          <h1 className="mt-7 max-w-4xl font-display text-5xl font-bold leading-[1.02] md:text-6xl">
+            Le cockpit commercial qui donne envie d&apos;ouvrir le CRM.
+          </h1>
+          <p className="mt-5 max-w-2xl text-lg leading-8 text-cyan-50/76">
+            Une vue vivante pour comprendre les comptes importants, les prochaines actions et le revenu à défendre avant même d&apos;ouvrir une table.
+          </p>
+
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link
+              href="/crm/companies"
+              className="inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-bold text-hicotech-navy shadow-xl shadow-black/20 transition hover:-translate-y-0.5 hover:bg-cyan-50 focus:outline-none focus:ring-4 focus:ring-white/30"
+            >
+              Ouvrir les sociétés
+              <ArrowRight size={16} />
+            </Link>
+            <Link
+              href="/crm/opportunities"
+              className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-white/15 focus:outline-none focus:ring-4 focus:ring-white/20"
+            >
+              Voir le pipeline
+              <TrendingUp size={16} />
+            </Link>
+          </div>
+
+          <div className="mt-9 grid gap-3 sm:grid-cols-3">
+            <HeroSignal label="Sociétés suivies" value={String(companies.length)} helper="comptes actifs" />
+            <HeroSignal label="Pipeline ouvert" value={formatOpportunityValue(totalPipelineValue(openOpportunities))} helper={`${openOpportunities.length} opportunités`} />
+            <HeroSignal label="Priorités" value={String(openTasks.length + upcomingMeetings.length)} helper="actions à suivre" />
+          </div>
+        </div>
+
+        <div className="border-t border-white/10 bg-white/[0.06] p-6 backdrop-blur xl:border-l xl:border-t-0">
+          <div className="rounded-[1.75rem] border border-white/10 bg-white p-5 text-hicotech-navy shadow-2xl shadow-black/20">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-hicotech-blue">Aujourd&apos;hui</p>
+                <h2 className="mt-2 font-display text-2xl font-bold">Ce qui mérite attention</h2>
+              </div>
+              <span className="grid size-12 place-items-center rounded-2xl bg-hicotech-navy text-white">
+                <Activity size={20} />
+              </span>
+            </div>
+            <div className="mt-5 space-y-3">
+              <HeroPriority icon={FileText} label="Devis récents" value={`${quotes.length} propositions`} />
+              <HeroPriority icon={CalendarCheck} label="Réunions à venir" value={`${upcomingMeetings.length} échanges`} />
+              <HeroPriority icon={ClipboardList} label="Tâches ouvertes" value={`${openTasks.length} actions`} />
+            </div>
+            <div className="mt-5 rounded-2xl bg-hicotech-sky p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-hicotech-blue">Signal commercial</p>
+              <p className="mt-2 text-sm font-bold leading-6 text-hicotech-navy">
+                {openOpportunities.length} opportunité(s) ouvertes pour {formatOpportunityValue(totalPipelineValue(openOpportunities))}.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CrmCommandStrip() {
+  return (
+    <section className="grid gap-4 xl:grid-cols-[1fr_1fr_1fr_1.15fr]" aria-label="Lecture rapide CRM">
+      <CommandTile icon={Sparkles} label="Focus du jour" value={`${openTasks.length} actions`} description="Les tâches et réunions restent visibles avant les listes." />
+      <CommandTile icon={Layers3} label="Relation client" value={`${contacts.length} contacts`} description="Les personnes clés restent attachées aux sociétés." />
+      <CommandTile icon={TrendingUp} label="Revenu à défendre" value={formatOpportunityValue(totalPipelineValue(openOpportunities))} description={`${openOpportunities.length} opportunités ouvertes.`} />
+      <article className="rounded-[1.5rem] border border-hicotech-blue/20 bg-hicotech-sky p-5 shadow-[0_18px_55px_rgba(13,110,253,0.14)]">
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-hicotech-blue">Prochaine meilleure lecture</p>
+        <h2 className="mt-3 font-display text-xl font-bold text-hicotech-navy">Commencer par les sociétés actives.</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          Les contacts, réunions, notes et opportunités gardent leur contexte sans disperser la navigation.
+        </p>
+      </article>
+    </section>
+  );
+}
+
+function CommandTile({
+  description,
+  icon: Icon,
+  label,
+  value
+}: {
+  description: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  label: string;
+  value: string;
+}) {
+  return (
+    <article className="group rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-[0_18px_55px_rgba(10,30,63,0.08)] transition hover:-translate-y-1 hover:border-hicotech-blue/30 hover:shadow-[0_24px_70px_rgba(13,110,253,0.14)] dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none">
+      <div className="flex items-start justify-between gap-3">
+        <span className="grid size-12 place-items-center rounded-2xl bg-hicotech-navy text-white transition group-hover:bg-hicotech-blue">
+          <Icon size={19} />
+        </span>
+        <span className="rounded-full bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-500 ring-1 ring-slate-200 dark:bg-white/10 dark:text-slate-300 dark:ring-white/10">
+          CRM
+        </span>
+      </div>
+      <p className="mt-5 text-xs font-bold uppercase tracking-[0.13em] text-slate-400">{label}</p>
+      <p className="mt-2 font-display text-2xl font-bold text-hicotech-navy dark:text-white">{value}</p>
+      <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-300">{description}</p>
+    </article>
+  );
+}
+
+function HeroSignal({ helper, label, value }: { helper: string; label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/10 p-4 shadow-lg shadow-black/10">
+      <p className="text-xs font-bold uppercase tracking-[0.14em] text-cyan-50/60">{label}</p>
+      <p className="mt-2 font-display text-2xl font-bold text-white">{value}</p>
+      <p className="mt-1 text-xs font-semibold text-cyan-50/65">{helper}</p>
+    </div>
+  );
+}
+
+function HeroPriority({ icon: Icon, label, value }: { icon: React.ComponentType<{ size?: number }>; label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+      <span className="grid size-10 place-items-center rounded-xl bg-white text-hicotech-blue shadow-sm">
+        <Icon size={18} />
+      </span>
+      <span>
+        <span className="block text-sm font-bold text-hicotech-navy">{label}</span>
+        <span className="block text-xs font-semibold text-slate-500">{value}</span>
+      </span>
+    </div>
   );
 }
 
@@ -285,17 +425,19 @@ function QuickAction({
   return (
     <Link
       href={href}
-      className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/60 transition duration-200 hover:-translate-y-0.5 hover:border-hicotech-blue/30 hover:shadow-lg hover:shadow-slate-200/70 focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none"
+      className="group relative min-h-40 overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-[0_18px_55px_rgba(10,30,63,0.10)] transition duration-200 hover:-translate-y-1.5 hover:border-hicotech-blue/35 hover:shadow-[0_26px_80px_rgba(13,110,253,0.16)] focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none"
     >
+      <span className="absolute inset-x-0 top-0 h-1.5 bg-hicotech-blue" />
+      <span className="absolute -right-10 -top-10 size-28 rounded-full bg-hicotech-sky/80 transition group-hover:scale-125 dark:bg-hicotech-blue/10" />
       <div className="flex items-start justify-between gap-3">
-        <span className="grid size-11 place-items-center rounded-xl bg-hicotech-sky text-hicotech-blue transition group-hover:bg-hicotech-blue group-hover:text-white dark:bg-hicotech-blue/20">
+        <span className="relative grid size-14 place-items-center rounded-[1.15rem] bg-hicotech-navy text-white shadow-lg shadow-slate-300/70 transition group-hover:bg-hicotech-blue dark:bg-hicotech-blue/20 dark:shadow-none">
           <Icon size={19} />
         </span>
-        <span className="grid size-8 place-items-center rounded-lg border border-slate-200 text-slate-400 transition group-hover:border-hicotech-blue/30 group-hover:text-hicotech-blue dark:border-hicotech-dark-border">
+        <span className="relative grid size-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-400 transition group-hover:border-hicotech-blue/30 group-hover:bg-hicotech-sky group-hover:text-hicotech-blue dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
           <Plus size={16} />
         </span>
       </div>
-      <p className="mt-4 text-sm font-bold text-hicotech-navy dark:text-white">{label}</p>
+      <p className="relative mt-5 text-lg font-bold text-hicotech-navy dark:text-white">{label}</p>
       <p className="mt-1 text-xs font-medium leading-5 text-slate-500 dark:text-slate-300">{helper}</p>
     </Link>
   );
@@ -343,7 +485,7 @@ function TimelineRow({ badge, description, meta, title }: { badge: string; descr
 
 function CompactItem({ badge, description, title }: { badge: string; description?: string; title: string }) {
   return (
-    <article className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-3 transition hover:border-hicotech-blue/25 hover:bg-white dark:border-hicotech-dark-border dark:bg-slate-900/30 dark:hover:bg-hicotech-dark-card">
+    <article className="rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm shadow-slate-200/50 transition hover:-translate-y-0.5 hover:border-hicotech-blue/25 hover:shadow-md hover:shadow-slate-200/70 dark:border-hicotech-dark-border dark:bg-slate-900/30 dark:shadow-none dark:hover:bg-hicotech-dark-card">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-bold text-hicotech-navy dark:text-white">{title}</p>
@@ -359,8 +501,8 @@ function CompactItem({ badge, description, title }: { badge: string; description
 
 function ContactSummary({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-hicotech-dark-border dark:bg-slate-900/30">
-      <p className="font-display text-2xl font-bold text-hicotech-navy dark:text-white">{value}</p>
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/50 dark:border-hicotech-dark-border dark:bg-slate-900/30 dark:shadow-none">
+      <p className="font-display text-3xl font-bold text-hicotech-navy dark:text-white">{value}</p>
       <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">{label}</p>
     </div>
   );

@@ -89,7 +89,7 @@ export function ContactsTable({
           <EntityActionButton icon={<Archive size={16} />} label="Archiver" disabled={!canWrite} onClick={() => onArchive(contact)} danger />
           <EntityActionButton icon={<CalendarClock size={16} />} label="Activités" disabled />
           <EntityActionButton icon={<Mail size={16} />} label="Emails" disabled />
-          <button type="button" className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:bg-hicotech-cloud dark:border-hicotech-dark-border dark:text-slate-300 dark:hover:bg-hicotech-dark-page" aria-label="Plus d'actions">
+          <button type="button" className="rounded-xl border border-slate-200 p-2 text-slate-500 transition hover:border-hicotech-blue/30 hover:bg-hicotech-sky/50 dark:border-hicotech-dark-border dark:text-slate-300 dark:hover:bg-hicotech-dark-page" aria-label="Plus d'actions">
             <MoreHorizontal size={16} />
           </button>
         </EntityActionMenu>

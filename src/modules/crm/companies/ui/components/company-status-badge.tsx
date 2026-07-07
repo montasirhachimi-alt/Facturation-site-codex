@@ -16,5 +16,10 @@ const styles: Record<CompanyStatus, string> = {
 };
 
 export function CompanyStatusBadge({ status }: { status: CompanyStatus }) {
-  return <span className={clsx("inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ring-1", styles[status])}>{labels[status]}</span>;
+  return (
+    <span className={clsx("inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold shadow-sm ring-1", styles[status])}>
+      <span className="size-1.5 rounded-full bg-current" />
+      {labels[status]}
+    </span>
+  );
 }

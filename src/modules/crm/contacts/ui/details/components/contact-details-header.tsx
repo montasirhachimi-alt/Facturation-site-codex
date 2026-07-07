@@ -9,25 +9,25 @@ import { ContactStatusBadge } from "../../components/contact-status-badge";
 export function ContactDetailsHeader({ canWrite, company, contact }: { canWrite: boolean; company?: Company; contact: Contact }) {
   return (
     <SectionCard className="overflow-hidden">
-      <div className="border-b border-slate-200 bg-slate-50/70 px-6 py-3 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/40">
-        <Link href={company ? `/crm/companies/${company.id}` : "/crm/companies"} className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 transition hover:text-hicotech-blue dark:text-slate-300">
+      <div className="bg-hicotech-navy px-6 py-4 text-white dark:bg-hicotech-dark-card">
+        <Link href={company ? `/crm/companies/${company.id}` : "/crm/companies"} className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-cyan-50/70 transition hover:text-white">
           <ArrowLeft size={14} />
           {company ? company.displayName : "Sociétés"}
         </Link>
       </div>
-      <div className="grid gap-6 p-6 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
+      <div className="grid gap-6 bg-hicotech-navy px-6 pb-7 text-white xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start dark:bg-hicotech-dark-card">
         <div className="flex flex-col gap-5 md:flex-row md:items-center">
-          <div className="grid size-20 place-items-center rounded-2xl bg-hicotech-navy text-2xl font-bold text-white shadow-lg shadow-slate-300/70 dark:bg-hicotech-blue dark:shadow-none">
+          <div className="grid size-24 place-items-center rounded-[1.5rem] bg-white text-3xl font-bold text-hicotech-blue shadow-2xl shadow-black/20">
             {getContactAvatarLabel(contact)}
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="font-display text-3xl font-bold text-hicotech-navy dark:text-white md:text-4xl">{contact.fullName}</h1>
+              <h1 className="font-display text-4xl font-bold leading-tight text-white md:text-5xl">{contact.fullName}</h1>
               <ContactStatusBadge status={contact.status} />
               {contact.isPrimaryContact && <Badge label="Contact principal" />}
               {contact.isDecisionMaker && <Badge label="Décideur" />}
             </div>
-            <div className="mt-3 flex flex-wrap items-center gap-3 text-sm font-medium text-slate-500 dark:text-slate-300">
+            <div className="mt-4 flex flex-wrap items-center gap-3 text-sm font-semibold text-cyan-50/75">
               <span>{contact.jobTitle ?? "Fonction non définie"}</span>
               <span>•</span>
               <span>{contact.department ?? "Département non défini"}</span>
@@ -47,7 +47,7 @@ export function ContactDetailsHeader({ canWrite, company, contact }: { canWrite:
         </div>
       </div>
 
-      <div className="grid gap-3 border-t border-slate-200 bg-slate-50/45 px-6 py-4 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/20 md:grid-cols-3">
+      <div className="grid gap-3 border-t border-slate-200 bg-white px-6 py-5 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/20 md:grid-cols-3">
         <InfoCard>
           <span className="inline-flex items-center gap-2">
             <Building2 size={16} />
@@ -62,7 +62,7 @@ export function ContactDetailsHeader({ canWrite, company, contact }: { canWrite:
 }
 
 function Badge({ label }: { label: string }) {
-  return <span className="rounded-full bg-hicotech-sky px-2.5 py-1 text-xs font-bold text-hicotech-blue dark:bg-hicotech-blue/20 dark:text-blue-100">{label}</span>;
+  return <span className="rounded-full bg-white/12 px-2.5 py-1 text-xs font-bold text-white ring-1 ring-white/15">{label}</span>;
 }
 
 function QuickAction({
@@ -77,7 +77,7 @@ function QuickAction({
   label: string;
 }) {
   const className =
-    "inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-hicotech-navy shadow-sm shadow-slate-200/40 transition hover:-translate-y-0.5 hover:border-hicotech-blue/30 hover:bg-hicotech-sky/50 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/10 disabled:cursor-not-allowed disabled:opacity-40 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page dark:text-white dark:shadow-none dark:hover:bg-hicotech-dark-card";
+    "inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm font-bold text-white shadow-sm shadow-black/10 transition hover:-translate-y-0.5 hover:bg-white/18 focus:outline-none focus:ring-4 focus:ring-white/15 disabled:cursor-not-allowed disabled:opacity-40";
 
   if (href && !disabled) {
     return (

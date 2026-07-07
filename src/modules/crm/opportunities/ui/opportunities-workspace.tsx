@@ -12,6 +12,7 @@ import {
   HandCoins,
   MoreHorizontal,
   Search,
+  Sparkles,
   Target,
   TrendingDown,
   UserRound
@@ -21,7 +22,7 @@ import { CompanyService } from "@/modules/crm/companies";
 import { CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
 import { ContactService } from "@/modules/crm/contacts";
 import { crmContactSeed } from "@/modules/crm/contacts/ui/contacts.seed";
-import { EntityHeader, EntityPageLayout, InfoCard, MetricCard, SectionCard, entityInputClassName } from "@/ui";
+import { EntityPageLayout, MetricCard, SectionCard, entityInputClassName } from "@/ui";
 import { OpportunityService } from "../opportunity.service";
 import type { Opportunity, OpportunityPriority, OpportunityStage, OpportunityStatus } from "../opportunity.types";
 import { formatOpportunityValue } from "../opportunity.utils";
@@ -68,23 +69,7 @@ export function OpportunitiesWorkspace() {
 
   return (
     <EntityPageLayout>
-      <EntityHeader
-        breadcrumb={["Ventes", "Pipeline commercial"]}
-        title="Pipeline commercial"
-        description="Une vue claire du revenu futur, des priorités commerciales et des prochaines clôtures."
-        meta={
-          <div className="flex flex-wrap items-center gap-2">
-            <InfoCard>Espace actif : HicoPilot CRM</InfoCard>
-            <Link
-              href="/crm"
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-hicotech-navy transition hover:border-hicotech-blue/30 hover:bg-hicotech-sky focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white"
-            >
-              Vue d&apos;ensemble CRM
-              <ArrowRight size={14} />
-            </Link>
-          </div>
-        }
-      />
+      <PipelineHero stats={stats} filteredCount={filtered.length} />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6" aria-label="Résumé du pipeline">
         <MetricCard icon={HandCoins} label="Opportunités" value={String(filtered.length)} helper="Pipeline filtré" />
@@ -165,6 +150,61 @@ export function OpportunitiesWorkspace() {
   );
 }
 
+function PipelineHero({ filteredCount, stats }: { filteredCount: number; stats: ReturnType<typeof buildStats> }) {
+  return (
+    <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-hicotech-navy text-white shadow-[0_30px_90px_rgba(10,30,63,0.28)] dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none">
+      <div className="grid gap-0 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
+        <div className="p-6 sm:p-9">
+          <p className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-cyan-50">
+            <Sparkles size={14} />
+            Pipeline commercial
+          </p>
+          <h1 className="mt-7 max-w-4xl font-display text-5xl font-bold leading-[1.02] md:text-6xl">
+            Un revenu futur lisible en un seul regard.
+          </h1>
+          <p className="mt-5 max-w-2xl text-lg leading-8 text-cyan-50/75">
+            Chaque opportunité reste reliée à sa société, son contact et sa prochaine décision commerciale.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link
+              href="/crm"
+              className="inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-bold text-hicotech-navy shadow-xl shadow-black/20 transition hover:-translate-y-0.5 hover:bg-cyan-50 focus:outline-none focus:ring-4 focus:ring-white/30"
+            >
+              Vue d&apos;ensemble CRM
+              <ArrowRight size={16} />
+            </Link>
+            <Link
+              href="/crm/companies"
+              className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-white/15 focus:outline-none focus:ring-4 focus:ring-white/20"
+            >
+              Créer depuis une société
+              <Building2 size={16} />
+            </Link>
+          </div>
+        </div>
+        <div className="border-t border-white/10 bg-white/[0.06] p-6 xl:border-l xl:border-t-0">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <PipelineHeroStat label="Opportunités" value={String(filteredCount)} helper="pipeline filtré" />
+            <PipelineHeroStat label="Valeur" value={formatOpportunityValue({ amount: stats.totalValue, currency: "MAD" })} helper="revenu estimé" />
+            <PipelineHeroStat label="Probabilité" value={`${stats.averageProbability}%`} helper="moyenne visible" />
+            <PipelineHeroStat label="Clôtures" value={String(stats.upcomingClosings)} helper="30 prochains jours" />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function PipelineHeroStat({ helper, label, value }: { helper: string; label: string; value: string }) {
+  return (
+    <article className="rounded-2xl border border-white/10 bg-white/10 p-4 shadow-lg shadow-black/10">
+      <p className="text-xs font-bold uppercase tracking-[0.14em] text-cyan-50/60">{label}</p>
+      <p className="mt-2 font-display text-2xl font-bold text-white">{value}</p>
+      <p className="mt-1 text-xs font-semibold text-cyan-50/65">{helper}</p>
+    </article>
+  );
+}
+
 function PipelineBoard({
   onSelect,
   opportunities,
@@ -181,17 +221,19 @@ function PipelineBoard({
           const stageItems = opportunities.filter((opportunity) => opportunity.stage === stage);
           const stageValue = stageItems.reduce((total, opportunity) => total + opportunity.estimatedValue.amount, 0);
           return (
-            <section key={stage} className="min-h-[28rem] rounded-2xl border border-slate-200 bg-slate-50/80 p-3 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/40">
-              <div className="mb-3 flex items-start justify-between gap-3">
+            <section key={stage} className="min-h-[28rem] rounded-[1.5rem] border border-slate-200 bg-white p-3 shadow-[0_18px_55px_rgba(10,30,63,0.08)] dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/40 dark:shadow-none">
+              <div className="mb-3 rounded-2xl bg-slate-50 p-3 dark:bg-white/5">
+                <div className="flex items-start justify-between gap-3">
                 <div>
                   <h2 className="font-display text-sm font-bold text-hicotech-navy dark:text-white">{OPPORTUNITY_STAGE_LABELS[stage]}</h2>
                   <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-300">
                     {stageItems.length} opportunité(s) • {formatOpportunityValue({ amount: stageValue, currency: "MAD" })}
                   </p>
                 </div>
-                <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-slate-500 ring-1 ring-slate-200 dark:bg-hicotech-dark-card dark:ring-hicotech-dark-border">
+                <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-slate-500 shadow-sm ring-1 ring-slate-200 dark:bg-hicotech-dark-card dark:ring-hicotech-dark-border">
                   {stageItems.length}
                 </span>
+                </div>
               </div>
               <div className="space-y-3">
                 {stageItems.length > 0 ? (
@@ -224,10 +266,11 @@ function OpportunityPipelineCard({ onSelect, opportunity, selected }: { onSelect
     <button
       type="button"
       onClick={onSelect}
-      className={`group w-full rounded-2xl border bg-white p-4 text-left shadow-sm shadow-slate-200/50 transition hover:-translate-y-0.5 hover:border-hicotech-blue/35 hover:shadow-lg hover:shadow-slate-200/70 focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50 dark:bg-hicotech-dark-card dark:shadow-none ${
+      className={`group relative w-full overflow-hidden rounded-2xl border bg-white p-4 text-left shadow-lg shadow-slate-200/60 transition hover:-translate-y-1 hover:border-hicotech-blue/35 hover:shadow-xl hover:shadow-slate-300/70 focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50 dark:bg-hicotech-dark-card dark:shadow-none ${
         selected ? "border-hicotech-blue ring-2 ring-hicotech-blue/20" : "border-slate-200 dark:border-hicotech-dark-border"
       }`}
     >
+      <span className="absolute inset-x-0 top-0 h-1 bg-hicotech-blue/80" />
       <div className="flex items-start justify-between gap-3">
         <h3 className="font-display text-sm font-bold leading-5 text-hicotech-navy dark:text-white">{opportunity.title}</h3>
         <GripVertical size={16} className="text-slate-300 transition group-hover:text-hicotech-blue" aria-label="Déplacement bientôt disponible" />

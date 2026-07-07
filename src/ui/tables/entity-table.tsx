@@ -38,17 +38,20 @@ export function EntityTable<TEntity extends { id: string }, TSortKey extends str
   title: string;
 }) {
   return (
-    <SectionCard className="overflow-hidden">
-      <div className="flex flex-col gap-3 border-b border-slate-200/80 bg-slate-50/50 px-5 py-5 sm:flex-row sm:items-center sm:justify-between dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/30">
+    <SectionCard className="overflow-hidden shadow-[0_22px_70px_rgba(10,30,63,0.10)] dark:shadow-none">
+      <div className="relative overflow-hidden border-b border-slate-200/80 bg-hicotech-navy px-5 py-6 text-white dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
+        <div className="absolute right-0 top-0 h-full w-40 bg-white/5" />
+        <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="font-display text-lg font-bold text-hicotech-navy dark:text-white">{title}</h2>
-          <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-300">{subtitle}</p>
+          <h2 className="font-display text-2xl font-bold text-white">{title}</h2>
+          <p className="mt-1 text-sm font-medium text-cyan-50/70 dark:text-slate-300">{subtitle}</p>
         </div>
         {selectedIds.length > 0 && (
-          <span className="rounded-full bg-hicotech-blue/10 px-3 py-1 text-xs font-bold text-hicotech-blue">
+          <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-hicotech-blue">
             {bulkLabel ?? `${selectedIds.length} sélectionné(s)`}
           </span>
         )}
+        </div>
       </div>
 
       {isLoading ? (
@@ -58,7 +61,7 @@ export function EntityTable<TEntity extends { id: string }, TSortKey extends str
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1040px] border-collapse text-sm">
-            <thead className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 text-left text-hicotech-navy backdrop-blur dark:border-hicotech-dark-border dark:bg-hicotech-dark-card/95 dark:text-white">
+            <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 text-left text-hicotech-navy backdrop-blur dark:border-hicotech-dark-border dark:bg-hicotech-dark-card/95 dark:text-white">
               <tr>
                 <th className="w-12 px-5 py-3">
                   <input
@@ -93,8 +96,8 @@ export function EntityTable<TEntity extends { id: string }, TSortKey extends str
                 <tr
                   key={item.id}
                   className={clsx(
-                    "border-t border-slate-100 transition duration-150 hover:bg-slate-50/90 dark:border-hicotech-dark-border dark:hover:bg-hicotech-dark-page/60",
-                    selectedIds.includes(item.id) && "bg-hicotech-sky/60 dark:bg-hicotech-blue/10"
+                    "border-t border-slate-100 transition duration-150 hover:bg-hicotech-sky/55 hover:shadow-[inset_4px_0_0_#0D6EFD] dark:border-hicotech-dark-border dark:hover:bg-hicotech-dark-page/60",
+                    selectedIds.includes(item.id) && "bg-hicotech-sky/70 shadow-[inset_4px_0_0_#0D6EFD] dark:bg-hicotech-blue/10"
                   )}
                 >
                   <td className="px-5 py-4">

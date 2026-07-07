@@ -8,7 +8,7 @@
 | Version | Pre-Alpha |
 | Current Milestone | Milestone 3 — Business Suite |
 | Current Phase | Business Module Foundations |
-| Current Sprint | SPR-327 — CRM Experience 2.0 |
+| Current Sprint | SPR-328 — CRM Product Revolution |
 | Next Sprint | To define |
 | Repository Health | Builds successfully with one known existing image optimization warning. |
 
@@ -169,16 +169,18 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - The search dialog opens from click or keyboard shortcut, closes with ESC or outside click, traps focus and presents Recent, Suggestions and Navigation sections as UI placeholders.
 - The search platform now exposes a section resolver contract so future sprints can inject real search providers without changing the shell.
 - CRM Experience 2.0 improves visible hierarchy, spacing, hover states, rounded surfaces, empty states, tables, filters, sticky tabs and inspectors across CRM home, companies, contacts and pipeline screens.
+- CRM Experience 2.0 Visual Impact Continuation adds a high-impact CRM home hero, stronger KPI cards, more attractive CRM cards, richer table headers and clearer status badges so the change is visible immediately.
 - CRM detail workspaces now present company/contact identity, actions, related panels and contextual timelines with a calmer, more executive visual rhythm.
 - Opportunity cards and pipeline stages now scan faster with richer card hierarchy, sticky inspector context and clearer commercial metrics.
+- CRM Product Revolution transforms the visible CRM language with launch-grade heroes, a relationship command strip, stronger record identity bands, premium metric cards, richer tables, bolder empty states and a pipeline hero designed to create a premium first impression in less than five seconds.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passed during SPR-327 via the local `tsc --noEmit` script equivalent because `npm` is unavailable in this environment. |
-| `npm run build` | Yes | Passed during SPR-327 via the local `next build` script equivalent because `npm` is unavailable in this environment; known existing `next/image` warning remains. |
-| `npm run validate:runtime` | No for SPR-327 | Not requested during SPR-327; no Runtime changes were made. |
+| `npm run typecheck` | Yes | Passed during SPR-328 via the local `tsc --noEmit` script equivalent because `npm` is unavailable in this environment. |
+| `npm run build` | Yes | Passed during SPR-328 via the local `next build` script equivalent because `npm` is unavailable in this environment; the known PDF preview image warning remains. |
+| `npm run validate:runtime` | No for SPR-328 | Not requested during SPR-328; no Runtime changes were made. |
 
 ## Repository Health
 
