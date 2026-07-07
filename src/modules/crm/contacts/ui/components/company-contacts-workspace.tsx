@@ -20,11 +20,11 @@ export function CompanyContactsWorkspace({ companyId }: { companyId: CompanyId }
     <section className="space-y-4" aria-label="Contacts de la société">
       <EntityStatsCards
         metrics={[
-          { icon: UsersRound, label: "Total Contacts", value: String(state.stats.total), helper: "Rattachés à cette société" },
-          { icon: UserCheck, label: "Primary Contacts", value: String(state.stats.primary), helper: "Contacts principaux" },
-          { icon: UserCheck, label: "Decision Makers", value: String(state.stats.decisionMakers), helper: "Décideurs identifiés" },
-          { icon: Network, label: "Departments", value: String(state.stats.departments), helper: "Équipes représentées" },
-          { icon: Languages, label: "Languages", value: String(state.stats.languages), helper: "Préférences langue" }
+          { icon: UsersRound, label: "Contacts", value: String(state.stats.total), helper: "Rattachés à cette société" },
+          { icon: UserCheck, label: "Principaux", value: String(state.stats.primary), helper: "Contacts de référence" },
+          { icon: UserCheck, label: "Décideurs", value: String(state.stats.decisionMakers), helper: "Décideurs identifiés" },
+          { icon: Network, label: "Équipes", value: String(state.stats.departments), helper: "Départements représentés" },
+          { icon: Languages, label: "Langues", value: String(state.stats.languages), helper: "Préférences de contact" }
         ]}
       />
 

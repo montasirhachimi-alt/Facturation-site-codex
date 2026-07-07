@@ -121,7 +121,7 @@ export function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse
                     key={item.id}
                     href={item.href as LinkProps<string>["href"]}
                     onClick={onCloseMobile}
-                    title={isCollapsed ? item.label : undefined}
+                    title={item.helper || (isCollapsed ? item.label : undefined)}
                     className={clsx(
                       "flex h-10 items-center rounded-lg text-sm font-semibold transition duration-200 focus:outline-none focus:ring-2 focus:ring-hicotech-blue/60",
                       isCollapsed ? "justify-center px-0" : "gap-3 px-3",
@@ -132,14 +132,7 @@ export function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse
                   >
                     <Icon size={18} />
                     {!isCollapsed && (
-                      <>
-                        <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                        {item.badge && (
-                          <span className={clsx("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold", active ? "bg-slate-100 text-slate-500" : "bg-white/10 text-cyan-100/70")}>
-                            {item.badge}
-                          </span>
-                        )}
-                      </>
+                      <span className="min-w-0 flex-1 truncate">{item.label}</span>
                     )}
                   </Link>
                 );

@@ -11,8 +11,8 @@ export type SidebarNavigationItem = {
   label: string;
   icon: string;
   module: string;
-  badge?: string;
   activePaths?: string[];
+  helper?: string;
 };
 
 export type SidebarNavigationGroup = {
@@ -107,11 +107,6 @@ function getMetadataString(
   return typeof value === "string" && value.length > 0 ? value : fallback;
 }
 
-function getMetadataBadge(metadata: ModuleNavigationItem["metadata"] | undefined) {
-  const value = metadata?.badge;
-  return typeof value === "string" && value.length > 0 ? value : undefined;
-}
-
 function getModuleCategory(moduleId: string): SidebarCategory {
   if (moduleId === "crm") {
     return "business";
@@ -142,8 +137,8 @@ function mapBusinessNavigationItem(item: ModuleNavigationItem): SidebarNavigatio
     label: getMetadataString(item.metadata, "sidebarLabel", item.label),
     icon: getMetadataString(item.metadata, "icon", "FileText"),
     module: getMetadataString(item.metadata, "permissionModule", item.id),
-    badge: getMetadataBadge(item.metadata),
-    activePaths: getActivePaths(item)
+    activePaths: getActivePaths(item),
+    helper: getMetadataString(item.metadata, "helper", "")
   };
 }
 

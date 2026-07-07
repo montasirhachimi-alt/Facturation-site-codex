@@ -35,35 +35,35 @@ export const crmNavigation = Object.freeze({
       label: "Contacts",
       route: `${CRM_MODULE_ROUTE}/companies`,
       permission: "crm.contact.read",
-      metadata: { icon: "ContactRound", permissionModule: "clients", badge: "via société", contextual: true }
+      metadata: { icon: "ContactRound", permissionModule: "clients", contextual: true, helper: "Les contacts se gèrent depuis une fiche société." }
     },
     {
       id: "crm.activities",
       label: "Activités / Timeline",
       route: `${CRM_MODULE_ROUTE}/companies`,
       permission: "crm.activity.read",
-      metadata: { icon: "ClipboardList", permissionModule: "clients", badge: "via société", contextual: true }
+      metadata: { icon: "ClipboardList", permissionModule: "clients", contextual: true, helper: "La timeline se consulte depuis une fiche société." }
     },
     {
       id: "crm.meetings",
       label: "Réunions",
-      route: `${CRM_MODULE_ROUTE}/companies`,
+      route: `${CRM_MODULE_ROUTE}/contacts/contact-sara-amrani`,
       permission: "crm.meeting.read",
-      metadata: { icon: "CalendarCheck", permissionModule: "clients", badge: "via contact", contextual: true }
+      metadata: { icon: "CalendarCheck", permissionModule: "clients", contextual: true, helper: "Les réunions se planifient depuis une fiche contact." }
     },
     {
       id: "crm.tasks",
       label: "Tâches",
-      route: `${CRM_MODULE_ROUTE}/companies`,
+      route: `${CRM_MODULE_ROUTE}/contacts/contact-sara-amrani`,
       permission: "crm.task.read",
-      metadata: { icon: "ScrollText", permissionModule: "clients", badge: "via contact", contextual: true }
+      metadata: { icon: "ScrollText", permissionModule: "clients", contextual: true, helper: "Les tâches se suivent depuis une fiche contact." }
     },
     {
       id: "crm.notes",
       label: "Notes",
-      route: `${CRM_MODULE_ROUTE}/companies`,
+      route: `${CRM_MODULE_ROUTE}/contacts/contact-sara-amrani`,
       permission: "crm.note.read",
-      metadata: { icon: "FileText", permissionModule: "clients", badge: "via contact", contextual: true }
+      metadata: { icon: "FileText", permissionModule: "clients", contextual: true, helper: "Les notes se consultent depuis une fiche contact." }
     }
   ] satisfies CrmNavigationItem[])
 } satisfies CrmNavigationItem);

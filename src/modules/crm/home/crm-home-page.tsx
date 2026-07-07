@@ -79,11 +79,11 @@ export function CrmHomePage() {
       />
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5" aria-label="Actions rapides CRM">
-        <QuickAction href="/crm/companies" icon={Building2} label="Nouvelle société" helper="Depuis le workspace sociétés" />
-        <QuickAction href="/crm/companies" icon={ContactRound} label="Nouveau contact" helper="Via une fiche société" />
-        <QuickAction href="/crm/companies" icon={CalendarCheck} label="Planifier une réunion" helper="Via une fiche contact" />
-        <QuickAction href="/crm/companies" icon={CheckCircle2} label="Nouvelle tâche" helper="Via une fiche contact" />
-        <QuickAction href="/crm/opportunities" icon={HandCoins} label="Pipeline commercial" helper="Espace Ventes" />
+        <QuickAction href="/crm/companies" icon={Building2} label="Nouvelle société" helper="Créer le compte central" />
+        <QuickAction href="/crm/companies" icon={ContactRound} label="Nouveau contact" helper="Depuis l'onglet Contacts d'une société" />
+        <QuickAction href="/crm/contacts/contact-sara-amrani" icon={CalendarCheck} label="Planifier une réunion" helper="Depuis une fiche contact" />
+        <QuickAction href="/crm/contacts/contact-sara-amrani" icon={CheckCircle2} label="Nouvelle tâche" helper="Depuis une fiche contact" />
+        <QuickAction href="/crm/opportunities" icon={HandCoins} label="Pipeline commercial" helper="Dans Ventes" />
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7" aria-label="Indicateurs CRM">
@@ -237,13 +237,14 @@ export function CrmHomePage() {
         <SectionCard className="p-5">
           <SectionTitle
             icon={MessageSquareText}
-            title="Comment naviguer dans le CRM"
-            description="Les modules connectés restent attachés à leur contexte métier."
+            title="Repères de navigation CRM"
+            description="Les espaces contextuels restent attachés à leur parent pour garder le CRM simple."
           />
-          <div className="mt-5 grid gap-3 md:grid-cols-3">
+          <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <NavigationHint title="Sociétés" description="Point d'entrée central pour comptes, contacts et timeline." href="/crm/companies" />
             <NavigationHint title="Contacts" description="Ouvrez une société, puis l'onglet Contacts." href="/crm/companies" />
-            <NavigationHint title="Pipeline commercial" description="Ouvrez l'espace Ventes pour suivre toutes les opportunités." href="/crm/opportunities" />
+            <NavigationHint title="Réunions, tâches et notes" description="Ouvrez une fiche contact pour planifier, suivre et noter les échanges." href="/crm/contacts/contact-sara-amrani" />
+            <NavigationHint title="Pipeline commercial" description="Ouvrez Ventes pour suivre toutes les opportunités." href="/crm/opportunities" />
           </div>
         </SectionCard>
       </div>
