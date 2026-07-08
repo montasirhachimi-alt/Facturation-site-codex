@@ -8,7 +8,7 @@
 | Version | Pre-Alpha |
 | Current Milestone | Milestone 3 — Business Suite |
 | Current Phase | Business Module Foundations |
-| Current Sprint | SPR-330B — Normalize KPI Card Icon Treatment |
+| Current Sprint | SPR-330C — Improve KPI Card Vertical Rhythm |
 | Next Sprint | To define |
 | Repository Health | Builds successfully with one known existing image optimization warning. |
 
@@ -177,14 +177,15 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - CRM Home Visual Cleanup removes the isolated floating plus buttons from CRM quick actions and replaces the area with one grouped, compact and aligned Actions rapides section that better matches the premium BOSIACO identity.
 - CRM Home Quick Actions Layout refinement keeps the grouped section but makes it lighter, more balanced and closer to the surrounding CRM Home rhythm without restoring floating plus controls.
 - KPI Card Icon Normalization removes the oversized pale decorative icon background from the shared metric card and standardizes icon tile size, placement and visual weight across Dashboard and CRM KPI rows.
+- KPI Card Vertical Rhythm improves the shared metric card spacing so KPI values have more breathing room from the title and icon tile while preserving colors, data, routes and the BOSIACO top accent.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passed during SPR-330B via the local `tsc --noEmit` script equivalent because `npm` is unavailable in this environment. |
-| `npm run build` | Yes | Passed during SPR-330B via the local `next build` script equivalent because `npm` is unavailable in this environment; the known PDF preview image warning remains. |
-| `npm run validate:runtime` | No for SPR-330B | Not requested during SPR-330B; no Runtime changes were made. |
+| `npm run typecheck` | Yes | Passed during SPR-330C via the local `tsc --noEmit` script equivalent because `npm` is unavailable in this environment. |
+| `npm run build` | Yes | Passed during SPR-330C via the local `next build` script equivalent because `npm` is unavailable in this environment; the known PDF preview image warning remains. |
+| `npm run validate:runtime` | No for SPR-330C | Not requested during SPR-330C; no Runtime changes were made. |
 
 ## Repository Health
 
