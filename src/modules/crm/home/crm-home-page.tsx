@@ -19,7 +19,7 @@ import {
   TrendingUp,
   Users
 } from "lucide-react";
-import { EntityPageLayout, MetricCard, ProductSectionHeader, SectionCard } from "@/ui";
+import { EntityPageLayout, MetricCard, SectionCard } from "@/ui";
 import { ActivityService } from "../activities";
 import { crmActivitySeed } from "../activities/ui/activities.seed";
 import { CompanyService } from "../companies";
@@ -70,25 +70,29 @@ export function CrmHomePage() {
       <CrmHero />
       <CrmCommandStrip />
 
-      <SectionCard className="p-5" >
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <ProductSectionHeader
-            icon={Sparkles}
-            title="Actions rapides"
-            description="Les raccourcis essentiels du CRM, regroupés sans bruit visuel."
-          />
-          <span className="w-fit rounded-full bg-hicotech-sky px-3 py-1.5 text-xs font-bold text-hicotech-blue ring-1 ring-hicotech-blue/10 dark:bg-hicotech-blue/15 dark:text-blue-100 dark:ring-white/10">
-            5 actions disponibles
+      <section className="rounded-[1.4rem] border border-slate-200/80 bg-white/80 p-4 shadow-[0_16px_45px_rgba(10,30,63,0.07)] backdrop-blur dark:border-hicotech-dark-border dark:bg-hicotech-dark-card/80 dark:shadow-none">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-hicotech-navy text-white shadow-sm shadow-slate-300/60 dark:bg-hicotech-blue dark:shadow-none">
+              <Sparkles size={17} />
+            </span>
+            <div>
+              <h2 className="font-display text-lg font-bold text-hicotech-navy dark:text-white">Actions rapides</h2>
+              <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-300">Les raccourcis CRM essentiels, prêts sans détour.</p>
+            </div>
+          </div>
+          <span className="w-fit rounded-full bg-slate-50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500 ring-1 ring-slate-200 dark:bg-white/10 dark:text-slate-300 dark:ring-white/10">
+            CRM
           </span>
         </div>
-        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5" aria-label="Actions rapides CRM">
+        <div className="mt-4 grid gap-2.5 md:grid-cols-2 xl:grid-cols-5" aria-label="Actions rapides CRM">
           <QuickAction href="/crm/companies" icon={Building2} label="Nouvelle société" helper="Créer le compte central" />
           <QuickAction href="/crm/companies" icon={ContactRound} label="Nouveau contact" helper="Depuis l'onglet Contacts d'une société" />
           <QuickAction href="/crm/contacts/contact-sara-amrani" icon={CalendarCheck} label="Planifier une réunion" helper="Depuis une fiche contact" />
           <QuickAction href="/crm/contacts/contact-sara-amrani" icon={CheckCircle2} label="Nouvelle tâche" helper="Depuis une fiche contact" />
           <QuickAction href="/crm/opportunities" icon={HandCoins} label="Pipeline commercial" helper="Dans Ventes" />
         </div>
-      </SectionCard>
+      </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7" aria-label="Indicateurs CRM">
         <MetricCard icon={Building2} label="Sociétés" value={String(companies.length)} helper="Données de démonstration" />
@@ -436,16 +440,16 @@ function QuickAction({
   return (
     <Link
       href={href}
-      className="group flex min-h-28 items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/50 transition duration-200 hover:-translate-y-0.5 hover:border-hicotech-blue/35 hover:bg-hicotech-sky/45 hover:shadow-md hover:shadow-slate-200/70 focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:bg-slate-900/30 dark:shadow-none dark:hover:bg-hicotech-dark-card"
+      className="group flex min-h-24 items-center gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/75 px-3.5 py-3 shadow-sm shadow-slate-200/35 transition duration-200 hover:-translate-y-0.5 hover:border-hicotech-blue/30 hover:bg-white hover:shadow-md hover:shadow-slate-200/60 focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:bg-slate-900/30 dark:shadow-none dark:hover:bg-hicotech-dark-card"
     >
-      <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-hicotech-navy text-white shadow-sm shadow-slate-300/60 transition group-hover:bg-hicotech-blue dark:bg-hicotech-blue dark:shadow-none">
-        <Icon size={18} />
+      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white text-hicotech-blue shadow-sm ring-1 ring-slate-200 transition group-hover:bg-hicotech-blue group-hover:text-white dark:bg-white/10 dark:ring-white/10">
+        <Icon size={17} />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-bold leading-5 text-hicotech-navy dark:text-white">{label}</span>
         <span className="mt-1 block text-xs font-medium leading-5 text-slate-500 dark:text-slate-300">{helper}</span>
       </span>
-      <ArrowRight size={15} className="mt-1 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-hicotech-blue" />
+      <ArrowRight size={15} className="shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-hicotech-blue" />
     </Link>
   );
 }

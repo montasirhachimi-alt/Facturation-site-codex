@@ -8,7 +8,7 @@
 | Version | Pre-Alpha |
 | Current Milestone | Milestone 3 — Business Suite |
 | Current Phase | Business Module Foundations |
-| Current Sprint | SPR-330 — CRM Home Visual Cleanup: Quick Actions |
+| Current Sprint | SPR-330A — Fix CRM Home Quick Actions Layout |
 | Next Sprint | To define |
 | Repository Health | Builds successfully with one known existing image optimization warning. |
 
@@ -175,14 +175,15 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - CRM Product Revolution transforms the visible CRM language with launch-grade heroes, a relationship command strip, stronger record identity bands, premium metric cards, richer tables, bolder empty states and a pipeline hero designed to create a premium first impression in less than five seconds.
 - Product Identity Foundation introduces reusable BOSIACO product primitives for hero sections, action cards and section headers, then aligns Dashboard, CRM and Sales around the same premium rhythm: hero, business insights, primary actions, main content and secondary context.
 - CRM Home Visual Cleanup removes the isolated floating plus buttons from CRM quick actions and replaces the area with one grouped, compact and aligned Actions rapides section that better matches the premium BOSIACO identity.
+- CRM Home Quick Actions Layout refinement keeps the grouped section but makes it lighter, more balanced and closer to the surrounding CRM Home rhythm without restoring floating plus controls.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passed during SPR-330 via the local `tsc --noEmit` script equivalent because `npm` is unavailable in this environment. |
-| `npm run build` | Yes | Passed during SPR-330 via the local `next build` script equivalent because `npm` is unavailable in this environment; the known PDF preview image warning remains. |
-| `npm run validate:runtime` | No for SPR-330 | Not requested during SPR-330; no Runtime changes were made. |
+| `npm run typecheck` | Yes | Passed during SPR-330A via the local `tsc --noEmit` script equivalent because `npm` is unavailable in this environment. |
+| `npm run build` | Yes | Passed during SPR-330A via the local `next build` script equivalent because `npm` is unavailable in this environment; the known PDF preview image warning remains. |
+| `npm run validate:runtime` | No for SPR-330A | Not requested during SPR-330A; no Runtime changes were made. |
 
 ## Repository Health
 
