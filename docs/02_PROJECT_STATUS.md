@@ -8,7 +8,7 @@
 | Version | Pre-Alpha |
 | Current Milestone | Milestone 3 — Business Suite |
 | Current Phase | Business Module Foundations |
-| Current Sprint | SPR-330A — Fix CRM Home Quick Actions Layout |
+| Current Sprint | SPR-330B — Normalize KPI Card Icon Treatment |
 | Next Sprint | To define |
 | Repository Health | Builds successfully with one known existing image optimization warning. |
 
@@ -176,14 +176,15 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - Product Identity Foundation introduces reusable BOSIACO product primitives for hero sections, action cards and section headers, then aligns Dashboard, CRM and Sales around the same premium rhythm: hero, business insights, primary actions, main content and secondary context.
 - CRM Home Visual Cleanup removes the isolated floating plus buttons from CRM quick actions and replaces the area with one grouped, compact and aligned Actions rapides section that better matches the premium BOSIACO identity.
 - CRM Home Quick Actions Layout refinement keeps the grouped section but makes it lighter, more balanced and closer to the surrounding CRM Home rhythm without restoring floating plus controls.
+- KPI Card Icon Normalization removes the oversized pale decorative icon background from the shared metric card and standardizes icon tile size, placement and visual weight across Dashboard and CRM KPI rows.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passed during SPR-330A via the local `tsc --noEmit` script equivalent because `npm` is unavailable in this environment. |
-| `npm run build` | Yes | Passed during SPR-330A via the local `next build` script equivalent because `npm` is unavailable in this environment; the known PDF preview image warning remains. |
-| `npm run validate:runtime` | No for SPR-330A | Not requested during SPR-330A; no Runtime changes were made. |
+| `npm run typecheck` | Yes | Passed during SPR-330B via the local `tsc --noEmit` script equivalent because `npm` is unavailable in this environment. |
+| `npm run build` | Yes | Passed during SPR-330B via the local `next build` script equivalent because `npm` is unavailable in this environment; the known PDF preview image warning remains. |
+| `npm run validate:runtime` | No for SPR-330B | Not requested during SPR-330B; no Runtime changes were made. |
 
 ## Repository Health
 
