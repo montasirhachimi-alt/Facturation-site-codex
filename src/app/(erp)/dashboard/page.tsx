@@ -8,8 +8,8 @@ import {
   ContactRound,
   FileText,
   HandCoins,
-  Plus,
   Receipt,
+  Sparkles,
   WalletCards
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -17,6 +17,7 @@ import { DashboardWorkspaceBridge } from "@/components/dashboard-workspace-bridg
 import { dashboardStats } from "@/lib/demo-data";
 import { formatCurrency } from "@/lib/format";
 import { getCurrentUser } from "@/lib/auth";
+import { MetricCard, ProductActionCard, ProductHero, ProductSectionHeader, SectionCard } from "@/ui";
 
 const quickActions: QuickActionCardProps[] = [
   {
@@ -118,64 +119,70 @@ export default async function DashboardPage() {
 
   return (
     <DashboardWorkspaceBridge>
-      <div className="space-y-5">
-        <section className="rounded-lg border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-200/40 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none md:p-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-hicotech-blue">Tableau de bord</p>
-              <h1 className="mt-3 font-display text-3xl font-bold leading-tight text-hicotech-navy dark:text-white md:text-4xl">
-                Bonjour {userFirstName} 👋
-              </h1>
-              <p className="mt-3 max-w-2xl text-base leading-7 text-slate-500 dark:text-slate-300">
-                Voici ce qui mérite votre attention aujourd&apos;hui.
+      <div className="space-y-6">
+        <ProductHero
+          eyebrow="Tableau de bord"
+          icon={Sparkles}
+          title={`Bonjour ${userFirstName}`}
+          subtitle="Voici ce qui mérite votre attention aujourd'hui : revenu, encaissements, propositions et actions commerciales à traiter."
+          actions={[
+            { href: "/sales/quotes", icon: FileText, label: "Créer un devis" },
+            { href: "/crm", icon: HandCoins, label: "Ouvrir le CRM", tone: "secondary" }
+          ]}
+          insight={
+            <div className="rounded-[1.75rem] border border-white/10 bg-white p-5 text-hicotech-navy shadow-2xl shadow-black/20">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-hicotech-blue">Espace actif</p>
+              <h2 className="mt-2 font-display text-2xl font-bold">BOSIACO Business OS</h2>
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                Une lecture courte pour savoir ce qui s&apos;est passé, ce qui réclame votre attention et quoi faire ensuite.
               </p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <HeroInsight label="Reste à encaisser" value={formatCurrency(dashboardStats.outstanding)} />
+                <HeroInsight label="Pipeline" value="9 opportunités" />
+              </div>
             </div>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/60">
-              <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">Espace actif</p>
-              <p className="mt-1 font-display text-lg font-bold text-hicotech-navy dark:text-white">BOSIACO CRM</p>
-            </div>
-          </div>
-        </section>
+          }
+        />
 
         <section className="space-y-3">
-          <SectionHeading title="Actions rapides" description="Les chemins les plus utiles pour démarrer sans chercher dans les menus." />
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <ProductSectionHeader icon={Sparkles} title="Actions rapides" description="Les chemins les plus utiles pour démarrer sans chercher dans les menus." />
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             {quickActions.map((action) => (
-              <QuickActionCard key={action.label} {...action} />
+              <ProductActionCard key={action.label} {...action} />
             ))}
           </div>
         </section>
 
         <section className="space-y-3">
-          <SectionHeading title="Vue d'ensemble business" description="Les indicateurs essentiels, sans bruit inutile." />
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <BusinessKpi icon={BadgeDollarSign} label="Chiffre d'affaires" value={formatCurrency(dashboardStats.revenue)} helper="+12,5% ce mois" />
-            <BusinessKpi icon={WalletCards} label="Reste à encaisser" value={formatCurrency(dashboardStats.outstanding)} helper="Factures ouvertes" />
-            <BusinessKpi icon={HandCoins} label="Marge brute" value={formatCurrency(dashboardStats.grossMargin)} helper="61,5% du CA" />
-            <BusinessKpi icon={ClipboardList} label="Pipeline actif" value="9 opportunités" helper="À suivre cette semaine" />
+          <ProductSectionHeader icon={BadgeDollarSign} title="Vue d'ensemble business" description="Les indicateurs essentiels, sans bruit inutile." />
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <MetricCard icon={BadgeDollarSign} label="Chiffre d'affaires" value={formatCurrency(dashboardStats.revenue)} helper="+12,5% ce mois" />
+            <MetricCard icon={WalletCards} label="Reste à encaisser" value={formatCurrency(dashboardStats.outstanding)} helper="Factures ouvertes" />
+            <MetricCard icon={HandCoins} label="Marge brute" value={formatCurrency(dashboardStats.grossMargin)} helper="61,5% du CA" />
+            <MetricCard icon={ClipboardList} label="Pipeline actif" value="9 opportunités" helper="À suivre cette semaine" />
           </div>
         </section>
 
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
-          <section className="rounded-lg border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none">
+          <SectionCard className="overflow-hidden">
             <div className="border-b border-slate-200/80 px-5 py-4 dark:border-hicotech-dark-border">
-              <SectionHeading title="Priorités du jour" description="Ce que l'utilisateur doit traiter ensuite." compact />
+              <ProductSectionHeader title="Priorités du jour" description="Ce que l'utilisateur doit traiter ensuite." />
             </div>
             <div className="divide-y divide-slate-100 dark:divide-hicotech-dark-border">
               {priorities.map((priority) => (
                 <PriorityRow key={priority.title} {...priority} />
               ))}
             </div>
-          </section>
+          </SectionCard>
 
-          <section className="rounded-lg border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-200/40 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none">
-            <SectionHeading title="Activité récente" description="Un fil compact pour comprendre ce qui vient de se passer." compact />
+          <SectionCard className="p-5">
+            <ProductSectionHeader title="Activité récente" description="Un fil compact pour comprendre ce qui vient de se passer." />
             <div className="mt-5 space-y-4">
               {recentActivity.map((activity, index) => (
                 <TimelineItem key={activity.title} last={index === recentActivity.length - 1} {...activity} />
               ))}
             </div>
-          </section>
+          </SectionCard>
         </div>
       </div>
     </DashboardWorkspaceBridge>
@@ -189,39 +196,11 @@ type QuickActionCardProps = {
   label: string;
 };
 
-function QuickActionCard({ description, href, icon: Icon, label }: QuickActionCardProps) {
+function HeroInsight({ label, value }: { label: string; value: string }) {
   return (
-    <Link
-      href={href}
-      className="group flex min-h-36 flex-col justify-between rounded-lg border border-slate-200/80 bg-white p-4 shadow-sm shadow-slate-200/40 transition duration-200 hover:border-hicotech-blue/30 hover:shadow-md hover:shadow-slate-200/60 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/10 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <span className="grid size-10 place-items-center rounded-lg bg-slate-50 text-hicotech-blue ring-1 ring-slate-100 dark:bg-white/10 dark:ring-white/10">
-          <Icon size={19} />
-        </span>
-        <span className="grid size-8 place-items-center rounded-lg text-slate-400 transition group-hover:bg-hicotech-sky group-hover:text-hicotech-blue dark:group-hover:bg-hicotech-blue/15">
-          <Plus size={16} />
-        </span>
-      </div>
-      <div className="mt-5">
-        <h3 className="font-display text-base font-bold text-hicotech-navy dark:text-white">{label}</h3>
-        <p className="mt-1 text-sm leading-5 text-slate-500 dark:text-slate-300">{description}</p>
-      </div>
-    </Link>
-  );
-}
-
-function BusinessKpi({ helper, icon: Icon, label, value }: { helper: string; icon: LucideIcon; label: string; value: string }) {
-  return (
-    <article className="rounded-lg border border-slate-200/80 bg-white p-4 shadow-sm shadow-slate-200/40 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">{label}</p>
-        <span className="grid size-8 place-items-center rounded-lg bg-slate-50 text-hicotech-blue dark:bg-white/10">
-          <Icon size={17} />
-        </span>
-      </div>
-      <p className="mt-3 font-display text-2xl font-bold leading-none text-hicotech-navy dark:text-white">{value}</p>
-      <p className="mt-2 text-sm font-semibold text-slate-500 dark:text-slate-300">{helper}</p>
+    <article className="rounded-2xl bg-hicotech-sky p-4">
+      <p className="text-xs font-bold uppercase tracking-[0.14em] text-hicotech-blue">{label}</p>
+      <p className="mt-2 font-display text-xl font-bold text-hicotech-navy">{value}</p>
     </article>
   );
 }
@@ -267,15 +246,6 @@ function TimelineItem({ description, last, time, title }: { description: string;
         <p className="mt-1 text-sm leading-5 text-slate-500 dark:text-slate-300">{description}</p>
         <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-400">{time}</p>
       </div>
-    </div>
-  );
-}
-
-function SectionHeading({ compact = false, description, title }: { compact?: boolean; description: string; title: string }) {
-  return (
-    <div>
-      <h2 className={`font-display font-bold text-hicotech-navy dark:text-white ${compact ? "text-lg" : "text-xl"}`}>{title}</h2>
-      <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-300">{description}</p>
     </div>
   );
 }

@@ -13,14 +13,13 @@ import {
   Layers3,
   MessageSquareText,
   NotebookPen,
-  Plus,
   FileText,
   Sparkles,
   ShieldCheck,
   TrendingUp,
   Users
 } from "lucide-react";
-import { EntityPageLayout, MetricCard, SectionCard } from "@/ui";
+import { EntityPageLayout, MetricCard, ProductSectionHeader, SectionCard } from "@/ui";
 import { ActivityService } from "../activities";
 import { crmActivitySeed } from "../activities/ui/activities.seed";
 import { CompanyService } from "../companies";
@@ -71,13 +70,25 @@ export function CrmHomePage() {
       <CrmHero />
       <CrmCommandStrip />
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5" aria-label="Actions rapides CRM">
-        <QuickAction href="/crm/companies" icon={Building2} label="Nouvelle société" helper="Créer le compte central" />
-        <QuickAction href="/crm/companies" icon={ContactRound} label="Nouveau contact" helper="Depuis l'onglet Contacts d'une société" />
-        <QuickAction href="/crm/contacts/contact-sara-amrani" icon={CalendarCheck} label="Planifier une réunion" helper="Depuis une fiche contact" />
-        <QuickAction href="/crm/contacts/contact-sara-amrani" icon={CheckCircle2} label="Nouvelle tâche" helper="Depuis une fiche contact" />
-        <QuickAction href="/crm/opportunities" icon={HandCoins} label="Pipeline commercial" helper="Dans Ventes" />
-      </section>
+      <SectionCard className="p-5" >
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <ProductSectionHeader
+            icon={Sparkles}
+            title="Actions rapides"
+            description="Les raccourcis essentiels du CRM, regroupés sans bruit visuel."
+          />
+          <span className="w-fit rounded-full bg-hicotech-sky px-3 py-1.5 text-xs font-bold text-hicotech-blue ring-1 ring-hicotech-blue/10 dark:bg-hicotech-blue/15 dark:text-blue-100 dark:ring-white/10">
+            5 actions disponibles
+          </span>
+        </div>
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5" aria-label="Actions rapides CRM">
+          <QuickAction href="/crm/companies" icon={Building2} label="Nouvelle société" helper="Créer le compte central" />
+          <QuickAction href="/crm/companies" icon={ContactRound} label="Nouveau contact" helper="Depuis l'onglet Contacts d'une société" />
+          <QuickAction href="/crm/contacts/contact-sara-amrani" icon={CalendarCheck} label="Planifier une réunion" helper="Depuis une fiche contact" />
+          <QuickAction href="/crm/contacts/contact-sara-amrani" icon={CheckCircle2} label="Nouvelle tâche" helper="Depuis une fiche contact" />
+          <QuickAction href="/crm/opportunities" icon={HandCoins} label="Pipeline commercial" helper="Dans Ventes" />
+        </div>
+      </SectionCard>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7" aria-label="Indicateurs CRM">
         <MetricCard icon={Building2} label="Sociétés" value={String(companies.length)} helper="Données de démonstration" />
@@ -425,20 +436,16 @@ function QuickAction({
   return (
     <Link
       href={href}
-      className="group relative min-h-40 overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-[0_18px_55px_rgba(10,30,63,0.10)] transition duration-200 hover:-translate-y-1.5 hover:border-hicotech-blue/35 hover:shadow-[0_26px_80px_rgba(13,110,253,0.16)] focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none"
+      className="group flex min-h-28 items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/50 transition duration-200 hover:-translate-y-0.5 hover:border-hicotech-blue/35 hover:bg-hicotech-sky/45 hover:shadow-md hover:shadow-slate-200/70 focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:bg-slate-900/30 dark:shadow-none dark:hover:bg-hicotech-dark-card"
     >
-      <span className="absolute inset-x-0 top-0 h-1.5 bg-hicotech-blue" />
-      <span className="absolute -right-10 -top-10 size-28 rounded-full bg-hicotech-sky/80 transition group-hover:scale-125 dark:bg-hicotech-blue/10" />
-      <div className="flex items-start justify-between gap-3">
-        <span className="relative grid size-14 place-items-center rounded-[1.15rem] bg-hicotech-navy text-white shadow-lg shadow-slate-300/70 transition group-hover:bg-hicotech-blue dark:bg-hicotech-blue/20 dark:shadow-none">
-          <Icon size={19} />
-        </span>
-        <span className="relative grid size-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-400 transition group-hover:border-hicotech-blue/30 group-hover:bg-hicotech-sky group-hover:text-hicotech-blue dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
-          <Plus size={16} />
-        </span>
-      </div>
-      <p className="relative mt-5 text-lg font-bold text-hicotech-navy dark:text-white">{label}</p>
-      <p className="mt-1 text-xs font-medium leading-5 text-slate-500 dark:text-slate-300">{helper}</p>
+      <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-hicotech-navy text-white shadow-sm shadow-slate-300/60 transition group-hover:bg-hicotech-blue dark:bg-hicotech-blue dark:shadow-none">
+        <Icon size={18} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-bold leading-5 text-hicotech-navy dark:text-white">{label}</span>
+        <span className="mt-1 block text-xs font-medium leading-5 text-slate-500 dark:text-slate-300">{helper}</span>
+      </span>
+      <ArrowRight size={15} className="mt-1 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-hicotech-blue" />
     </Link>
   );
 }

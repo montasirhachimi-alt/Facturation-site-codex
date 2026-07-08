@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Building2, CircleDollarSign, CreditCard, Filter, Search, WalletCards } from "lucide-react";
+import { ArrowRight, Building2, CircleDollarSign, CreditCard, Filter, Search, Sparkles, WalletCards } from "lucide-react";
 import { useState } from "react";
 import { CompanyService } from "@/modules/crm/companies";
 import { CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
 import { SALES_QUOTES_WORKSPACE_ID, formatQuoteMoney } from "@/modules/sales/quotes";
-import { EntityHeader, EntityPageLayout, InfoCard, MetricCard, SectionCard, entityInputClassName } from "@/ui";
+import { EntityPageLayout, MetricCard, ProductHero, ProductSectionHeader, SectionCard, entityInputClassName } from "@/ui";
 import { PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS } from "../payment.constants";
 import { paymentService } from "../payment.store";
 import type { Payment, PaymentMethod, PaymentSort, PaymentStatus } from "../payment.types";
@@ -40,11 +40,21 @@ export function PaymentsWorkspace() {
 
   return (
     <EntityPageLayout>
-      <EntityHeader
-        breadcrumb={["Ventes", "Paiements"]}
-        title="Paiements clients"
-        description="Suivez les encaissements reliés aux factures commerciales et préparez le futur rapprochement."
-        meta={<InfoCard>Espace actif : HicoPilot CRM</InfoCard>}
+      <ProductHero
+        eyebrow="Ventes / Paiements"
+        icon={Sparkles}
+        title="Comprendre le cash reçu sans ouvrir la finance."
+        subtitle="Les paiements donnent une lecture calme des encaissements clients, du rapprochement et des comptes concernés."
+        actions={[
+          { href: "/sales/invoices", icon: ArrowRight, label: "Ouvrir les factures" },
+          { href: "/crm/companies", icon: Building2, label: "Voir les sociétés", tone: "secondary" }
+        ]}
+        signals={[
+          { label: "Paiements", value: String(payments.length), helper: "encaissements visibles" },
+          { label: "Montant reçu", value: formatQuoteMoney(stats.received, "MAD"), helper: "total filtré" },
+          { label: "À rapprocher", value: String(stats.recorded), helper: "en attente finance" },
+          { label: "Rapprochés", value: String(stats.reconciled), helper: "paiements validés" }
+        ]}
       />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
@@ -55,13 +65,10 @@ export function PaymentsWorkspace() {
         <MetricCard icon={Filter} label="Rapprochés" value={String(stats.reconciled)} helper="Paiements validés" />
       </section>
 
-      <SectionCard className="p-4">
-        <div>
-          <h2 className="font-display text-lg font-bold text-hicotech-navy dark:text-white">Recherche et filtres</h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">Filtrez par facture, client, mode ou statut de paiement.</p>
-        </div>
+      <SectionCard className="p-5">
+        <ProductSectionHeader icon={Filter} title="Recherche et filtres" description="Filtrez par facture, client, mode ou statut de paiement." />
         <div className="mt-5 grid gap-3 lg:grid-cols-2 xl:grid-cols-5">
-          <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 xl:col-span-2 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50">
+          <label className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm shadow-slate-200/40 xl:col-span-2 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50">
             <Search size={16} className="text-slate-400" />
             <input value={filters.query} onChange={(event) => setFilters({ ...filters, query: event.target.value })} className="w-full bg-transparent text-sm outline-none dark:text-white" placeholder="Rechercher un paiement..." />
           </label>
@@ -82,7 +89,7 @@ export function PaymentsWorkspace() {
 
       <PaymentsTable payments={paginated} sort={sort} onSort={updateSort} />
 
-      <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
+      <div className="flex flex-col gap-3 rounded-[1.4rem] border border-slate-200 bg-white p-4 shadow-[0_18px_55px_rgba(10,30,63,0.08)] md:flex-row md:items-center md:justify-between dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
         <p className="text-sm font-semibold text-slate-500 dark:text-slate-300">Page {page} sur {totalPages} • {payments.length} paiement(s)</p>
         <div className="flex items-center gap-2">
           <select value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }} className={entityInputClassName}>
@@ -119,6 +126,11 @@ function PaymentsTable({ onSort, payments, sort }: { onSort: (field: PaymentSort
 
   return (
     <SectionCard className="overflow-hidden">
+      <div className="relative overflow-hidden border-b border-slate-200 bg-hicotech-navy px-5 py-6 text-white dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
+        <div className="absolute right-0 top-0 h-full w-40 bg-white/5" />
+        <h2 className="relative font-display text-2xl font-bold text-white">Liste des paiements</h2>
+        <p className="relative mt-1 text-sm font-medium text-cyan-50/70">Encaissements clients reliés aux factures commerciales.</p>
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[1120px] text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-left dark:border-hicotech-dark-border dark:bg-hicotech-dark-page">
@@ -145,7 +157,7 @@ function PaymentsTable({ onSort, payments, sort }: { onSort: (field: PaymentSort
           </thead>
           <tbody>
             {payments.map((payment) => (
-              <tr key={payment.id} className="border-t border-slate-100 transition hover:bg-slate-50/90 dark:border-hicotech-dark-border dark:hover:bg-hicotech-dark-page/60">
+              <tr key={payment.id} className="border-t border-slate-100 transition hover:bg-hicotech-sky/55 hover:shadow-[inset_4px_0_0_#0D6EFD] dark:border-hicotech-dark-border dark:hover:bg-hicotech-dark-page/60">
                 <td className="px-5 py-4 font-bold text-hicotech-navy dark:text-white">{payment.number}</td>
                 <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{payment.invoiceNumber}</td>
                 <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{payment.customerName}</td>
@@ -177,7 +189,7 @@ export function PaymentStatusBadge({ status }: { status: PaymentStatus }) {
     reconciled: "bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-200",
     cancelled: "bg-red-50 text-red-700 dark:bg-red-400/10 dark:text-red-200"
   };
-  return <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${tones[status]}`}>{PAYMENT_STATUS_LABELS[status]}</span>;
+  return <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold shadow-sm ${tones[status]}`}><span className="size-1.5 rounded-full bg-current" />{PAYMENT_STATUS_LABELS[status]}</span>;
 }
 
 function buildPaymentStats(payments: readonly Payment[]) {

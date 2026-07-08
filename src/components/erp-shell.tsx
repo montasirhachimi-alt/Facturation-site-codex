@@ -14,7 +14,7 @@ export function ErpShell({ children, user }: { children: React.ReactNode; user: 
   return (
     <WorkspaceProvider>
       <UniversalSearchProvider>
-        <div className="min-h-screen bg-slate-50 text-hicotech-ink dark:bg-hicotech-dark-page dark:text-white">
+        <div className="min-h-screen bg-[linear-gradient(180deg,#F8FBFF_0%,#F5F7FA_42%,#EEF4FF_100%)] text-hicotech-ink dark:bg-hicotech-dark-page dark:text-white">
           <Sidebar
             collapsed={collapsed}
             mobileOpen={mobileOpen}

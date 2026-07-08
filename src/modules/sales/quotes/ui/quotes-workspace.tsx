@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ArrowRight, CalendarClock, CircleDollarSign, FileText, Filter, Plus, Search, UserRound } from "lucide-react";
+import { ArrowRight, CalendarClock, CircleDollarSign, FileText, Filter, Plus, Search, Sparkles, UserRound } from "lucide-react";
 import { CompanyService } from "@/modules/crm/companies";
 import { CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
 import { OpportunityService } from "@/modules/crm/opportunities";
 import { crmOpportunitySeed } from "@/modules/crm/opportunities/ui/opportunities.seed";
-import { EntityDialog, EntityHeader, EntityPageLayout, InfoCard, MetricCard, SectionCard, entityInputClassName } from "@/ui";
+import { EntityDialog, EntityPageLayout, MetricCard, ProductHero, ProductSectionHeader, SectionCard, entityInputClassName } from "@/ui";
 import { QUOTE_STATUS_LABELS } from "../quote.constants";
 import { QuoteService } from "../quote.service";
 import type { Quote, QuoteSort, QuoteStatus } from "../quote.types";
@@ -83,11 +83,21 @@ export function QuotesWorkspace() {
 
   return (
     <EntityPageLayout>
-      <EntityHeader
-        breadcrumb={["Ventes", "Devis"]}
-        title="Devis commerciaux"
-        description="Créez, suivez et préparez les devis reliés aux sociétés, contacts et opportunités CRM."
-        meta={<InfoCard>Espace actif : HicoPilot CRM</InfoCard>}
+      <ProductHero
+        eyebrow="Ventes / Devis"
+        icon={Sparkles}
+        title="Transformer une intention commerciale en proposition claire."
+        subtitle="Les devis gardent le lien avec les sociétés, opportunités et prochains revenus sans ajouter de bruit opérationnel."
+        actions={[
+          { href: "/crm/companies", icon: UserRound, label: "Choisir une société" },
+          { href: "/sales/invoices", icon: ArrowRight, label: "Voir les factures", tone: "secondary" }
+        ]}
+        signals={[
+          { label: "Devis", value: String(quotes.length), helper: "portefeuille visible" },
+          { label: "Montant", value: formatQuoteMoney(stats.totalValue, "MAD"), helper: "valeur filtrée" },
+          { label: "Acceptés", value: String(stats.accepted), helper: "conversion commerciale" },
+          { label: "À relancer", value: String(stats.expiringSoon), helper: "échéance proche" }
+        ]}
       />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5" aria-label="Indicateurs devis">
@@ -98,23 +108,20 @@ export function QuotesWorkspace() {
         <MetricCard icon={Filter} label="Brouillons" value={String(stats.drafts)} helper="À finaliser" />
       </section>
 
-      <SectionCard className="p-4">
+      <SectionCard className="p-5">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div>
-            <h2 className="font-display text-lg font-bold text-hicotech-navy dark:text-white">Recherche et filtres</h2>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">Filtrez par client, société, opportunité ou statut.</p>
-          </div>
+          <ProductSectionHeader icon={Filter} title="Recherche et filtres" description="Filtrez par client, société, opportunité ou statut." />
           <button
             type="button"
             onClick={() => setDialogOpen(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-hicotech-blue px-4 py-2.5 text-sm font-bold text-white shadow-soft transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-hicotech-blue px-5 py-3 text-sm font-bold text-white shadow-[0_16px_40px_rgba(13,110,253,0.22)] transition hover:-translate-y-0.5 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50"
           >
             <Plus size={17} />
             Créer un devis
           </button>
         </div>
         <div className="mt-5 grid gap-3 lg:grid-cols-2 xl:grid-cols-5">
-          <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 xl:col-span-2 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50">
+          <label className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm shadow-slate-200/40 xl:col-span-2 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50">
             <Search size={16} className="text-slate-400" />
             <input value={filters.query} onChange={(event) => setFilters({ ...filters, query: event.target.value })} className="w-full bg-transparent text-sm outline-none dark:text-white" placeholder="Rechercher un devis..." />
           </label>
@@ -135,7 +142,7 @@ export function QuotesWorkspace() {
 
       <QuotesTable quotes={paginatedQuotes} sort={sort} onCreate={() => setDialogOpen(true)} onSort={updateSort} />
 
-      <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
+      <div className="flex flex-col gap-3 rounded-[1.4rem] border border-slate-200 bg-white p-4 shadow-[0_18px_55px_rgba(10,30,63,0.08)] md:flex-row md:items-center md:justify-between dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
         <p className="text-sm font-semibold text-slate-500 dark:text-slate-300">Page {page} sur {totalPages} • {quotes.length} devis</p>
         <div className="flex items-center gap-2">
           <select value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }} className={entityInputClassName}>
@@ -174,9 +181,10 @@ function QuotesTable({ onCreate, onSort, quotes, sort }: { onCreate: () => void;
 
   return (
     <SectionCard className="overflow-hidden">
-      <div className="border-b border-slate-200 px-5 py-4 dark:border-hicotech-dark-border">
-        <h2 className="font-display text-lg font-bold text-hicotech-navy dark:text-white">Liste des devis</h2>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">Devis commerciaux reliés au CRM.</p>
+      <div className="relative overflow-hidden border-b border-slate-200 bg-hicotech-navy px-5 py-6 text-white dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
+        <div className="absolute right-0 top-0 h-full w-40 bg-white/5" />
+        <h2 className="relative font-display text-2xl font-bold text-white">Liste des devis</h2>
+        <p className="relative mt-1 text-sm font-medium text-cyan-50/70">Devis commerciaux reliés au CRM.</p>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[1180px] border-collapse text-sm">
@@ -208,7 +216,7 @@ function QuotesTable({ onCreate, onSort, quotes, sort }: { onCreate: () => void;
             {quotes.map((quote) => {
               const totals = getQuoteTotals(quote);
               return (
-                <tr key={quote.id} className="border-t border-slate-100 transition hover:bg-slate-50/90 dark:border-hicotech-dark-border dark:hover:bg-hicotech-dark-page/60">
+                <tr key={quote.id} className="border-t border-slate-100 transition hover:bg-hicotech-sky/55 hover:shadow-[inset_4px_0_0_#0D6EFD] dark:border-hicotech-dark-border dark:hover:bg-hicotech-dark-page/60">
                   <td className="px-5 py-4 font-bold text-hicotech-navy dark:text-white">{quote.number}</td>
                   <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{quote.customerName}</td>
                   <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{companyById.get(quote.companyId)?.displayName ?? "Non définie"}</td>
@@ -281,7 +289,7 @@ export function QuoteStatusBadge({ status }: { status: QuoteStatus }) {
     refused: "bg-red-50 text-red-700 dark:bg-red-400/10 dark:text-red-200",
     expired: "bg-orange-50 text-orange-700 dark:bg-orange-400/10 dark:text-orange-200"
   };
-  return <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${tones[status]}`}>{QUOTE_STATUS_LABELS[status]}</span>;
+  return <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold shadow-sm ${tones[status]}`}><span className="size-1.5 rounded-full bg-current" />{QUOTE_STATUS_LABELS[status]}</span>;
 }
 
 function buildQuoteStats(quotes: readonly Quote[]) {
