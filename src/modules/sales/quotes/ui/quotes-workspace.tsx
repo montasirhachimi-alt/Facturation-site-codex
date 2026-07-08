@@ -84,10 +84,11 @@ export function QuotesWorkspace() {
   return (
     <EntityPageLayout>
       <ProductHero
-        eyebrow="Ventes / Devis"
+        eyebrow="Ventes / Proposition"
         icon={Sparkles}
-        title="Transformer une intention commerciale en proposition claire."
-        subtitle="Les devis gardent le lien avec les sociétés, opportunités et prochains revenus sans ajouter de bruit opérationnel."
+        personality="sales"
+        title="Transformer l'élan commercial en revenu signé."
+        subtitle="Chaque devis raconte où le revenu peut avancer : société, opportunité, montant, échéance et prochaine décision."
         actions={[
           { href: "/crm/companies", icon: UserRound, label: "Choisir une société" },
           { href: "/sales/invoices", icon: ArrowRight, label: "Voir les factures", tone: "secondary" }
@@ -100,7 +101,7 @@ export function QuotesWorkspace() {
         ]}
       />
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5" aria-label="Indicateurs devis">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5" aria-label="Signaux de proposition commerciale">
         <MetricCard icon={FileText} label="Devis" value={String(quotes.length)} helper="Portefeuille visible" />
         <MetricCard icon={CircleDollarSign} label="Montant total" value={formatQuoteMoney(stats.totalValue, "MAD")} helper="Toutes lignes filtrées" />
         <MetricCard icon={CalendarClock} label="À relancer" value={String(stats.expiringSoon)} helper="Échéance proche" />
@@ -110,7 +111,7 @@ export function QuotesWorkspace() {
 
       <SectionCard className="p-5">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <ProductSectionHeader icon={Filter} title="Recherche et filtres" description="Filtrez par client, société, opportunité ou statut." />
+          <ProductSectionHeader icon={Filter} title="Qualification des propositions" description="Filtrez le portefeuille par client, société, opportunité ou statut." />
           <button
             type="button"
             onClick={() => setDialogOpen(true)}

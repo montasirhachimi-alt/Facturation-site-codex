@@ -46,14 +46,16 @@ export function HrDashboard({
 
 function HrCard({ icon: Icon, label, value, warning }: { icon: React.ElementType; label: string; value: string; warning?: boolean }) {
   return (
-    <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-soft dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
-      <div className="flex items-center gap-3">
-        <div className="grid size-10 place-items-center rounded-lg bg-hicotech-sky text-hicotech-blue dark:bg-hicotech-blue/20">
-          <Icon size={20} />
+    <article className="group rounded-[1.35rem] border border-violet-100 bg-white p-5 shadow-[0_18px_55px_rgba(91,33,182,0.08)] transition hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-[0_22px_65px_rgba(91,33,182,0.12)] dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-300">{label}</p>
+          <p className={`mt-3 font-display text-2xl font-bold ${warning ? "text-hicotech-red" : "text-hicotech-navy dark:text-white"}`}>{value}</p>
         </div>
-        <p className="text-sm font-semibold text-slate-500 dark:text-slate-300">{label}</p>
+        <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-violet-50 text-violet-700 ring-1 ring-violet-100 transition group-hover:bg-violet-600 group-hover:text-white dark:bg-violet-500/15 dark:text-violet-200 dark:ring-violet-400/20">
+          <Icon size={19} />
+        </div>
       </div>
-      <p className={`mt-3 font-display text-2xl font-bold ${warning ? "text-hicotech-red" : "text-hicotech-navy dark:text-white"}`}>{value}</p>
     </article>
   );
 }

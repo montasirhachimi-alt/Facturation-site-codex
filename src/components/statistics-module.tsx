@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Download, Eye, FileText, SortAsc, SortDesc, X } from "lucide-react";
+import { Download, Eye, FileText, SlidersHorizontal, SortAsc, SortDesc, X } from "lucide-react";
 import jsPDF from "jspdf";
 import * as XLSX from "xlsx";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -98,7 +98,17 @@ export function StatisticsModule({
 
   return (
     <div className="space-y-6">
-      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
+      <section id="exports" className="rounded-[1.5rem] border border-amber-100 bg-white p-5 shadow-[0_18px_55px_rgba(146,64,14,0.08)] dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none">
+        <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-amber-700 dark:text-amber-200">
+              <SlidersHorizontal size={14} />
+              Fenêtre d&apos;analyse
+            </p>
+            <h2 className="mt-2 font-display text-xl font-bold text-hicotech-navy dark:text-white">Choisir l&apos;angle de lecture business.</h2>
+          </div>
+          <p className="max-w-md text-sm leading-6 text-slate-500 dark:text-slate-300">Les indicateurs, graphiques et classements se recalculent selon cette période.</p>
+        </div>
         <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
           <div className="grid gap-3 md:grid-cols-4">
             <Select label="Période" value={period} options={periodOptions} onChange={(value) => setPeriod(value as PeriodFilter)} />
@@ -118,10 +128,15 @@ export function StatisticsModule({
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {indicators.map((indicator) => (
-          <article key={indicator.id} className="rounded-lg border border-slate-200 bg-white p-5 shadow-soft dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
-            <p className="text-sm font-semibold text-slate-500 dark:text-slate-300">{indicator.label}</p>
+          <article key={indicator.id} className="group rounded-[1.35rem] border border-slate-200 bg-white p-5 shadow-[0_18px_55px_rgba(10,30,63,0.07)] transition hover:-translate-y-0.5 hover:border-amber-200 hover:shadow-[0_22px_65px_rgba(146,64,14,0.10)] dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-300">{indicator.label}</p>
+              <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-50 text-amber-700 ring-1 ring-amber-100 transition group-hover:bg-amber-600 group-hover:text-white dark:bg-amber-500/15 dark:text-amber-200 dark:ring-amber-400/20">
+                <Eye size={15} />
+              </span>
+            </div>
             <p className="mt-2 font-display text-2xl font-bold text-hicotech-navy dark:text-white">{indicator.id === "overdue" ? indicator.value : formatCurrency(indicator.value)}</p>
-            <button type="button" onClick={() => setDetail(indicator)} className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-hicotech-blue">
+            <button type="button" onClick={() => setDetail(indicator)} className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-amber-700 transition hover:text-amber-900 dark:text-amber-200">
               <Eye size={16} />
               Voir
             </button>
@@ -196,16 +211,16 @@ function DateField({ label, value, disabled, onChange }: { label: string; value:
 }
 
 function ActionButton({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
-  return <button type="button" onClick={onClick} className="inline-flex items-center justify-center gap-2 rounded-lg bg-hicotech-blue px-4 py-3 text-sm font-bold text-white">{icon}{label}</button>;
+  return <button type="button" onClick={onClick} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-hicotech-navy px-4 py-3 text-sm font-bold text-white shadow-[0_14px_35px_rgba(10,30,63,0.18)] transition hover:-translate-y-0.5 hover:bg-amber-700">{icon}{label}</button>;
 }
 
 function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
-  return <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-soft dark:border-hicotech-dark-border dark:bg-hicotech-dark-card"><h2 className="font-display text-lg font-bold text-hicotech-navy dark:text-white">{title}</h2><div className="mt-4">{children}</div></section>;
+  return <section className="rounded-[1.35rem] border border-slate-200 bg-white p-5 shadow-[0_18px_55px_rgba(10,30,63,0.07)] dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none"><h2 className="font-display text-lg font-bold text-hicotech-navy dark:text-white">{title}</h2><div className="mt-4">{children}</div></section>;
 }
 
 function Ranking({ title, columns, rows }: { title: string; columns: string[]; rows: string[][] }) {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-soft dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
+    <section className="rounded-[1.35rem] border border-slate-200 bg-white p-5 shadow-[0_18px_55px_rgba(10,30,63,0.07)] dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none">
       <h2 className="font-display text-lg font-bold text-hicotech-navy dark:text-white">{title}</h2>
       <table className="mt-4 w-full text-sm">
         <thead><tr className="text-left text-xs uppercase text-slate-500">{columns.map((column) => <th key={column} className="py-2">{column}</th>)}</tr></thead>

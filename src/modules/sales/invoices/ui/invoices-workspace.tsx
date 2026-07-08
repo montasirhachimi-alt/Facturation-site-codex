@@ -44,10 +44,11 @@ export function InvoicesWorkspace() {
   return (
     <EntityPageLayout>
       <ProductHero
-        eyebrow="Ventes / Factures"
+        eyebrow="Ventes / Revenu facturé"
         icon={Sparkles}
-        title="Voir ce qui est facturé, payé et à relancer."
-        subtitle="Les factures donnent une lecture executive du revenu émis, du cash encaissé et des prochaines relances."
+        personality="sales"
+        title="Piloter le revenu émis, payé et à relancer."
+        subtitle="La facturation met le chiffre d'affaires en mouvement : montant émis, cash encaissé, échéances et relances."
         actions={[
           { href: "/sales/quotes", icon: ArrowRight, label: "Créer depuis un devis" },
           { href: "/sales/payments", icon: WalletCards, label: "Voir les paiements", tone: "secondary" }
@@ -60,7 +61,7 @@ export function InvoicesWorkspace() {
         ]}
       />
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5" aria-label="Signaux de revenu facturé">
         <MetricCard icon={FileText} label="Factures" value={String(invoices.length)} helper="Portefeuille visible" />
         <MetricCard icon={CircleDollarSign} label="Total TTC" value={formatQuoteMoney(stats.total, "MAD")} helper="Montant facturé" />
         <MetricCard icon={WalletCards} label="Payé" value={formatQuoteMoney(stats.paid, "MAD")} helper="Encaissement actuel" />
@@ -70,7 +71,7 @@ export function InvoicesWorkspace() {
 
       <SectionCard className="p-5">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <ProductSectionHeader icon={Filter} title="Recherche et filtres" description="Filtrez par client, société ou statut de paiement." />
+          <ProductSectionHeader icon={Filter} title="Lecture du portefeuille facturé" description="Filtrez par client, société ou statut de paiement." />
           <Link href="/sales/quotes" className="inline-flex items-center justify-center gap-2 rounded-2xl bg-hicotech-blue px-5 py-3 text-sm font-bold text-white shadow-[0_16px_40px_rgba(13,110,253,0.22)] transition hover:-translate-y-0.5 hover:bg-blue-700">
             Créer depuis un devis
             <ArrowRight size={16} />

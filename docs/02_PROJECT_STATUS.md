@@ -8,7 +8,7 @@
 | Version | Pre-Alpha |
 | Current Milestone | Milestone 3 — Business Suite |
 | Current Phase | Business Module Foundations |
-| Current Sprint | SPR-331 — Executive Dashboard Revolution |
+| Current Sprint | SPR-332 — Module Identity & Product Personality |
 | Next Sprint | To define |
 | Repository Health | Builds successfully with one known existing image optimization warning. |
 
@@ -179,14 +179,15 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - KPI Card Icon Normalization removes the oversized pale decorative icon background from the shared metric card and standardizes icon tile size, placement and visual weight across Dashboard and CRM KPI rows.
 - KPI Card Vertical Rhythm improves the shared metric card spacing so KPI values have more breathing room from the title and icon tile while preserving colors, data, routes and the BOSIACO top accent.
 - Executive Dashboard Revolution reframes the Dashboard as a business cockpit: executive daily summary, business health, priority center, performance, recent changes and secondary quick actions.
+- Module Identity & Product Personality gives Dashboard, CRM, Sales, HR and Reports distinct visual signatures while preserving the shared BOSIACO product language, so each module communicates its purpose before the user reads the page title.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passed during SPR-331 via the local `tsc --noEmit` script equivalent because `npm` is unavailable in this environment. |
-| `npm run build` | Yes | Passed during SPR-331 via the local `next build` script equivalent because `npm` is unavailable in this environment; the known PDF preview image warning remains. |
-| `npm run validate:runtime` | No for SPR-331 | Not requested during SPR-331; no Runtime changes were made. |
+| `npm run typecheck` | Yes | Passed during SPR-332 via the local `tsc --noEmit` script equivalent because `npm` is unavailable in this environment. |
+| `npm run build` | Yes | Passed during SPR-332 via the local `next build` script equivalent because `npm` is unavailable in this environment; the known PDF preview image warning remains. |
+| `npm run validate:runtime` | No for SPR-332 | Not requested during SPR-332; no Runtime changes were made. |
 
 ## Repository Health
 

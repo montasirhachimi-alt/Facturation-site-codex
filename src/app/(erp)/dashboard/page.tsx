@@ -127,6 +127,7 @@ export default async function DashboardPage() {
         <ProductHero
           eyebrow="Tableau de bord"
           icon={Sparkles}
+          personality="dashboard"
           title={`Bonjour ${userFirstName}, trois éléments méritent votre attention.`}
           subtitle={`${dashboardStats.overdueInvoices} facture(s) sont à suivre, ${formatCurrency(dashboardStats.outstanding)} restent à encaisser et le pipeline actif contient 9 opportunités.`}
           actions={[

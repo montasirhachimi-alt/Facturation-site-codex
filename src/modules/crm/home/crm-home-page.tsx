@@ -295,13 +295,13 @@ function CrmHero() {
           </div>
           <p className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-cyan-50">
             <ShieldCheck size={14} />
-            Relation client augmentée
+            Carte relationnelle
           </p>
           <h1 className="mt-7 max-w-4xl font-display text-5xl font-bold leading-[1.02] md:text-6xl">
-            Le cockpit commercial qui donne envie d&apos;ouvrir le CRM.
+            Construire des relations client qui avancent.
           </h1>
           <p className="mt-5 max-w-2xl text-lg leading-8 text-cyan-50/76">
-            Une vue vivante pour comprendre les comptes importants, les prochaines actions et le revenu à défendre avant même d&apos;ouvrir une table.
+            Une vue chaleureuse pour voir les sociétés, les interlocuteurs clés, les prochaines conversations et le revenu à défendre avant même d&apos;ouvrir une table.
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3">
@@ -332,8 +332,8 @@ function CrmHero() {
           <div className="rounded-[1.75rem] border border-white/10 bg-white p-5 text-hicotech-navy shadow-2xl shadow-black/20">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-hicotech-blue">Aujourd&apos;hui</p>
-                <h2 className="mt-2 font-display text-2xl font-bold">Ce qui mérite attention</h2>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-hicotech-blue">Relation du jour</p>
+                <h2 className="mt-2 font-display text-2xl font-bold">Qui contacter en priorité</h2>
               </div>
               <span className="grid size-12 place-items-center rounded-2xl bg-hicotech-navy text-white">
                 <Activity size={20} />
@@ -345,7 +345,7 @@ function CrmHero() {
               <HeroPriority icon={ClipboardList} label="Tâches ouvertes" value={`${openTasks.length} actions`} />
             </div>
             <div className="mt-5 rounded-2xl bg-hicotech-sky p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-hicotech-blue">Signal commercial</p>
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-hicotech-blue">Signal relationnel</p>
               <p className="mt-2 text-sm font-bold leading-6 text-hicotech-navy">
                 {openOpportunities.length} opportunité(s) ouvertes pour {formatOpportunityValue(totalPipelineValue(openOpportunities))}.
               </p>

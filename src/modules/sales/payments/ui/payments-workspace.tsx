@@ -41,10 +41,11 @@ export function PaymentsWorkspace() {
   return (
     <EntityPageLayout>
       <ProductHero
-        eyebrow="Ventes / Paiements"
+        eyebrow="Ventes / Cash client"
         icon={Sparkles}
-        title="Comprendre le cash reçu sans ouvrir la finance."
-        subtitle="Les paiements donnent une lecture calme des encaissements clients, du rapprochement et des comptes concernés."
+        personality="sales"
+        title="Suivre le cash qui entre et ce qui reste à rapprocher."
+        subtitle="Les paiements traduisent la performance commerciale en encaissements, rapprochements et comptes à sécuriser."
         actions={[
           { href: "/sales/invoices", icon: ArrowRight, label: "Ouvrir les factures" },
           { href: "/crm/companies", icon: Building2, label: "Voir les sociétés", tone: "secondary" }
@@ -57,7 +58,7 @@ export function PaymentsWorkspace() {
         ]}
       />
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5" aria-label="Signaux d'encaissement">
         <MetricCard icon={WalletCards} label="Paiements" value={String(payments.length)} helper="Encaissements visibles" />
         <MetricCard icon={CircleDollarSign} label="Montant reçu" value={formatQuoteMoney(stats.received, "MAD")} helper="Total filtré" />
         <MetricCard icon={CreditCard} label="À rapprocher" value={String(stats.recorded)} helper="En attente finance" />
@@ -66,7 +67,7 @@ export function PaymentsWorkspace() {
       </section>
 
       <SectionCard className="p-5">
-        <ProductSectionHeader icon={Filter} title="Recherche et filtres" description="Filtrez par facture, client, mode ou statut de paiement." />
+        <ProductSectionHeader icon={Filter} title="Rythme des encaissements" description="Filtrez par facture, client, mode ou statut de paiement." />
         <div className="mt-5 grid gap-3 lg:grid-cols-2 xl:grid-cols-5">
           <label className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm shadow-slate-200/40 xl:col-span-2 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50">
             <Search size={16} className="text-slate-400" />
