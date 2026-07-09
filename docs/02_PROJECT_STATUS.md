@@ -8,7 +8,7 @@
 | Version | Pre-Alpha |
 | Current Milestone | Milestone 3 — Business Suite |
 | Current Phase | Business Module Foundations |
-| Current Sprint | SPR-337 — Universal Command Center (Command Palette) |
+| Current Sprint | SPR-339 — Quick Create Everywhere |
 | Next Sprint | To define |
 | Repository Health | Builds successfully with one known existing image optimization warning. |
 
@@ -187,14 +187,16 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - Professional Workspace Controls upgrades shared search, filter, toolbar, action, pagination, empty-state and table selection treatments so CRM and Sales daily-use controls feel faster, clearer and more SaaS-grade without changing business behavior.
 - Professional Forms Experience upgrades the shared dialog and form primitives, then organizes CRM and Sales data-entry dialogs into calmer sections with consistent required-field hints, validation messages, checkbox rows and footer actions.
 - Universal Command Center replaces the placeholder global search foundation with a navigation-only command palette powered by a reusable local command registry, global `⌘K` / `Ctrl+K`, instant filtering, arrow navigation and Enter-to-open workspace routing.
+- Smart Global Search extends the Command Center with a local record search registry for companies, contacts, customers, quotes, invoices, payments and opportunities, grouped separately from navigation commands with instant client-side filtering and safe existing routes.
+- Quick Create Everywhere extends the Command Center with a separate action registry for common creation flows, showing Quick Create before Navigation and Records and opening existing BOSIACO dialog surfaces directly from `⌘K` / `Ctrl+K` without workspace navigation.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passed during SPR-337. |
-| `npm run build` | Yes | Passed during SPR-337; the known PDF preview image warning remains. |
-| `npm run validate:runtime` | No for SPR-337 | Not requested during SPR-337; no Runtime changes were made. |
+| `npm run typecheck` | Yes | Passed during SPR-339. |
+| `npm run build` | Yes | Passed during SPR-339; the known PDF preview image warning remains. |
+| `npm run validate:runtime` | No for SPR-339 | Not requested during SPR-339; no Runtime changes were made. |
 
 ## Repository Health
 

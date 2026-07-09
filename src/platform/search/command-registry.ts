@@ -96,7 +96,7 @@ const seedCommands: readonly CommandCenterCommand[] = [
   }
 ];
 
-const coreCommandIds = new Set(["dashboard", "products", "settings"]);
+const coreCommandIds = new Set(["products", "settings"]);
 
 const coreCommandOverrides: Partial<Record<string, Partial<CommandCenterCommand>>> = {
   dashboard: {
@@ -216,16 +216,19 @@ function registerBusinessNavigation(
   group: string
 ) {
   const iconName = typeof item.metadata?.icon === "string" ? item.metadata.icon : item.id === "sales" ? "WalletCards" : "FileText";
+  const href = item.id === "sales" ? "/sales/quotes" : item.route;
 
-  registry.register({
-    id: `business.${item.id}`,
-    title: item.label,
-    description: `Ouvrir ${item.label}.`,
-    href: item.route,
-    icon: iconByName[iconName] ?? FileText,
-    group,
-    keywords: commandAliases[item.route] ?? []
-  });
+  if (item.id !== "sales") {
+    registry.register({
+      id: `business.${item.id}`,
+      title: item.label,
+      description: `Ouvrir ${item.label}.`,
+      href,
+      icon: iconByName[iconName] ?? FileText,
+      group,
+      keywords: commandAliases[href] ?? commandAliases[item.route] ?? []
+    });
+  }
 
   item.children?.forEach((child) => registerBusinessNavigation(registry, child, group));
 }

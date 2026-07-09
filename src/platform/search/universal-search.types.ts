@@ -7,10 +7,13 @@ export type UniversalSearchItem = Readonly<{
   title: string;
   description: string;
   icon: LucideIcon;
+  actionId?: string;
   eyebrow?: string;
+  badge?: string;
   disabled?: boolean;
   href?: string;
   keywords?: readonly string[];
+  tone?: "default" | "create";
 }>;
 
 export type UniversalSearchSection = Readonly<{

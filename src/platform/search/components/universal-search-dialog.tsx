@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Command, CornerDownLeft, X } from "lucide-react";
+import { ArrowRight, Command, CornerDownLeft, Plus, X } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import type { UniversalSearchItem } from "../universal-search.types";
@@ -189,6 +189,19 @@ function SearchFoundationRow({
   onSelect: () => void;
 }) {
   const Icon = item.icon;
+  const createTone = item.tone === "create";
+  const activeClassName = createTone
+    ? "bg-emerald-50 text-hicotech-navy ring-1 ring-emerald-200 dark:bg-emerald-400/10 dark:text-white dark:ring-emerald-400/25"
+    : "bg-hicotech-sky text-hicotech-navy ring-1 ring-hicotech-blue/20 dark:bg-hicotech-blue/15 dark:text-white dark:ring-hicotech-blue/30";
+  const idleClassName = createTone
+    ? "text-hicotech-navy hover:bg-emerald-50/70 focus:bg-emerald-50/70 dark:text-white dark:hover:bg-emerald-400/10 dark:focus:bg-emerald-400/10"
+    : "text-hicotech-navy hover:bg-slate-50 focus:bg-slate-50 dark:text-white dark:hover:bg-hicotech-dark-page/70 dark:focus:bg-hicotech-dark-page/70";
+  const iconClassName = createTone
+    ? "bg-emerald-50 text-emerald-700 ring-emerald-200/80 dark:bg-emerald-400/10 dark:text-emerald-200 dark:ring-emerald-400/25"
+    : "bg-white text-hicotech-blue ring-slate-200/70 dark:bg-hicotech-dark-page dark:text-blue-100 dark:ring-hicotech-dark-border";
+  const badgeClassName = createTone
+    ? "bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-400/10 dark:text-emerald-200 dark:ring-emerald-400/25"
+    : "bg-white/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 ring-1 ring-slate-200/70 dark:bg-hicotech-dark-page dark:text-slate-300 dark:ring-hicotech-dark-border";
 
   return (
     <button
@@ -201,29 +214,33 @@ function SearchFoundationRow({
       onMouseEnter={onFocus}
       onClick={onSelect}
       className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left outline-none transition duration-150 disabled:cursor-not-allowed disabled:opacity-60 ${
-        active
-          ? "bg-hicotech-sky text-hicotech-navy ring-1 ring-hicotech-blue/20 dark:bg-hicotech-blue/15 dark:text-white dark:ring-hicotech-blue/30"
-          : "text-hicotech-navy hover:bg-slate-50 focus:bg-slate-50 dark:text-white dark:hover:bg-hicotech-dark-page/70 dark:focus:bg-hicotech-dark-page/70"
+        active ? activeClassName : idleClassName
       }`}
     >
-      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white text-hicotech-blue shadow-sm ring-1 ring-slate-200/70 dark:bg-hicotech-dark-page dark:text-blue-100 dark:ring-hicotech-dark-border">
+      <span className={`relative grid size-10 shrink-0 place-items-center rounded-xl shadow-sm ring-1 ${iconClassName}`}>
         <Icon size={18} aria-hidden="true" />
+        {createTone && (
+          <span className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-emerald-600 text-white ring-2 ring-white dark:ring-hicotech-dark-card">
+            <Plus size={10} aria-hidden="true" />
+          </span>
+        )}
       </span>
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-center gap-2">
           <span className="truncate font-display text-sm font-bold">{item.title}</span>
-          {item.eyebrow && (
-            <span className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 ring-1 ring-slate-200/70 dark:bg-hicotech-dark-page dark:text-slate-300 dark:ring-hicotech-dark-border">
-              {item.eyebrow}
+          {(item.badge ?? item.eyebrow) && (
+            <span className={`rounded-full ${badgeClassName}`}>
+              {item.badge ?? item.eyebrow}
             </span>
           )}
         </span>
         <span className="mt-1 block text-xs font-medium leading-5 text-slate-500 dark:text-slate-300">{item.description}</span>
+        {item.href && <span className="mt-1 block truncate text-[11px] font-semibold text-slate-400 dark:text-slate-500">{item.href}</span>}
       </span>
       <span className="hidden shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-400 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page sm:inline-flex">
         Enter
       </span>
-      <ArrowRight size={16} className="shrink-0 text-slate-300 transition group-hover:text-hicotech-blue" />
+      <ArrowRight size={16} className={`shrink-0 transition ${createTone ? "text-emerald-300 group-hover:text-emerald-600" : "text-slate-300 group-hover:text-hicotech-blue"}`} />
     </button>
   );
 }

@@ -4,8 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { UniversalSearchDialog } from "../components/universal-search-dialog";
+import { isQuickCreateActionId } from "../action-registry";
 import { getFoundationSearchSections } from "../universal-search-foundation";
 import type { UniversalSearchItem, UniversalSearchSectionResolver } from "../universal-search.types";
+import type { QuickCreateActionId } from "../action-registry";
+import { QuickCreateDialogHost } from "./quick-create-dialog-host";
 import { UniversalSearchContext } from "./universal-search-context";
 import type { UniversalSearchContextValue } from "./universal-search-context";
 
@@ -20,6 +23,7 @@ export function UniversalSearchProvider({ children, resolveSections = getFoundat
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
+  const [activeQuickCreateAction, setActiveQuickCreateAction] = useState<QuickCreateActionId | null>(null);
   const sections = useMemo(() => resolveSections(query), [query, resolveSections]);
   const flatItems = useMemo(() => sections.flatMap((section) => section.items), [sections]);
 
@@ -44,6 +48,11 @@ export function UniversalSearchProvider({ children, resolveSections = getFoundat
   const selectItem = useCallback((item?: UniversalSearchItem) => {
     if (!item || item.disabled) return;
     onSelectItem?.(item);
+    if (isQuickCreateActionId(item.actionId)) {
+      closeSearch();
+      setActiveQuickCreateAction(item.actionId);
+      return;
+    }
     if (item.href) {
       router.push(item.href);
     }
@@ -101,6 +110,7 @@ export function UniversalSearchProvider({ children, resolveSections = getFoundat
     <UniversalSearchContext.Provider value={value}>
       {children}
       <UniversalSearchDialog />
+      <QuickCreateDialogHost activeAction={activeQuickCreateAction} onClose={() => setActiveQuickCreateAction(null)} />
     </UniversalSearchContext.Provider>
   );
 }
