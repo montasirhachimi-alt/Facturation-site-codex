@@ -8,7 +8,7 @@
 | Version | Pre-Alpha |
 | Current Milestone | Milestone 3 — Business Suite |
 | Current Phase | Business Module Foundations |
-| Current Sprint | SPR-336 — Professional Forms Experience |
+| Current Sprint | SPR-337 — Universal Command Center (Command Palette) |
 | Next Sprint | To define |
 | Repository Health | Builds successfully with one known existing image optimization warning. |
 
@@ -186,14 +186,15 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - Professional Workspace Optimization reduces vertical space across product heroes, topbar controls, KPI cards, entity tables, filters, workspace cards and CRM/Sales panels so major modules show more useful information above the fold while preserving the BOSIACO identity.
 - Professional Workspace Controls upgrades shared search, filter, toolbar, action, pagination, empty-state and table selection treatments so CRM and Sales daily-use controls feel faster, clearer and more SaaS-grade without changing business behavior.
 - Professional Forms Experience upgrades the shared dialog and form primitives, then organizes CRM and Sales data-entry dialogs into calmer sections with consistent required-field hints, validation messages, checkbox rows and footer actions.
+- Universal Command Center replaces the placeholder global search foundation with a navigation-only command palette powered by a reusable local command registry, global `⌘K` / `Ctrl+K`, instant filtering, arrow navigation and Enter-to-open workspace routing.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passed during SPR-336. |
-| `npm run build` | Yes | Passed during SPR-336; the known PDF preview image warning remains. |
-| `npm run validate:runtime` | No for SPR-336 | Not requested during SPR-336; no Runtime changes were made. |
+| `npm run typecheck` | Yes | Passed during SPR-337. |
+| `npm run build` | Yes | Passed during SPR-337; the known PDF preview image warning remains. |
+| `npm run validate:runtime` | No for SPR-337 | Not requested during SPR-337; no Runtime changes were made. |
 
 ## Repository Health
 

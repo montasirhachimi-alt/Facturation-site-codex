@@ -1,1 +1,1 @@
-export { useUniversalSearch } from "../providers";
+export { useUniversalSearch } from "../providers/universal-search-context";

@@ -9,6 +9,8 @@ export type UniversalSearchItem = Readonly<{
   icon: LucideIcon;
   eyebrow?: string;
   disabled?: boolean;
+  href?: string;
+  keywords?: readonly string[];
 }>;
 
 export type UniversalSearchSection = Readonly<{

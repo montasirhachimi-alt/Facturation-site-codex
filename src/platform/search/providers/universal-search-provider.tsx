@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { UniversalSearchDialog } from "../components/universal-search-dialog";
 import { getFoundationSearchSections } from "../universal-search-foundation";
 import type { UniversalSearchItem, UniversalSearchSectionResolver } from "../universal-search.types";
@@ -15,6 +16,7 @@ type UniversalSearchProviderProps = {
 };
 
 export function UniversalSearchProvider({ children, resolveSections = getFoundationSearchSections, onSelectItem }: UniversalSearchProviderProps) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
@@ -42,12 +44,21 @@ export function UniversalSearchProvider({ children, resolveSections = getFoundat
   const selectItem = useCallback((item?: UniversalSearchItem) => {
     if (!item || item.disabled) return;
     onSelectItem?.(item);
+    if (item.href) {
+      router.push(item.href);
+    }
     closeSearch();
-  }, [closeSearch, onSelectItem]);
+  }, [closeSearch, onSelectItem, router]);
 
   useEffect(() => {
     setActiveIndex(0);
   }, [query]);
+
+  useEffect(() => {
+    if (activeIndex >= flatItems.length) {
+      setActiveIndex(0);
+    }
+  }, [activeIndex, flatItems.length]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {

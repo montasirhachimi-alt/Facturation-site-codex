@@ -1,10 +1,10 @@
 "use client";
 
-import { ArrowRight, Command, CornerDownLeft, Search, X } from "lucide-react";
+import { ArrowRight, Command, CornerDownLeft, X } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import type { UniversalSearchItem } from "../universal-search.types";
-import { useUniversalSearch } from "../providers";
+import { useUniversalSearch } from "../providers/universal-search-context";
 
 export function UniversalSearchDialog() {
   const {
@@ -24,6 +24,7 @@ export function UniversalSearchDialog() {
   const inputRef = useRef<HTMLInputElement>(null);
   const activeItem = flatItems[activeIndex];
   const shortcutLabel = usePlatformShortcutLabel();
+  const activeItemId = activeItem ? `command-center-item-${activeItem.id}` : undefined;
 
   useEffect(() => {
     if (!open) return;
@@ -68,33 +69,11 @@ export function UniversalSearchDialog() {
     if (event.key === "Enter") {
       event.preventDefault();
       selectItem(activeItem);
-      return;
-    }
-
-    if (event.key === "Tab") {
-      trapFocus(event);
-    }
-  }
-
-  function trapFocus(event: ReactKeyboardEvent<HTMLElement>) {
-    const focusable = getFocusableElements(dialogRef.current);
-    if (!focusable.length) return;
-
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    const current = document.activeElement;
-
-    if (event.shiftKey && current === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && current === last) {
-      event.preventDefault();
-      first.focus();
     }
   }
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-start justify-center bg-hicotech-navy/35 px-3 pt-[9vh] backdrop-blur-md animate-in fade-in duration-150 dark:bg-black/50 sm:px-6" role="presentation">
+    <div className="fixed inset-0 z-[80] flex items-start justify-center bg-hicotech-navy/30 px-3 pt-[8vh] backdrop-blur-md animate-in fade-in duration-150 dark:bg-black/50 sm:px-6" role="presentation">
       <button
         type="button"
         className="absolute inset-0 cursor-default"
@@ -106,28 +85,30 @@ export function UniversalSearchDialog() {
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="global-search-title"
+        aria-labelledby="command-center-title"
         onKeyDown={handleKeyDown}
-        className="relative w-full max-w-3xl overflow-hidden rounded-2xl border border-white/80 bg-white/95 shadow-2xl shadow-slate-950/20 outline-none transition duration-200 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card/95 dark:shadow-black/40"
+        className="relative w-full max-w-2xl overflow-hidden rounded-2xl border border-white/80 bg-white/95 shadow-[0_28px_90px_rgba(10,30,63,0.24)] outline-none transition duration-200 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card/95 dark:shadow-black/40"
       >
-        <div className="flex items-center gap-3 border-b border-slate-200/80 px-4 py-4 dark:border-hicotech-dark-border sm:px-5">
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-hicotech-sky text-hicotech-blue dark:bg-hicotech-blue/15 dark:text-blue-100">
-            <Search size={19} aria-hidden="true" />
+        <div className="flex items-center gap-3 border-b border-slate-200/80 px-4 py-3.5 dark:border-hicotech-dark-border sm:px-5">
+          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-hicotech-navy text-white dark:bg-hicotech-blue dark:text-blue-100">
+            <Command size={18} aria-hidden="true" />
           </span>
           <div className="min-w-0 flex-1">
-            <h2 id="global-search-title" className="sr-only">
-              Recherche globale
+            <h2 id="command-center-title" className="sr-only">
+              Centre de commandes
             </h2>
             <input
               ref={inputRef}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Rechercher..."
+              placeholder="Ouvrir une page ou un module..."
               className="w-full bg-transparent font-display text-lg font-semibold text-hicotech-navy outline-none placeholder:font-sans placeholder:font-medium placeholder:text-slate-400 dark:text-white"
-              aria-describedby="global-search-description"
+              aria-describedby="command-center-description"
+              aria-activedescendant={activeItemId}
+              aria-controls="command-center-results"
             />
-            <p id="global-search-description" className="mt-1 text-xs font-medium text-slate-400 dark:text-slate-300">
-              Fondation prête pour Recent, Suggestions et Navigation. Les providers seront connectés plus tard.
+            <p id="command-center-description" className="mt-0.5 text-xs font-medium text-slate-400 dark:text-slate-300">
+              Navigation locale instantanée. Aucune requête serveur.
             </p>
           </div>
           <button
@@ -140,7 +121,7 @@ export function UniversalSearchDialog() {
           </button>
         </div>
 
-        <div className="max-h-[min(34rem,68vh)] overflow-y-auto px-3 py-3 sm:px-4">
+        <div id="command-center-results" className="max-h-[min(30rem,66vh)] overflow-y-auto px-3 py-2.5 sm:px-4" role="listbox" aria-label="Commandes disponibles">
           {sections.map((section) => (
             <section key={section.id} className="py-2" aria-labelledby={`search-section-${section.id}`}>
               <div className="mb-2 flex items-end justify-between gap-3 px-2">
@@ -159,6 +140,7 @@ export function UniversalSearchDialog() {
                     return (
                       <SearchFoundationRow
                         key={item.id}
+                        id={`command-center-item-${item.id}`}
                         item={item}
                         active={itemIndex === activeIndex}
                         onFocus={() => setActiveIndex(itemIndex)}
@@ -182,6 +164,8 @@ export function UniversalSearchDialog() {
           <span className="inline-flex items-center gap-2">
             <ShortcutKey label="↑ ↓" />
             naviguer
+            <ShortcutKey label="Enter" />
+            ouvrir
             <ShortcutKey label="ESC" />
             fermer
           </span>
@@ -193,11 +177,13 @@ export function UniversalSearchDialog() {
 
 function SearchFoundationRow({
   active,
+  id,
   item,
   onFocus,
   onSelect
 }: {
   active: boolean;
+  id: string;
   item: UniversalSearchItem;
   onFocus: () => void;
   onSelect: () => void;
@@ -206,12 +192,15 @@ function SearchFoundationRow({
 
   return (
     <button
+      id={id}
       type="button"
+      role="option"
+      aria-selected={active}
       disabled={item.disabled}
       onFocus={onFocus}
       onMouseEnter={onFocus}
       onClick={onSelect}
-      className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left outline-none transition duration-150 disabled:cursor-not-allowed disabled:opacity-60 ${
+      className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left outline-none transition duration-150 disabled:cursor-not-allowed disabled:opacity-60 ${
         active
           ? "bg-hicotech-sky text-hicotech-navy ring-1 ring-hicotech-blue/20 dark:bg-hicotech-blue/15 dark:text-white dark:ring-hicotech-blue/30"
           : "text-hicotech-navy hover:bg-slate-50 focus:bg-slate-50 dark:text-white dark:hover:bg-hicotech-dark-page/70 dark:focus:bg-hicotech-dark-page/70"
@@ -230,6 +219,9 @@ function SearchFoundationRow({
           )}
         </span>
         <span className="mt-1 block text-xs font-medium leading-5 text-slate-500 dark:text-slate-300">{item.description}</span>
+      </span>
+      <span className="hidden shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-400 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page sm:inline-flex">
+        Enter
       </span>
       <ArrowRight size={16} className="shrink-0 text-slate-300 transition group-hover:text-hicotech-blue" />
     </button>
@@ -262,14 +254,4 @@ function usePlatformShortcutLabel() {
     const userAgent = navigator.userAgent.toLowerCase();
     return platform.includes("mac") || userAgent.includes("mac os") ? "⌘K" : "Ctrl+K";
   }, []);
-}
-
-function getFocusableElements(container: HTMLElement | null) {
-  if (!container) return [];
-
-  return Array.from(
-    container.querySelectorAll<HTMLElement>(
-      'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
-    )
-  ).filter((element) => !element.hasAttribute("disabled") && element.tabIndex !== -1);
 }

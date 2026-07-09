@@ -3,7 +3,7 @@
 import { Bell, Building2, CalendarDays, Check, ChevronDown, Command, LogOut, Menu, Moon, Search, Settings, Sparkles, Sun, Wrench } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/logo";
-import { useUniversalSearch } from "@/platform/search";
+import { useUniversalSearch } from "@/platform/search/hooks/use-universal-search";
 import type { AuthSession } from "@/lib/types";
 
 type TopbarProps = {
@@ -107,10 +107,10 @@ export function Topbar({ onMenuClick, user }: TopbarProps) {
           type="button"
           onClick={openSearch}
           className="order-2 flex min-h-10 min-w-full flex-1 items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-left shadow-sm shadow-slate-200/60 transition hover:border-hicotech-blue/30 hover:bg-hicotech-sky/40 focus:outline-none focus:ring-2 focus:ring-hicotech-blue/40 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none dark:hover:bg-hicotech-blue/15 md:order-none md:min-w-72"
-          aria-label="Ouvrir la recherche globale"
+          aria-label="Ouvrir le centre de commandes"
         >
           <Search size={18} className="shrink-0 text-slate-400" />
-          <span className="min-w-0 flex-1 text-sm font-medium text-slate-400">Rechercher...</span>
+          <span className="min-w-0 flex-1 text-sm font-medium text-slate-400">Commande ou navigation...</span>
           <span className="hidden items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-bold text-slate-400 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/70 lg:inline-flex">
             {shortcutLabel === "⌘K" && <Command size={12} />}
             {shortcutLabel}

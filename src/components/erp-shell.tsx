@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Sidebar } from "@/components/sidebar";
 import { Topbar } from "@/components/topbar";
-import { UniversalSearchProvider } from "@/platform/search";
+import { UniversalSearchProvider } from "@/platform/search/providers/universal-search-provider";
 import type { AuthSession } from "@/lib/types";
 import { WorkspaceProvider } from "@/providers";
 
