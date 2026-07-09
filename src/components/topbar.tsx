@@ -67,8 +67,8 @@ export function Topbar({ onMenuClick, user }: TopbarProps) {
   }, [workspaceOpen]);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 px-4 py-3 shadow-sm shadow-slate-200/30 backdrop-blur-xl dark:border-hicotech-dark-border dark:bg-hicotech-dark-sidebar/90 dark:shadow-none sm:px-6 lg:px-8">
-      <div className="flex flex-wrap items-center gap-3 lg:flex-nowrap">
+    <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 px-4 py-2 shadow-sm shadow-slate-200/30 backdrop-blur-xl dark:border-hicotech-dark-border dark:bg-hicotech-dark-sidebar/90 dark:shadow-none sm:px-5 lg:px-6">
+      <div className="flex flex-wrap items-center gap-2.5 lg:flex-nowrap">
         <button
           type="button"
           onClick={onMenuClick}
@@ -85,13 +85,13 @@ export function Topbar({ onMenuClick, user }: TopbarProps) {
           <button
             type="button"
             onClick={() => setWorkspaceOpen((value) => !value)}
-            className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left shadow-sm shadow-slate-200/50 transition hover:border-hicotech-blue/40 hover:bg-hicotech-sky/60 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/10 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none dark:hover:bg-hicotech-blue/15"
+            className="flex items-center gap-2.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left shadow-sm shadow-slate-200/50 transition hover:border-hicotech-blue/40 hover:bg-hicotech-sky/60 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/10 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none dark:hover:bg-hicotech-blue/15"
             aria-expanded={workspaceOpen}
             aria-haspopup="menu"
             aria-label="Ouvrir le sélecteur d'espace de travail"
           >
-            <span className="grid size-9 place-items-center rounded-lg bg-hicotech-sky text-hicotech-blue dark:bg-hicotech-blue/20 dark:text-white">
-              <Building2 size={18} />
+            <span className="grid size-8 place-items-center rounded-lg bg-hicotech-sky text-hicotech-blue dark:bg-hicotech-blue/20 dark:text-white">
+              <Building2 size={17} />
             </span>
             <span className="leading-tight">
               <span className="block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">Espace de travail</span>
@@ -106,7 +106,7 @@ export function Topbar({ onMenuClick, user }: TopbarProps) {
         <button
           type="button"
           onClick={openSearch}
-          className="order-2 flex min-w-full flex-1 items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left shadow-sm shadow-slate-200/60 transition hover:border-hicotech-blue/30 hover:bg-hicotech-sky/40 focus:outline-none focus:ring-2 focus:ring-hicotech-blue/40 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none dark:hover:bg-hicotech-blue/15 md:order-none md:min-w-72"
+          className="order-2 flex min-h-10 min-w-full flex-1 items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-left shadow-sm shadow-slate-200/60 transition hover:border-hicotech-blue/30 hover:bg-hicotech-sky/40 focus:outline-none focus:ring-2 focus:ring-hicotech-blue/40 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none dark:hover:bg-hicotech-blue/15 md:order-none md:min-w-72"
           aria-label="Ouvrir la recherche globale"
         >
           <Search size={18} className="shrink-0 text-slate-400" />
@@ -117,14 +117,14 @@ export function Topbar({ onMenuClick, user }: TopbarProps) {
           </span>
         </button>
 
-        <button className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-hicotech-navy shadow-sm shadow-slate-200/50 transition hover:border-hicotech-blue/40 hover:bg-hicotech-sky/60 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white dark:shadow-none dark:hover:bg-hicotech-blue/15 lg:flex">
+        <button className="hidden min-h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-hicotech-navy shadow-sm shadow-slate-200/50 transition hover:border-hicotech-blue/40 hover:bg-hicotech-sky/60 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white dark:shadow-none dark:hover:bg-hicotech-blue/15 lg:flex">
           <Sparkles size={17} className="text-hicotech-blue" />
           Commande
         </button>
 
-        <button className="ml-auto hidden items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-hicotech-navy shadow-sm shadow-slate-200/50 transition hover:border-hicotech-blue/40 hover:bg-hicotech-sky/60 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white dark:shadow-none dark:hover:bg-hicotech-blue/15 md:flex">
-          <span className="grid size-9 place-items-center rounded-lg bg-hicotech-sky text-hicotech-blue dark:bg-hicotech-blue/20 dark:text-white">
-            <CalendarDays size={18} />
+        <button className="ml-auto hidden min-h-10 items-center gap-2.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-left text-hicotech-navy shadow-sm shadow-slate-200/50 transition hover:border-hicotech-blue/40 hover:bg-hicotech-sky/60 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white dark:shadow-none dark:hover:bg-hicotech-blue/15 md:flex">
+          <span className="grid size-8 place-items-center rounded-lg bg-hicotech-sky text-hicotech-blue dark:bg-hicotech-blue/20 dark:text-white">
+            <CalendarDays size={17} />
           </span>
           <span className="leading-tight">
             <span className="block text-xs font-bold uppercase tracking-[0.12em] text-slate-400">Aujourd&apos;hui</span>
@@ -133,14 +133,14 @@ export function Topbar({ onMenuClick, user }: TopbarProps) {
         </button>
 
         <button
-          className="grid size-11 place-items-center rounded-lg border border-slate-200 bg-white text-hicotech-navy shadow-sm shadow-slate-200/50 transition hover:border-hicotech-blue/40 hover:bg-hicotech-sky/60 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white dark:shadow-none dark:hover:bg-hicotech-blue/15"
+          className="grid size-10 place-items-center rounded-lg border border-slate-200 bg-white text-hicotech-navy shadow-sm shadow-slate-200/50 transition hover:border-hicotech-blue/40 hover:bg-hicotech-sky/60 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white dark:shadow-none dark:hover:bg-hicotech-blue/15"
           onClick={() => setDark((value) => !value)}
           aria-label="Changer le thème"
         >
           {dark ? <Sun size={19} /> : <Moon size={19} />}
         </button>
 
-        <button className="relative grid size-11 place-items-center rounded-lg border border-slate-200 bg-white text-hicotech-navy shadow-sm shadow-slate-200/50 transition hover:border-hicotech-blue/40 hover:bg-hicotech-sky/60 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white dark:shadow-none dark:hover:bg-hicotech-blue/15" aria-label="Notifications">
+        <button className="relative grid size-10 place-items-center rounded-lg border border-slate-200 bg-white text-hicotech-navy shadow-sm shadow-slate-200/50 transition hover:border-hicotech-blue/40 hover:bg-hicotech-sky/60 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white dark:shadow-none dark:hover:bg-hicotech-blue/15" aria-label="Notifications">
           <Bell size={19} />
           <span className="absolute right-2.5 top-2.5 size-2 rounded-full bg-hicotech-red ring-2 ring-white dark:ring-hicotech-dark-card" />
         </button>
@@ -148,7 +148,7 @@ export function Topbar({ onMenuClick, user }: TopbarProps) {
         <form action="/logout" method="post" className="hidden sm:block">
           <button
             type="submit"
-            className="grid size-11 place-items-center rounded-lg border border-slate-200 bg-white text-hicotech-navy shadow-sm shadow-slate-200/50 transition hover:border-hicotech-blue/40 hover:bg-hicotech-sky/60 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white dark:shadow-none dark:hover:bg-hicotech-blue/15"
+            className="grid size-10 place-items-center rounded-lg border border-slate-200 bg-white text-hicotech-navy shadow-sm shadow-slate-200/50 transition hover:border-hicotech-blue/40 hover:bg-hicotech-sky/60 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white dark:shadow-none dark:hover:bg-hicotech-blue/15"
             aria-label="Se déconnecter"
           >
             <LogOut size={17} />
@@ -157,14 +157,14 @@ export function Topbar({ onMenuClick, user }: TopbarProps) {
         <form action="/logout" method="post" className="sm:hidden">
           <button
             type="submit"
-            className="grid size-11 place-items-center rounded-lg border border-slate-200 bg-white text-hicotech-navy transition hover:bg-hicotech-sky dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white dark:hover:bg-hicotech-blue/20"
+            className="grid size-10 place-items-center rounded-lg border border-slate-200 bg-white text-hicotech-navy transition hover:bg-hicotech-sky dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white dark:hover:bg-hicotech-blue/20"
             aria-label="Se déconnecter"
           >
             <LogOut size={19} />
           </button>
         </form>
 
-        <div className="flex min-w-0 items-center gap-3 rounded-lg border border-slate-200 bg-white py-1.5 pl-3 pr-1.5 shadow-sm shadow-slate-200/50 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none">
+        <div className="flex min-h-10 min-w-0 items-center gap-2.5 rounded-lg border border-slate-200 bg-white py-1 pl-3 pr-1 shadow-sm shadow-slate-200/50 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none">
           <span className="hidden min-w-0 text-right leading-tight sm:block">
             <span className="block max-w-36 truncate text-sm font-bold text-hicotech-navy dark:text-white">
               {user?.name ?? "Administrateur"}
@@ -173,7 +173,7 @@ export function Topbar({ onMenuClick, user }: TopbarProps) {
               {getRoleLabel(user?.role)}
             </span>
           </span>
-          <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-hicotech-navy font-display text-sm font-bold text-white dark:bg-hicotech-blue">
+          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-hicotech-navy font-display text-sm font-bold text-white dark:bg-hicotech-blue">
             {userInitials}
           </span>
         </div>

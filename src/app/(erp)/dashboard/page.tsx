@@ -81,14 +81,14 @@ const priorities: PriorityItem[] = [
     title: "Réunions",
     value: "3 rendez-vous",
     helper: "Échanges clients à préparer",
-    href: "/crm"
+    href: "/crm/meetings"
   },
   {
     icon: CheckCircle2,
     title: "Tâches prioritaires",
     value: "3 tâches",
     helper: "Actions commerciales du jour",
-    href: "/crm"
+    href: "/crm/tasks"
   }
 ];
 
@@ -123,7 +123,7 @@ export default async function DashboardPage() {
 
   return (
     <DashboardWorkspaceBridge>
-      <div className="space-y-6">
+      <div className="space-y-4 2xl:space-y-5">
         <ProductHero
           eyebrow="Tableau de bord"
           icon={Sparkles}
@@ -135,13 +135,13 @@ export default async function DashboardPage() {
             { href: "/crm/opportunities", icon: HandCoins, label: "Voir l'opportunité", tone: "secondary" }
           ]}
           insight={
-            <div className="rounded-[1.75rem] border border-white/10 bg-white p-5 text-hicotech-navy shadow-2xl shadow-black/20">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-hicotech-blue">À faire en premier</p>
-              <h2 className="mt-2 font-display text-2xl font-bold">{priorityLead.title}</h2>
-              <p className="mt-3 text-sm leading-6 text-slate-600">
+            <div className="rounded-[1.25rem] border border-white/10 bg-white p-4 text-hicotech-navy shadow-xl shadow-black/15">
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-hicotech-blue">À faire en premier</p>
+              <h2 className="mt-1.5 font-display text-xl font-bold">{priorityLead.title}</h2>
+              <p className="mt-2 text-sm leading-5 text-slate-600">
                 {priorityLead.helper}. Cette action protège directement le cash et clarifie la journée.
               </p>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
                 <HeroInsight label={priorityLead.title} value={priorityLead.value} />
                 <HeroInsight label="Reste à encaisser" value={formatCurrency(dashboardStats.outstanding)} />
               </div>
@@ -149,9 +149,9 @@ export default async function DashboardPage() {
           }
         />
 
-        <section className="space-y-3">
+        <section className="space-y-2.5">
           <ProductSectionHeader icon={BadgeDollarSign} title="Santé business" description="Le battement du jour : revenu, cash, marge et opportunités." />
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <MetricCard icon={BadgeDollarSign} label="Chiffre d'affaires" value={formatCurrency(dashboardStats.revenue)} helper="+12,5% ce mois" />
             <MetricCard icon={WalletCards} label="Reste à encaisser" value={formatCurrency(dashboardStats.outstanding)} helper="Factures ouvertes" />
             <MetricCard icon={HandCoins} label="Marge brute" value={formatCurrency(dashboardStats.grossMargin)} helper="61,5% du CA" />
@@ -161,15 +161,15 @@ export default async function DashboardPage() {
 
         <SectionCard className="overflow-hidden">
           <div className="grid gap-0 xl:grid-cols-[minmax(300px,0.42fr)_minmax(0,0.58fr)]">
-            <div className="bg-hicotech-navy p-6 text-white">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-50/65">Centre de priorité</p>
-              <h2 className="mt-3 font-display text-3xl font-bold leading-tight">Ce qui doit être traité aujourd&apos;hui.</h2>
-              <p className="mt-3 text-sm leading-6 text-cyan-50/72">
+            <div className="bg-hicotech-navy p-5 text-white">
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-cyan-50/65">Centre de priorité</p>
+              <h2 className="mt-2 font-display text-2xl font-bold leading-tight">Ce qui doit être traité aujourd&apos;hui.</h2>
+              <p className="mt-2 text-sm leading-5 text-cyan-50/72">
                 Le Dashboard commence par les décisions qui protègent le cash, les propositions et les échanges client.
               </p>
               <Link
                 href={priorityLead.href}
-                className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-bold text-hicotech-navy shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-cyan-50 focus:outline-none focus:ring-4 focus:ring-white/25"
+                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-hicotech-navy shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-cyan-50 focus:outline-none focus:ring-4 focus:ring-white/25"
               >
                 Commencer par ici
                 <ArrowRight size={16} />
@@ -192,8 +192,8 @@ export default async function DashboardPage() {
           </div>
         </section>
 
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(340px,0.95fr)]">
-          <SectionCard className="p-5">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(340px,0.95fr)]">
+          <SectionCard className="p-4">
             <ProductSectionHeader icon={CheckCircle2} title="Changements récents" description="Les derniers mouvements business, dans l'ordre de lecture." />
             <div className="mt-5 space-y-4">
               {recentActivity.map((activity, index) => (
@@ -202,7 +202,7 @@ export default async function DashboardPage() {
             </div>
           </SectionCard>
 
-          <SectionCard className="p-5">
+          <SectionCard className="p-4">
             <ProductSectionHeader icon={Sparkles} title="Actions rapides" description="Les raccourcis utiles, placés après la lecture executive." />
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               {quickActions.map((action) => (
@@ -242,7 +242,7 @@ type PriorityItem = {
 
 function PriorityRow({ helper, href, icon: Icon, rank, title, value }: PriorityItem & { rank: number }) {
   return (
-    <Link href={href} className="group flex items-center gap-4 px-5 py-4 transition hover:bg-hicotech-sky/45 dark:hover:bg-hicotech-dark-page/60">
+    <Link href={href} className="group flex items-center gap-3 px-4 py-3 transition hover:bg-hicotech-sky/45 dark:hover:bg-hicotech-dark-page/60">
       <span className="grid size-8 shrink-0 place-items-center rounded-full bg-slate-100 text-xs font-bold text-slate-500 ring-1 ring-slate-200 dark:bg-white/10 dark:text-slate-300 dark:ring-white/10">
         {rank}
       </span>
@@ -266,7 +266,7 @@ function PriorityRow({ helper, href, icon: Icon, rank, title, value }: PriorityI
 
 function PerformanceCard({ helper, icon: Icon, label, value }: { helper: string; icon: LucideIcon; label: string; value: string }) {
   return (
-    <article className="rounded-[1.5rem] border border-slate-200/80 bg-white p-5 shadow-[0_18px_55px_rgba(10,30,63,0.08)] dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none">
+    <article className="rounded-[1.15rem] border border-slate-200/80 bg-white p-4 shadow-[0_14px_42px_rgba(10,30,63,0.07)] dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-300">{label}</p>

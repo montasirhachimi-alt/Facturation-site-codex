@@ -33,37 +33,37 @@ export const crmNavigation = Object.freeze({
     {
       id: "crm.contacts",
       label: "Contacts",
-      route: `${CRM_MODULE_ROUTE}/companies`,
+      route: `${CRM_MODULE_ROUTE}/contacts`,
       permission: "crm.contact.read",
-      metadata: { icon: "ContactRound", permissionModule: "clients", contextual: true, helper: "Les contacts se gèrent depuis une fiche société." }
+      metadata: { icon: "ContactRound", permissionModule: "clients", activePath: `${CRM_MODULE_ROUTE}/contacts`, helper: "Contacts ouvre le répertoire CRM tout en conservant les liens vers les sociétés." }
     },
     {
       id: "crm.activities",
       label: "Activités / Timeline",
-      route: `${CRM_MODULE_ROUTE}/companies`,
+      route: `${CRM_MODULE_ROUTE}/activities`,
       permission: "crm.activity.read",
-      metadata: { icon: "ClipboardList", permissionModule: "clients", contextual: true, helper: "La timeline se consulte depuis une fiche société." }
+      metadata: { icon: "ClipboardList", permissionModule: "clients", activePath: `${CRM_MODULE_ROUTE}/activities`, helper: "Activités ouvre la timeline CRM avec liens vers sociétés et contacts." }
     },
     {
       id: "crm.meetings",
       label: "Réunions",
-      route: `${CRM_MODULE_ROUTE}/contacts/contact-sara-amrani`,
+      route: `${CRM_MODULE_ROUTE}/meetings`,
       permission: "crm.meeting.read",
-      metadata: { icon: "CalendarCheck", permissionModule: "clients", contextual: true, helper: "Les réunions se planifient depuis une fiche contact." }
+      metadata: { icon: "CalendarCheck", permissionModule: "clients", activePath: `${CRM_MODULE_ROUTE}/meetings`, helper: "Réunions ouvre l'agenda CRM avec liens vers les contacts." }
     },
     {
       id: "crm.tasks",
       label: "Tâches",
-      route: `${CRM_MODULE_ROUTE}/contacts/contact-sara-amrani`,
+      route: `${CRM_MODULE_ROUTE}/tasks`,
       permission: "crm.task.read",
-      metadata: { icon: "ScrollText", permissionModule: "clients", contextual: true, helper: "Les tâches se suivent depuis une fiche contact." }
+      metadata: { icon: "ScrollText", permissionModule: "clients", activePath: `${CRM_MODULE_ROUTE}/tasks`, helper: "Tâches ouvre les actions CRM avec liens vers les contacts." }
     },
     {
       id: "crm.notes",
       label: "Notes",
-      route: `${CRM_MODULE_ROUTE}/contacts/contact-sara-amrani`,
+      route: `${CRM_MODULE_ROUTE}/notes`,
       permission: "crm.note.read",
-      metadata: { icon: "FileText", permissionModule: "clients", contextual: true, helper: "Les notes se consultent depuis une fiche contact." }
+      metadata: { icon: "FileText", permissionModule: "clients", activePath: `${CRM_MODULE_ROUTE}/notes`, helper: "Notes ouvre la bibliothèque CRM avec liens contextuels." }
     }
   ] satisfies CrmNavigationItem[])
 } satisfies CrmNavigationItem);

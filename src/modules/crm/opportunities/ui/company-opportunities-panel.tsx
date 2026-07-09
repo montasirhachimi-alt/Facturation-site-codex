@@ -47,7 +47,7 @@ export function CompanyOpportunitiesPanel({ companyId }: { companyId: CompanyId 
   const pipelineValue = openOpportunities.reduce((total, opportunity) => total + opportunity.estimatedValue.amount, 0);
 
   return (
-    <SectionCard className="p-5">
+    <SectionCard className="p-4">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-hicotech-blue">Moteur de ventes</p>

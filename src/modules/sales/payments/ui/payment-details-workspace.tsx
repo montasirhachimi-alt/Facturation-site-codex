@@ -55,9 +55,9 @@ export function PaymentDetailsWorkspace({ paymentId }: { paymentId: string }) {
         <MetricCard icon={CalendarClock} label="Reçu le" value={formatDate(payment.receivedAt)} helper="Date d'encaissement" />
       </section>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <main className="space-y-5">
-          <SectionCard className="p-5">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <main className="space-y-4">
+          <SectionCard className="p-4">
             <h2 className="font-display text-lg font-bold text-hicotech-navy dark:text-white">Informations paiement</h2>
             <div className="mt-5 grid gap-3 md:grid-cols-2">
               <InfoRow label="Client" value={payment.customerName} />
@@ -70,8 +70,8 @@ export function PaymentDetailsWorkspace({ paymentId }: { paymentId: string }) {
           </SectionCard>
         </main>
 
-        <aside className="space-y-5">
-          <SectionCard className="p-5">
+        <aside className="space-y-4">
+          <SectionCard className="p-4">
             <h2 className="font-display text-lg font-bold text-hicotech-navy dark:text-white">Suivi finance</h2>
             <div className="mt-4 space-y-3">
               <InfoRow label="Statut" value={payment.status === "recorded" ? "Enregistré" : payment.status} />
@@ -99,7 +99,7 @@ function InfoRow({ href, label, value }: { href?: string; label: string; value: 
 
 function PlaceholderCard({ description, icon: Icon, title }: { description: string; icon: typeof NotebookPen; title: string }) {
   return (
-    <SectionCard className="p-5">
+    <SectionCard className="p-4">
       <Icon size={19} className="text-hicotech-blue" />
       <h2 className="mt-3 font-display text-lg font-bold text-hicotech-navy dark:text-white">{title}</h2>
       <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-300">{description}</p>

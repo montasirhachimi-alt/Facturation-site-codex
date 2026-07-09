@@ -13,7 +13,7 @@ const nodes = [
 
 export function CompanyRelationshipGraph() {
   return (
-    <SectionCard className="p-5">
+    <SectionCard className="p-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-hicotech-blue">Graphe relationnel</p>

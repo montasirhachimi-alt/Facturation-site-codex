@@ -9,12 +9,12 @@ export type CrmRouteId =
   | "crm.contacts"
   | "crm.contact.details"
   | "crm.activities"
+  | "crm.meetings"
+  | "crm.tasks"
   | "crm.opportunities"
   | "crm.notes";
 
-export type CrmContextualNavigationId =
-  | "crm.meetings"
-  | "crm.tasks";
+export type CrmContextualNavigationId = never;
 
 export type CrmNavigationId = CrmRouteId | CrmContextualNavigationId;
 

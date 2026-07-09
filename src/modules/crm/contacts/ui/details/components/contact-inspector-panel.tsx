@@ -17,7 +17,7 @@ export function ContactInspectorPanel({ company, contact }: { company?: Company;
 
   return (
     <aside className="space-y-4 xl:sticky xl:top-40 xl:self-start">
-      <SectionCard className="p-5">
+      <SectionCard className="p-4">
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">Inspecteur</p>
         <h2 className="mt-2 font-display text-lg font-bold text-hicotech-navy dark:text-white">Contexte contact</h2>
         <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-300">Société, responsabilité et raccourcis d&apos;interaction futurs.</p>

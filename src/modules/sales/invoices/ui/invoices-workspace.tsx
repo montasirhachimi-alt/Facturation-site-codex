@@ -69,7 +69,7 @@ export function InvoicesWorkspace() {
         <MetricCard icon={Filter} label="Émises" value={String(stats.issued)} helper="À suivre" />
       </section>
 
-      <SectionCard className="p-5">
+      <SectionCard className="p-4">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <ProductSectionHeader icon={Filter} title="Lecture du portefeuille facturé" description="Filtrez par client, société ou statut de paiement." />
           <Link href="/sales/quotes" className="inline-flex items-center justify-center gap-2 rounded-2xl bg-hicotech-blue px-5 py-3 text-sm font-bold text-white shadow-[0_16px_40px_rgba(13,110,253,0.22)] transition hover:-translate-y-0.5 hover:bg-blue-700">
@@ -168,18 +168,18 @@ function InvoicesTable({ invoices, onSort, sort }: { invoices: readonly Invoice[
               const totals = getInvoiceTotals(invoice);
               return (
                 <tr key={invoice.id} className="border-t border-slate-100 transition hover:bg-hicotech-sky/55 hover:shadow-[inset_4px_0_0_#0D6EFD] dark:border-hicotech-dark-border dark:hover:bg-hicotech-dark-page/60">
-                  <td className="px-5 py-4 font-bold text-hicotech-navy dark:text-white">{invoice.number}</td>
-                  <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{invoice.customerName}</td>
-                  <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{companyById.get(invoice.companyId)?.displayName ?? "Non définie"}</td>
-                  <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{invoice.quoteId ? quoteById.get(invoice.quoteId)?.number ?? "Devis" : "-"}</td>
-                  <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{formatDate(invoice.issueDate)}</td>
-                  <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{formatDate(invoice.dueDate)}</td>
-                  <td className="px-5 py-4"><InvoiceStatusBadge status={invoice.status} /></td>
-                  <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{formatQuoteMoney(totals.subtotal - totals.discount, totals.currency)}</td>
-                  <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{formatQuoteMoney(totals.tax, totals.currency)}</td>
-                  <td className="px-5 py-4 font-bold text-hicotech-navy dark:text-white">{formatQuoteMoney(totals.total, totals.currency)}</td>
-                  <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{invoice.ownerId}</td>
-                  <td className="px-5 py-4">
+                  <td className="px-4 py-3 font-bold text-hicotech-navy dark:text-white">{invoice.number}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{invoice.customerName}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{companyById.get(invoice.companyId)?.displayName ?? "Non définie"}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{invoice.quoteId ? quoteById.get(invoice.quoteId)?.number ?? "Devis" : "-"}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{formatDate(invoice.issueDate)}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{formatDate(invoice.dueDate)}</td>
+                  <td className="px-4 py-3"><InvoiceStatusBadge status={invoice.status} /></td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{formatQuoteMoney(totals.subtotal - totals.discount, totals.currency)}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{formatQuoteMoney(totals.tax, totals.currency)}</td>
+                  <td className="px-4 py-3 font-bold text-hicotech-navy dark:text-white">{formatQuoteMoney(totals.total, totals.currency)}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{invoice.ownerId}</td>
+                  <td className="px-4 py-3">
                     <Link href={`/sales/invoices/${invoice.id}`} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-hicotech-blue transition hover:bg-hicotech-sky dark:border-hicotech-dark-border">
                       Voir
                       <ArrowRight size={14} />

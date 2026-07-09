@@ -109,7 +109,7 @@ export function QuotesWorkspace() {
         <MetricCard icon={Filter} label="Brouillons" value={String(stats.drafts)} helper="À finaliser" />
       </section>
 
-      <SectionCard className="p-5">
+      <SectionCard className="p-4">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <ProductSectionHeader icon={Filter} title="Qualification des propositions" description="Filtrez le portefeuille par client, société, opportunité ou statut." />
           <button
@@ -218,16 +218,16 @@ function QuotesTable({ onCreate, onSort, quotes, sort }: { onCreate: () => void;
               const totals = getQuoteTotals(quote);
               return (
                 <tr key={quote.id} className="border-t border-slate-100 transition hover:bg-hicotech-sky/55 hover:shadow-[inset_4px_0_0_#0D6EFD] dark:border-hicotech-dark-border dark:hover:bg-hicotech-dark-page/60">
-                  <td className="px-5 py-4 font-bold text-hicotech-navy dark:text-white">{quote.number}</td>
-                  <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{quote.customerName}</td>
-                  <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{companyById.get(quote.companyId)?.displayName ?? "Non définie"}</td>
-                  <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{quote.opportunityId ? opportunityById.get(quote.opportunityId)?.title ?? "Opportunité" : "-"}</td>
-                  <td className="px-5 py-4"><QuoteStatusBadge status={quote.status} /></td>
-                  <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{formatDate(quote.issueDate)}</td>
-                  <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{formatDate(quote.expirationDate)}</td>
-                  <td className="px-5 py-4 font-bold text-hicotech-navy dark:text-white">{formatQuoteMoney(totals.total, totals.currency)}</td>
-                  <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{quote.ownerId}</td>
-                  <td className="px-5 py-4">
+                  <td className="px-4 py-3 font-bold text-hicotech-navy dark:text-white">{quote.number}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{quote.customerName}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{companyById.get(quote.companyId)?.displayName ?? "Non définie"}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{quote.opportunityId ? opportunityById.get(quote.opportunityId)?.title ?? "Opportunité" : "-"}</td>
+                  <td className="px-4 py-3"><QuoteStatusBadge status={quote.status} /></td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{formatDate(quote.issueDate)}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{formatDate(quote.expirationDate)}</td>
+                  <td className="px-4 py-3 font-bold text-hicotech-navy dark:text-white">{formatQuoteMoney(totals.total, totals.currency)}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{quote.ownerId}</td>
+                  <td className="px-4 py-3">
                     <Link href={`/sales/quotes/${quote.id}`} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-hicotech-blue transition hover:bg-hicotech-sky dark:border-hicotech-dark-border">
                       Voir
                       <ArrowRight size={14} />

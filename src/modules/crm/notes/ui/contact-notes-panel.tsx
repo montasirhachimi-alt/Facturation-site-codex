@@ -19,7 +19,7 @@ export function ContactNotesPanel({
   const recentNotes = notes.filter((note) => !isPinnedNote(note));
 
   return (
-    <SectionCard className="p-5">
+    <SectionCard className="p-4">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-hicotech-blue">Notes</p>

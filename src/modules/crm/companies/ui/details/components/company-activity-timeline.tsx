@@ -11,7 +11,7 @@ const activities = [
 
 export function CompanyActivityTimeline() {
   return (
-    <SectionCard className="p-5">
+    <SectionCard className="p-4">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-hicotech-blue">Timeline</p>

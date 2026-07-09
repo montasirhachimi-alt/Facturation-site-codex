@@ -66,7 +66,7 @@ export function PaymentsWorkspace() {
         <MetricCard icon={Filter} label="Rapprochés" value={String(stats.reconciled)} helper="Paiements validés" />
       </section>
 
-      <SectionCard className="p-5">
+      <SectionCard className="p-4">
         <ProductSectionHeader icon={Filter} title="Rythme des encaissements" description="Filtrez par facture, client, mode ou statut de paiement." />
         <div className="mt-5 grid gap-3 lg:grid-cols-2 xl:grid-cols-5">
           <label className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm shadow-slate-200/40 xl:col-span-2 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50">
@@ -159,16 +159,16 @@ function PaymentsTable({ onSort, payments, sort }: { onSort: (field: PaymentSort
           <tbody>
             {payments.map((payment) => (
               <tr key={payment.id} className="border-t border-slate-100 transition hover:bg-hicotech-sky/55 hover:shadow-[inset_4px_0_0_#0D6EFD] dark:border-hicotech-dark-border dark:hover:bg-hicotech-dark-page/60">
-                <td className="px-5 py-4 font-bold text-hicotech-navy dark:text-white">{payment.number}</td>
-                <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{payment.invoiceNumber}</td>
-                <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{payment.customerName}</td>
-                <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{companyById.get(payment.companyId)?.displayName ?? "Non définie"}</td>
-                <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{PAYMENT_METHOD_LABELS[payment.method]}</td>
-                <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{formatDate(payment.receivedAt)}</td>
-                <td className="px-5 py-4"><PaymentStatusBadge status={payment.status} /></td>
-                <td className="px-5 py-4 font-bold text-hicotech-navy dark:text-white">{formatQuoteMoney(payment.amount, payment.currency)}</td>
-                <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{payment.ownerId}</td>
-                <td className="px-5 py-4">
+                <td className="px-4 py-3 font-bold text-hicotech-navy dark:text-white">{payment.number}</td>
+                <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{payment.invoiceNumber}</td>
+                <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{payment.customerName}</td>
+                <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{companyById.get(payment.companyId)?.displayName ?? "Non définie"}</td>
+                <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{PAYMENT_METHOD_LABELS[payment.method]}</td>
+                <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{formatDate(payment.receivedAt)}</td>
+                <td className="px-4 py-3"><PaymentStatusBadge status={payment.status} /></td>
+                <td className="px-4 py-3 font-bold text-hicotech-navy dark:text-white">{formatQuoteMoney(payment.amount, payment.currency)}</td>
+                <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{payment.ownerId}</td>
+                <td className="px-4 py-3">
                   <Link href={`/sales/payments/${payment.id}`} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-hicotech-blue transition hover:bg-hicotech-sky dark:border-hicotech-dark-border">
                     Voir
                     <ArrowRight size={14} />

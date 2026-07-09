@@ -42,8 +42,8 @@ export function ContactDetailsPage({ contactId }: { contactId: string }) {
       <ContactSummaryCards summary={state.summary} />
       <ContactDetailsTabs activeTab={state.activeTab} onChange={state.setActiveTab} />
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <main className="space-y-6">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <main className="space-y-4">
           {state.activeTab === "overview" ? (
             <>
               <ContactOverview company={state.company} contact={state.contact} />

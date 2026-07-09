@@ -74,7 +74,7 @@ export function CompanyActivityTimeline({ companyId }: { companyId: CompanyId })
   }, [companyId, priority, query, readDecision, service, status, type]);
 
   return (
-    <SectionCard className="p-5">
+    <SectionCard className="p-4">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-hicotech-blue">Timeline</p>

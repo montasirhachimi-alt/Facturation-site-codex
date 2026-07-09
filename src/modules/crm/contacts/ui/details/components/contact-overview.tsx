@@ -5,8 +5,8 @@ import type { Contact } from "../../../contact.types";
 
 export function ContactOverview({ company, contact }: { company?: Company; contact: Contact }) {
   return (
-    <div className="grid gap-6 2xl:grid-cols-2">
-      <SectionCard className="p-5">
+    <div className="grid gap-4 2xl:grid-cols-2">
+      <SectionCard className="p-4">
         <SectionTitle eyebrow="Vue d'ensemble" title="Informations personnelles" />
         <InfoRows
           rows={[
@@ -19,7 +19,7 @@ export function ContactOverview({ company, contact }: { company?: Company; conta
         />
       </SectionCard>
 
-      <SectionCard className="p-5">
+      <SectionCard className="p-4">
         <SectionTitle eyebrow="Travail" title="Informations professionnelles" />
         <InfoRows
           rows={[
@@ -31,7 +31,7 @@ export function ContactOverview({ company, contact }: { company?: Company; conta
         />
       </SectionCard>
 
-      <SectionCard className="p-5">
+      <SectionCard className="p-4">
         <SectionTitle eyebrow="Communication" title="Coordonnées" />
         <InfoRows
           rows={[
@@ -43,7 +43,7 @@ export function ContactOverview({ company, contact }: { company?: Company; conta
         />
       </SectionCard>
 
-      <SectionCard className="p-5">
+      <SectionCard className="p-4">
         <SectionTitle eyebrow="Contexte" title="Localisation et tags" />
         <InfoRows
           rows={[

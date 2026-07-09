@@ -9,7 +9,7 @@ const tasks = [
 
 export function CompanyTasksWidget() {
   return (
-    <SectionCard className="p-5">
+    <SectionCard className="p-4">
       <div className="flex items-center gap-3">
         <span className="grid size-10 place-items-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-100">
           <ListChecks size={18} />

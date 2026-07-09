@@ -38,16 +38,16 @@ export function EntityTable<TEntity extends { id: string }, TSortKey extends str
   title: string;
 }) {
   return (
-    <SectionCard className="overflow-hidden shadow-[0_22px_70px_rgba(10,30,63,0.10)] dark:shadow-none">
-      <div className="relative overflow-hidden border-b border-slate-200/80 bg-hicotech-navy px-5 py-6 text-white dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
-        <div className="absolute right-0 top-0 h-full w-40 bg-white/5" />
-        <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <SectionCard className="overflow-hidden shadow-[0_16px_50px_rgba(10,30,63,0.08)] dark:shadow-none">
+      <div className="relative overflow-hidden border-b border-slate-200/80 bg-hicotech-navy px-4 py-4 text-white dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
+        <div className="absolute right-0 top-0 h-full w-32 bg-white/5" />
+        <div className="relative flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="font-display text-2xl font-bold text-white">{title}</h2>
-          <p className="mt-1 text-sm font-medium text-cyan-50/70 dark:text-slate-300">{subtitle}</p>
+          <h2 className="font-display text-xl font-bold text-white">{title}</h2>
+          <p className="mt-0.5 text-xs font-medium text-cyan-50/70 dark:text-slate-300">{subtitle}</p>
         </div>
         {selectedIds.length > 0 && (
-          <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-hicotech-blue">
+          <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-hicotech-blue">
             {bulkLabel ?? `${selectedIds.length} sélectionné(s)`}
           </span>
         )}
@@ -57,13 +57,13 @@ export function EntityTable<TEntity extends { id: string }, TSortKey extends str
       {isLoading ? (
         <EntityLoadingState />
       ) : items.length === 0 ? (
-        <div className="p-5">{emptyState}</div>
+        <div className="p-4">{emptyState}</div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1040px] border-collapse text-sm">
             <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 text-left text-hicotech-navy backdrop-blur dark:border-hicotech-dark-border dark:bg-hicotech-dark-card/95 dark:text-white">
               <tr>
-                <th className="w-12 px-5 py-3">
+                <th className="w-11 px-4 py-2.5">
                   <input
                     checked={allVisibleSelected}
                     onChange={onToggleAll}
@@ -73,7 +73,7 @@ export function EntityTable<TEntity extends { id: string }, TSortKey extends str
                   />
                 </th>
                 {columns.map((column) => (
-                  <th key={column.key} className={clsx("px-5 py-3 font-display text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300", column.className)}>
+                  <th key={column.key} className={clsx("px-4 py-2.5 font-display text-[10px] font-bold uppercase tracking-[0.11em] text-slate-500 dark:text-slate-300", column.className)}>
                     {column.sortable && column.sortKey ? (
                       <button
                         type="button"
@@ -88,7 +88,7 @@ export function EntityTable<TEntity extends { id: string }, TSortKey extends str
                     )}
                   </th>
                 ))}
-                <th className="px-5 py-3 font-display text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">Actions</th>
+                <th className="px-4 py-2.5 font-display text-[10px] font-bold uppercase tracking-[0.11em] text-slate-500 dark:text-slate-300">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -100,7 +100,7 @@ export function EntityTable<TEntity extends { id: string }, TSortKey extends str
                     selectedIds.includes(item.id) && "bg-hicotech-sky/70 shadow-[inset_4px_0_0_#0D6EFD] dark:bg-hicotech-blue/10"
                   )}
                 >
-                  <td className="px-5 py-4">
+                  <td className="px-4 py-3">
                     <input
                       checked={selectedIds.includes(item.id)}
                       onChange={() => onToggleRow(item.id)}
@@ -110,11 +110,11 @@ export function EntityTable<TEntity extends { id: string }, TSortKey extends str
                     />
                   </td>
                   {columns.map((column) => (
-                    <td key={column.key} className="px-5 py-4 align-middle">
+                    <td key={column.key} className="px-4 py-3 align-middle">
                       {column.render(item)}
                     </td>
                   ))}
-                  <td className="px-5 py-4 align-middle">{renderActions(item)}</td>
+                  <td className="px-4 py-3 align-middle">{renderActions(item)}</td>
                 </tr>
               ))}
             </tbody>

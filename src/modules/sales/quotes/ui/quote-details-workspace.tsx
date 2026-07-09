@@ -82,9 +82,9 @@ export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
         <MetricCard icon={FileText} label="Lignes" value={String(quote.items.length)} helper="Articles devis" />
       </section>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <main className="space-y-5">
-          <SectionCard className="p-5">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <main className="space-y-4">
+          <SectionCard className="p-4">
             <h2 className="font-display text-lg font-bold text-hicotech-navy dark:text-white">Informations commerciales</h2>
             <div className="mt-5 grid gap-3 md:grid-cols-2">
               <InfoRow label="Client" value={quote.customerName} />
@@ -97,7 +97,7 @@ export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
           </SectionCard>
 
           <SectionCard className="overflow-hidden">
-            <div className="border-b border-slate-200 px-5 py-4 dark:border-hicotech-dark-border">
+            <div className="border-b border-slate-200 px-4 py-3 dark:border-hicotech-dark-border">
               <h2 className="font-display text-lg font-bold text-hicotech-navy dark:text-white">Articles</h2>
             </div>
             <div className="overflow-x-auto">
@@ -113,10 +113,10 @@ export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
                 <tbody>
                   {quote.items.map((item) => (
                     <tr key={item.id} className="border-t border-slate-100 dark:border-hicotech-dark-border">
-                      <td className="px-5 py-4 font-semibold text-hicotech-navy dark:text-white">{item.description}</td>
-                      <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{item.quantity}</td>
-                      <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{formatQuoteMoney(item.unitPrice, quote.currency)}</td>
-                      <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{item.taxRate}%</td>
+                      <td className="px-4 py-3 font-semibold text-hicotech-navy dark:text-white">{item.description}</td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{item.quantity}</td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{formatQuoteMoney(item.unitPrice, quote.currency)}</td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{item.taxRate}%</td>
                     </tr>
                   ))}
                 </tbody>
@@ -125,8 +125,8 @@ export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
           </SectionCard>
         </main>
 
-        <aside className="space-y-5">
-          <SectionCard className="p-5">
+        <aside className="space-y-4">
+          <SectionCard className="p-4">
             <h2 className="font-display text-lg font-bold text-hicotech-navy dark:text-white">Totaux</h2>
             <div className="mt-4 space-y-3">
               <InfoRow label="Sous-total" value={formatQuoteMoney(totals.subtotal, totals.currency)} />
@@ -154,7 +154,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 function PlaceholderCard({ description, icon: Icon, title }: { description: string; icon: typeof CalendarClock; title: string }) {
   return (
-    <SectionCard className="p-5">
+    <SectionCard className="p-4">
       <Icon size={19} className="text-hicotech-blue" />
       <h2 className="mt-3 font-display text-lg font-bold text-hicotech-navy dark:text-white">{title}</h2>
       <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-300">{description}</p>

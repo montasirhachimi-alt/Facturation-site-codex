@@ -87,9 +87,9 @@ export function CrmHomePage() {
         </div>
         <div className="mt-4 grid gap-2.5 md:grid-cols-2 xl:grid-cols-5" aria-label="Actions rapides CRM">
           <QuickAction href="/crm/companies" icon={Building2} label="Nouvelle société" helper="Créer le compte central" />
-          <QuickAction href="/crm/companies" icon={ContactRound} label="Nouveau contact" helper="Depuis l'onglet Contacts d'une société" />
-          <QuickAction href="/crm/contacts/contact-sara-amrani" icon={CalendarCheck} label="Planifier une réunion" helper="Depuis une fiche contact" />
-          <QuickAction href="/crm/contacts/contact-sara-amrani" icon={CheckCircle2} label="Nouvelle tâche" helper="Depuis une fiche contact" />
+          <QuickAction href="/crm/contacts" icon={ContactRound} label="Nouveau contact" helper="Ouvrir le workspace Contacts" />
+          <QuickAction href="/crm/meetings" icon={CalendarCheck} label="Planifier une réunion" helper="Ouvrir le workspace Réunions" />
+          <QuickAction href="/crm/tasks" icon={CheckCircle2} label="Nouvelle tâche" helper="Ouvrir le workspace Tâches" />
           <QuickAction href="/crm/opportunities" icon={HandCoins} label="Pipeline commercial" helper="Dans Ventes" />
         </div>
       </section>
@@ -104,8 +104,8 @@ export function CrmHomePage() {
         <MetricCard icon={Activity} label="Activités" value={String(activities.length)} helper="Historique commercial" />
       </section>
 
-      <div className="grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
-        <SectionCard className="p-5">
+      <div className="grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
+        <SectionCard className="p-4">
           <SectionTitle
             icon={Activity}
             title="Activité récente"
@@ -124,7 +124,7 @@ export function CrmHomePage() {
           </div>
         </SectionCard>
 
-        <SectionCard className="p-5">
+        <SectionCard className="p-4">
           <SectionTitle
             icon={CalendarCheck}
             title="Réunions à venir"
@@ -141,14 +141,14 @@ export function CrmHomePage() {
                 />
               ))
             ) : (
-              <PurposeEmptyState title="Aucune réunion planifiée" description="Planifiez une réunion depuis une fiche contact." />
+              <PurposeEmptyState title="Aucune réunion planifiée" description="Ouvrez le workspace Réunions pour préparer les prochains échanges." />
             )}
           </div>
         </SectionCard>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-5">
-        <SectionCard className="p-5">
+      <div className="grid gap-4 xl:grid-cols-5">
+        <SectionCard className="p-4">
           <SectionTitle icon={HandCoins} title="Pipeline commercial" description="Suivez les opportunités par étape, valeur et probabilité." />
           <div className="mt-5 space-y-3">
             {openOpportunities.slice(0, 4).map((opportunity) => (
@@ -169,7 +169,7 @@ export function CrmHomePage() {
           </Link>
         </SectionCard>
 
-        <SectionCard className="p-5">
+        <SectionCard className="p-4">
           <SectionTitle icon={ClipboardList} title="Tâches ouvertes" description="Les prochaines actions CRM à suivre." />
           <div className="mt-5 space-y-3">
             {openTasks.slice(0, 4).map((task) => (
@@ -178,7 +178,7 @@ export function CrmHomePage() {
           </div>
         </SectionCard>
 
-        <SectionCard className="p-5">
+        <SectionCard className="p-4">
           <SectionTitle icon={NotebookPen} title="Notes récentes" description="Contexte utile pour les prochains échanges." />
           <div className="mt-5 space-y-3">
             {notes.slice(0, 3).map((note) => (
@@ -187,7 +187,7 @@ export function CrmHomePage() {
           </div>
         </SectionCard>
 
-        <SectionCard className="p-5">
+        <SectionCard className="p-4">
           <SectionTitle icon={FileText} title="Devis récents" description="Dernières propositions commerciales préparées." />
           <div className="mt-5 space-y-3">
             {quotes.slice(0, 3).map((quote) => {
@@ -208,7 +208,7 @@ export function CrmHomePage() {
           </Link>
         </SectionCard>
 
-        <SectionCard className="p-5">
+        <SectionCard className="p-4">
           <SectionTitle icon={FileText} title="Factures récentes" description="Factures générées depuis les devis acceptés." />
           <div className="mt-5 space-y-3">
             {invoices.slice(0, 3).map((invoice) => {
@@ -231,9 +231,9 @@ export function CrmHomePage() {
 
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[0.75fr_1.25fr]">
-        <SectionCard className="p-5">
-          <SectionTitle icon={Users} title="Vue contacts" description="Les contacts vivent dans les fiches société." />
+      <div className="grid gap-4 xl:grid-cols-[0.75fr_1.25fr]">
+        <SectionCard className="p-4">
+          <SectionTitle icon={Users} title="Vue contacts" description="Les contacts ont leur workspace et restent reliés aux sociétés." />
           <div className="mt-5 grid grid-cols-2 gap-3">
             <ContactSummary label="Contacts principaux" value={primaryContacts.length} />
             <ContactSummary label="Décideurs" value={decisionMakers.length} />
@@ -242,22 +242,22 @@ export function CrmHomePage() {
           </div>
         </SectionCard>
 
-        <SectionCard className="p-5">
+        <SectionCard className="p-4">
           <SectionTitle
             icon={MessageSquareText}
             title="Repères de navigation CRM"
-            description="Les espaces contextuels restent attachés à leur parent pour garder le CRM simple."
+            description="Chaque entrée ouvre son propre workspace, avec les liens de contexte conservés."
           />
           <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <NavigationHint title="Sociétés" description="Point d'entrée central pour comptes, contacts et timeline." href="/crm/companies" />
-            <NavigationHint title="Contacts" description="Ouvrez une société, puis l'onglet Contacts." href="/crm/companies" />
-            <NavigationHint title="Réunions, tâches et notes" description="Ouvrez une fiche contact pour planifier, suivre et noter les échanges." href="/crm/contacts/contact-sara-amrani" />
+            <NavigationHint title="Sociétés" description="Comptes, détails et relations commerciales." href="/crm/companies" />
+            <NavigationHint title="Contacts" description="Répertoire CRM indépendant avec liens société." href="/crm/contacts" />
+            <NavigationHint title="Réunions, tâches et notes" description="Workspaces dédiés pour suivre le contexte relationnel." href="/crm/meetings" />
             <NavigationHint title="Pipeline commercial" description="Ouvrez Ventes pour suivre toutes les opportunités." href="/crm/opportunities" />
           </div>
         </SectionCard>
       </div>
 
-      <SectionCard className="p-5">
+      <SectionCard className="p-4">
         <SectionTitle icon={Building2} title="Sociétés ajoutées récemment" description="Accédez au workspace société pour approfondir." />
         <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {companies.slice(0, 4).map((company) => (
@@ -287,49 +287,49 @@ export function CrmHomePage() {
 
 function CrmHero() {
   return (
-    <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-hicotech-navy text-white shadow-[0_30px_90px_rgba(10,30,63,0.30)] dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none">
-      <div className="grid gap-0 xl:grid-cols-[minmax(0,1.16fr)_minmax(380px,0.84fr)]">
-        <div className="relative p-6 sm:p-9">
+    <section className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-hicotech-navy text-white shadow-[0_20px_58px_rgba(10,30,63,0.24)] dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none">
+      <div className="grid gap-0 xl:grid-cols-[minmax(0,1.18fr)_minmax(320px,0.82fr)]">
+        <div className="relative p-5 sm:p-7">
           <div className="absolute right-7 top-7 hidden rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-bold text-cyan-50 backdrop-blur sm:block">
             CRM prêt pour la démo
           </div>
-          <p className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-cyan-50">
+          <p className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-cyan-50">
             <ShieldCheck size={14} />
             Carte relationnelle
           </p>
-          <h1 className="mt-7 max-w-4xl font-display text-5xl font-bold leading-[1.02] md:text-6xl">
+          <h1 className="mt-5 max-w-4xl font-display text-4xl font-bold leading-[1.04] md:text-5xl">
             Construire des relations client qui avancent.
           </h1>
-          <p className="mt-5 max-w-2xl text-lg leading-8 text-cyan-50/76">
+          <p className="mt-3 max-w-2xl text-base leading-7 text-cyan-50/76">
             Une vue chaleureuse pour voir les sociétés, les interlocuteurs clés, les prochaines conversations et le revenu à défendre avant même d&apos;ouvrir une table.
           </p>
 
-          <div className="mt-8 flex flex-wrap gap-3">
+          <div className="mt-5 flex flex-wrap gap-2.5">
             <Link
               href="/crm/companies"
-              className="inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-bold text-hicotech-navy shadow-xl shadow-black/20 transition hover:-translate-y-0.5 hover:bg-cyan-50 focus:outline-none focus:ring-4 focus:ring-white/30"
+              className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-hicotech-navy shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:bg-cyan-50 focus:outline-none focus:ring-4 focus:ring-white/30"
             >
               Ouvrir les sociétés
               <ArrowRight size={16} />
             </Link>
             <Link
               href="/crm/opportunities"
-              className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-white/15 focus:outline-none focus:ring-4 focus:ring-white/20"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-white/15 focus:outline-none focus:ring-4 focus:ring-white/20"
             >
               Voir le pipeline
               <TrendingUp size={16} />
             </Link>
           </div>
 
-          <div className="mt-9 grid gap-3 sm:grid-cols-3">
+          <div className="mt-5 grid gap-2.5 sm:grid-cols-3">
             <HeroSignal label="Sociétés suivies" value={String(companies.length)} helper="comptes actifs" />
             <HeroSignal label="Pipeline ouvert" value={formatOpportunityValue(totalPipelineValue(openOpportunities))} helper={`${openOpportunities.length} opportunités`} />
             <HeroSignal label="Priorités" value={String(openTasks.length + upcomingMeetings.length)} helper="actions à suivre" />
           </div>
         </div>
 
-        <div className="border-t border-white/10 bg-white/[0.06] p-6 backdrop-blur xl:border-l xl:border-t-0">
-          <div className="rounded-[1.75rem] border border-white/10 bg-white p-5 text-hicotech-navy shadow-2xl shadow-black/20">
+        <div className="border-t border-white/10 bg-white/[0.06] p-5 backdrop-blur xl:border-l xl:border-t-0">
+          <div className="rounded-[1.25rem] border border-white/10 bg-white p-4 text-hicotech-navy shadow-xl shadow-black/15">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-hicotech-blue">Relation du jour</p>
@@ -339,12 +339,12 @@ function CrmHero() {
                 <Activity size={20} />
               </span>
             </div>
-            <div className="mt-5 space-y-3">
+            <div className="mt-4 space-y-2.5">
               <HeroPriority icon={FileText} label="Devis récents" value={`${quotes.length} propositions`} />
               <HeroPriority icon={CalendarCheck} label="Réunions à venir" value={`${upcomingMeetings.length} échanges`} />
               <HeroPriority icon={ClipboardList} label="Tâches ouvertes" value={`${openTasks.length} actions`} />
             </div>
-            <div className="mt-5 rounded-2xl bg-hicotech-sky p-4">
+            <div className="mt-4 rounded-xl bg-hicotech-sky p-3.5">
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-hicotech-blue">Signal relationnel</p>
               <p className="mt-2 text-sm font-bold leading-6 text-hicotech-navy">
                 {openOpportunities.length} opportunité(s) ouvertes pour {formatOpportunityValue(totalPipelineValue(openOpportunities))}.
@@ -404,9 +404,9 @@ function CommandTile({
 
 function HeroSignal({ helper, label, value }: { helper: string; label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/10 p-4 shadow-lg shadow-black/10">
-      <p className="text-xs font-bold uppercase tracking-[0.14em] text-cyan-50/60">{label}</p>
-      <p className="mt-2 font-display text-2xl font-bold text-white">{value}</p>
+    <div className="rounded-xl border border-white/10 bg-white/10 p-3.5 shadow-md shadow-black/10">
+      <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-cyan-50/60">{label}</p>
+      <p className="mt-1.5 font-display text-xl font-bold text-white">{value}</p>
       <p className="mt-1 text-xs font-semibold text-cyan-50/65">{helper}</p>
     </div>
   );
@@ -414,7 +414,7 @@ function HeroSignal({ helper, label, value }: { helper: string; label: string; v
 
 function HeroPriority({ icon: Icon, label, value }: { icon: React.ComponentType<{ size?: number }>; label: string; value: string }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+    <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-2.5">
       <span className="grid size-10 place-items-center rounded-xl bg-white text-hicotech-blue shadow-sm">
         <Icon size={18} />
       </span>

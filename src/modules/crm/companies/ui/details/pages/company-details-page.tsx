@@ -43,14 +43,14 @@ export function CompanyDetailsPage({ companyId }: { companyId: string }) {
       <CompanySummaryCards />
       <CompanyDetailsTabs activeTab={state.activeTab} onChange={state.setActiveTab} />
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <main className="space-y-6">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <main className="space-y-4">
           {state.activeTab === "overview" ? (
             <>
               <CompanyRelationshipGraph />
-              <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_360px]">
+              <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_360px]">
                 <CompanyActivityTimeline companyId={state.company.id} />
-                <div className="space-y-6">
+                <div className="space-y-4">
                   <CompanyNotesPanel />
                   <CompanyTasksWidget />
                 </div>

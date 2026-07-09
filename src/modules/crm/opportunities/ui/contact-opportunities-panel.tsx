@@ -42,7 +42,7 @@ export function ContactOpportunitiesPanel({ contactId }: { contactId: ContactId 
   );
 
   return (
-    <SectionCard className="p-5">
+    <SectionCard className="p-4">
       <div className="flex items-start gap-3">
         <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-hicotech-sky text-hicotech-blue dark:bg-hicotech-blue/20">
           <HandCoins size={19} />

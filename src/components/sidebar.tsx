@@ -67,8 +67,6 @@ const sidebarIconMap: Record<string, LucideIcon> = {
   WalletCards
 };
 
-const groups = getSidebarGroups();
-
 type SidebarProps = {
   collapsed: boolean;
   mobileOpen: boolean;
@@ -79,6 +77,7 @@ type SidebarProps = {
 
 export function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse, user }: SidebarProps) {
   const pathname = usePathname();
+  const groups = getSidebarGroups();
   const visibleGroups = groups
     .map((group) => ({
       ...group,

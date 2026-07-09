@@ -9,7 +9,7 @@ const notes = [
 
 export function CompanyNotesPanel() {
   return (
-    <SectionCard className="p-5">
+    <SectionCard className="p-4">
       <div className="flex items-center gap-3">
         <span className="grid size-10 place-items-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-100">
           <StickyNote size={18} />

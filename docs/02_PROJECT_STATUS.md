@@ -8,7 +8,7 @@
 | Version | Pre-Alpha |
 | Current Milestone | Milestone 3 — Business Suite |
 | Current Phase | Business Module Foundations |
-| Current Sprint | SPR-332 — Module Identity & Product Personality |
+| Current Sprint | SPR-334 — Professional Workspace Optimization |
 | Next Sprint | To define |
 | Repository Health | Builds successfully with one known existing image optimization warning. |
 
@@ -180,14 +180,18 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - KPI Card Vertical Rhythm improves the shared metric card spacing so KPI values have more breathing room from the title and icon tile while preserving colors, data, routes and the BOSIACO top accent.
 - Executive Dashboard Revolution reframes the Dashboard as a business cockpit: executive daily summary, business health, priority center, performance, recent changes and secondary quick actions.
 - Module Identity & Product Personality gives Dashboard, CRM, Sales, HR and Reports distinct visual signatures while preserving the shared BOSIACO product language, so each module communicates its purpose before the user reads the page title.
+- CRM Workspace Independence restores predictable navigation: Contacts, Activités, Réunions, Tâches and Notes now open their own CRM workspaces while preserving contextual links back to related companies and contacts.
+- CRM Contacts Navigation fix removes the remaining contextual classification from independent CRM sidebar workspaces so Contacts is treated as a direct `/crm/contacts` navigation item.
+- CRM Contacts Sidebar Click Handler fix moves sidebar group resolution inside the Sidebar render path so the rendered Contacts link uses the current `/crm/contacts` route instead of a stale module-level navigation snapshot.
+- Professional Workspace Optimization reduces vertical space across product heroes, topbar controls, KPI cards, entity tables, filters, workspace cards and CRM/Sales panels so major modules show more useful information above the fold while preserving the BOSIACO identity.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passed during SPR-332 via the local `tsc --noEmit` script equivalent because `npm` is unavailable in this environment. |
-| `npm run build` | Yes | Passed during SPR-332 via the local `next build` script equivalent because `npm` is unavailable in this environment; the known PDF preview image warning remains. |
-| `npm run validate:runtime` | No for SPR-332 | Not requested during SPR-332; no Runtime changes were made. |
+| `npm run typecheck` | Yes | Passed during SPR-334. |
+| `npm run build` | Yes | Passed during SPR-334; the known PDF preview image warning remains. |
+| `npm run validate:runtime` | No for SPR-334 | Not requested during SPR-334; no Runtime changes were made. |
 
 ## Repository Health
 
