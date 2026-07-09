@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ArrowRight, CalendarClock, CircleDollarSign, FileText, Filter, Plus, Search, Sparkles, UserRound } from "lucide-react";
+import { ArrowRight, CalendarClock, CircleDollarSign, FileText, Filter, Plus, Sparkles, UserRound } from "lucide-react";
 import { CompanyService } from "@/modules/crm/companies";
 import { CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
 import { OpportunityService } from "@/modules/crm/opportunities";
 import { crmOpportunitySeed } from "@/modules/crm/opportunities/ui/opportunities.seed";
-import { EntityDialog, EntityPageLayout, MetricCard, ProductHero, ProductSectionHeader, SectionCard, entityInputClassName } from "@/ui";
+import { EntityDialog, EntityPageLayout, EntitySearchBar, MetricCard, ProductHero, ProductSectionHeader, SectionCard, entityInputClassName, workspacePrimaryActionClassName, workspaceTableActionClassName } from "@/ui";
 import { QUOTE_STATUS_LABELS } from "../quote.constants";
 import { QuoteService } from "../quote.service";
 import type { Quote, QuoteSort, QuoteStatus } from "../quote.types";
@@ -110,22 +110,21 @@ export function QuotesWorkspace() {
       </section>
 
       <SectionCard className="p-4">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <ProductSectionHeader icon={Filter} title="Qualification des propositions" description="Filtrez le portefeuille par client, société, opportunité ou statut." />
           <button
             type="button"
             onClick={() => setDialogOpen(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-hicotech-blue px-5 py-3 text-sm font-bold text-white shadow-[0_16px_40px_rgba(13,110,253,0.22)] transition hover:-translate-y-0.5 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50"
+            className={workspacePrimaryActionClassName}
           >
             <Plus size={17} />
             Créer un devis
           </button>
         </div>
-        <div className="mt-5 grid gap-3 lg:grid-cols-2 xl:grid-cols-5">
-          <label className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm shadow-slate-200/40 xl:col-span-2 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50">
-            <Search size={16} className="text-slate-400" />
-            <input value={filters.query} onChange={(event) => setFilters({ ...filters, query: event.target.value })} className="w-full bg-transparent text-sm outline-none dark:text-white" placeholder="Rechercher un devis..." />
-          </label>
+        <div className="mt-4 grid gap-2 lg:grid-cols-2 xl:grid-cols-5">
+          <div className="xl:col-span-2">
+            <EntitySearchBar value={filters.query} onChange={(value) => setFilters({ ...filters, query: value })} placeholder="Rechercher un devis..." />
+          </div>
           <select value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value as QuoteFilters["status"] })} className={entityInputClassName}>
             <option value="all">Tous statuts</option>
             {Object.entries(QUOTE_STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -143,7 +142,7 @@ export function QuotesWorkspace() {
 
       <QuotesTable quotes={paginatedQuotes} sort={sort} onCreate={() => setDialogOpen(true)} onSort={updateSort} />
 
-      <div className="flex flex-col gap-3 rounded-[1.4rem] border border-slate-200 bg-white p-4 shadow-[0_18px_55px_rgba(10,30,63,0.08)] md:flex-row md:items-center md:justify-between dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
+      <div className="flex flex-col gap-2.5 rounded-xl border border-slate-200 bg-white p-3 shadow-sm shadow-slate-200/50 md:flex-row md:items-center md:justify-between dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
         <p className="text-sm font-semibold text-slate-500 dark:text-slate-300">Page {page} sur {totalPages} • {quotes.length} devis</p>
         <div className="flex items-center gap-2">
           <select value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }} className={entityInputClassName}>
@@ -164,15 +163,15 @@ export function QuotesWorkspace() {
 function QuotesTable({ onCreate, onSort, quotes, sort }: { onCreate: () => void; onSort: (field: QuoteSort["field"]) => void; quotes: readonly Quote[]; sort: QuoteSort }) {
   if (quotes.length === 0) {
     return (
-      <SectionCard className="p-10 text-center">
-        <div className="mx-auto grid size-16 place-items-center rounded-full bg-slate-50 text-hicotech-blue ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10">
-          <FileText size={28} />
+      <SectionCard className="p-6 text-center">
+        <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-slate-50 text-hicotech-blue ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10">
+          <FileText size={24} />
         </div>
-        <h2 className="mt-4 font-display text-xl font-bold text-hicotech-navy dark:text-white">Aucun devis trouvé</h2>
+        <h2 className="mt-4 font-display text-lg font-bold text-hicotech-navy dark:text-white">Aucun devis trouvé</h2>
         <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-500 dark:text-slate-300">
           Les devis structurent la proposition commerciale avant commande ou facture.
         </p>
-        <button type="button" onClick={onCreate} className="mt-5 inline-flex items-center justify-center gap-2 rounded-lg bg-hicotech-blue px-4 py-2.5 text-sm font-bold text-white shadow-soft transition hover:bg-blue-700">
+        <button type="button" onClick={onCreate} className={`${workspacePrimaryActionClassName} mt-5`}>
           <Plus size={17} />
           Créer votre premier devis
         </button>
@@ -182,10 +181,10 @@ function QuotesTable({ onCreate, onSort, quotes, sort }: { onCreate: () => void;
 
   return (
     <SectionCard className="overflow-hidden">
-      <div className="relative overflow-hidden border-b border-slate-200 bg-hicotech-navy px-5 py-6 text-white dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
-        <div className="absolute right-0 top-0 h-full w-40 bg-white/5" />
-        <h2 className="relative font-display text-2xl font-bold text-white">Liste des devis</h2>
-        <p className="relative mt-1 text-sm font-medium text-cyan-50/70">Devis commerciaux reliés au CRM.</p>
+      <div className="relative overflow-hidden border-b border-slate-200 bg-hicotech-navy px-4 py-3.5 text-white dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
+        <div className="absolute right-0 top-0 h-full w-28 bg-white/5" />
+        <h2 className="relative font-display text-lg font-bold text-white">Liste des devis</h2>
+        <p className="relative mt-0.5 text-xs font-medium text-cyan-50/70">Devis commerciaux reliés au CRM.</p>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[1180px] border-collapse text-sm">
@@ -202,7 +201,7 @@ function QuotesTable({ onCreate, onSort, quotes, sort }: { onCreate: () => void;
                 ["total", "Montant"],
                 ["ownerId", "Responsable"]
               ].map(([field, label]) => (
-                <th key={field} className="px-5 py-3 font-display text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
+                <th key={field} className="px-4 py-2 font-display text-[10px] font-bold uppercase tracking-[0.11em] text-slate-500 dark:text-slate-300">
                   {["company", "opportunity"].includes(field) ? label : (
                     <button type="button" onClick={() => onSort(field as QuoteSort["field"])} className="rounded-md focus:outline-none focus:ring-2 focus:ring-hicotech-blue/30">
                       {label}{sort.field === field ? sort.direction === "asc" ? " ↑" : " ↓" : ""}
@@ -210,7 +209,7 @@ function QuotesTable({ onCreate, onSort, quotes, sort }: { onCreate: () => void;
                   )}
                 </th>
               ))}
-              <th className="px-5 py-3.5 font-display text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">Actions</th>
+              <th className="px-4 py-2 font-display text-[10px] font-bold uppercase tracking-[0.11em] text-slate-500 dark:text-slate-300">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -228,7 +227,7 @@ function QuotesTable({ onCreate, onSort, quotes, sort }: { onCreate: () => void;
                   <td className="px-4 py-3 font-bold text-hicotech-navy dark:text-white">{formatQuoteMoney(totals.total, totals.currency)}</td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{quote.ownerId}</td>
                   <td className="px-4 py-3">
-                    <Link href={`/sales/quotes/${quote.id}`} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-hicotech-blue transition hover:bg-hicotech-sky dark:border-hicotech-dark-border">
+                    <Link href={`/sales/quotes/${quote.id}`} className={workspaceTableActionClassName}>
                       Voir
                       <ArrowRight size={14} />
                     </Link>

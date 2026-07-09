@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, CalendarClock, CircleDollarSign, FileText, Filter, Search, Sparkles, WalletCards } from "lucide-react";
+import { ArrowRight, CalendarClock, CircleDollarSign, FileText, Filter, Sparkles, WalletCards } from "lucide-react";
 import { CompanyService } from "@/modules/crm/companies";
 import { CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
 import { QuoteService, quoteSeed, SALES_QUOTES_WORKSPACE_ID, formatQuoteMoney } from "@/modules/sales/quotes";
-import { EntityPageLayout, MetricCard, ProductHero, ProductSectionHeader, SectionCard, entityInputClassName } from "@/ui";
+import { EntityPageLayout, EntitySearchBar, MetricCard, ProductHero, ProductSectionHeader, SectionCard, entityInputClassName, workspacePrimaryActionClassName, workspaceTableActionClassName } from "@/ui";
 import { useState } from "react";
 import { INVOICE_STATUS_LABELS } from "../invoice.constants";
 import { invoiceService } from "../invoice.store";
@@ -70,18 +70,17 @@ export function InvoicesWorkspace() {
       </section>
 
       <SectionCard className="p-4">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <ProductSectionHeader icon={Filter} title="Lecture du portefeuille facturé" description="Filtrez par client, société ou statut de paiement." />
-          <Link href="/sales/quotes" className="inline-flex items-center justify-center gap-2 rounded-2xl bg-hicotech-blue px-5 py-3 text-sm font-bold text-white shadow-[0_16px_40px_rgba(13,110,253,0.22)] transition hover:-translate-y-0.5 hover:bg-blue-700">
+          <Link href="/sales/quotes" className={workspacePrimaryActionClassName}>
             Créer depuis un devis
             <ArrowRight size={16} />
           </Link>
         </div>
-        <div className="mt-5 grid gap-3 lg:grid-cols-2 xl:grid-cols-4">
-          <label className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm shadow-slate-200/40 xl:col-span-2 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50">
-            <Search size={16} className="text-slate-400" />
-            <input value={filters.query} onChange={(event) => setFilters({ ...filters, query: event.target.value })} className="w-full bg-transparent text-sm outline-none dark:text-white" placeholder="Rechercher une facture..." />
-          </label>
+        <div className="mt-4 grid gap-2 lg:grid-cols-2 xl:grid-cols-4">
+          <div className="xl:col-span-2">
+            <EntitySearchBar value={filters.query} onChange={(value) => setFilters({ ...filters, query: value })} placeholder="Rechercher une facture..." />
+          </div>
           <select value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value as InvoiceStatus | "all" })} className={entityInputClassName}>
             <option value="all">Tous statuts</option>
             {Object.entries(INVOICE_STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -95,7 +94,7 @@ export function InvoicesWorkspace() {
 
       <InvoicesTable invoices={paginated} sort={sort} onSort={updateSort} />
 
-      <div className="flex flex-col gap-3 rounded-[1.4rem] border border-slate-200 bg-white p-4 shadow-[0_18px_55px_rgba(10,30,63,0.08)] md:flex-row md:items-center md:justify-between dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
+      <div className="flex flex-col gap-2.5 rounded-xl border border-slate-200 bg-white p-3 shadow-sm shadow-slate-200/50 md:flex-row md:items-center md:justify-between dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
         <p className="text-sm font-semibold text-slate-500 dark:text-slate-300">Page {page} sur {totalPages} • {invoices.length} facture(s)</p>
         <div className="flex items-center gap-2">
           <select value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }} className={entityInputClassName}>
@@ -114,15 +113,15 @@ export function InvoicesWorkspace() {
 function InvoicesTable({ invoices, onSort, sort }: { invoices: readonly Invoice[]; onSort: (field: InvoiceSort["field"]) => void; sort: InvoiceSort }) {
   if (invoices.length === 0) {
     return (
-      <SectionCard className="p-10 text-center">
-        <div className="mx-auto grid size-16 place-items-center rounded-full bg-slate-50 text-hicotech-blue ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10">
-          <FileText size={28} />
+      <SectionCard className="p-6 text-center">
+        <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-slate-50 text-hicotech-blue ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10">
+          <FileText size={24} />
         </div>
-        <h2 className="mt-4 font-display text-xl font-bold text-hicotech-navy dark:text-white">Aucune facture trouvée</h2>
+        <h2 className="mt-4 font-display text-lg font-bold text-hicotech-navy dark:text-white">Aucune facture trouvée</h2>
         <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-500 dark:text-slate-300">
           Les factures sont générées depuis les devis acceptés.
         </p>
-        <Link href="/sales/quotes" className="mt-5 inline-flex items-center justify-center gap-2 rounded-lg bg-hicotech-blue px-4 py-2.5 text-sm font-bold text-white shadow-soft transition hover:bg-blue-700">
+        <Link href="/sales/quotes" className={`${workspacePrimaryActionClassName} mt-5`}>
           Créer depuis un devis
           <ArrowRight size={16} />
         </Link>
@@ -132,10 +131,10 @@ function InvoicesTable({ invoices, onSort, sort }: { invoices: readonly Invoice[
 
   return (
     <SectionCard className="overflow-hidden">
-      <div className="relative overflow-hidden border-b border-slate-200 bg-hicotech-navy px-5 py-6 text-white dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
-        <div className="absolute right-0 top-0 h-full w-40 bg-white/5" />
-        <h2 className="relative font-display text-2xl font-bold text-white">Liste des factures</h2>
-        <p className="relative mt-1 text-sm font-medium text-cyan-50/70">Factures commerciales issues des devis acceptés.</p>
+      <div className="relative overflow-hidden border-b border-slate-200 bg-hicotech-navy px-4 py-3.5 text-white dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
+        <div className="absolute right-0 top-0 h-full w-28 bg-white/5" />
+        <h2 className="relative font-display text-lg font-bold text-white">Liste des factures</h2>
+        <p className="relative mt-0.5 text-xs font-medium text-cyan-50/70">Factures commerciales issues des devis acceptés.</p>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[1220px] text-sm">
@@ -154,13 +153,13 @@ function InvoicesTable({ invoices, onSort, sort }: { invoices: readonly Invoice[
                 ["total", "Montant TTC"],
                 ["ownerId", "Responsable"]
               ].map(([field, label]) => (
-                <th key={field} className="px-5 py-3 font-display text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
+                <th key={field} className="px-4 py-2 font-display text-[10px] font-bold uppercase tracking-[0.11em] text-slate-500 dark:text-slate-300">
                   {["company", "quote", "subtotal", "tax"].includes(field) ? label : (
                     <button type="button" onClick={() => onSort(field as InvoiceSort["field"])}>{label}{sort.field === field ? sort.direction === "asc" ? " ↑" : " ↓" : ""}</button>
                   )}
                 </th>
               ))}
-              <th className="px-5 py-3 font-display text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">Actions</th>
+              <th className="px-4 py-2 font-display text-[10px] font-bold uppercase tracking-[0.11em] text-slate-500">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -180,7 +179,7 @@ function InvoicesTable({ invoices, onSort, sort }: { invoices: readonly Invoice[
                   <td className="px-4 py-3 font-bold text-hicotech-navy dark:text-white">{formatQuoteMoney(totals.total, totals.currency)}</td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{invoice.ownerId}</td>
                   <td className="px-4 py-3">
-                    <Link href={`/sales/invoices/${invoice.id}`} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-hicotech-blue transition hover:bg-hicotech-sky dark:border-hicotech-dark-border">
+                    <Link href={`/sales/invoices/${invoice.id}`} className={workspaceTableActionClassName}>
                       Voir
                       <ArrowRight size={14} />
                     </Link>

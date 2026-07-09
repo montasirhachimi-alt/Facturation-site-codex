@@ -1,5 +1,5 @@
 import { Filter, Plus, RefreshCcw } from "lucide-react";
-import { EntityFilterPanel, EntitySearchBar, EntityToolbar } from "@/ui";
+import { EntityFilterPanel, EntitySearchBar, EntityToolbar, workspacePrimaryActionClassName, workspaceSecondaryActionClassName, workspaceSelectClassName } from "@/ui";
 import type { CompanyIndustry, CompanyStatus } from "../../company.types";
 
 const industries: Array<CompanyIndustry | "all"> = ["all", "education", "healthcare", "technology", "finance", "retail", "manufacturing", "services", "government", "other", "unknown"];
@@ -49,16 +49,16 @@ export function CompaniesToolbar({
     <EntityToolbar
       actions={
         <>
-          <button type="button" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-hicotech-navy transition hover:border-hicotech-blue/30 hover:bg-hicotech-sky/50 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page dark:text-white">
+          <button type="button" className={workspaceSecondaryActionClassName}>
             <Filter size={16} />
             Filtres
           </button>
-          <button type="button" onClick={onRefresh} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-hicotech-navy transition hover:border-hicotech-blue/30 hover:bg-hicotech-sky/50 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page dark:text-white">
+          <button type="button" onClick={onRefresh} className={workspaceSecondaryActionClassName}>
             <RefreshCcw size={16} />
             Actualiser
           </button>
           {canCreate && (
-            <button type="button" onClick={onCreate} className="inline-flex items-center gap-2 rounded-xl bg-hicotech-blue px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-blue-200/60 transition hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-200/70 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/20">
+            <button type="button" onClick={onCreate} className={workspacePrimaryActionClassName}>
               <Plus size={18} />
               Ajouter société
             </button>
@@ -98,4 +98,4 @@ export function CompaniesToolbar({
   );
 }
 
-const selectClassName = "rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-hicotech-navy outline-none transition focus:border-hicotech-blue focus:ring-4 focus:ring-hicotech-blue/10 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white";
+const selectClassName = workspaceSelectClassName;

@@ -1,5 +1,5 @@
 import { Plus, RefreshCw } from "lucide-react";
-import { EntityFilterPanel, EntitySearchBar, EntityToolbar, entityInputClassName } from "@/ui";
+import { EntityFilterPanel, EntitySearchBar, EntityToolbar, entityInputClassName, workspacePrimaryActionClassName, workspaceSecondaryActionClassName } from "@/ui";
 import type { BooleanFilter } from "../hooks/use-company-contacts-workspace";
 import type { ContactStatus } from "../../contact.types";
 
@@ -40,12 +40,12 @@ export function ContactsToolbar({
     <EntityToolbar
       actions={
         <>
-          <button type="button" onClick={onRefresh} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-hicotech-navy transition hover:border-hicotech-blue/30 hover:bg-hicotech-sky/50 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page dark:text-white">
+          <button type="button" onClick={onRefresh} className={workspaceSecondaryActionClassName}>
             <RefreshCw size={16} />
             Actualiser
           </button>
           {canCreate && (
-            <button type="button" onClick={onCreate} className="inline-flex items-center gap-2 rounded-xl bg-hicotech-blue px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-blue-200/60 transition hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-200/70">
+            <button type="button" onClick={onCreate} className={workspacePrimaryActionClassName}>
               <Plus size={16} />
               Ajouter contact
             </button>

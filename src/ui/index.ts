@@ -21,4 +21,5 @@ export * from "./tables/entity-pagination";
 export * from "./tables/entity-table";
 export * from "./toolbar/entity-search-bar";
 export * from "./toolbar/entity-toolbar";
+export * from "./toolbar/workspace-control-styles";
 export * from "./types/entity-ui.types";
