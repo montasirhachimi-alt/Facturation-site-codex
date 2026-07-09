@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { AlertCircle, X } from "lucide-react";
 import type { FormEvent } from "react";
 
 export function EntityDialog({
@@ -30,25 +30,36 @@ export function EntityDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-hicotech-dark-sidebar/70 px-4 backdrop-blur-sm">
-      <form onSubmit={submit} className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-slate-200 bg-white p-6 shadow-xl shadow-slate-950/20 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
-        <div className="flex items-start justify-between gap-4">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-hicotech-dark-sidebar/65 px-4 py-6 backdrop-blur-sm">
+      <form
+        onSubmit={submit}
+        className="max-h-[88vh] w-full max-w-3xl overflow-y-auto rounded-[1.35rem] border border-slate-200 bg-white p-5 shadow-[0_28px_90px_rgba(10,30,63,0.24)] dark:border-hicotech-dark-border dark:bg-hicotech-dark-card"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-4 dark:border-hicotech-dark-border">
           <div>
-            <p className="font-display text-xs font-bold uppercase tracking-[0.16em] text-hicotech-blue">{eyebrow}</p>
-            <h2 className="mt-2 font-display text-2xl font-bold text-hicotech-navy dark:text-white">{title}</h2>
-            {description && <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">{description}</p>}
+            <p className="font-display text-[11px] font-bold uppercase tracking-[0.16em] text-hicotech-blue">{eyebrow}</p>
+            <h2 className="mt-1.5 font-display text-xl font-bold text-hicotech-navy dark:text-white">{title}</h2>
+            {description && <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-300">{description}</p>}
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-slate-200 p-2 text-hicotech-navy transition hover:bg-hicotech-cloud dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white"
+            className="grid size-9 shrink-0 place-items-center rounded-xl border border-slate-200 text-hicotech-navy transition hover:bg-hicotech-cloud focus:outline-none focus:ring-4 focus:ring-hicotech-blue/10 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white"
             aria-label="Fermer"
           >
             <X size={18} />
           </button>
         </div>
 
-        {error && <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-200">{error}</p>}
+        {error && (
+          <p className="mt-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold leading-6 text-red-700 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-200">
+            <AlertCircle size={16} className="mt-0.5 shrink-0" />
+            {error}
+          </p>
+        )}
 
         {children}
         {footer}

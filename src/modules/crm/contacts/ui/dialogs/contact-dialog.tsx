@@ -1,4 +1,4 @@
-import { EntityDialog, FormField, entityInputClassName } from "@/ui";
+import { EntityDialog, FormActions, FormBooleanField, FormField, FormSection, entityInputClassName } from "@/ui";
 import type { ContactFormState } from "../hooks/use-company-contacts-workspace";
 
 export function ContactDialog({
@@ -24,25 +24,19 @@ export function ContactDialog({
       error={error}
       eyebrow="CRM Contact"
       footer={
-        <div className="mt-6 flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-bold text-hicotech-navy dark:border-hicotech-dark-border dark:text-white">
-            Annuler
-          </button>
-          <button type="submit" className="rounded-lg bg-hicotech-blue px-4 py-2.5 text-sm font-bold text-white">
-            {editing ? "Enregistrer" : "Ajouter contact"}
-          </button>
-        </div>
+        <FormActions onCancel={onClose} submitLabel={editing ? "Enregistrer" : "Ajouter contact"} />
       }
       onClose={onClose}
       onSubmit={onSubmit}
       open={open}
       title={editing ? "Modifier le contact" : "Ajouter un contact"}
     >
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
-        <FormField label="Prénom">
+      <div className="mt-5 space-y-3">
+        <FormSection title="Identité" description="Les champs essentiels pour reconnaître rapidement la personne.">
+        <FormField label="Prénom" required>
           <input value={form.firstName} onChange={(event) => onChange({ ...form, firstName: event.target.value })} className={entityInputClassName} />
         </FormField>
-        <FormField label="Nom">
+        <FormField label="Nom" required>
           <input value={form.lastName} onChange={(event) => onChange({ ...form, lastName: event.target.value })} className={entityInputClassName} />
         </FormField>
         <FormField label="Poste">
@@ -51,6 +45,9 @@ export function ContactDialog({
         <FormField label="Département">
           <input value={form.department} onChange={(event) => onChange({ ...form, department: event.target.value })} className={entityInputClassName} />
         </FormField>
+        </FormSection>
+
+        <FormSection title="Coordonnées" description="Canaux de contact utiles pour les échanges commerciaux.">
         <FormField label="Email">
           <input value={form.email} onChange={(event) => onChange({ ...form, email: event.target.value })} className={entityInputClassName} />
         </FormField>
@@ -67,6 +64,9 @@ export function ContactDialog({
             <option value="archived">Archivé</option>
           </select>
         </FormField>
+        </FormSection>
+
+        <FormSection title="Préférences et contexte" description="Informations secondaires qui enrichissent la relation.">
         <FormField label="Langue">
           <input value={form.preferredLanguage} onChange={(event) => onChange({ ...form, preferredLanguage: event.target.value })} className={entityInputClassName} />
         </FormField>
@@ -79,19 +79,14 @@ export function ContactDialog({
         <FormField label="Tags">
           <input value={form.tags} onChange={(event) => onChange({ ...form, tags: event.target.value })} className={entityInputClassName} placeholder="vip, achats" />
         </FormField>
-        <label className="flex items-center gap-2 text-sm font-bold text-hicotech-navy dark:text-white">
-          <input type="checkbox" checked={form.isPrimaryContact} onChange={(event) => onChange({ ...form, isPrimaryContact: event.target.checked })} className="size-4 rounded border-slate-300 text-hicotech-blue focus:ring-hicotech-blue" />
-          Contact principal
-        </label>
-        <label className="flex items-center gap-2 text-sm font-bold text-hicotech-navy dark:text-white">
-          <input type="checkbox" checked={form.isDecisionMaker} onChange={(event) => onChange({ ...form, isDecisionMaker: event.target.checked })} className="size-4 rounded border-slate-300 text-hicotech-blue focus:ring-hicotech-blue" />
-          Décideur
-        </label>
+        <FormBooleanField checked={form.isPrimaryContact} onChange={(checked) => onChange({ ...form, isPrimaryContact: checked })} label="Contact principal" description="Mettre en avant cette personne dans la société." />
+        <FormBooleanField checked={form.isDecisionMaker} onChange={(checked) => onChange({ ...form, isDecisionMaker: checked })} label="Décideur" description="Identifier les interlocuteurs qui influencent la décision." />
         <div className="md:col-span-2">
           <FormField label="Notes">
             <textarea value={form.notes} onChange={(event) => onChange({ ...form, notes: event.target.value })} className={entityInputClassName} rows={3} />
           </FormField>
         </div>
+        </FormSection>
       </div>
     </EntityDialog>
   );

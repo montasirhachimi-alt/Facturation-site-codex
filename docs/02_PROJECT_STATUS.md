@@ -8,7 +8,7 @@
 | Version | Pre-Alpha |
 | Current Milestone | Milestone 3 — Business Suite |
 | Current Phase | Business Module Foundations |
-| Current Sprint | SPR-335 — Professional Workspace Controls |
+| Current Sprint | SPR-336 — Professional Forms Experience |
 | Next Sprint | To define |
 | Repository Health | Builds successfully with one known existing image optimization warning. |
 
@@ -185,14 +185,15 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - CRM Contacts Sidebar Click Handler fix moves sidebar group resolution inside the Sidebar render path so the rendered Contacts link uses the current `/crm/contacts` route instead of a stale module-level navigation snapshot.
 - Professional Workspace Optimization reduces vertical space across product heroes, topbar controls, KPI cards, entity tables, filters, workspace cards and CRM/Sales panels so major modules show more useful information above the fold while preserving the BOSIACO identity.
 - Professional Workspace Controls upgrades shared search, filter, toolbar, action, pagination, empty-state and table selection treatments so CRM and Sales daily-use controls feel faster, clearer and more SaaS-grade without changing business behavior.
+- Professional Forms Experience upgrades the shared dialog and form primitives, then organizes CRM and Sales data-entry dialogs into calmer sections with consistent required-field hints, validation messages, checkbox rows and footer actions.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passed during SPR-335. |
-| `npm run build` | Yes | Passed during SPR-335; the known PDF preview image warning remains. |
-| `npm run validate:runtime` | No for SPR-335 | Not requested during SPR-335; no Runtime changes were made. |
+| `npm run typecheck` | Yes | Passed during SPR-336. |
+| `npm run build` | Yes | Passed during SPR-336; the known PDF preview image warning remains. |
+| `npm run validate:runtime` | No for SPR-336 | Not requested during SPR-336; no Runtime changes were made. |
 
 ## Repository Health
 
