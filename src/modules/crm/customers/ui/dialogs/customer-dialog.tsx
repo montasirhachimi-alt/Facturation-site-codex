@@ -1,6 +1,12 @@
-import { EntityDialog, FormActions, FormField, FormSection, entityInputClassName } from "@/ui";
+import { EntityDialog } from "@/ui/dialogs/entity-dialog";
+import { FormActions, FormField, FormSection, entityInputClassName } from "@/ui/forms/form-field";
+import { getCompanyPickerItems } from "@/ui/forms/entity-picker.crm-data";
+import type { EntityPickerItem } from "@/ui/forms/entity-picker.types";
+import { SmartEntityPicker } from "@/ui/forms/smart-entity-picker";
 import type { CustomerStatus, CustomerType } from "../../customer.types";
 import type { CustomerFormState } from "../hooks/use-customers-page";
+
+const companyPickerItems = getCompanyPickerItems();
 
 export function CustomerDialog({
   error,
@@ -37,9 +43,18 @@ export function CustomerDialog({
           <FormField label="Nom client" required>
             <input value={form.displayName} onChange={(event) => onChange({ ...form, displayName: event.target.value })} required className={entityInputClassName} placeholder="Ex. Amina El Mansouri" />
           </FormField>
-          <FormField label="Société">
-            <input value={form.companyName} onChange={(event) => onChange({ ...form, companyName: event.target.value })} className={entityInputClassName} placeholder="Ex. Ecole Al Hikma" />
-          </FormField>
+          <SmartEntityPicker
+            label="Société"
+            items={companyPickerItems}
+            value={form.companyName}
+            onChange={({ value }) => onChange({ ...form, companyName: value })}
+            placeholder="Rechercher une société..."
+            helper="Le champ reste compatible avec le nom de société attendu par le formulaire."
+            allowCreate
+            createLabel="Créer la société"
+            entityType="société"
+            onCreate={(name) => createLocalCompanyItem(name)}
+          />
           <FormField label="Statut">
             <select value={form.status} onChange={(event) => onChange({ ...form, status: event.target.value as CustomerStatus })} className={entityInputClassName}>
               <option value="lead">Prospect</option>
@@ -72,4 +87,26 @@ export function CustomerDialog({
       </div>
     </EntityDialog>
   );
+}
+
+function createLocalCompanyItem(title: string): EntityPickerItem {
+  const fallback = companyPickerItems[0];
+  return {
+    id: `inline-company-${slugify(title)}-${Date.now()}`,
+    title,
+    type: "company",
+    typeLabel: "Company",
+    metadata: "Créée localement dans ce formulaire",
+    icon: fallback.icon,
+    keywords: [title, "inline", "local"]
+  };
+}
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
 }

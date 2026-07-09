@@ -8,7 +8,7 @@
 | Version | Pre-Alpha |
 | Current Milestone | Milestone 3 — Business Suite |
 | Current Phase | Business Module Foundations |
-| Current Sprint | SPR-339 — Quick Create Everywhere |
+| Current Sprint | SPR-341 — Inline Entity Creation |
 | Next Sprint | To define |
 | Repository Health | Builds successfully with one known existing image optimization warning. |
 
@@ -189,14 +189,16 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - Universal Command Center replaces the placeholder global search foundation with a navigation-only command palette powered by a reusable local command registry, global `⌘K` / `Ctrl+K`, instant filtering, arrow navigation and Enter-to-open workspace routing.
 - Smart Global Search extends the Command Center with a local record search registry for companies, contacts, customers, quotes, invoices, payments and opportunities, grouped separately from navigation commands with instant client-side filtering and safe existing routes.
 - Quick Create Everywhere extends the Command Center with a separate action registry for common creation flows, showing Quick Create before Navigation and Records and opening existing BOSIACO dialog surfaces directly from `⌘K` / `Ctrl+K` without workspace navigation.
+- Smart Entity Picker introduces a reusable keyboard-first combobox for selecting related companies, contacts, customers, quotes and invoices from local data, then integrates it into quote creation, quick-create invoice/payment/opportunity surfaces and the customer company field without changing business logic.
+- Inline Entity Creation extends Smart Entity Picker with optional `+ Créer` flows for missing local entities, allowing quote/customer/invoice creation surfaces to create and select local form values without leaving the parent workflow or changing persistence behavior.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passed during SPR-339. |
-| `npm run build` | Yes | Passed during SPR-339; the known PDF preview image warning remains. |
-| `npm run validate:runtime` | No for SPR-339 | Not requested during SPR-339; no Runtime changes were made. |
+| `npm run typecheck` | Yes | Passed during SPR-341. |
+| `npm run build` | Yes | Passed during SPR-341; the known PDF preview image warning remains. |
+| `npm run validate:runtime` | No for SPR-341 | Not requested during SPR-341; no Runtime changes were made. |
 
 ## Repository Health
 

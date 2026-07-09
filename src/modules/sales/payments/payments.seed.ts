@@ -1,4 +1,4 @@
-import { SALES_QUOTES_USER_ID, SALES_QUOTES_WORKSPACE_ID } from "@/modules/sales/quotes";
+import { SALES_QUOTES_USER_ID, SALES_QUOTES_WORKSPACE_ID } from "@/modules/sales/quotes/quotes.seed";
 import type { Payment, PaymentId } from "./payment.types";
 
 export const paymentSeed: readonly Payment[] = Object.freeze([

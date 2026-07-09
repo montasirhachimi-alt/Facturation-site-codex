@@ -1,5 +1,5 @@
 import type { Invoice, InvoiceId } from "./invoice.types";
-import { SALES_QUOTES_WORKSPACE_ID, SALES_QUOTES_USER_ID, quoteSeed } from "@/modules/sales/quotes";
+import { SALES_QUOTES_WORKSPACE_ID, SALES_QUOTES_USER_ID, quoteSeed } from "@/modules/sales/quotes/quotes.seed";
 import { createInvoiceInputFromQuote } from "./invoice.utils";
 
 const acceptedQuote = quoteSeed.find((quote) => quote.status === "accepted");

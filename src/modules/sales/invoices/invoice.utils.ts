@@ -1,5 +1,5 @@
-import type { Quote } from "@/modules/sales/quotes";
-import { calculateQuoteTotals } from "@/modules/sales/quotes";
+import type { Quote } from "@/modules/sales/quotes/quote.types";
+import { calculateQuoteTotals } from "@/modules/sales/quotes/quote.utils";
 import type { Invoice, InvoiceSort, InvoiceTotals } from "./invoice.types";
 
 export function getInvoiceTotals(invoice: Invoice): InvoiceTotals {

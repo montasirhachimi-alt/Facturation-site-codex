@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { EntityDialog, FormActions, FormSection } from "@/ui";
+import { EntityDialog } from "@/ui/dialogs/entity-dialog";
+import { FormActions, FormSection } from "@/ui/forms/form-field";
+import { SmartEntityPicker } from "@/ui/forms/smart-entity-picker";
 import { CompanyDialog } from "@/modules/crm/companies/ui/dialogs/company-dialog";
 import type { CompanyFormState } from "@/modules/crm/companies/ui/hooks/use-companies-page";
 import { ContactDialog } from "@/modules/crm/contacts/ui/dialogs/contact-dialog";
@@ -9,6 +11,9 @@ import type { ContactFormState } from "@/modules/crm/contacts/ui/hooks/use-compa
 import { CustomerDialog } from "@/modules/crm/customers/ui/dialogs/customer-dialog";
 import type { CustomerFormState } from "@/modules/crm/customers/ui/hooks/use-customers-page";
 import { QuoteDialog } from "@/modules/sales/quotes/ui/quote-dialog";
+import { getCompanyPickerItems, getContactPickerItems, getCustomerPickerItems } from "@/ui/forms/entity-picker.crm-data";
+import { getInvoicePickerItems, getQuotePickerItems } from "@/ui/forms/entity-picker.sales-data";
+import type { EntityPickerItem } from "@/ui/forms/entity-picker.types";
 import type { QuickCreateActionId } from "../action-registry";
 
 const emptyCompanyForm: CompanyFormState = {
@@ -53,6 +58,12 @@ const emptyCustomerForm: CustomerFormState = {
   tags: "",
   notes: ""
 };
+
+const companyPickerItems = getCompanyPickerItems();
+const contactPickerItems = getContactPickerItems();
+const customerPickerItems = getCustomerPickerItems();
+const quotePickerItems = getQuotePickerItems();
+const invoicePickerItems = getInvoicePickerItems();
 
 type QuickCreateDialogHostProps = {
   activeAction: QuickCreateActionId | null;
@@ -126,10 +137,13 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
         submitLabel="Créer l'opportunité"
         onClose={closeAndReset}
         rows={[
-          ["Société", "Société à sélectionner"],
           ["Étape", "Qualification"],
           ["Priorité", "Normale"],
           ["Montant estimé", "À renseigner"]
+        ]}
+        pickerRows={[
+          { key: "company", label: "Société", items: companyPickerItems, placeholder: "Rechercher une société..." },
+          { key: "contact", label: "Contact", items: contactPickerItems, placeholder: "Rechercher un contact..." }
         ]}
       />
     );
@@ -154,10 +168,12 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
         submitLabel="Créer une facture"
         onClose={closeAndReset}
         rows={[
-          ["Client", "Client à sélectionner"],
-          ["Devis source", "Optionnel"],
           ["Échéance", "30 jours"],
           ["Devise", "MAD"]
+        ]}
+        pickerRows={[
+          { key: "customer", label: "Client", items: customerPickerItems, placeholder: "Rechercher un client...", allowCreate: true, createLabel: "Créer le client", entityType: "client" },
+          { key: "quote", label: "Devis source", items: quotePickerItems, placeholder: "Rechercher un devis..." }
         ]}
       />
     );
@@ -172,10 +188,12 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
         submitLabel="Créer un paiement"
         onClose={closeAndReset}
         rows={[
-          ["Facture", "Facture à sélectionner"],
           ["Méthode", "Virement"],
           ["Montant", "À renseigner"],
           ["Référence", "Optionnelle"]
+        ]}
+        pickerRows={[
+          { key: "invoice", label: "Facture", items: invoicePickerItems, placeholder: "Rechercher une facture..." }
         ]}
       />
     );
@@ -188,6 +206,7 @@ function QuickCreatePreviewDialog({
   description,
   eyebrow,
   onClose,
+  pickerRows = [],
   rows,
   submitLabel,
   title
@@ -195,10 +214,21 @@ function QuickCreatePreviewDialog({
   description: string;
   eyebrow: string;
   onClose: () => void;
+  pickerRows?: readonly {
+    key: string;
+    label: string;
+    items: readonly EntityPickerItem[];
+    placeholder: string;
+    allowCreate?: boolean;
+    createLabel?: string;
+    entityType?: string;
+  }[];
   rows: readonly (readonly [string, string])[];
   submitLabel: string;
   title: string;
 }) {
+  const [pickerValues, setPickerValues] = useState<Record<string, string>>({});
+
   return (
     <EntityDialog
       eyebrow={eyebrow}
@@ -211,6 +241,20 @@ function QuickCreatePreviewDialog({
     >
       <div className="mt-5 space-y-3">
         <FormSection title="Création rapide" description="La surface réutilise les conventions de formulaire BOSIACO et reste prête pour les prochains workflows complets.">
+          {pickerRows.map((picker) => (
+            <SmartEntityPicker
+              key={picker.key}
+              label={picker.label}
+              items={picker.items}
+              value={pickerValues[picker.key] ?? ""}
+              onChange={({ value }) => setPickerValues((current) => ({ ...current, [picker.key]: value }))}
+              placeholder={picker.placeholder}
+              allowCreate={picker.allowCreate}
+              createLabel={picker.createLabel}
+              entityType={picker.entityType}
+              onCreate={picker.allowCreate ? (name) => createLocalPickerItem(picker.items, name, picker.key, picker.label) : undefined}
+            />
+          ))}
           {rows.map(([label, value]) => (
             <PreviewField key={label} label={label} value={value} />
           ))}
@@ -218,6 +262,28 @@ function QuickCreatePreviewDialog({
       </div>
     </EntityDialog>
   );
+}
+
+function createLocalPickerItem(items: readonly EntityPickerItem[], title: string, type: string, typeLabel: string): EntityPickerItem {
+  const fallback = items.find((item) => !item.disabled) ?? items[0];
+  return {
+    id: `inline-${type}-${slugify(title)}-${Date.now()}`,
+    title,
+    type,
+    typeLabel,
+    metadata: "Créé localement dans ce formulaire",
+    icon: fallback.icon,
+    keywords: [title, "inline", "local"]
+  };
+}
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 function PreviewField({ label, value }: { label: string; value: string }) {
