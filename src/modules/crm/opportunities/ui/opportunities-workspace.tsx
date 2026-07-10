@@ -18,6 +18,7 @@ import {
   UserRound
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import type { KeyboardEvent } from "react";
 import { CompanyService } from "@/modules/crm/companies";
 import { CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
 import { ContactService } from "@/modules/crm/contacts";
@@ -30,6 +31,7 @@ import { OPPORTUNITY_PRIORITY_LABELS, OPPORTUNITY_STAGE_LABELS, OPPORTUNITY_STAG
 import { CRM_OPPORTUNITIES_WORKSPACE_ID, crmOpportunitySeed } from "./opportunities.seed";
 import { OpportunityQuoteAction } from "@/modules/sales/quotes/ui";
 import { invoiceService } from "@/modules/sales/invoices";
+import { isEditableTarget } from "@/platform/keyboard/keyboard-shortcut.utils";
 
 const workspaceId = CRM_OPPORTUNITIES_WORKSPACE_ID;
 const opportunityService = new OpportunityService({ seed: crmOpportunitySeed });
@@ -214,8 +216,39 @@ function PipelineBoard({
   opportunities: readonly Opportunity[];
   selectedId?: string;
 }) {
+  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (isEditableTarget(event.target)) return;
+    if (event.target instanceof Element && event.target.closest("button,a,input,textarea,select")) return;
+    if (opportunities.length === 0) return;
+
+    const currentIndex = Math.max(0, opportunities.findIndex((opportunity) => opportunity.id === selectedId));
+
+    if (event.key === "ArrowDown" || event.key === "ArrowRight") {
+      event.preventDefault();
+      onSelect(opportunities[Math.min(opportunities.length - 1, currentIndex + 1)].id);
+      return;
+    }
+
+    if (event.key === "ArrowUp" || event.key === "ArrowLeft") {
+      event.preventDefault();
+      onSelect(opportunities[Math.max(0, currentIndex - 1)].id);
+      return;
+    }
+
+    if (event.key === "Home") {
+      event.preventDefault();
+      onSelect(opportunities[0].id);
+      return;
+    }
+
+    if (event.key === "End") {
+      event.preventDefault();
+      onSelect(opportunities[opportunities.length - 1].id);
+    }
+  }
+
   return (
-    <div className="overflow-x-auto pb-2">
+    <div className="overflow-x-auto pb-2 outline-none focus:ring-2 focus:ring-hicotech-blue/20" tabIndex={0} onKeyDown={onKeyDown} aria-label="Pipeline commercial navigable au clavier">
       <div className="grid min-w-[1120px] grid-cols-6 gap-4" aria-label="Pipeline commercial">
         {OPPORTUNITY_STAGES.map((stage) => {
           const stageItems = opportunities.filter((opportunity) => opportunity.stage === stage);

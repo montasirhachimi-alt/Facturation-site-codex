@@ -66,9 +66,11 @@ export function FormActions({
       </button>
       <button
         type="submit"
+        aria-keyshortcuts="Meta+Enter Control+Enter Meta+S Control+S"
         className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-hicotech-blue px-4 py-2 text-sm font-bold text-white shadow-[0_10px_24px_rgba(13,110,253,0.18)] transition hover:-translate-y-0.5 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/20"
       >
         {submitLabel}
+        <span className="hidden rounded-md bg-white/15 px-1.5 py-0.5 text-[10px] font-black sm:inline-flex">⌘/Ctrl Enter</span>
       </button>
     </div>
   );

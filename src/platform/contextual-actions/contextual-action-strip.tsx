@@ -20,8 +20,13 @@ export function ContextualActionStrip({
   if (actions.length === 0) return null;
 
   function focusSibling(currentIndex: number, direction: 1 | -1) {
-    const nextIndex = (currentIndex + direction + actions.length) % actions.length;
-    itemRefs.current[nextIndex]?.focus();
+    for (let step = 1; step <= actions.length; step += 1) {
+      const nextIndex = (currentIndex + direction * step + actions.length) % actions.length;
+      if (!actions[nextIndex]?.disabled) {
+        itemRefs.current[nextIndex]?.focus();
+        return;
+      }
+    }
   }
 
   function onKeyDown(event: KeyboardEvent, index: number) {
@@ -33,6 +38,14 @@ export function ContextualActionStrip({
     if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
       event.preventDefault();
       focusSibling(index, -1);
+    }
+
+    if (event.key === " ") {
+      const target = event.currentTarget;
+      if (target instanceof HTMLAnchorElement) {
+        event.preventDefault();
+        target.click();
+      }
     }
   }
 

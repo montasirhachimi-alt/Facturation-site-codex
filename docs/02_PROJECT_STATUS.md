@@ -8,7 +8,7 @@
 | Version | Pre-Alpha |
 | Current Milestone | Milestone 3 — Business Suite |
 | Current Phase | Business Module Foundations |
-| Current Sprint | SPR-343A — Complete Quote & Invoice Creation Workflow |
+| Current Sprint | SPR-344 — Keyboard Everywhere |
 | Next Sprint | To define |
 | Repository Health | Builds successfully with one known existing image optimization warning. |
 
@@ -195,14 +195,15 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - Contextual Actions introduces a reusable compact action-chip framework and adds next-step suggestions to quote, invoice, payment, customer, company and contact surfaces using existing routes, tabs and local handlers only.
 - Quote & Invoice Creation Workflow completion adds shared Sales line-item editing, real Quote and Invoice dialogs, product-assisted manual lines, calculated totals and local store synchronization so new commercial documents appear immediately in their workspace lists.
 - Quote & Invoice PDF Export adds saved-document PDF preview, download and print actions to Quote and Invoice details, reusing the existing premium PDF renderer and routing newly created documents to their detail page for immediate export.
+- Keyboard Everywhere adds a client-safe keyboard foundation, contextual create shortcuts, stable dialog submit shortcuts, shortcut help, table/list row navigation and refined contextual action keyboard behavior without changing business logic.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passed during SPR-343B. |
-| `npm run build` | Yes | Passed during SPR-343B; the known PDF preview image warning remains. |
-| `npm run validate:runtime` | Yes for SPR-343B | Passed during SPR-343B. |
+| `npm run typecheck` | Yes | Passed during SPR-344. |
+| `npm run build` | Yes | Passed during SPR-344; the known PDF preview image warning remains. |
+| `npm run validate:runtime` | Yes for SPR-344 | Passed during SPR-344. |
 
 ## Repository Health
 

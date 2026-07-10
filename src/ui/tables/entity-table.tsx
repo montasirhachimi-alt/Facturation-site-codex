@@ -1,5 +1,8 @@
+"use client";
+
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { clsx } from "clsx";
+import { useTableKeyboardNavigation } from "@/platform/keyboard";
 import { SectionCard } from "../cards/section-card";
 import { EntityLoadingState } from "../feedback/entity-loading-state";
 import type { EntityTableColumn } from "../types/entity-ui.types";
@@ -15,6 +18,7 @@ export function EntityTable<TEntity extends { id: string }, TSortKey extends str
   onSort,
   onToggleAll,
   onToggleRow,
+  onOpenRow,
   renderActions,
   selectedIds,
   sort,
@@ -31,12 +35,19 @@ export function EntityTable<TEntity extends { id: string }, TSortKey extends str
   onSort: (field: TSortKey) => void;
   onToggleAll: () => void;
   onToggleRow: (id: TEntity["id"]) => void;
+  onOpenRow?: (item: TEntity) => void;
   renderActions: (item: TEntity) => React.ReactNode;
   selectedIds: readonly string[];
   sort: Readonly<{ field: TSortKey; direction: "asc" | "desc" }>;
   subtitle: string;
   title: string;
 }) {
+  const tableNavigation = useTableKeyboardNavigation({
+    items,
+    onOpen: onOpenRow,
+    onToggleSelection: (item) => onToggleRow(item.id)
+  });
+
   return (
     <SectionCard className="overflow-hidden shadow-[0_12px_36px_rgba(10,30,63,0.07)] dark:shadow-none">
       <div className="relative overflow-hidden border-b border-slate-200/80 bg-hicotech-navy px-4 py-3.5 text-white dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
@@ -59,7 +70,7 @@ export function EntityTable<TEntity extends { id: string }, TSortKey extends str
       ) : items.length === 0 ? (
         <div className="p-4">{emptyState}</div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" onKeyDown={tableNavigation.onKeyDown}>
           <table className="w-full min-w-[1040px] border-collapse text-sm">
             <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 text-left text-hicotech-navy backdrop-blur dark:border-hicotech-dark-border dark:bg-hicotech-dark-card/95 dark:text-white">
               <tr>
@@ -92,11 +103,13 @@ export function EntityTable<TEntity extends { id: string }, TSortKey extends str
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
+              {items.map((item, index) => (
                 <tr
                   key={item.id}
+                  {...tableNavigation.getRowProps(index)}
                   className={clsx(
-                    "border-t border-slate-100 transition duration-150 hover:bg-hicotech-sky/55 hover:shadow-[inset_3px_0_0_#0D6EFD] dark:border-hicotech-dark-border dark:hover:bg-hicotech-dark-page/60",
+                    "border-t border-slate-100 outline-none transition duration-150 hover:bg-hicotech-sky/55 hover:shadow-[inset_3px_0_0_#0D6EFD] focus:bg-hicotech-sky/70 focus:shadow-[inset_3px_0_0_#0D6EFD] focus:ring-2 focus:ring-inset focus:ring-hicotech-blue/20 dark:border-hicotech-dark-border dark:hover:bg-hicotech-dark-page/60 dark:focus:bg-hicotech-dark-page/70",
+                    index === tableNavigation.activeIndex && "bg-hicotech-sky/55 shadow-[inset_3px_0_0_#0D6EFD] dark:bg-hicotech-blue/10",
                     selectedIds.includes(item.id) && "bg-hicotech-sky/80 shadow-[inset_3px_0_0_#0D6EFD] ring-1 ring-inset ring-hicotech-blue/15 dark:bg-hicotech-blue/10"
                   )}
                 >

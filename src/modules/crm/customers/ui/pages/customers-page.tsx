@@ -2,6 +2,7 @@
 
 import { Building2, Clock3, FileText, Receipt, Sparkles, TrendingUp, UsersRound } from "lucide-react";
 import { ContextualActionStrip, useContextualActions } from "@/platform/contextual-actions";
+import { useWorkspaceCreateShortcut } from "@/platform/keyboard";
 import { EntityErrorState, EntityHeader, EntityPageLayout, EntityPagination, EntityStatsCards, InfoCard } from "@/ui";
 import { CustomerDialog } from "../dialogs/customer-dialog";
 import { CustomersFilterSummary } from "../filters/customers-filter-summary";
@@ -11,6 +12,12 @@ import { CustomersToolbar } from "../toolbar/customers-toolbar";
 
 export function CustomersPage() {
   const state = useCustomersPage();
+  useWorkspaceCreateShortcut({
+    enabled: state.createDecision.allowed,
+    label: "Nouveau client",
+    onCreate: state.openCreateDialog
+  });
+
   const contextualActions = useContextualActions([
     {
       id: "customer.create",

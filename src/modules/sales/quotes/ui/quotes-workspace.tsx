@@ -8,6 +8,7 @@ import { CompanyService } from "@/modules/crm/companies";
 import { CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
 import { OpportunityService } from "@/modules/crm/opportunities";
 import { crmOpportunitySeed } from "@/modules/crm/opportunities/ui/opportunities.seed";
+import { getPlatformModifierLabel, useTableKeyboardNavigation, useWorkspaceCreateShortcut } from "@/platform/keyboard";
 import { EntityPageLayout, EntitySearchBar, MetricCard, ProductHero, ProductSectionHeader, SectionCard, entityInputClassName, workspacePrimaryActionClassName, workspaceTableActionClassName } from "@/ui";
 import { QUOTE_STATUS_LABELS } from "../quote.constants";
 import type { Quote, QuoteSort, QuoteStatus } from "../quote.types";
@@ -32,6 +33,7 @@ type QuoteFilters = Readonly<{
 
 export function QuotesWorkspace() {
   const router = useRouter();
+  const createShortcutLabel = `${getPlatformModifierLabel()}N`;
   const [, setQuotesVersion] = useState(0);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [page, setPage] = useState(1);
@@ -59,6 +61,11 @@ export function QuotesWorkspace() {
       direction: current.field === field && current.direction === "asc" ? "desc" : "asc"
     }));
   }
+
+  useWorkspaceCreateShortcut({
+    label: "Créer un devis",
+    onCreate: () => setDialogOpen(true)
+  });
 
   return (
     <EntityPageLayout>
@@ -95,9 +102,11 @@ export function QuotesWorkspace() {
             type="button"
             onClick={() => setDialogOpen(true)}
             className={workspacePrimaryActionClassName}
+            aria-keyshortcuts="Meta+N Control+N"
           >
             <Plus size={17} />
             Créer un devis
+            <span className="hidden rounded-md bg-white/15 px-1.5 py-0.5 text-[10px] font-black sm:inline-flex">{createShortcutLabel}</span>
           </button>
         </div>
         <div className="mt-4 grid gap-2 lg:grid-cols-2 xl:grid-cols-5">
@@ -149,6 +158,12 @@ export function QuotesWorkspace() {
 }
 
 function QuotesTable({ onCreate, onSort, quotes, sort }: { onCreate: () => void; onSort: (field: QuoteSort["field"]) => void; quotes: readonly Quote[]; sort: QuoteSort }) {
+  const router = useRouter();
+  const tableNavigation = useTableKeyboardNavigation({
+    items: quotes,
+    onOpen: (quote) => router.push(`/sales/quotes/${quote.id}`)
+  });
+
   if (quotes.length === 0) {
     return (
       <SectionCard className="p-6 text-center">
@@ -174,7 +189,7 @@ function QuotesTable({ onCreate, onSort, quotes, sort }: { onCreate: () => void;
         <h2 className="relative font-display text-lg font-bold text-white">Liste des devis</h2>
         <p className="relative mt-0.5 text-xs font-medium text-cyan-50/70">Devis commerciaux reliés au CRM.</p>
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" onKeyDown={tableNavigation.onKeyDown}>
         <table className="w-full min-w-[1180px] border-collapse text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-left dark:border-hicotech-dark-border dark:bg-hicotech-dark-page">
             <tr>
@@ -201,10 +216,14 @@ function QuotesTable({ onCreate, onSort, quotes, sort }: { onCreate: () => void;
             </tr>
           </thead>
           <tbody>
-            {quotes.map((quote) => {
+            {quotes.map((quote, index) => {
               const totals = getQuoteTotals(quote);
               return (
-                <tr key={quote.id} className="border-t border-slate-100 transition hover:bg-hicotech-sky/55 hover:shadow-[inset_4px_0_0_#0D6EFD] dark:border-hicotech-dark-border dark:hover:bg-hicotech-dark-page/60">
+                <tr
+                  key={quote.id}
+                  {...tableNavigation.getRowProps(index)}
+                  className={`border-t border-slate-100 outline-none transition hover:bg-hicotech-sky/55 hover:shadow-[inset_4px_0_0_#0D6EFD] focus:bg-hicotech-sky/70 focus:shadow-[inset_4px_0_0_#0D6EFD] focus:ring-2 focus:ring-inset focus:ring-hicotech-blue/20 dark:border-hicotech-dark-border dark:hover:bg-hicotech-dark-page/60 ${index === tableNavigation.activeIndex ? "bg-hicotech-sky/55 shadow-[inset_4px_0_0_#0D6EFD] dark:bg-hicotech-blue/10" : ""}`}
+                >
                   <td className="px-4 py-3 font-bold text-hicotech-navy dark:text-white">{quote.number}</td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{quote.customerName}</td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{companyById.get(quote.companyId)?.displayName ?? "Non définie"}</td>

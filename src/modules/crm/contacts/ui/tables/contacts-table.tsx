@@ -1,5 +1,6 @@
 import { Archive, CalendarClock, Edit3, Eye, Mail, MoreHorizontal, UsersRound } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { EntityActionButton, EntityActionMenu, EntityEmptyState, EntityTable, type EntityTableColumn } from "@/ui";
 import { getContactAvatarLabel } from "../../contact.utils";
 import type { Contact, ContactId } from "../../contact.types";
@@ -63,6 +64,7 @@ export function ContactsTable({
   selectedIds: readonly ContactId[];
   sort: Readonly<{ field: ContactSortKey; direction: "asc" | "desc" }>;
 }) {
+  const router = useRouter();
   const allVisibleSelected = contacts.length > 0 && contacts.every((contact) => selectedIds.includes(contact.id));
 
   return (
@@ -74,6 +76,7 @@ export function ContactsTable({
       getRowLabel={(contact) => contact.fullName}
       items={contacts}
       onSort={onSort}
+      onOpenRow={(contact) => router.push(`/crm/contacts/${contact.id}`)}
       onToggleAll={onToggleAll}
       onToggleRow={onToggleRow}
       renderActions={(contact) => (

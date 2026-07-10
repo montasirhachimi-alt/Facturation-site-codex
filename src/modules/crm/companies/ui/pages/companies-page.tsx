@@ -1,6 +1,7 @@
 "use client";
 
 import { Building2, Globe2, HandCoins, Layers3, MapPinned } from "lucide-react";
+import { useWorkspaceCreateShortcut } from "@/platform/keyboard";
 import { EntityErrorState, EntityHeader, EntityPageLayout, EntityPagination, EntityStatsCards, InfoCard } from "@/ui";
 import { CompanyRelationsPanel } from "../components/company-relations-panel";
 import { CompanyDialog } from "../dialogs/company-dialog";
@@ -11,6 +12,12 @@ import { CompaniesToolbar } from "../toolbar/companies-toolbar";
 
 export function CompaniesPage() {
   const state = useCompaniesPage();
+
+  useWorkspaceCreateShortcut({
+    enabled: state.writeDecision.allowed,
+    label: "Ajouter une société",
+    onCreate: state.openCreateDialog
+  });
 
   return (
     <EntityPageLayout>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { PdfLayoutDocument } from "@/components/pdf-templates/PdfLayout";
 import { Download, Eye, Printer, X } from "lucide-react";
 import { downloadSalesDocumentPdf, printSalesDocumentPdf } from "./sales-document-pdf.utils";
@@ -39,8 +39,16 @@ export function SalesDocumentPreviewDialog({
   onClose: () => void;
   open: boolean;
 }) {
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+
   useEffect(() => {
-    if (!open) return undefined;
+    if (!open) {
+      returnFocusRef.current?.focus();
+      returnFocusRef.current = null;
+      return undefined;
+    }
+
+    returnFocusRef.current = globalThis.document?.activeElement instanceof HTMLElement ? globalThis.document.activeElement : null;
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
@@ -90,4 +98,3 @@ const actionClassName = "inline-flex min-h-10 items-center gap-2 rounded-xl bord
 function documentBody() {
   return document.body;
 }
-

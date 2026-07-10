@@ -114,6 +114,7 @@ export function SmartEntityPicker({
   function handleKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
     if (event.key === "ArrowDown") {
       event.preventDefault();
+      event.stopPropagation();
       setOpen(true);
       const resultCount = visibleItems.length + (showCreateAction ? 1 : 0);
       setActiveIndex((index) => (resultCount ? (index + 1) % resultCount : 0));
@@ -122,6 +123,7 @@ export function SmartEntityPicker({
 
     if (event.key === "ArrowUp") {
       event.preventDefault();
+      event.stopPropagation();
       setOpen(true);
       const resultCount = visibleItems.length + (showCreateAction ? 1 : 0);
       setActiveIndex((index) => (resultCount ? (index - 1 + resultCount) % resultCount : 0));
@@ -130,6 +132,7 @@ export function SmartEntityPicker({
 
     if (event.key === "Enter" && open) {
       event.preventDefault();
+      event.stopPropagation();
       if (activeCreateAction) {
         openCreateSurface();
         return;
@@ -140,6 +143,7 @@ export function SmartEntityPicker({
 
     if (event.key === "Escape") {
       event.preventDefault();
+      event.stopPropagation();
       if (createOpen) {
         setCreateOpen(false);
         inputRef.current?.focus();
@@ -294,11 +298,13 @@ function InlineCreatePanel({
   function handleKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
     if (event.key === "Escape") {
       event.preventDefault();
+      event.stopPropagation();
       onCancel();
     }
 
     if (event.key === "Enter") {
       event.preventDefault();
+      event.stopPropagation();
       onSubmit();
     }
   }

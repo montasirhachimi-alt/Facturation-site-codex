@@ -1,6 +1,7 @@
 "use client";
 
 import { Languages, Network, UserCheck, UsersRound } from "lucide-react";
+import { useWorkspaceCreateShortcut } from "@/platform/keyboard";
 import { EntityErrorState, EntityPagination, EntityStatsCards } from "@/ui";
 import type { CompanyId } from "../../../companies/company.types";
 import { ContactDialog } from "../dialogs/contact-dialog";
@@ -11,6 +12,12 @@ import { ContactsToolbar } from "../toolbar/contacts-toolbar";
 
 export function CompanyContactsWorkspace({ companyId }: { companyId: CompanyId }) {
   const state = useCompanyContactsWorkspace(companyId);
+
+  useWorkspaceCreateShortcut({
+    enabled: state.writeDecision.allowed,
+    label: "Ajouter un contact",
+    onCreate: state.openCreateDialog
+  });
 
   if (!state.readDecision.allowed) {
     return <EntityErrorState message="Accès refusé aux contacts de cette société." />;

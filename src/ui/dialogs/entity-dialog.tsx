@@ -1,5 +1,6 @@
 import { AlertCircle, X } from "lucide-react";
-import type { FormEvent } from "react";
+import type { FormEvent, KeyboardEvent } from "react";
+import { isModKey } from "@/platform/keyboard/keyboard-shortcut.utils";
 
 export function EntityDialog({
   children,
@@ -29,14 +30,32 @@ export function EntityDialog({
     onSubmit();
   }
 
+  function handleKeyDown(event: KeyboardEvent<HTMLFormElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      onClose();
+      return;
+    }
+
+    const shouldSubmit = isModKey(event.nativeEvent) && (event.key === "Enter" || event.key.toLowerCase() === "s");
+    if (!shouldSubmit || event.repeat) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.requestSubmit();
+  }
+
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-hicotech-dark-sidebar/65 px-4 py-6 backdrop-blur-sm">
       <form
         onSubmit={submit}
+        onKeyDown={handleKeyDown}
         className="max-h-[88vh] w-full max-w-3xl overflow-y-auto rounded-[1.35rem] border border-slate-200 bg-white p-5 shadow-[0_28px_90px_rgba(10,30,63,0.24)] dark:border-hicotech-dark-border dark:bg-hicotech-dark-card"
         role="dialog"
         aria-modal="true"
         aria-label={title}
+        aria-keyshortcuts="Meta+Enter Control+Enter Meta+S Control+S Escape"
       >
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-4 dark:border-hicotech-dark-border">
           <div>

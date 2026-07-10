@@ -71,6 +71,7 @@ export function CompaniesTable({
       getRowLabel={(company) => company.displayName}
       items={companies}
       onSort={onSort}
+      onOpenRow={(company) => router.push(`/crm/companies/${company.id}`)}
       onToggleAll={onToggleAll}
       onToggleRow={onToggleRow}
       renderActions={(company) => (

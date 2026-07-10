@@ -6,6 +6,7 @@ import { ArrowRight, CalendarClock, CircleDollarSign, FileText, Filter, Sparkles
 import { CompanyService } from "@/modules/crm/companies";
 import { CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
 import { SALES_QUOTES_WORKSPACE_ID, formatQuoteMoney, quoteService, subscribeToQuoteStore } from "@/modules/sales/quotes";
+import { getPlatformModifierLabel, useTableKeyboardNavigation, useWorkspaceCreateShortcut } from "@/platform/keyboard";
 import { EntityPageLayout, EntitySearchBar, MetricCard, ProductHero, ProductSectionHeader, SectionCard, entityInputClassName, workspacePrimaryActionClassName, workspaceTableActionClassName } from "@/ui";
 import { useEffect, useState } from "react";
 import { INVOICE_STATUS_LABELS } from "../invoice.constants";
@@ -20,6 +21,7 @@ const companyById = new Map(companies.map((company) => [company.id, company]));
 
 export function InvoicesWorkspace() {
   const router = useRouter();
+  const createShortcutLabel = `${getPlatformModifierLabel()}N`;
   const [, setStoreVersion] = useState(0);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [filters, setFilters] = useState({ query: "", status: "all" as InvoiceStatus | "all", companyId: "all" });
@@ -54,6 +56,11 @@ export function InvoicesWorkspace() {
     }));
   }
 
+  useWorkspaceCreateShortcut({
+    label: "Créer une facture",
+    onCreate: () => setDialogOpen(true)
+  });
+
   return (
     <EntityPageLayout>
       <ProductHero
@@ -85,8 +92,9 @@ export function InvoicesWorkspace() {
       <SectionCard className="p-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <ProductSectionHeader icon={Filter} title="Lecture du portefeuille facturé" description="Filtrez par client, société ou statut de paiement." />
-          <button type="button" onClick={() => setDialogOpen(true)} className={workspacePrimaryActionClassName}>
+          <button type="button" onClick={() => setDialogOpen(true)} className={workspacePrimaryActionClassName} aria-keyshortcuts="Meta+N Control+N">
             Créer une facture
+            <span className="hidden rounded-md bg-white/15 px-1.5 py-0.5 text-[10px] font-black sm:inline-flex">{createShortcutLabel}</span>
             <ArrowRight size={16} />
           </button>
         </div>
@@ -147,6 +155,12 @@ function InvoicesTable({
   quoteById: ReadonlyMap<string, { number: string }>;
   sort: InvoiceSort;
 }) {
+  const router = useRouter();
+  const tableNavigation = useTableKeyboardNavigation({
+    items: invoices,
+    onOpen: (invoice) => router.push(`/sales/invoices/${invoice.id}`)
+  });
+
   if (invoices.length === 0) {
     return (
       <SectionCard className="p-6 text-center">
@@ -172,7 +186,7 @@ function InvoicesTable({
         <h2 className="relative font-display text-lg font-bold text-white">Liste des factures</h2>
         <p className="relative mt-0.5 text-xs font-medium text-cyan-50/70">Factures commerciales issues des devis acceptés.</p>
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" onKeyDown={tableNavigation.onKeyDown}>
         <table className="w-full min-w-[1220px] text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-left dark:border-hicotech-dark-border dark:bg-hicotech-dark-page">
             <tr>
@@ -199,10 +213,14 @@ function InvoicesTable({
             </tr>
           </thead>
           <tbody>
-            {invoices.map((invoice) => {
+            {invoices.map((invoice, index) => {
               const totals = getInvoiceTotals(invoice);
               return (
-                <tr key={invoice.id} className="border-t border-slate-100 transition hover:bg-hicotech-sky/55 hover:shadow-[inset_4px_0_0_#0D6EFD] dark:border-hicotech-dark-border dark:hover:bg-hicotech-dark-page/60">
+                <tr
+                  key={invoice.id}
+                  {...tableNavigation.getRowProps(index)}
+                  className={`border-t border-slate-100 outline-none transition hover:bg-hicotech-sky/55 hover:shadow-[inset_4px_0_0_#0D6EFD] focus:bg-hicotech-sky/70 focus:shadow-[inset_4px_0_0_#0D6EFD] focus:ring-2 focus:ring-inset focus:ring-hicotech-blue/20 dark:border-hicotech-dark-border dark:hover:bg-hicotech-dark-page/60 ${index === tableNavigation.activeIndex ? "bg-hicotech-sky/55 shadow-[inset_4px_0_0_#0D6EFD] dark:bg-hicotech-blue/10" : ""}`}
+                >
                   <td className="px-4 py-3 font-bold text-hicotech-navy dark:text-white">{invoice.number}</td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{invoice.customerName}</td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{companyById.get(invoice.companyId)?.displayName ?? "Non définie"}</td>

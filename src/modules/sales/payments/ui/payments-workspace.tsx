@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowRight, Building2, CircleDollarSign, CreditCard, Filter, Sparkles, WalletCards } from "lucide-react";
 import { useState } from "react";
 import { CompanyService } from "@/modules/crm/companies";
 import { CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
 import { SALES_QUOTES_WORKSPACE_ID, formatQuoteMoney } from "@/modules/sales/quotes";
+import { useTableKeyboardNavigation } from "@/platform/keyboard";
 import { EntityPageLayout, EntitySearchBar, MetricCard, ProductHero, ProductSectionHeader, SectionCard, entityInputClassName, workspacePrimaryActionClassName, workspaceTableActionClassName } from "@/ui";
 import { PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS } from "../payment.constants";
 import { paymentService } from "../payment.store";
@@ -106,6 +108,12 @@ export function PaymentsWorkspace() {
 }
 
 function PaymentsTable({ onSort, payments, sort }: { onSort: (field: PaymentSort["field"]) => void; payments: readonly Payment[]; sort: PaymentSort }) {
+  const router = useRouter();
+  const tableNavigation = useTableKeyboardNavigation({
+    items: payments,
+    onOpen: (payment) => router.push(`/sales/payments/${payment.id}`)
+  });
+
   if (payments.length === 0) {
     return (
       <SectionCard className="p-6 text-center">
@@ -131,7 +139,7 @@ function PaymentsTable({ onSort, payments, sort }: { onSort: (field: PaymentSort
         <h2 className="relative font-display text-lg font-bold text-white">Liste des paiements</h2>
         <p className="relative mt-0.5 text-xs font-medium text-cyan-50/70">Encaissements clients reliés aux factures commerciales.</p>
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" onKeyDown={tableNavigation.onKeyDown}>
         <table className="w-full min-w-[1120px] text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-left dark:border-hicotech-dark-border dark:bg-hicotech-dark-page">
             <tr>
@@ -156,8 +164,12 @@ function PaymentsTable({ onSort, payments, sort }: { onSort: (field: PaymentSort
             </tr>
           </thead>
           <tbody>
-            {payments.map((payment) => (
-              <tr key={payment.id} className="border-t border-slate-100 transition hover:bg-hicotech-sky/55 hover:shadow-[inset_4px_0_0_#0D6EFD] dark:border-hicotech-dark-border dark:hover:bg-hicotech-dark-page/60">
+            {payments.map((payment, index) => (
+              <tr
+                key={payment.id}
+                {...tableNavigation.getRowProps(index)}
+                className={`border-t border-slate-100 outline-none transition hover:bg-hicotech-sky/55 hover:shadow-[inset_4px_0_0_#0D6EFD] focus:bg-hicotech-sky/70 focus:shadow-[inset_4px_0_0_#0D6EFD] focus:ring-2 focus:ring-inset focus:ring-hicotech-blue/20 dark:border-hicotech-dark-border dark:hover:bg-hicotech-dark-page/60 ${index === tableNavigation.activeIndex ? "bg-hicotech-sky/55 shadow-[inset_4px_0_0_#0D6EFD] dark:bg-hicotech-blue/10" : ""}`}
+              >
                 <td className="px-4 py-3 font-bold text-hicotech-navy dark:text-white">{payment.number}</td>
                 <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{payment.invoiceNumber}</td>
                 <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{payment.customerName}</td>

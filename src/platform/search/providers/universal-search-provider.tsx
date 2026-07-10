@@ -13,6 +13,7 @@ import { useCommandCenterHistory } from "../hooks/use-command-center-history";
 import { QuickCreateDialogHost } from "./quick-create-dialog-host";
 import { UniversalSearchContext } from "./universal-search-context";
 import type { UniversalSearchContextValue } from "./universal-search-context";
+import { shouldIgnoreKeyboardEvent } from "@/platform/keyboard/keyboard-shortcut.utils";
 
 type UniversalSearchProviderProps = {
   children: ReactNode;
@@ -103,6 +104,7 @@ export function UniversalSearchProvider({ children, resolveSections = getFoundat
       const isSearchShortcut = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
 
       if (isSearchShortcut) {
+        if (shouldIgnoreKeyboardEvent(event)) return;
         event.preventDefault();
         openSearch();
         return;
