@@ -1,12 +1,15 @@
 import { FileText, PackageCheck, Receipt } from "lucide-react";
 import type { EntityPickerItem } from "./entity-picker.types";
-import { quoteSeed } from "@/modules/sales/quotes/quotes.seed";
+import { SALES_QUOTES_WORKSPACE_ID } from "@/modules/sales/quotes/quotes.seed";
+import { quoteService } from "@/modules/sales/quotes/quote.store";
 import { formatQuoteMoney, getQuoteTotals } from "@/modules/sales/quotes/quote.utils";
-import { invoiceSeed } from "@/modules/sales/invoices/invoices.seed";
+import { invoiceService } from "@/modules/sales/invoices/invoice.store";
 import { getInvoiceTotals } from "@/modules/sales/invoices/invoice.utils";
+import { products as fallbackProducts } from "@/lib/demo-data";
+import { readProductsFromStorage } from "@/lib/product-tools";
 
 export function getQuotePickerItems(): readonly EntityPickerItem[] {
-  return quoteSeed.map((quote) => {
+  return quoteService.listQuotes({ workspaceId: SALES_QUOTES_WORKSPACE_ID }).quotes.map((quote) => {
     const totals = getQuoteTotals(quote);
 
     return {
@@ -22,7 +25,7 @@ export function getQuotePickerItems(): readonly EntityPickerItem[] {
 }
 
 export function getInvoicePickerItems(): readonly EntityPickerItem[] {
-  return invoiceSeed.map((invoice) => {
+  return invoiceService.listInvoices({ workspaceId: SALES_QUOTES_WORKSPACE_ID }).invoices.map((invoice) => {
     const totals = getInvoiceTotals(invoice);
 
     return {
@@ -38,16 +41,13 @@ export function getInvoicePickerItems(): readonly EntityPickerItem[] {
 }
 
 export function getProductPickerItems(): readonly EntityPickerItem[] {
-  return [
-    {
-      id: "products-unavailable",
-      title: "Produits non disponibles",
-      type: "product",
-      typeLabel: "Product",
-      metadata: "Aucune source locale réutilisable n'est exposée pour le moment.",
-      icon: PackageCheck,
-      disabled: true,
-      keywords: ["product", "produit", "stock", "catalogue"]
-    }
-  ];
+  return readProductsFromStorage(fallbackProducts).map((product) => ({
+    id: product.id,
+    title: product.designation,
+    type: "product",
+    typeLabel: "Produit",
+    metadata: `${product.reference} · ${product.category} · ${formatQuoteMoney(product.salePrice, "MAD")} HT · TVA ${product.vat}%`,
+    icon: PackageCheck,
+    keywords: [product.reference, product.designation, product.description, product.category, product.unit].filter(Boolean)
+  }));
 }

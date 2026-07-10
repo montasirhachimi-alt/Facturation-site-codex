@@ -8,7 +8,7 @@
 | Version | Pre-Alpha |
 | Current Milestone | Milestone 3 — Business Suite |
 | Current Phase | Business Module Foundations |
-| Current Sprint | SPR-343 — Contextual Actions |
+| Current Sprint | SPR-343A — Complete Quote & Invoice Creation Workflow |
 | Next Sprint | To define |
 | Repository Health | Builds successfully with one known existing image optimization warning. |
 
@@ -193,14 +193,15 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - Inline Entity Creation extends Smart Entity Picker with optional `+ Créer` flows for missing local entities, allowing quote/customer/invoice creation surfaces to create and select local form values without leaving the parent workflow or changing persistence behavior.
 - Favorites & Recent adds local Command Center memory for favorite destinations/records and recently opened items, using bounded browser storage, compact star toggles and history sections without backend persistence or new business logic.
 - Contextual Actions introduces a reusable compact action-chip framework and adds next-step suggestions to quote, invoice, payment, customer, company and contact surfaces using existing routes, tabs and local handlers only.
+- Quote & Invoice Creation Workflow completion adds shared Sales line-item editing, real Quote and Invoice dialogs, product-assisted manual lines, calculated totals and local store synchronization so new commercial documents appear immediately in their workspace lists.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passed during SPR-343. |
-| `npm run build` | Yes | Passed during SPR-343; the known PDF preview image warning remains. |
-| `npm run validate:runtime` | Yes for SPR-343 | Passed during SPR-343. |
+| `npm run typecheck` | Yes | Passed during SPR-343A. |
+| `npm run build` | Yes | Passed during SPR-343A; the known PDF preview image warning remains. |
+| `npm run validate:runtime` | Yes for SPR-343A | Passed during SPR-343A. |
 
 ## Repository Health
 

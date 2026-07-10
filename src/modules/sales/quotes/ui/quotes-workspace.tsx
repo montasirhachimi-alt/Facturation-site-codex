@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, CalendarClock, CircleDollarSign, FileText, Filter, Plus, Sparkles, UserRound } from "lucide-react";
 import { CompanyService } from "@/modules/crm/companies";
 import { CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
@@ -9,10 +9,10 @@ import { OpportunityService } from "@/modules/crm/opportunities";
 import { crmOpportunitySeed } from "@/modules/crm/opportunities/ui/opportunities.seed";
 import { EntityPageLayout, EntitySearchBar, MetricCard, ProductHero, ProductSectionHeader, SectionCard, entityInputClassName, workspacePrimaryActionClassName, workspaceTableActionClassName } from "@/ui";
 import { QUOTE_STATUS_LABELS } from "../quote.constants";
-import { QuoteService } from "../quote.service";
 import type { Quote, QuoteSort, QuoteStatus } from "../quote.types";
 import { formatQuoteMoney, getQuoteTotals } from "../quote.utils";
-import { SALES_QUOTES_USER_ID, SALES_QUOTES_WORKSPACE_ID, quoteSeed } from "../quotes.seed";
+import { notifyQuoteStoreUpdated, quoteService, subscribeToQuoteStore } from "../quote.store";
+import { SALES_QUOTES_WORKSPACE_ID } from "../quotes.seed";
 import { QuoteDialog } from "./quote-dialog";
 
 const companyService = new CompanyService({ seed: crmCompanySeed });
@@ -30,7 +30,6 @@ type QuoteFilters = Readonly<{
 }>;
 
 export function QuotesWorkspace() {
-  const [service] = useState(() => new QuoteService({ seed: quoteSeed }));
   const [, setQuotesVersion] = useState(0);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [page, setPage] = useState(1);
@@ -38,7 +37,9 @@ export function QuotesWorkspace() {
   const [sort, setSort] = useState<QuoteSort>({ field: "issueDate", direction: "desc" });
   const [filters, setFilters] = useState<QuoteFilters>({ query: "", status: "all", companyId: "all", opportunityId: "all" });
 
-  const quotes = service.listQuotes({
+  useEffect(() => subscribeToQuoteStore(() => setQuotesVersion((value) => value + 1)), []);
+
+  const quotes = quoteService.listQuotes({
       workspaceId: SALES_QUOTES_WORKSPACE_ID,
       query: filters.query,
       status: filters.status,
@@ -55,31 +56,6 @@ export function QuotesWorkspace() {
       field,
       direction: current.field === field && current.direction === "asc" ? "desc" : "asc"
     }));
-  }
-
-  function createDemoQuote() {
-    const company = companies[0];
-    const opportunity = opportunities[0];
-    if (!company) return;
-
-    service.createQuote({
-      workspaceId: SALES_QUOTES_WORKSPACE_ID,
-      customerName: company.displayName,
-      companyId: company.id,
-      opportunityId: opportunity?.id,
-      validityDays: 30,
-      currency: "MAD",
-      ownerId: SALES_QUOTES_USER_ID,
-      discountRate: 2,
-      notes: "Devis créé depuis le workspace commercial.",
-      items: [
-        { id: "item-main", description: "Prestation commerciale", quantity: 1, unitPrice: 45000, taxRate: 20 },
-        { id: "item-support", description: "Support et accompagnement", quantity: 3, unitPrice: 3500, taxRate: 20 }
-      ]
-    });
-    setDialogOpen(false);
-    setQuotesVersion((value) => value + 1);
-    setPage(1);
   }
 
   return (
@@ -156,7 +132,15 @@ export function QuotesWorkspace() {
         </div>
       </div>
 
-      <QuoteDialog open={dialogOpen} onClose={() => setDialogOpen(false)} onSubmit={createDemoQuote} />
+      <QuoteDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        onSubmit={() => {
+          notifyQuoteStoreUpdated();
+          setDialogOpen(false);
+          setPage(1);
+        }}
+      />
     </EntityPageLayout>
   );
 }

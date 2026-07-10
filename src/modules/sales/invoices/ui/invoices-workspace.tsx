@@ -4,26 +4,28 @@ import Link from "next/link";
 import { ArrowRight, CalendarClock, CircleDollarSign, FileText, Filter, Sparkles, WalletCards } from "lucide-react";
 import { CompanyService } from "@/modules/crm/companies";
 import { CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
-import { QuoteService, quoteSeed, SALES_QUOTES_WORKSPACE_ID, formatQuoteMoney } from "@/modules/sales/quotes";
+import { SALES_QUOTES_WORKSPACE_ID, formatQuoteMoney, quoteService, subscribeToQuoteStore } from "@/modules/sales/quotes";
 import { EntityPageLayout, EntitySearchBar, MetricCard, ProductHero, ProductSectionHeader, SectionCard, entityInputClassName, workspacePrimaryActionClassName, workspaceTableActionClassName } from "@/ui";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { INVOICE_STATUS_LABELS } from "../invoice.constants";
-import { invoiceService } from "../invoice.store";
+import { invoiceService, notifyInvoiceStoreUpdated, subscribeToInvoiceStore } from "../invoice.store";
 import type { Invoice, InvoiceSort, InvoiceStatus } from "../invoice.types";
 import { getInvoiceTotals } from "../invoice.utils";
+import { InvoiceDialog } from "./invoice-dialog";
 
 const companyService = new CompanyService({ seed: crmCompanySeed });
-const quoteService = new QuoteService({ seed: quoteSeed });
 const companies = companyService.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID }).companies;
-const quotes = quoteService.listQuotes({ workspaceId: SALES_QUOTES_WORKSPACE_ID }).quotes;
 const companyById = new Map(companies.map((company) => [company.id, company]));
-const quoteById = new Map(quotes.map((quote) => [quote.id, quote]));
 
 export function InvoicesWorkspace() {
+  const [, setStoreVersion] = useState(0);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [filters, setFilters] = useState({ query: "", status: "all" as InvoiceStatus | "all", companyId: "all" });
   const [sort, setSort] = useState<InvoiceSort>({ field: "issueDate", direction: "desc" });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(8);
+  const quotes = quoteService.listQuotes({ workspaceId: SALES_QUOTES_WORKSPACE_ID }).quotes;
+  const quoteById = new Map(quotes.map((quote) => [quote.id, quote]));
   const invoices = invoiceService.listInvoices({
     workspaceId: SALES_QUOTES_WORKSPACE_ID,
     query: filters.query,
@@ -33,6 +35,15 @@ export function InvoicesWorkspace() {
   const totalPages = Math.max(1, Math.ceil(invoices.length / pageSize));
   const paginated = invoices.slice((page - 1) * pageSize, page * pageSize);
   const stats = buildInvoiceStats(invoices);
+
+  useEffect(() => {
+    const unsubscribeInvoices = subscribeToInvoiceStore(() => setStoreVersion((value) => value + 1));
+    const unsubscribeQuotes = subscribeToQuoteStore(() => setStoreVersion((value) => value + 1));
+    return () => {
+      unsubscribeInvoices();
+      unsubscribeQuotes();
+    };
+  }, []);
 
   function updateSort(field: InvoiceSort["field"]) {
     setSort((current) => ({
@@ -72,10 +83,10 @@ export function InvoicesWorkspace() {
       <SectionCard className="p-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <ProductSectionHeader icon={Filter} title="Lecture du portefeuille facturé" description="Filtrez par client, société ou statut de paiement." />
-          <Link href="/sales/quotes" className={workspacePrimaryActionClassName}>
-            Créer depuis un devis
+          <button type="button" onClick={() => setDialogOpen(true)} className={workspacePrimaryActionClassName}>
+            Créer une facture
             <ArrowRight size={16} />
-          </Link>
+          </button>
         </div>
         <div className="mt-4 grid gap-2 lg:grid-cols-2 xl:grid-cols-4">
           <div className="xl:col-span-2">
@@ -92,7 +103,7 @@ export function InvoicesWorkspace() {
         </div>
       </SectionCard>
 
-      <InvoicesTable invoices={paginated} sort={sort} onSort={updateSort} />
+      <InvoicesTable invoices={paginated} quoteById={quoteById} sort={sort} onCreate={() => setDialogOpen(true)} onSort={updateSort} />
 
       <div className="flex flex-col gap-2.5 rounded-xl border border-slate-200 bg-white p-3 shadow-sm shadow-slate-200/50 md:flex-row md:items-center md:justify-between dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
         <p className="text-sm font-semibold text-slate-500 dark:text-slate-300">Page {page} sur {totalPages} • {invoices.length} facture(s)</p>
@@ -106,11 +117,33 @@ export function InvoicesWorkspace() {
           <button type="button" disabled={page >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold disabled:opacity-40 dark:border-hicotech-dark-border">Suivant</button>
         </div>
       </div>
+
+      <InvoiceDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        onSubmit={() => {
+          notifyInvoiceStoreUpdated();
+          setDialogOpen(false);
+          setPage(1);
+        }}
+      />
     </EntityPageLayout>
   );
 }
 
-function InvoicesTable({ invoices, onSort, sort }: { invoices: readonly Invoice[]; onSort: (field: InvoiceSort["field"]) => void; sort: InvoiceSort }) {
+function InvoicesTable({
+  invoices,
+  onCreate,
+  onSort,
+  quoteById,
+  sort
+}: {
+  invoices: readonly Invoice[];
+  onCreate: () => void;
+  onSort: (field: InvoiceSort["field"]) => void;
+  quoteById: ReadonlyMap<string, { number: string }>;
+  sort: InvoiceSort;
+}) {
   if (invoices.length === 0) {
     return (
       <SectionCard className="p-6 text-center">
@@ -121,10 +154,10 @@ function InvoicesTable({ invoices, onSort, sort }: { invoices: readonly Invoice[
         <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-500 dark:text-slate-300">
           Les factures sont générées depuis les devis acceptés.
         </p>
-        <Link href="/sales/quotes" className={`${workspacePrimaryActionClassName} mt-5`}>
-          Créer depuis un devis
+        <button type="button" onClick={onCreate} className={`${workspacePrimaryActionClassName} mt-5`}>
+          Créer une facture
           <ArrowRight size={16} />
-        </Link>
+        </button>
       </SectionCard>
     );
   }

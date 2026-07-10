@@ -5,72 +5,100 @@ import type { CompanyId } from "@/modules/crm/companies";
 import { crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
 import type { ContactId } from "@/modules/crm/contacts";
 import { crmContactSeed } from "@/modules/crm/contacts/ui/contacts.seed";
-import { crmOpportunitySeed } from "@/modules/crm/opportunities/ui/opportunities.seed";
 import type { OpportunityId } from "@/modules/crm/opportunities";
 import { SalesLineItemsEditor, createEmptySalesLineItem, normalizeSalesLineItems, validateSalesLineItems } from "@/modules/sales/shared";
+import { quoteService } from "@/modules/sales/quotes/quote.store";
+import type { QuoteCurrency, QuoteId, QuoteItem } from "@/modules/sales/quotes/quote.types";
+import { SALES_QUOTES_USER_ID, SALES_QUOTES_WORKSPACE_ID } from "@/modules/sales/quotes/quotes.seed";
+import { calculateQuoteTotals, formatQuoteMoney } from "@/modules/sales/quotes/quote.utils";
 import { EntityDialog } from "@/ui/dialogs/entity-dialog";
 import { FormActions, FormField, FormSection, entityInputClassName } from "@/ui/forms/form-field";
 import { SmartEntityPicker } from "@/ui/forms/smart-entity-picker";
-import { getCompanyPickerItems, getContactPickerItems, getCustomerPickerItems } from "@/ui/forms/entity-picker.crm-data";
+import { getCompanyPickerItems, getCustomerPickerItems } from "@/ui/forms/entity-picker.crm-data";
+import { getQuotePickerItems } from "@/ui/forms/entity-picker.sales-data";
 import type { EntityPickerItem } from "@/ui/forms/entity-picker.types";
-import { calculateQuoteTotals, formatQuoteMoney } from "../quote.utils";
-import { notifyQuoteStoreUpdated, quoteService } from "../quote.store";
-import type { Quote, QuoteCurrency, QuoteItem } from "../quote.types";
-import { SALES_QUOTES_USER_ID, SALES_QUOTES_WORKSPACE_ID } from "../quotes.seed";
+import { invoiceService, notifyInvoiceStoreUpdated } from "../invoice.store";
+import type { Invoice } from "../invoice.types";
 
 const companies = crmCompanySeed;
 const contacts = crmContactSeed;
-const opportunities = crmOpportunitySeed;
 const companyPickerItems = getCompanyPickerItems();
-const contactPickerItems = getContactPickerItems();
 const customerPickerItems = getCustomerPickerItems();
 
-type QuoteDialogState = {
+type InvoiceDialogState = {
   customerName: string;
   companyName: string;
   companyId: string;
-  contactName: string;
-  contactId: string;
-  opportunityId: string;
-  validityDays: number;
+  quoteId: string;
+  issueDate: string;
+  dueDate: string;
   currency: QuoteCurrency;
   discountRate: number;
   notes: string;
+  contactId?: ContactId;
+  opportunityId?: OpportunityId;
   items: readonly QuoteItem[];
 };
 
-export function QuoteDialog({
+export function InvoiceDialog({
   onClose,
   onSubmit,
   open
 }: {
   onClose: () => void;
-  onSubmit: (quote: Quote) => void;
+  onSubmit: (invoice: Invoice) => void;
   open: boolean;
 }) {
   const initialCompany = companies[0];
-  const [form, setForm] = useState<QuoteDialogState>(() => ({
+  const [form, setForm] = useState<InvoiceDialogState>(() => ({
     customerName: initialCompany?.displayName ?? "",
     companyName: initialCompany?.displayName ?? "",
     companyId: initialCompany?.id ?? "",
-    contactName: "",
-    contactId: "",
-    opportunityId: opportunities[0]?.id ?? "",
-    validityDays: 30,
+    quoteId: "",
+    issueDate: "2026-07-03T11:00:00.000Z",
+    dueDate: addDays("2026-07-03T11:00:00.000Z", 30),
     currency: "MAD",
     discountRate: 0,
     notes: "",
-    items: [createEmptySalesLineItem("quote-line")]
+    items: [createEmptySalesLineItem("invoice-line")]
   }));
   const [error, setError] = useState<string | null>(null);
+  const quotePickerItems = useMemo(() => getQuotePickerItems(), []);
   const totals = useMemo(() => calculateQuoteTotals(form.items, form.discountRate, form.currency), [form.currency, form.discountRate, form.items]);
 
-  function updateForm(patch: Partial<QuoteDialogState>) {
+  function updateForm(patch: Partial<InvoiceDialogState>) {
     setForm((current) => ({ ...current, ...patch }));
     setError(null);
   }
 
-  function submitQuote() {
+  function selectQuote(item: EntityPickerItem | null, value: string) {
+    if (!item) {
+      updateForm({ quoteId: "", notes: value ? form.notes : form.notes });
+      return;
+    }
+
+    const quote = quoteService.getQuote(item.id as QuoteId, SALES_QUOTES_WORKSPACE_ID);
+    if (!quote) {
+      updateForm({ quoteId: item.id });
+      return;
+    }
+
+    const company = companies.find((entry) => entry.id === quote.companyId);
+    updateForm({
+      quoteId: quote.id,
+      customerName: quote.customerName,
+      companyName: company?.displayName ?? form.companyName,
+      companyId: quote.companyId,
+      contactId: quote.contactId,
+      opportunityId: quote.opportunityId,
+      currency: quote.currency,
+      discountRate: quote.discountRate,
+      notes: quote.notes ? `Facture préparée depuis ${quote.number}. ${quote.notes}` : `Facture préparée depuis ${quote.number}.`,
+      items: quote.items.map((line) => ({ ...line, id: `invoice-line-${line.id}-${Date.now()}` }))
+    });
+  }
+
+  function submitInvoice() {
     const lineValidation = validateSalesLineItems(form.items);
     const companyId = resolveCompanyId(form.companyId, form.companyName);
     const customerName = form.customerName.trim() || form.companyName.trim();
@@ -81,46 +109,49 @@ export function QuoteDialog({
     }
 
     if (!companyId) {
-      setError("Sélectionnez une société pour rattacher le devis.");
+      setError("Sélectionnez une société pour rattacher la facture.");
       return;
     }
 
     if (!lineValidation.valid) {
-      setError(lineValidation.errors[0] ?? "Corrigez les lignes du devis.");
+      setError(lineValidation.errors[0] ?? "Corrigez les lignes de la facture.");
       return;
     }
 
-    const quote = quoteService.createQuote({
+    const invoice = invoiceService.createInvoice({
       workspaceId: SALES_QUOTES_WORKSPACE_ID,
       customerName,
       companyId,
       contactId: resolveContactId(form.contactId),
-      opportunityId: resolveOpportunityId(form.opportunityId),
-      validityDays: Math.max(1, Number(form.validityDays) || 30),
+      opportunityId: form.opportunityId,
+      quoteId: resolveQuoteId(form.quoteId),
+      status: "draft",
+      issueDate: form.issueDate,
+      dueDate: form.dueDate,
       currency: form.currency,
-      ownerId: SALES_QUOTES_USER_ID,
+      items: normalizeSalesLineItems(form.items),
       discountRate: Math.max(0, Number(form.discountRate) || 0),
       notes: form.notes,
-      items: normalizeSalesLineItems(form.items)
+      ownerId: SALES_QUOTES_USER_ID
     });
 
-    notifyQuoteStoreUpdated();
-    onSubmit(quote);
+    notifyInvoiceStoreUpdated();
+    onSubmit(invoice);
   }
 
   return (
     <EntityDialog
       eyebrow="Ventes"
-      title="Créer un devis"
-      description="Créez un devis complet avec client, société, lignes commerciales et totaux calculés."
+      title="Créer une facture"
+      description="Créez une facture avec client, société, devis source optionnel et lignes facturées."
       open={open}
       onClose={onClose}
-      onSubmit={submitQuote}
+      onSubmit={submitInvoice}
       error={error}
-      footer={<FormActions onCancel={onClose} submitLabel="Créer un devis" />}
+      footer={<FormActions onCancel={onClose} submitLabel="Créer une facture" />}
     >
       <div className="mt-5 space-y-3">
-        <FormSection title="Contexte commercial" description="Reliez le devis au bon client, à la société CRM et au contact si disponible.">
+        <FormSection title="Contexte facture" description="La facture peut être créée manuellement ou préparée depuis un devis existant.">
           <SmartEntityPicker
             label="Client"
             items={customerPickerItems}
@@ -146,41 +177,13 @@ export function QuoteDialog({
             onCreate={(name) => createLocalPickerItem(companyPickerItems, name, "company", "Company")}
           />
           <SmartEntityPicker
-            label="Contact"
-            items={contactPickerItems}
-            value={form.contactName}
-            onChange={({ value, item }) => updateForm({ contactName: value, contactId: item?.id ?? "" })}
-            placeholder="Rechercher un contact..."
-            allowCreate
-            createLabel="Créer le contact"
-            entityType="contact"
-            onCreate={(name) => createLocalPickerItem(contactPickerItems, name, "contact", "Contact")}
+            label="Devis source"
+            items={quotePickerItems}
+            value={form.quoteId}
+            onChange={({ value, item }) => selectQuote(item, value)}
+            placeholder="Rechercher un devis..."
+            helper="Optionnel"
           />
-          <label className="block">
-            <span className="text-sm font-bold text-hicotech-navy dark:text-white">Opportunité</span>
-            <select
-              value={form.opportunityId}
-              onChange={(event) => updateForm({ opportunityId: event.target.value })}
-              className={entityInputClassName}
-            >
-              <option value="">Aucune opportunité</option>
-              {opportunities.map((opportunity) => (
-                <option key={opportunity.id} value={opportunity.id}>{opportunity.title}</option>
-              ))}
-            </select>
-          </label>
-        </FormSection>
-
-        <FormSection title="Conditions" description="Les règles existantes sont conservées : validité, devise, remise et TVA de ligne.">
-          <FormField label="Validité" required help="Nombre de jours avant expiration.">
-            <input
-              type="number"
-              min="1"
-              value={form.validityDays}
-              onChange={(event) => updateForm({ validityDays: Number(event.target.value) })}
-              className={entityInputClassName}
-            />
-          </FormField>
           <label className="block">
             <span className="text-sm font-bold text-hicotech-navy dark:text-white">Devise</span>
             <select value={form.currency} onChange={(event) => updateForm({ currency: event.target.value as QuoteCurrency })} className={entityInputClassName}>
@@ -189,6 +192,25 @@ export function QuoteDialog({
               <option value="USD">USD</option>
             </select>
           </label>
+        </FormSection>
+
+        <FormSection title="Dates et conditions" description="Les dates restent locales au flux actuel de démonstration.">
+          <FormField label="Date d'émission" required>
+            <input
+              type="date"
+              value={form.issueDate.slice(0, 10)}
+              onChange={(event) => updateForm({ issueDate: toIsoDate(event.target.value) })}
+              className={entityInputClassName}
+            />
+          </FormField>
+          <FormField label="Échéance" required>
+            <input
+              type="date"
+              value={form.dueDate.slice(0, 10)}
+              onChange={(event) => updateForm({ dueDate: toIsoDate(event.target.value) })}
+              className={entityInputClassName}
+            />
+          </FormField>
           <FormField label="Remise (%)">
             <input
               type="number"
@@ -204,7 +226,7 @@ export function QuoteDialog({
           </FormField>
         </FormSection>
 
-        <FormSection title="Articles" description="Ajoutez les produits ou lignes manuelles du devis.">
+        <FormSection title="Articles facturés" description="Importez les lignes d'un devis ou ajoutez des lignes manuelles.">
           <SalesLineItemsEditor
             currency={form.currency}
             lines={form.items}
@@ -213,7 +235,7 @@ export function QuoteDialog({
         </FormSection>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
-          <h3 className="font-display text-sm font-bold text-hicotech-navy dark:text-white">Totaux du devis</h3>
+          <h3 className="font-display text-sm font-bold text-hicotech-navy dark:text-white">Totaux de la facture</h3>
           <div className="mt-3 grid gap-2 text-sm sm:grid-cols-4">
             <TotalPill label="Sous-total" value={formatQuoteMoney(totals.subtotal, totals.currency)} />
             <TotalPill label="Remise" value={formatQuoteMoney(totals.discount, totals.currency)} />
@@ -233,12 +255,12 @@ function resolveCompanyId(companyId: string, companyName: string) {
   return (byName ?? companies[0])?.id as CompanyId | undefined;
 }
 
-function resolveContactId(contactId: string) {
+function resolveContactId(contactId: string | undefined) {
   return contacts.some((contact) => contact.id === contactId) ? contactId as ContactId : undefined;
 }
 
-function resolveOpportunityId(opportunityId: string) {
-  return opportunities.some((opportunity) => opportunity.id === opportunityId) ? opportunityId as OpportunityId : undefined;
+function resolveQuoteId(quoteId: string) {
+  return quoteService.getQuote(quoteId as QuoteId, SALES_QUOTES_WORKSPACE_ID) ? quoteId as QuoteId : undefined;
 }
 
 function createLocalPickerItem(items: readonly EntityPickerItem[], title: string, type: EntityPickerItem["type"], typeLabel: string): EntityPickerItem {
@@ -261,6 +283,16 @@ function TotalPill({ label, strong, value }: { label: string; strong?: boolean; 
       <p className={`mt-1 text-sm font-bold ${strong ? "text-hicotech-blue" : "text-hicotech-navy dark:text-white"}`}>{value}</p>
     </div>
   );
+}
+
+function addDays(date: string, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next.toISOString();
+}
+
+function toIsoDate(date: string) {
+  return new Date(`${date}T11:00:00.000Z`).toISOString();
 }
 
 function slugify(value: string) {

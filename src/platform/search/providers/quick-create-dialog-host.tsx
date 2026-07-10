@@ -11,8 +11,9 @@ import type { ContactFormState } from "@/modules/crm/contacts/ui/hooks/use-compa
 import { CustomerDialog } from "@/modules/crm/customers/ui/dialogs/customer-dialog";
 import type { CustomerFormState } from "@/modules/crm/customers/ui/hooks/use-customers-page";
 import { QuoteDialog } from "@/modules/sales/quotes/ui/quote-dialog";
-import { getCompanyPickerItems, getContactPickerItems, getCustomerPickerItems } from "@/ui/forms/entity-picker.crm-data";
-import { getInvoicePickerItems, getQuotePickerItems } from "@/ui/forms/entity-picker.sales-data";
+import { InvoiceDialog } from "@/modules/sales/invoices/ui/invoice-dialog";
+import { getCompanyPickerItems, getContactPickerItems } from "@/ui/forms/entity-picker.crm-data";
+import { getInvoicePickerItems } from "@/ui/forms/entity-picker.sales-data";
 import type { EntityPickerItem } from "@/ui/forms/entity-picker.types";
 import type { QuickCreateActionId } from "../action-registry";
 
@@ -61,8 +62,6 @@ const emptyCustomerForm: CustomerFormState = {
 
 const companyPickerItems = getCompanyPickerItems();
 const contactPickerItems = getContactPickerItems();
-const customerPickerItems = getCustomerPickerItems();
-const quotePickerItems = getQuotePickerItems();
 const invoicePickerItems = getInvoicePickerItems();
 
 type QuickCreateDialogHostProps = {
@@ -153,7 +152,7 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
     return (
       <QuoteDialog
         onClose={closeAndReset}
-        onSubmit={closeAndReset}
+        onSubmit={() => closeAndReset()}
         open
       />
     );
@@ -161,20 +160,10 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
 
   if (activeAction === "quick-create.invoice") {
     return (
-      <QuickCreatePreviewDialog
-        eyebrow="Ventes"
-        title="Créer une facture"
-        description="Préparation rapide d'une facture depuis le centre de commandes."
-        submitLabel="Créer une facture"
+      <InvoiceDialog
         onClose={closeAndReset}
-        rows={[
-          ["Échéance", "30 jours"],
-          ["Devise", "MAD"]
-        ]}
-        pickerRows={[
-          { key: "customer", label: "Client", items: customerPickerItems, placeholder: "Rechercher un client...", allowCreate: true, createLabel: "Créer le client", entityType: "client" },
-          { key: "quote", label: "Devis source", items: quotePickerItems, placeholder: "Rechercher un devis..." }
-        ]}
+        onSubmit={() => closeAndReset()}
+        open
       />
     );
   }

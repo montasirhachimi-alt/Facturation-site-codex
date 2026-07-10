@@ -9,14 +9,13 @@ import { OpportunityService } from "@/modules/crm/opportunities";
 import { crmOpportunitySeed } from "@/modules/crm/opportunities/ui/opportunities.seed";
 import { ContextualActionStrip, createContextualActionRegistry } from "@/platform/contextual-actions";
 import { EntityEmptyState, EntityHeader, EntityPageLayout, InfoCard, MetricCard, SectionCard } from "@/ui";
-import { QuoteService } from "../quote.service";
 import type { QuoteId } from "../quote.types";
 import { formatQuoteMoney, getQuoteTotals } from "../quote.utils";
-import { SALES_QUOTES_WORKSPACE_ID, quoteSeed } from "../quotes.seed";
+import { quoteService } from "../quote.store";
+import { SALES_QUOTES_WORKSPACE_ID } from "../quotes.seed";
 import { QuoteStatusBadge } from "./quotes-workspace";
-import { invoiceService } from "@/modules/sales/invoices";
+import { invoiceService, notifyInvoiceStoreUpdated } from "@/modules/sales/invoices";
 
-const quoteService = new QuoteService({ seed: quoteSeed });
 const companyService = new CompanyService({ seed: crmCompanySeed });
 const opportunityService = new OpportunityService({ seed: crmOpportunitySeed });
 const companies = companyService.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID }).companies;
@@ -80,6 +79,7 @@ export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
 
   function createInvoice() {
     const invoice = invoiceService.createFromQuote(quoteValue);
+    notifyInvoiceStoreUpdated();
     router.push(`/sales/invoices/${invoice.id}`);
   }
 
