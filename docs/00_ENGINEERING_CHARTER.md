@@ -40,6 +40,24 @@ Do not modify database schema, Prisma models, routes, authentication, RBAC, perm
 6. Validate with `npm run build`.
 7. Document the result and remaining risks.
 
+## Local Development Runtime Policy
+
+Next.js development runtime caches can occasionally keep stale module graphs after structural import changes. This may surface locally as runtime errors such as:
+
+- `__webpack_modules__[moduleId] is not a function`
+- `Cannot find module './xxxx.js'`
+
+These errors can appear even when the implementation is correct and `npm run validate:runtime`, `npm run typecheck` and `npm run build` all pass.
+
+After structural changes such as new providers, new registries, new hooks, import graph refactoring, barrel export changes or client/server boundary changes, developers must first perform a clean local runtime test:
+
+1. Stop the development server.
+2. Delete `.next`.
+3. Run `npm run dev`.
+4. Re-test the affected routes.
+
+Only investigate the error as an implementation bug if it still exists after this clean runtime test.
+
 ## Definition of Done
 
 A task is complete only when:

@@ -1,4 +1,4 @@
-import { CrmTasksWorkspace } from "@/modules/crm/workspaces/contextual-workspaces";
+import { CrmTasksWorkspace } from "@/modules/crm/home/contextual-workspaces";
 
 export default function CrmTasksPage() {
   return <CrmTasksWorkspace />;

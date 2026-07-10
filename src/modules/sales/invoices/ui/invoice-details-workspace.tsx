@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowLeft, ArrowRight, Building2, CalendarClock, FileText, NotebookPen, Plus, WalletCards } from "lucide-react";
+import { ArrowLeft, ArrowRight, Building2, CalendarClock, FileText, NotebookPen, Receipt, WalletCards } from "lucide-react";
 import { CompanyService } from "@/modules/crm/companies";
 import { CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
 import { QuoteService, quoteSeed, SALES_QUOTES_WORKSPACE_ID, formatQuoteMoney } from "@/modules/sales/quotes";
 import { paymentService, PAYMENT_METHOD_LABELS } from "@/modules/sales/payments";
 import { PaymentStatusBadge } from "@/modules/sales/payments/ui";
+import { ContextualActionStrip, createContextualActionRegistry } from "@/platform/contextual-actions";
 import { EntityEmptyState, EntityHeader, EntityPageLayout, InfoCard, MetricCard, SectionCard } from "@/ui";
 import { invoiceService } from "../invoice.store";
 import type { InvoiceId } from "../invoice.types";
@@ -38,6 +39,42 @@ export function InvoiceDetailsWorkspace({ invoiceId }: { invoiceId: string }) {
   const company = companyById.get(invoiceValue.companyId);
   const quote = invoiceValue.quoteId ? quoteById.get(invoiceValue.quoteId) : undefined;
   const payments = paymentService.listPaymentsForInvoice(invoiceValue.id, SALES_QUOTES_WORKSPACE_ID);
+  const contextualActions = createContextualActionRegistry([
+    {
+      id: "invoice.record-payment",
+      entityType: "invoice",
+      label: "Enregistrer un paiement",
+      description: "Créer un encaissement local pour le reste à payer.",
+      icon: WalletCards,
+      priority: 10,
+      tone: "primary",
+      onSelect: recordPayment,
+      disabled: totals.remaining <= 0,
+      disabledReason: "Cette facture est déjà soldée."
+    },
+    {
+      id: "invoice.open-company",
+      entityType: "invoice",
+      label: "Ouvrir la société",
+      description: "Consulter le compte CRM lié à cette facture.",
+      icon: Building2,
+      priority: 20,
+      href: company ? `/crm/companies/${company.id}` : undefined,
+      disabled: !company,
+      disabledReason: "Aucune société CRM liée à cette facture."
+    },
+    {
+      id: "invoice.open-quote",
+      entityType: "invoice",
+      label: "Ouvrir le devis",
+      description: "Revenir au devis source de cette facture.",
+      icon: Receipt,
+      priority: 30,
+      href: quote ? `/sales/quotes/${quote.id}` : undefined,
+      disabled: !quote,
+      disabledReason: "Aucun devis source lié à cette facture."
+    }
+  ]).getAll();
 
   function recordPayment() {
     const payment = paymentService.createFromInvoice(invoiceValue);
@@ -59,18 +96,11 @@ export function InvoiceDetailsWorkspace({ invoiceId }: { invoiceId: string }) {
               <ArrowLeft size={14} />
               Retour aux factures
             </Link>
-            <button
-              type="button"
-              disabled={totals.remaining <= 0}
-              onClick={recordPayment}
-              className="inline-flex items-center gap-2 rounded-lg bg-hicotech-blue px-3 py-2 text-xs font-bold text-white shadow-soft transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Plus size={14} />
-              Enregistrer un paiement
-            </button>
           </div>
         }
       />
+
+      <ContextualActionStrip actions={contextualActions} />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard icon={WalletCards} label="Total TTC" value={formatQuoteMoney(totals.total, totals.currency)} helper="Montant facturé" />

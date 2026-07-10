@@ -5,9 +5,11 @@ import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { UniversalSearchDialog } from "../components/universal-search-dialog";
 import { isQuickCreateActionId } from "../action-registry";
+import { buildHistorySection } from "../command-center-history.utils";
 import { getFoundationSearchSections } from "../universal-search-foundation";
 import type { UniversalSearchItem, UniversalSearchSectionResolver } from "../universal-search.types";
 import type { QuickCreateActionId } from "../action-registry";
+import { useCommandCenterHistory } from "../hooks/use-command-center-history";
 import { QuickCreateDialogHost } from "./quick-create-dialog-host";
 import { UniversalSearchContext } from "./universal-search-context";
 import type { UniversalSearchContextValue } from "./universal-search-context";
@@ -24,7 +26,33 @@ export function UniversalSearchProvider({ children, resolveSections = getFoundat
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const [activeQuickCreateAction, setActiveQuickCreateAction] = useState<QuickCreateActionId | null>(null);
-  const sections = useMemo(() => resolveSections(query), [query, resolveSections]);
+  const { favorites, isFavorite, recent, recordRecent, toggleFavorite } = useCommandCenterHistory();
+  const baseSections = useMemo(() => resolveSections(query), [query, resolveSections]);
+  const sections = useMemo(() => {
+    if (query.trim()) return baseSections;
+
+    const quickCreateSection = baseSections.find((section) => section.id === "quick-create");
+
+    return [
+      buildHistorySection({
+        id: "favorites",
+        title: "Favorites",
+        description: "Vos raccourcis importants.",
+        emptyTitle: "Aucun favori",
+        emptyDescription: "Ajoutez un favori depuis une destination ou un record.",
+        items: favorites
+      }),
+      buildHistorySection({
+        id: "recent",
+        title: "Recent",
+        description: "Vos dernières ouvertures.",
+        emptyTitle: "Aucun élément récent",
+        emptyDescription: "Ouvrez une destination ou un record depuis le Command Center.",
+        items: recent
+      }),
+      ...(quickCreateSection ? [quickCreateSection] : [])
+    ];
+  }, [baseSections, favorites, query, recent]);
   const flatItems = useMemo(() => sections.flatMap((section) => section.items), [sections]);
 
   const openSearch = useCallback(() => {
@@ -54,10 +82,11 @@ export function UniversalSearchProvider({ children, resolveSections = getFoundat
       return;
     }
     if (item.href) {
+      recordRecent(item);
       router.push(item.href);
     }
     closeSearch();
-  }, [closeSearch, onSelectItem, router]);
+  }, [closeSearch, onSelectItem, recordRecent, router]);
 
   useEffect(() => {
     setActiveIndex(0);
@@ -103,8 +132,10 @@ export function UniversalSearchProvider({ children, resolveSections = getFoundat
     selectNext,
     selectPrevious,
     setActiveIndex,
-    selectItem
-  }), [activeIndex, closeSearch, flatItems, open, openSearch, query, sections, selectItem, selectNext, selectPrevious]);
+    selectItem,
+    isFavorite,
+    toggleFavorite
+  }), [activeIndex, closeSearch, flatItems, isFavorite, open, openSearch, query, sections, selectItem, selectNext, selectPrevious, toggleFavorite]);
 
   return (
     <UniversalSearchContext.Provider value={value}>

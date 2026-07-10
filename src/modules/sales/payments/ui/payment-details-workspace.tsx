@@ -6,6 +6,7 @@ import { CompanyService } from "@/modules/crm/companies";
 import { CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
 import { invoiceService, type InvoiceId } from "@/modules/sales/invoices";
 import { SALES_QUOTES_WORKSPACE_ID, formatQuoteMoney } from "@/modules/sales/quotes";
+import { ContextualActionStrip, createContextualActionRegistry } from "@/platform/contextual-actions";
 import { EntityEmptyState, EntityHeader, EntityPageLayout, InfoCard, MetricCard, SectionCard } from "@/ui";
 import { PAYMENT_METHOD_LABELS } from "../payment.constants";
 import { paymentService } from "../payment.store";
@@ -29,6 +30,29 @@ export function PaymentDetailsWorkspace({ paymentId }: { paymentId: string }) {
 
   const company = companyById.get(payment.companyId);
   const invoice = invoiceService.getInvoice(payment.invoiceId as InvoiceId, SALES_QUOTES_WORKSPACE_ID);
+  const contextualActions = createContextualActionRegistry([
+    {
+      id: "payment.open-invoice",
+      entityType: "payment",
+      label: "Ouvrir la facture",
+      description: "Vérifier la facture liée à cet encaissement.",
+      icon: FileText,
+      priority: 10,
+      tone: "primary",
+      href: `/sales/invoices/${payment.invoiceId}`
+    },
+    {
+      id: "payment.open-company",
+      entityType: "payment",
+      label: "Ouvrir la société",
+      description: "Consulter le compte CRM lié au paiement.",
+      icon: Building2,
+      priority: 20,
+      href: company ? `/crm/companies/${company.id}` : undefined,
+      disabled: !company,
+      disabledReason: "Aucune société CRM liée à ce paiement."
+    }
+  ]).getAll();
 
   return (
     <EntityPageLayout>
@@ -47,6 +71,8 @@ export function PaymentDetailsWorkspace({ paymentId }: { paymentId: string }) {
           </div>
         }
       />
+
+      <ContextualActionStrip actions={contextualActions} />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard icon={WalletCards} label="Montant reçu" value={formatQuoteMoney(payment.amount, payment.currency)} helper={PAYMENT_METHOD_LABELS[payment.method]} />

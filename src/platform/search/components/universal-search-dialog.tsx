@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Command, CornerDownLeft, Plus, X } from "lucide-react";
+import { ArrowRight, Command, CornerDownLeft, Plus, Star, X } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import type { UniversalSearchItem } from "../universal-search.types";
@@ -18,7 +18,9 @@ export function UniversalSearchDialog() {
     selectNext,
     selectPrevious,
     setActiveIndex,
-    setQuery
+    setQuery,
+    isFavorite,
+    toggleFavorite
   } = useUniversalSearch();
   const dialogRef = useRef<HTMLElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -143,8 +145,10 @@ export function UniversalSearchDialog() {
                         id={`command-center-item-${item.id}`}
                         item={item}
                         active={itemIndex === activeIndex}
+                        favorite={isFavorite(item)}
                         onFocus={() => setActiveIndex(itemIndex)}
                         onSelect={() => selectItem(item)}
+                        onToggleFavorite={() => toggleFavorite(item)}
                       />
                     );
                   })
@@ -179,14 +183,18 @@ function SearchFoundationRow({
   active,
   id,
   item,
+  favorite,
   onFocus,
-  onSelect
+  onSelect,
+  onToggleFavorite
 }: {
   active: boolean;
+  favorite: boolean;
   id: string;
   item: UniversalSearchItem;
   onFocus: () => void;
   onSelect: () => void;
+  onToggleFavorite: () => void;
 }) {
   const Icon = item.icon;
   const createTone = item.tone === "create";
@@ -204,16 +212,17 @@ function SearchFoundationRow({
     : "bg-white/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 ring-1 ring-slate-200/70 dark:bg-hicotech-dark-page dark:text-slate-300 dark:ring-hicotech-dark-border";
 
   return (
-    <button
+    <div
       id={id}
-      type="button"
       role="option"
       aria-selected={active}
-      disabled={item.disabled}
+      aria-disabled={item.disabled}
       onFocus={onFocus}
       onMouseEnter={onFocus}
-      onClick={onSelect}
-      className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left outline-none transition duration-150 disabled:cursor-not-allowed disabled:opacity-60 ${
+      onClick={() => {
+        if (!item.disabled) onSelect();
+      }}
+      className={`group flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left outline-none transition duration-150 aria-disabled:cursor-not-allowed aria-disabled:opacity-60 ${
         active ? activeClassName : idleClassName
       }`}
     >
@@ -237,11 +246,38 @@ function SearchFoundationRow({
         <span className="mt-1 block text-xs font-medium leading-5 text-slate-500 dark:text-slate-300">{item.description}</span>
         {item.href && <span className="mt-1 block truncate text-[11px] font-semibold text-slate-400 dark:text-slate-500">{item.href}</span>}
       </span>
+      {item.href && !item.actionId && (
+        <span
+          role="button"
+          tabIndex={0}
+          aria-label={favorite ? `Retirer ${item.title} des favoris` : `Ajouter ${item.title} aux favoris`}
+          aria-pressed={favorite}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onToggleFavorite();
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              event.stopPropagation();
+              onToggleFavorite();
+            }
+          }}
+          className={`grid size-8 shrink-0 place-items-center rounded-lg border transition focus:outline-none focus:ring-2 focus:ring-hicotech-blue/30 ${
+            favorite
+              ? "border-amber-200 bg-amber-50 text-amber-600 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200"
+              : "border-slate-200 bg-white text-slate-300 hover:border-amber-200 hover:bg-amber-50 hover:text-amber-500 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page dark:hover:border-amber-400/20 dark:hover:bg-amber-400/10 dark:hover:text-amber-200"
+          }`}
+        >
+          <Star size={15} className={favorite ? "fill-current" : ""} aria-hidden="true" />
+        </span>
+      )}
       <span className="hidden shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-400 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page sm:inline-flex">
         Enter
       </span>
       <ArrowRight size={16} className={`shrink-0 transition ${createTone ? "text-emerald-300 group-hover:text-emerald-600" : "text-slate-300 group-hover:text-hicotech-blue"}`} />
-    </button>
+    </div>
   );
 }
 

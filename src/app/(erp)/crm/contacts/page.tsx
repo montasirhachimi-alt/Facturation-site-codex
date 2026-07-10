@@ -1,4 +1,4 @@
-import { CrmContactsWorkspace } from "@/modules/crm/workspaces/contextual-workspaces";
+import { CrmContactsWorkspace } from "@/modules/crm/home/contextual-workspaces";
 
 export default function CrmContactsPage() {
   return <CrmContactsWorkspace />;

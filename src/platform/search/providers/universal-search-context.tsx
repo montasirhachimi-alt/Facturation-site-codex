@@ -16,6 +16,8 @@ export type UniversalSearchContextValue = {
   selectPrevious: () => void;
   setActiveIndex: (index: number) => void;
   selectItem: (item?: UniversalSearchItem) => void;
+  isFavorite: (item: UniversalSearchItem) => boolean;
+  toggleFavorite: (item: UniversalSearchItem) => void;
 };
 
 export const UniversalSearchContext = createContext<UniversalSearchContextValue | null>(null);

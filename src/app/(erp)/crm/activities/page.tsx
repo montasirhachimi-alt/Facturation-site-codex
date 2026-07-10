@@ -1,4 +1,4 @@
-import { CrmActivitiesWorkspace } from "@/modules/crm/workspaces/contextual-workspaces";
+import { CrmActivitiesWorkspace } from "@/modules/crm/home/contextual-workspaces";
 
 export default function CrmActivitiesPage() {
   return <CrmActivitiesWorkspace />;

@@ -1,7 +1,7 @@
 "use client";
 
 import { EntityEmptyState, EntityErrorState, EntityPageLayout } from "@/ui";
-import { UserRound } from "lucide-react";
+import { Building2, CalendarClock, FileText, NotebookPen, TrendingUp, UserRound } from "lucide-react";
 import { ContactActivitiesPanel } from "../widgets/contact-activities-panel";
 import { ContactMeetingsPanel } from "@/modules/crm/meetings/ui/contact-meetings-panel";
 import { ContactNotesPanel } from "@/modules/crm/notes/ui/contact-notes-panel";
@@ -9,6 +9,7 @@ import { ContactOpportunitiesPanel } from "@/modules/crm/opportunities/ui/contac
 import { ContactTasksPanel } from "@/modules/crm/tasks/ui/contact-tasks-panel";
 import { ContactQuotesPanel } from "@/modules/sales/quotes/ui";
 import { ContactInvoicesPanel } from "@/modules/sales/invoices/ui";
+import { ContextualActionStrip, useContextualActions } from "@/platform/contextual-actions";
 import { ContactDetailsHeader } from "../components/contact-details-header";
 import { ContactDetailsTabs } from "../components/contact-details-tabs";
 import { ContactInspectorPanel } from "../components/contact-inspector-panel";
@@ -19,6 +20,61 @@ import { useContactDetails } from "../hooks/use-contact-details";
 
 export function ContactDetailsPage({ contactId }: { contactId: string }) {
   const state = useContactDetails(contactId);
+  const contextualActions = useContextualActions([
+    {
+      id: "contact.open-company",
+      entityType: "contact",
+      label: "Ouvrir la société",
+      description: "Revenir au compte CRM associé.",
+      icon: Building2,
+      priority: 10,
+      tone: "primary",
+      href: state.company ? `/crm/companies/${state.company.id}` : undefined,
+      disabled: !state.company,
+      disabledReason: "Aucune société liée à ce contact.",
+      available: Boolean(state.contact)
+    },
+    {
+      id: "contact.show-opportunities",
+      entityType: "contact",
+      label: "Opportunités",
+      description: "Voir les affaires liées à ce contact.",
+      icon: TrendingUp,
+      priority: 20,
+      onSelect: () => state.setActiveTab("opportunities"),
+      available: Boolean(state.contact)
+    },
+    {
+      id: "contact.show-quotes",
+      entityType: "contact",
+      label: "Devis",
+      description: "Consulter les devis de ce contact.",
+      icon: FileText,
+      priority: 30,
+      onSelect: () => state.setActiveTab("quotes"),
+      available: Boolean(state.contact)
+    },
+    {
+      id: "contact.show-meetings",
+      entityType: "contact",
+      label: "Réunions",
+      description: "Préparer le prochain échange.",
+      icon: CalendarClock,
+      priority: 40,
+      onSelect: () => state.setActiveTab("meetings"),
+      available: Boolean(state.contact)
+    },
+    {
+      id: "contact.show-notes",
+      entityType: "contact",
+      label: "Notes",
+      description: "Retrouver le contexte relationnel.",
+      icon: NotebookPen,
+      priority: 50,
+      onSelect: () => state.setActiveTab("notes"),
+      available: Boolean(state.contact)
+    }
+  ]);
 
   if (!state.canRead) {
     return (
@@ -39,6 +95,10 @@ export function ContactDetailsPage({ contactId }: { contactId: string }) {
   return (
     <EntityPageLayout>
       <ContactDetailsHeader canWrite={state.canWrite} company={state.company} contact={state.contact} />
+      <ContextualActionStrip
+        actions={contextualActions}
+        description="Passez naturellement du contact vers la société, les ventes ou le suivi relationnel."
+      />
       <ContactSummaryCards summary={state.summary} />
       <ContactDetailsTabs activeTab={state.activeTab} onChange={state.setActiveTab} />
 

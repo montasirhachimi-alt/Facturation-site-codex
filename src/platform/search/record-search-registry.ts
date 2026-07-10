@@ -236,9 +236,22 @@ function recordToSearchItem(record: RecordSearchResult): UniversalSearchItem {
     badge: record.type,
     eyebrow: record.type,
     icon: record.icon,
+    iconKey: iconKeyForRecordType(record.type),
     href: record.href,
     keywords: record.keywords
   };
+}
+
+function iconKeyForRecordType(type: string) {
+  const normalizedType = type.toLowerCase();
+  if (normalizedType.includes("soci")) return "company";
+  if (normalizedType.includes("contact")) return "contact";
+  if (normalizedType.includes("client")) return "customer";
+  if (normalizedType.includes("devis")) return "quote";
+  if (normalizedType.includes("facture")) return "invoice";
+  if (normalizedType.includes("paiement")) return "payment";
+  if (normalizedType.includes("opportun")) return "opportunity";
+  return "default";
 }
 
 function scoreRecord(record: RecordSearchResult, normalizedQuery: string) {

@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Building2, CalendarClock, FileText, HandCoins, NotebookPen } from "lucide-react";
+import { ArrowLeft, Building2, CalendarClock, FileText, HandCoins, NotebookPen, Receipt, TrendingUp } from "lucide-react";
 import { CompanyService } from "@/modules/crm/companies";
 import { CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
 import { OpportunityService } from "@/modules/crm/opportunities";
 import { crmOpportunitySeed } from "@/modules/crm/opportunities/ui/opportunities.seed";
+import { ContextualActionStrip, createContextualActionRegistry } from "@/platform/contextual-actions";
 import { EntityEmptyState, EntityHeader, EntityPageLayout, InfoCard, MetricCard, SectionCard } from "@/ui";
 import { QuoteService } from "../quote.service";
 import type { QuoteId } from "../quote.types";
@@ -40,6 +41,42 @@ export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
   const company = companyById.get(quoteValue.companyId);
   const opportunity = quoteValue.opportunityId ? opportunityById.get(quoteValue.opportunityId) : undefined;
   const linkedInvoice = invoiceService.getInvoiceByQuote(quoteValue.id, quoteValue.workspaceId);
+  const contextualActions = createContextualActionRegistry([
+    {
+      id: linkedInvoice ? "quote.open-invoice" : "quote.convert-invoice",
+      entityType: "quote",
+      label: linkedInvoice ? "Ouvrir la facture" : "Créer une facture",
+      description: linkedInvoice ? "Continuer le suivi depuis la facture générée." : "Transformer ce devis accepté en facture.",
+      icon: Receipt,
+      priority: 10,
+      tone: linkedInvoice ? "neutral" : "primary",
+      href: linkedInvoice ? `/sales/invoices/${linkedInvoice.id}` : undefined,
+      onSelect: linkedInvoice ? undefined : createInvoice,
+      available: quoteValue.status === "accepted"
+    },
+    {
+      id: "quote.open-company",
+      entityType: "quote",
+      label: "Ouvrir la société",
+      description: "Revenir au compte CRM lié à ce devis.",
+      icon: Building2,
+      priority: 20,
+      href: company ? `/crm/companies/${company.id}` : undefined,
+      disabled: !company,
+      disabledReason: "Aucune société CRM liée à ce devis."
+    },
+    {
+      id: "quote.open-pipeline",
+      entityType: "quote",
+      label: opportunity ? "Ouvrir le pipeline" : "Pipeline",
+      description: opportunity ? "Consulter le contexte commercial de l'opportunité." : "Aucune opportunité liée à ce devis.",
+      icon: TrendingUp,
+      priority: 30,
+      href: opportunity ? "/crm/opportunities" : undefined,
+      disabled: !opportunity,
+      disabledReason: "Aucune opportunité liée à ce devis."
+    }
+  ]).getAll();
 
   function createInvoice() {
     const invoice = invoiceService.createFromQuote(quoteValue);
@@ -62,9 +99,7 @@ export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
                   Facture créée
                 </Link>
               ) : (
-                <button type="button" onClick={createInvoice} className="inline-flex items-center gap-2 rounded-lg bg-hicotech-blue px-3 py-2 text-xs font-bold text-white">
-                  Créer une facture
-                </button>
+                <InfoCard>Prêt à facturer</InfoCard>
               )
             )}
             <Link href="/sales/quotes" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-hicotech-blue dark:border-hicotech-dark-border">
@@ -74,6 +109,8 @@ export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
           </div>
         }
       />
+
+      <ContextualActionStrip actions={contextualActions} />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard icon={HandCoins} label="Total TTC" value={formatQuoteMoney(totals.total, totals.currency)} helper="Montant proposé" />

@@ -1,4 +1,7 @@
 import type { LucideIcon } from "lucide-react";
+import type { SearchResult } from "@/core/search";
+
+export type PlatformSearchResultContract = SearchResult;
 
 export type UniversalSearchSectionId = "recent" | "suggestions" | "navigation" | (string & {});
 
@@ -12,6 +15,9 @@ export type UniversalSearchItem = Readonly<{
   badge?: string;
   disabled?: boolean;
   href?: string;
+  historyId?: string;
+  historyKind?: "navigation" | "record";
+  iconKey?: string;
   keywords?: readonly string[];
   tone?: "default" | "create";
 }>;

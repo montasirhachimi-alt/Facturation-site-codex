@@ -240,9 +240,20 @@ function commandToSearchItem(command: CommandCenterCommand): UniversalSearchItem
     description: command.description,
     eyebrow: command.group,
     icon: command.icon,
+    iconKey: commandIconKey(command.href),
     href: command.href,
     keywords: command.keywords
   };
+}
+
+function commandIconKey(href: string) {
+  if (href.includes("dashboard")) return "dashboard";
+  if (href.includes("sales") || href.includes("ventes")) return "sales";
+  if (href.includes("stock")) return "product";
+  if (href.includes("statistiques")) return "analytics";
+  if (href.includes("param")) return "settings";
+  if (href.includes("crm")) return "company";
+  return "navigation";
 }
 
 function scoreCommand(command: CommandCenterCommand, normalizedQuery: string) {

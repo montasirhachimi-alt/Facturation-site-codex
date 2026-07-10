@@ -1,4 +1,4 @@
-import { CrmNotesWorkspace } from "@/modules/crm/workspaces/contextual-workspaces";
+import { CrmNotesWorkspace } from "@/modules/crm/home/contextual-workspaces";
 
 export default function CrmNotesPage() {
   return <CrmNotesWorkspace />;

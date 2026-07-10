@@ -1,6 +1,7 @@
 "use client";
 
-import { Building2, Clock3, Sparkles, UsersRound } from "lucide-react";
+import { Building2, Clock3, FileText, Receipt, Sparkles, TrendingUp, UsersRound } from "lucide-react";
+import { ContextualActionStrip, useContextualActions } from "@/platform/contextual-actions";
 import { EntityErrorState, EntityHeader, EntityPageLayout, EntityPagination, EntityStatsCards, InfoCard } from "@/ui";
 import { CustomerDialog } from "../dialogs/customer-dialog";
 import { CustomersFilterSummary } from "../filters/customers-filter-summary";
@@ -10,6 +11,47 @@ import { CustomersToolbar } from "../toolbar/customers-toolbar";
 
 export function CustomersPage() {
   const state = useCustomersPage();
+  const contextualActions = useContextualActions([
+    {
+      id: "customer.create",
+      entityType: "customer",
+      label: "Nouveau client",
+      description: "Créer une fiche client depuis ce portefeuille.",
+      icon: UsersRound,
+      priority: 10,
+      tone: "primary",
+      onSelect: state.openCreateDialog,
+      disabled: !state.createDecision.allowed,
+      disabledReason: "Création client non autorisée."
+    },
+    {
+      id: "customer.open-quotes",
+      entityType: "customer",
+      label: "Préparer un devis",
+      description: "Continuer le flux commercial dans les devis.",
+      icon: FileText,
+      priority: 20,
+      href: "/sales/quotes"
+    },
+    {
+      id: "customer.open-invoices",
+      entityType: "customer",
+      label: "Préparer une facture",
+      description: "Passer au suivi de facturation.",
+      icon: Receipt,
+      priority: 30,
+      href: "/sales/invoices"
+    },
+    {
+      id: "customer.open-opportunities",
+      entityType: "customer",
+      label: "Opportunités",
+      description: "Voir le pipeline commercial associé.",
+      icon: TrendingUp,
+      priority: 40,
+      href: "/crm/opportunities"
+    }
+  ]);
 
   return (
     <EntityPageLayout>
@@ -18,6 +60,11 @@ export function CustomersPage() {
         title="Clients"
         description="Un portefeuille client professionnel, prêt pour les futures vues sociétés, contacts, activités et notes."
         meta={<InfoCard>Espace actif : HicoPilot CRM</InfoCard>}
+      />
+
+      <ContextualActionStrip
+        actions={contextualActions}
+        description="Depuis le portefeuille clients, lancez l'action commerciale la plus probable."
       />
 
       <EntityStatsCards
