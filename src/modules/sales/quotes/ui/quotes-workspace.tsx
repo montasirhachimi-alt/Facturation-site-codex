@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, CalendarClock, CircleDollarSign, FileText, Filter, Plus, Sparkles, UserRound } from "lucide-react";
 import { CompanyService } from "@/modules/crm/companies";
@@ -30,6 +31,7 @@ type QuoteFilters = Readonly<{
 }>;
 
 export function QuotesWorkspace() {
+  const router = useRouter();
   const [, setQuotesVersion] = useState(0);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [page, setPage] = useState(1);
@@ -135,10 +137,11 @@ export function QuotesWorkspace() {
       <QuoteDialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
-        onSubmit={() => {
+        onSubmit={(quote) => {
           notifyQuoteStoreUpdated();
           setDialogOpen(false);
           setPage(1);
+          router.push(`/sales/quotes/${quote.id}`);
         }}
       />
     </EntityPageLayout>

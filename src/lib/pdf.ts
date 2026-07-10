@@ -24,7 +24,7 @@ type StoredPdfSettings = {
   footer?: string;
 };
 
-type PdfOutputMode = "save" | "print";
+export type PdfOutputMode = "save" | "print";
 
 const defaultCompany: Required<Pick<CompanyProfile, "name" | "address" | "city" | "phone" | "ice" | "taxId">> = {
   name: "HICOTECH",
@@ -46,6 +46,10 @@ const tableBottomY = 226;
 
 export async function createSalesPdf(document: SalesDocument, companyProfile?: CompanyProfile, mode: PdfOutputMode = "save") {
   await renderPremiumPdf(typedSalesTemplate(document, normalizeSalesTitle(document.type), companyProfile), mode);
+}
+
+export async function createPdfLayoutDocument(document: PdfLayoutDocument, mode: PdfOutputMode = "save") {
+  await renderPremiumPdf(document, mode);
 }
 
 export async function createQuotePdf(quote: Quote, client: BusinessClient, companyProfile?: CompanyProfile, mode: PdfOutputMode = "save") {

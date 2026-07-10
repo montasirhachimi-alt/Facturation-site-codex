@@ -1,14 +1,18 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Building2, CalendarClock, FileText, HandCoins, NotebookPen, Receipt, TrendingUp } from "lucide-react";
+import { ArrowLeft, Building2, CalendarClock, Download, Eye, FileText, HandCoins, NotebookPen, Printer, Receipt, TrendingUp } from "lucide-react";
 import { CompanyService } from "@/modules/crm/companies";
 import { CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
+import { ContactService } from "@/modules/crm/contacts";
+import { crmContactSeed } from "@/modules/crm/contacts/ui/contacts.seed";
 import { OpportunityService } from "@/modules/crm/opportunities";
 import { crmOpportunitySeed } from "@/modules/crm/opportunities/ui/opportunities.seed";
 import { ContextualActionStrip, createContextualActionRegistry } from "@/platform/contextual-actions";
 import { EntityEmptyState, EntityHeader, EntityPageLayout, InfoCard, MetricCard, SectionCard } from "@/ui";
+import { SalesDocumentPreviewDialog, buildQuotePdfDocument, downloadSalesDocumentPdf, printSalesDocumentPdf } from "@/modules/sales/documents";
 import type { QuoteId } from "../quote.types";
 import { formatQuoteMoney, getQuoteTotals } from "../quote.utils";
 import { quoteService } from "../quote.store";
@@ -17,14 +21,18 @@ import { QuoteStatusBadge } from "./quotes-workspace";
 import { invoiceService, notifyInvoiceStoreUpdated } from "@/modules/sales/invoices";
 
 const companyService = new CompanyService({ seed: crmCompanySeed });
+const contactService = new ContactService({ seed: crmContactSeed });
 const opportunityService = new OpportunityService({ seed: crmOpportunitySeed });
 const companies = companyService.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID }).companies;
+const contacts = contactService.listContacts({ workspaceId: CRM_COMPANIES_WORKSPACE_ID }).contacts;
 const opportunities = opportunityService.listOpportunities({ workspaceId: SALES_QUOTES_WORKSPACE_ID }).opportunities;
 const companyById = new Map(companies.map((company) => [company.id, company]));
+const contactById = new Map(contacts.map((contact) => [contact.id, contact]));
 const opportunityById = new Map(opportunities.map((opportunity) => [opportunity.id, opportunity]));
 
 export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
   const router = useRouter();
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
   const quote = quoteService.getQuote(quoteId as QuoteId, SALES_QUOTES_WORKSPACE_ID);
 
   if (!quote) {
@@ -38,9 +46,41 @@ export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
   const quoteValue = quote;
   const totals = getQuoteTotals(quoteValue);
   const company = companyById.get(quoteValue.companyId);
+  const contact = quoteValue.contactId ? contactById.get(quoteValue.contactId) : undefined;
   const opportunity = quoteValue.opportunityId ? opportunityById.get(quoteValue.opportunityId) : undefined;
   const linkedInvoice = invoiceService.getInvoiceByQuote(quoteValue.id, quoteValue.workspaceId);
+  const pdfDocument = buildQuotePdfDocument(quoteValue, { company, contact });
   const contextualActions = createContextualActionRegistry([
+    {
+      id: "quote.preview-pdf",
+      entityType: "quote",
+      label: "Aperçu PDF",
+      description: "Vérifier la mise en page client avant export.",
+      icon: Eye,
+      priority: 5,
+      tone: "neutral",
+      onSelect: () => setPdfPreviewOpen(true)
+    },
+    {
+      id: "quote.download-pdf",
+      entityType: "quote",
+      label: "Télécharger PDF",
+      description: "Exporter ce devis au format PDF.",
+      icon: Download,
+      priority: 6,
+      tone: "neutral",
+      onSelect: () => void downloadSalesDocumentPdf(pdfDocument)
+    },
+    {
+      id: "quote.print-pdf",
+      entityType: "quote",
+      label: "Imprimer",
+      description: "Ouvrir l'impression du devis.",
+      icon: Printer,
+      priority: 7,
+      tone: "neutral",
+      onSelect: () => void printSalesDocumentPdf(pdfDocument)
+    },
     {
       id: linkedInvoice ? "quote.open-invoice" : "quote.convert-invoice",
       entityType: "quote",
@@ -111,6 +151,7 @@ export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
       />
 
       <ContextualActionStrip actions={contextualActions} />
+      <SalesDocumentPreviewDialog document={pdfDocument} open={pdfPreviewOpen} onClose={() => setPdfPreviewOpen(false)} />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard icon={HandCoins} label="Total TTC" value={formatQuoteMoney(totals.total, totals.currency)} helper="Montant proposé" />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useRouter } from "next/navigation";
 import { EntityDialog } from "@/ui/dialogs/entity-dialog";
 import { FormActions, FormSection } from "@/ui/forms/form-field";
 import { SmartEntityPicker } from "@/ui/forms/smart-entity-picker";
@@ -70,6 +71,7 @@ type QuickCreateDialogHostProps = {
 };
 
 export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDialogHostProps) {
+  const router = useRouter();
   const [companyForm, setCompanyForm] = useState<CompanyFormState>(emptyCompanyForm);
   const [contactForm, setContactForm] = useState<ContactFormState>(emptyContactForm);
   const [customerForm, setCustomerForm] = useState<CustomerFormState>(emptyCustomerForm);
@@ -152,7 +154,10 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
     return (
       <QuoteDialog
         onClose={closeAndReset}
-        onSubmit={() => closeAndReset()}
+        onSubmit={(quote) => {
+          closeAndReset();
+          router.push(`/sales/quotes/${quote.id}`);
+        }}
         open
       />
     );
@@ -162,7 +167,10 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
     return (
       <InvoiceDialog
         onClose={closeAndReset}
-        onSubmit={() => closeAndReset()}
+        onSubmit={(invoice) => {
+          closeAndReset();
+          router.push(`/sales/invoices/${invoice.id}`);
+        }}
         open
       />
     );

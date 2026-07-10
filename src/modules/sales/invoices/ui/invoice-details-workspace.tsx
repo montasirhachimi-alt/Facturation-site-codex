@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowLeft, ArrowRight, Building2, CalendarClock, FileText, NotebookPen, Receipt, WalletCards } from "lucide-react";
+import { ArrowLeft, ArrowRight, Building2, CalendarClock, Download, Eye, FileText, NotebookPen, Printer, Receipt, WalletCards } from "lucide-react";
 import { CompanyService } from "@/modules/crm/companies";
 import { CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
+import { ContactService } from "@/modules/crm/contacts";
+import { crmContactSeed } from "@/modules/crm/contacts/ui/contacts.seed";
 import { QuoteService, quoteSeed, SALES_QUOTES_WORKSPACE_ID, formatQuoteMoney } from "@/modules/sales/quotes";
+import { SalesDocumentPreviewDialog, buildInvoicePdfDocument, downloadSalesDocumentPdf, printSalesDocumentPdf } from "@/modules/sales/documents";
 import { paymentService, PAYMENT_METHOD_LABELS } from "@/modules/sales/payments";
 import { PaymentStatusBadge } from "@/modules/sales/payments/ui";
 import { ContextualActionStrip, createContextualActionRegistry } from "@/platform/contextual-actions";
@@ -16,14 +19,18 @@ import { getInvoiceTotals } from "../invoice.utils";
 import { InvoiceStatusBadge } from "./invoices-workspace";
 
 const companyService = new CompanyService({ seed: crmCompanySeed });
+const contactService = new ContactService({ seed: crmContactSeed });
 const quoteService = new QuoteService({ seed: quoteSeed });
 const companies = companyService.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID }).companies;
+const contacts = contactService.listContacts({ workspaceId: CRM_COMPANIES_WORKSPACE_ID }).contacts;
 const quotes = quoteService.listQuotes({ workspaceId: SALES_QUOTES_WORKSPACE_ID }).quotes;
 const companyById = new Map(companies.map((company) => [company.id, company]));
+const contactById = new Map(contacts.map((contact) => [contact.id, contact]));
 const quoteById = new Map(quotes.map((quote) => [quote.id, quote]));
 
 export function InvoiceDetailsWorkspace({ invoiceId }: { invoiceId: string }) {
   const [, setPaymentVersion] = useState(0);
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
   const invoice = invoiceService.getInvoice(invoiceId as InvoiceId, SALES_QUOTES_WORKSPACE_ID);
 
   if (!invoice) {
@@ -37,9 +44,41 @@ export function InvoiceDetailsWorkspace({ invoiceId }: { invoiceId: string }) {
   const invoiceValue = invoice;
   const totals = getInvoiceTotals(invoiceValue);
   const company = companyById.get(invoiceValue.companyId);
+  const contact = invoiceValue.contactId ? contactById.get(invoiceValue.contactId) : undefined;
   const quote = invoiceValue.quoteId ? quoteById.get(invoiceValue.quoteId) : undefined;
   const payments = paymentService.listPaymentsForInvoice(invoiceValue.id, SALES_QUOTES_WORKSPACE_ID);
+  const pdfDocument = buildInvoicePdfDocument(invoiceValue, { company, contact, sourceQuoteNumber: quote?.number });
   const contextualActions = createContextualActionRegistry([
+    {
+      id: "invoice.preview-pdf",
+      entityType: "invoice",
+      label: "Aperçu PDF",
+      description: "Vérifier la facture avant export.",
+      icon: Eye,
+      priority: 5,
+      tone: "neutral",
+      onSelect: () => setPdfPreviewOpen(true)
+    },
+    {
+      id: "invoice.download-pdf",
+      entityType: "invoice",
+      label: "Télécharger PDF",
+      description: "Exporter cette facture au format PDF.",
+      icon: Download,
+      priority: 6,
+      tone: "neutral",
+      onSelect: () => void downloadSalesDocumentPdf(pdfDocument)
+    },
+    {
+      id: "invoice.print-pdf",
+      entityType: "invoice",
+      label: "Imprimer",
+      description: "Ouvrir l'impression de la facture.",
+      icon: Printer,
+      priority: 7,
+      tone: "neutral",
+      onSelect: () => void printSalesDocumentPdf(pdfDocument)
+    },
     {
       id: "invoice.record-payment",
       entityType: "invoice",
@@ -101,6 +140,7 @@ export function InvoiceDetailsWorkspace({ invoiceId }: { invoiceId: string }) {
       />
 
       <ContextualActionStrip actions={contextualActions} />
+      <SalesDocumentPreviewDialog document={pdfDocument} open={pdfPreviewOpen} onClose={() => setPdfPreviewOpen(false)} />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard icon={WalletCards} label="Total TTC" value={formatQuoteMoney(totals.total, totals.currency)} helper="Montant facturé" />

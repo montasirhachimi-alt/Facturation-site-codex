@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowRight, CalendarClock, CircleDollarSign, FileText, Filter, Sparkles, WalletCards } from "lucide-react";
 import { CompanyService } from "@/modules/crm/companies";
 import { CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
@@ -18,6 +19,7 @@ const companies = companyService.listCompanies({ workspaceId: CRM_COMPANIES_WORK
 const companyById = new Map(companies.map((company) => [company.id, company]));
 
 export function InvoicesWorkspace() {
+  const router = useRouter();
   const [, setStoreVersion] = useState(0);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [filters, setFilters] = useState({ query: "", status: "all" as InvoiceStatus | "all", companyId: "all" });
@@ -121,10 +123,11 @@ export function InvoicesWorkspace() {
       <InvoiceDialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
-        onSubmit={() => {
+        onSubmit={(invoice) => {
           notifyInvoiceStoreUpdated();
           setDialogOpen(false);
           setPage(1);
+          router.push(`/sales/invoices/${invoice.id}`);
         }}
       />
     </EntityPageLayout>
