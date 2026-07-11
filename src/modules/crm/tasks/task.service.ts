@@ -40,6 +40,13 @@ export class TaskService {
     }
   }
 
+  replaceTasks(tasks: readonly Task[]) {
+    this.tasks.clear();
+    for (const task of tasks) {
+      this.tasks.set(task.id, freezeTask(task));
+    }
+  }
+
   listTasks(filters: TaskFilters, sort: TaskSort = DEFAULT_TASK_SORT): TaskListResult {
     if (filters.permission && !filters.permission.allowed) {
       return createListResult([], 0, filters.workspaceId, filters.companyId, filters.contactId, filters.meetingId);

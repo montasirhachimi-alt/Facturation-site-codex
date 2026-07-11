@@ -4,14 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { persistCrmSalesRecord } from "@/platform/persistence";
 import type { CompanyId } from "@/modules/crm/companies";
 import type { ContactId } from "@/modules/crm/contacts";
-import type { CustomerId } from "@/modules/crm/customers";
 import { crmOpportunitySeed } from "@/modules/crm/opportunities/ui/opportunities.seed";
 import type { OpportunityId } from "@/modules/crm/opportunities";
 import { SalesLineItemsEditor, createEmptySalesLineItem, normalizeSalesLineItems, validateSalesLineItems } from "@/modules/sales/shared";
 import { EntityDialog } from "@/ui/dialogs/entity-dialog";
 import { FormActions, FormField, FormSection, entityInputClassName } from "@/ui/forms/form-field";
 import { SmartEntityPicker } from "@/ui/forms/smart-entity-picker";
-import { createCompanyPickerItem, createContactPickerItem, createCustomerPickerItem, getCompanyPickerItems, getContactPickerItems, getCustomerPickerItems, subscribeToCrmPickerSources } from "@/ui/forms/entity-picker.crm-data";
+import { createCompanyPickerItem, createContactPickerItem, getCompanyPickerItems, getContactPickerItems, subscribeToCrmPickerSources } from "@/ui/forms/entity-picker.crm-data";
 import { calculateQuoteTotals, formatQuoteMoney } from "../quote.utils";
 import { notifyQuoteStoreUpdated, quoteService } from "../quote.store";
 import type { Quote, QuoteCurrency, QuoteItem } from "../quote.types";
@@ -20,8 +19,6 @@ import { SALES_QUOTES_USER_ID, SALES_QUOTES_WORKSPACE_ID } from "../quotes.seed"
 const opportunities = crmOpportunitySeed;
 
 type QuoteDialogState = {
-  customerId: string;
-  customerName: string;
   companyName: string;
   companyId: string;
   contactName: string;
@@ -44,8 +41,6 @@ export function QuoteDialog({
   open: boolean;
 }) {
   const [form, setForm] = useState<QuoteDialogState>(() => ({
-    customerId: "",
-    customerName: "",
     companyName: "",
     companyId: "",
     contactName: "",
@@ -68,11 +63,6 @@ export function QuoteDialog({
     void pickerVersion;
     return getContactPickerItems(form.companyId);
   }, [form.companyId, pickerVersion]);
-  const customerPickerItems = useMemo(() => {
-    void pickerVersion;
-    return getCustomerPickerItems();
-  }, [pickerVersion]);
-
   useEffect(() => subscribeToCrmPickerSources(() => setPickerVersion((value) => value + 1)), []);
 
   function updateForm(patch: Partial<QuoteDialogState>) {
@@ -83,12 +73,7 @@ export function QuoteDialog({
   async function submitQuote() {
     const lineValidation = validateSalesLineItems(form.items);
     const companyId = resolveCompanyId(form.companyId, form.companyName);
-    const customerName = form.customerName.trim() || form.companyName.trim();
-
-    if (!customerName) {
-      setError("Sélectionnez ou renseignez un client.");
-      return;
-    }
+    const accountName = form.companyName.trim();
 
     if (!companyId) {
       setError("Sélectionnez une société pour rattacher le devis.");
@@ -103,8 +88,7 @@ export function QuoteDialog({
     const snapshot = quoteService.listQuotes({ workspaceId: SALES_QUOTES_WORKSPACE_ID }).quotes;
     const quote = quoteService.createQuote({
       workspaceId: SALES_QUOTES_WORKSPACE_ID,
-      customerId: resolveCustomerId(form.customerId),
-      customerName,
+      customerName: accountName,
       companyId,
       companyName: form.companyName,
       contactId: resolveContactId(form.contactId),
@@ -144,27 +128,7 @@ export function QuoteDialog({
       footer={<FormActions onCancel={onClose} submitLabel="Créer un devis" />}
     >
       <div className="mt-5 space-y-3">
-        <FormSection title="Contexte commercial" description="Reliez le devis au bon client, à la société CRM et au contact si disponible.">
-          <SmartEntityPicker
-            label="Client"
-            items={customerPickerItems}
-            value={form.customerName}
-            onChange={({ value, item }) => {
-              const companyId = item?.relations?.companyId ?? "";
-              updateForm({
-                customerId: item?.relations?.customerId ?? "",
-                customerName: value,
-                companyId: form.companyId || companyId,
-                companyName: form.companyName || item?.relations?.companyName || form.companyName
-              });
-            }}
-            placeholder="Rechercher un client..."
-            helper="Obligatoire"
-            allowCreate
-            createLabel="Créer le client"
-            entityType="client"
-            onCreate={(name) => createCustomerPickerItem(name, { id: form.companyId, name: form.companyName })}
-          />
+        <FormSection title="Contexte commercial" description="Reliez le devis à la société commerciale. Le contact reste optionnel.">
           <SmartEntityPicker
             label="Société"
             items={companyPickerItems}
@@ -270,10 +234,6 @@ function resolveCompanyId(companyId: string, companyName: string) {
   if (companyId) return companyId as CompanyId;
   const byName = getCompanyPickerItems().find((company) => company.title === companyName);
   return byName?.relations?.companyId as CompanyId | undefined;
-}
-
-function resolveCustomerId(customerId: string) {
-  return customerId ? customerId as CustomerId : undefined;
 }
 
 function resolveContactId(contactId: string) {

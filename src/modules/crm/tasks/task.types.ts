@@ -14,7 +14,7 @@ export type Task = Readonly<{
   id: TaskId;
   workspaceId: WorkspaceId;
   companyId: CompanyId;
-  contactId: ContactId;
+  contactId?: ContactId;
   meetingId?: MeetingId;
   title: string;
   description?: string;
@@ -32,7 +32,7 @@ export type Task = Readonly<{
 export type CreateTaskInput = Readonly<{
   workspaceId: WorkspaceId;
   companyId: CompanyId;
-  contactId: ContactId;
+  contactId?: ContactId;
   meetingId?: MeetingId;
   title: string;
   description?: string;

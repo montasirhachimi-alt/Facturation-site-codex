@@ -4,6 +4,9 @@ import type { Prisma } from "@prisma/client";
 import type { Company } from "@/modules/crm/companies";
 import type { Contact } from "@/modules/crm/contacts";
 import type { Customer } from "@/modules/crm/customers";
+import type { Meeting } from "@/modules/crm/meetings";
+import type { Note } from "@/modules/crm/notes";
+import type { Task } from "@/modules/crm/tasks";
 import type { Invoice } from "@/modules/sales/invoices";
 import type { Payment } from "@/modules/sales/payments";
 import type { Quote, QuoteItem } from "@/modules/sales/quotes";
@@ -13,6 +16,9 @@ import type { PersistenceTenantScope } from "./tenant-scope";
 type DbCompany = Prisma.CrmCompanyGetPayload<Record<string, never>>;
 type DbCustomer = Prisma.CrmCustomerGetPayload<Record<string, never>>;
 type DbContact = Prisma.CrmContactGetPayload<Record<string, never>>;
+type DbMeeting = Prisma.CrmMeetingGetPayload<Record<string, never>>;
+type DbTask = Prisma.CrmTaskGetPayload<Record<string, never>>;
+type DbNote = Prisma.CrmNoteGetPayload<Record<string, never>>;
 type DbQuote = Prisma.SalesQuoteGetPayload<{ include: { lines: true } }>;
 type DbInvoice = Prisma.SalesInvoiceGetPayload<{ include: { lines: true } }>;
 type DbPayment = Prisma.SalesPaymentGetPayload<Record<string, never>>;
@@ -22,6 +28,9 @@ export type CrmSalesPersistenceSnapshot = Readonly<{
   companies: Company[];
   customers: Customer[];
   contacts: Contact[];
+  meetings: Meeting[];
+  tasks: Task[];
+  notes: Note[];
   quotes: Quote[];
   invoices: Invoice[];
   payments: Payment[];
@@ -31,15 +40,21 @@ export type CrmSalesPersistenceResource =
   | "company"
   | "customer"
   | "contact"
+  | "meeting"
+  | "task"
+  | "note"
   | "quote"
   | "invoice"
   | "payment";
 
 export async function loadCrmSalesSnapshot(scope: PersistenceTenantScope): Promise<CrmSalesPersistenceSnapshot> {
-  const [companies, customers, contacts, quotes, invoices, payments] = await Promise.all([
+  const [companies, customers, contacts, meetings, tasks, notes, quotes, invoices, payments] = await Promise.all([
     prisma.crmCompany.findMany({ where: { tenantCompanyId: scope.companyId }, orderBy: { updatedAt: "desc" } }),
     prisma.crmCustomer.findMany({ where: { tenantCompanyId: scope.companyId }, orderBy: { updatedAt: "desc" } }),
     prisma.crmContact.findMany({ where: { tenantCompanyId: scope.companyId }, orderBy: { updatedAt: "desc" } }),
+    prisma.crmMeeting.findMany({ where: { tenantCompanyId: scope.companyId }, orderBy: { startAt: "asc" } }),
+    prisma.crmTask.findMany({ where: { tenantCompanyId: scope.companyId }, orderBy: { dueDate: "asc" } }),
+    prisma.crmNote.findMany({ where: { tenantCompanyId: scope.companyId }, orderBy: { updatedAt: "desc" } }),
     prisma.salesQuote.findMany({
       where: { tenantCompanyId: scope.companyId },
       include: { lines: { orderBy: { position: "asc" } } },
@@ -57,6 +72,9 @@ export async function loadCrmSalesSnapshot(scope: PersistenceTenantScope): Promi
     companies: companies.map(mapDbCompany),
     customers: customers.map(mapDbCustomer),
     contacts: contacts.map(mapDbContact),
+    meetings: meetings.map(mapDbMeeting),
+    tasks: tasks.map(mapDbTask),
+    notes: notes.map(mapDbNote),
     quotes: quotes.map(mapDbQuote),
     invoices: invoices.map(mapDbInvoice),
     payments: payments.map(mapDbPayment)
@@ -67,6 +85,9 @@ export async function persistCrmSalesRecord(scope: PersistenceTenantScope, resou
   if (resource === "company") return persistCompany(scope, record as Company);
   if (resource === "customer") return persistCustomer(scope, record as Customer);
   if (resource === "contact") return persistContact(scope, record as Contact);
+  if (resource === "meeting") return persistMeeting(scope, record as Meeting);
+  if (resource === "task") return persistTask(scope, record as Task);
+  if (resource === "note") return persistNote(scope, record as Note);
   if (resource === "quote") return persistQuote(scope, record as Quote);
   if (resource === "invoice") return persistInvoice(scope, record as Invoice);
   if (resource === "payment") return persistPayment(scope, record as Payment);
@@ -227,6 +248,48 @@ async function persistContact(scope: PersistenceTenantScope, contact: Contact) {
   return contact;
 }
 
+async function persistMeeting(scope: PersistenceTenantScope, meeting: Meeting) {
+  await assertCrmMeetingTenant(scope, meeting.id);
+  await prisma.crmMeeting.upsert({
+    where: { id: meeting.id },
+    update: meetingWriteData(meeting),
+    create: {
+      id: meeting.id,
+      tenantCompanyId: scope.companyId,
+      ...meetingWriteData(meeting)
+    }
+  });
+  return meeting;
+}
+
+async function persistTask(scope: PersistenceTenantScope, task: Task) {
+  await assertCrmTaskTenant(scope, task.id);
+  await prisma.crmTask.upsert({
+    where: { id: task.id },
+    update: taskWriteData(task),
+    create: {
+      id: task.id,
+      tenantCompanyId: scope.companyId,
+      ...taskWriteData(task)
+    }
+  });
+  return task;
+}
+
+async function persistNote(scope: PersistenceTenantScope, note: Note) {
+  await assertCrmNoteTenant(scope, note.id);
+  await prisma.crmNote.upsert({
+    where: { id: note.id },
+    update: noteWriteData(note),
+    create: {
+      id: note.id,
+      tenantCompanyId: scope.companyId,
+      ...noteWriteData(note)
+    }
+  });
+  return note;
+}
+
 async function persistQuote(scope: PersistenceTenantScope, quote: Quote) {
   await assertSalesQuoteTenant(scope, quote.id);
   await prisma.salesQuote.upsert({
@@ -283,6 +346,21 @@ async function assertCrmCustomerTenant(scope: PersistenceTenantScope, id: string
 
 async function assertCrmContactTenant(scope: PersistenceTenantScope, id: string) {
   const existing = await prisma.crmContact.findUnique({ where: { id }, select: { tenantCompanyId: true } });
+  assertTenantOwner(scope, existing?.tenantCompanyId);
+}
+
+async function assertCrmMeetingTenant(scope: PersistenceTenantScope, id: string) {
+  const existing = await prisma.crmMeeting.findUnique({ where: { id }, select: { tenantCompanyId: true } });
+  assertTenantOwner(scope, existing?.tenantCompanyId);
+}
+
+async function assertCrmTaskTenant(scope: PersistenceTenantScope, id: string) {
+  const existing = await prisma.crmTask.findUnique({ where: { id }, select: { tenantCompanyId: true } });
+  assertTenantOwner(scope, existing?.tenantCompanyId);
+}
+
+async function assertCrmNoteTenant(scope: PersistenceTenantScope, id: string) {
+  const existing = await prisma.crmNote.findUnique({ where: { id }, select: { tenantCompanyId: true } });
   assertTenantOwner(scope, existing?.tenantCompanyId);
 }
 
@@ -380,6 +458,67 @@ function paymentWriteData(payment: Payment) {
     archivedAt: payment.archivedAt ? parseDate(payment.archivedAt) : null,
     createdAt: parseDate(payment.createdAt),
     updatedAt: parseDate(payment.updatedAt)
+  };
+}
+
+function meetingWriteData(meeting: Meeting) {
+  return {
+    workspaceId: meeting.workspaceId,
+    crmCompanyId: meeting.companyId,
+    crmContactId: meeting.contactIds[0] ?? null,
+    contactIds: [...meeting.contactIds],
+    title: meeting.title,
+    description: meeting.description,
+    location: meeting.location,
+    meetingType: meeting.meetingType,
+    status: meeting.status,
+    startAt: parseDate(meeting.startAt),
+    endAt: parseDate(meeting.endAt),
+    organizerId: meeting.organizerId,
+    participants: meeting.participants.map((participant) => ({ ...participant })),
+    notes: meeting.notes,
+    tags: [...meeting.tags],
+    createdAt: parseDate(meeting.createdAt),
+    updatedAt: parseDate(meeting.updatedAt)
+  };
+}
+
+function taskWriteData(task: Task) {
+  return {
+    workspaceId: task.workspaceId,
+    crmCompanyId: task.companyId,
+    crmContactId: task.contactId ?? null,
+    meetingId: task.meetingId,
+    title: task.title,
+    description: task.description,
+    taskType: task.taskType,
+    priority: task.priority,
+    status: task.status,
+    assignedTo: task.assignedTo,
+    dueDate: parseDate(task.dueDate),
+    completedAt: task.completedAt ? parseDate(task.completedAt) : null,
+    tags: [...task.tags],
+    createdAt: parseDate(task.createdAt),
+    updatedAt: parseDate(task.updatedAt)
+  };
+}
+
+function noteWriteData(note: Note) {
+  return {
+    workspaceId: note.workspaceId,
+    crmCompanyId: note.companyId,
+    crmContactId: note.contactId ?? null,
+    meetingId: note.meetingId,
+    taskId: note.taskId,
+    title: note.title,
+    content: note.content,
+    visibility: note.visibility,
+    authorId: note.authorId,
+    tags: [...note.tags],
+    attachments: note.attachments.map((attachment) => ({ ...attachment })),
+    archivedAt: note.archivedAt ? parseDate(note.archivedAt) : null,
+    createdAt: parseDate(note.createdAt),
+    updatedAt: parseDate(note.updatedAt)
   };
 }
 
@@ -486,6 +625,69 @@ function mapDbContact(row: DbContact): Contact {
   } as unknown as Contact;
 }
 
+function mapDbMeeting(row: DbMeeting): Meeting {
+  return {
+    id: row.id,
+    workspaceId: row.workspaceId,
+    companyId: row.crmCompanyId,
+    contactIds: readTags(row.contactIds),
+    title: row.title,
+    description: row.description ?? undefined,
+    location: row.location ?? undefined,
+    meetingType: row.meetingType,
+    status: row.status,
+    startAt: row.startAt.toISOString(),
+    endAt: row.endAt.toISOString(),
+    organizerId: row.organizerId,
+    participants: readObjectArray(row.participants),
+    notes: row.notes ?? undefined,
+    tags: readTags(row.tags),
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString()
+  } as unknown as Meeting;
+}
+
+function mapDbTask(row: DbTask): Task {
+  return {
+    id: row.id,
+    workspaceId: row.workspaceId,
+    companyId: row.crmCompanyId,
+    contactId: row.crmContactId ?? undefined,
+    meetingId: row.meetingId ?? undefined,
+    title: row.title,
+    description: row.description ?? undefined,
+    taskType: row.taskType,
+    priority: row.priority,
+    status: row.status,
+    assignedTo: row.assignedTo,
+    dueDate: row.dueDate.toISOString(),
+    completedAt: row.completedAt?.toISOString(),
+    tags: readTags(row.tags),
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString()
+  } as unknown as Task;
+}
+
+function mapDbNote(row: DbNote): Note {
+  return {
+    id: row.id,
+    workspaceId: row.workspaceId,
+    companyId: row.crmCompanyId,
+    contactId: row.crmContactId ?? undefined,
+    meetingId: row.meetingId ?? undefined,
+    taskId: row.taskId ?? undefined,
+    title: row.title,
+    content: row.content,
+    visibility: row.visibility,
+    authorId: row.authorId,
+    tags: readTags(row.tags),
+    attachments: readObjectArray(row.attachments),
+    archivedAt: row.archivedAt?.toISOString(),
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString()
+  } as unknown as Note;
+}
+
 function mapDbQuote(row: DbQuote): Quote {
   return {
     id: row.id,
@@ -579,6 +781,10 @@ function mapDbLine(row: DbLine): QuoteItem {
 
 function readTags(value: unknown): readonly string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function readObjectArray(value: unknown): readonly Record<string, unknown>[] {
+  return Array.isArray(value) ? value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item)) : [];
 }
 
 function parseDate(value: string) {

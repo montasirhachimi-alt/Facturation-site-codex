@@ -128,12 +128,13 @@ export function formatPdfMoney(amount: number, currency = "MAD") {
 function buildRecipient(customerName: string, context: SalesPdfContext): PdfParty {
   const company = context.company;
   const contact = context.contact;
-  const name = contact?.fullName ?? context.contactName ?? customerName;
-  const companyName = company?.displayName ?? company?.legalName ?? context.companyName;
+  const companyName = company?.displayName ?? company?.legalName ?? context.companyName ?? customerName;
+  const attentionName = contact?.fullName ?? context.contactName;
+  const name = attentionName ? `À l'attention : ${attentionName}` : companyName;
   const city = [company?.city, company?.country].filter(Boolean).join(", ") || undefined;
 
   return {
-    label: "Client",
+    label: "Société",
     name,
     company: isSamePdfText(companyName, name) ? undefined : companyName,
     address: company?.address,

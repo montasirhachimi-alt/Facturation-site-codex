@@ -41,6 +41,13 @@ export class NoteService {
     }
   }
 
+  replaceNotes(notes: readonly Note[]) {
+    this.notes.clear();
+    for (const note of notes) {
+      this.notes.set(note.id, freezeNote(note));
+    }
+  }
+
   listNotes(filters: NoteFilters, sort: NoteSort = DEFAULT_NOTE_SORT): NoteListResult {
     if (filters.permission && !filters.permission.allowed) {
       return createListResult([], 0, filters.workspaceId, filters.companyId, filters.contactId, filters.meetingId, filters.taskId);

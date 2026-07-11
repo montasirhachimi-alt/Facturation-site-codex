@@ -2,9 +2,10 @@ import {
   BriefcaseBusiness,
   Building2,
   ContactRound,
+  CalendarCheck,
   Receipt,
+  ScrollText,
   UserRound,
-  Users,
   WalletCards
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -12,8 +13,10 @@ import { CRM_COMPANIES_WORKSPACE_ID } from "@/modules/crm/companies/ui/companies
 import { crmCompanyLocalService } from "@/modules/crm/companies/ui/company-local-store";
 import { CRM_CONTACTS_WORKSPACE_ID } from "@/modules/crm/contacts/ui/contacts.seed";
 import { crmContactLocalService } from "@/modules/crm/contacts/ui/contact-local-store";
-import { CRM_CUSTOMERS_WORKSPACE_ID } from "@/modules/crm/customers/ui/customers.seed";
-import { crmCustomerLocalService } from "@/modules/crm/customers/ui/customer-local-store";
+import { CRM_MEETINGS_WORKSPACE_ID } from "@/modules/crm/meetings/ui/meetings.seed";
+import { crmMeetingLocalService } from "@/modules/crm/meetings/ui/meeting-local-store";
+import { CRM_TASKS_WORKSPACE_ID } from "@/modules/crm/tasks/ui/tasks.seed";
+import { crmTaskLocalService } from "@/modules/crm/tasks/ui/task-local-store";
 import { crmOpportunitySeed } from "@/modules/crm/opportunities/ui/opportunities.seed";
 import { SALES_QUOTES_WORKSPACE_ID } from "@/modules/sales/quotes/quotes.seed";
 import { quoteService } from "@/modules/sales/quotes/quote.store";
@@ -72,7 +75,8 @@ export function createRecordSearchRegistry() {
   return new RecordSearchRegistry()
     .registerMany(buildCompanyRecords())
     .registerMany(buildContactRecords())
-    .registerMany(buildCustomerRecords())
+    .registerMany(buildMeetingRecords())
+    .registerMany(buildTaskRecords())
     .registerMany(buildQuoteRecords())
     .registerMany(buildInvoiceRecords())
     .registerMany(buildPaymentRecords())
@@ -85,7 +89,7 @@ export function getRecordSearchSection(query: string): UniversalSearchSection {
   return {
     id: "records",
     title: "Records",
-    description: query ? "Résultats métier issus des données locales." : "Sociétés, contacts, clients, devis, factures, paiements et opportunités.",
+    description: query ? "Résultats métier issus des données locales." : "Sociétés, contacts, devis, factures, paiements et opportunités.",
     emptyTitle: "Aucun record trouvé",
     emptyDescription: "Essayez un nom, un code de devis, une facture, un paiement ou une société.",
     items
@@ -142,25 +146,36 @@ function buildContactRecords(): readonly RecordSearchResult[] {
   });
 }
 
-function buildCustomerRecords(): readonly RecordSearchResult[] {
-  return crmCustomerLocalService.listCustomers({ workspaceId: CRM_CUSTOMERS_WORKSPACE_ID, includeArchived: false }).customers.map((customer) => ({
-    id: `record.customer.${customer.id}`,
-    title: customer.displayName,
-    type: "Client",
-    description: `${customer.companyName ?? "Sans société"} · ${formatCompanyStatus(customer.status)}`,
-    href: "/clients",
-    icon: Users,
-    keywords: [
-      customer.displayName,
-      customer.companyName,
-      customer.email,
-      customer.phone,
-      customer.status,
-      customer.type,
-      customer.source,
-      ...(customer.tags ?? [])
-    ].filter(Boolean) as string[]
-  }));
+function buildMeetingRecords(): readonly RecordSearchResult[] {
+  const companyById = getCompanyMap();
+  return crmMeetingLocalService.listMeetings({ workspaceId: CRM_MEETINGS_WORKSPACE_ID, includeCancelled: false }).meetings.map((meeting) => {
+    const company = companyById.get(meeting.companyId);
+    return {
+      id: `record.meeting.${meeting.id}`,
+      title: meeting.title,
+      type: "Réunion",
+      description: `${company?.displayName ?? "Société inconnue"} · ${formatSearchDate(meeting.startAt)} · ${meeting.status}`,
+      href: "/crm/meetings",
+      icon: CalendarCheck,
+      keywords: [meeting.title, meeting.description, meeting.location, meeting.status, meeting.meetingType, company?.displayName, ...meeting.tags].filter(Boolean) as string[]
+    };
+  });
+}
+
+function buildTaskRecords(): readonly RecordSearchResult[] {
+  const companyById = getCompanyMap();
+  return crmTaskLocalService.listTasks({ workspaceId: CRM_TASKS_WORKSPACE_ID, includeCancelled: false }).tasks.map((task) => {
+    const company = companyById.get(task.companyId);
+    return {
+      id: `record.task.${task.id}`,
+      title: task.title,
+      type: "Tâche",
+      description: `${company?.displayName ?? "Société inconnue"} · ${formatSearchDate(task.dueDate)} · ${task.status}`,
+      href: "/crm/tasks",
+      icon: ScrollText,
+      keywords: [task.title, task.description, task.status, task.priority, task.taskType, company?.displayName, ...task.tags].filter(Boolean) as string[]
+    };
+  });
 }
 
 function buildQuoteRecords(): readonly RecordSearchResult[] {
@@ -171,7 +186,7 @@ function buildQuoteRecords(): readonly RecordSearchResult[] {
       id: `record.quote.${quote.id}`,
       title: quote.number,
       type: "Devis",
-      description: `${quote.customerName} · ${formatQuoteMoney(totals.total, totals.currency)} · ${QUOTE_STATUS_LABELS[quote.status]}`,
+      description: `${quote.companyName ?? quote.customerName} · ${formatQuoteMoney(totals.total, totals.currency)} · ${QUOTE_STATUS_LABELS[quote.status]}`,
       href: `/sales/quotes/${quote.id}`,
       icon: BriefcaseBusiness,
       keywords: [
@@ -198,7 +213,7 @@ function buildInvoiceRecords(): readonly RecordSearchResult[] {
       id: `record.invoice.${invoice.id}`,
       title: invoice.number,
       type: "Facture",
-      description: `${invoice.customerName} · ${formatQuoteMoney(totals.total, totals.currency)} · ${INVOICE_STATUS_LABELS[invoice.status]}`,
+      description: `${invoice.companyName ?? invoice.customerName} · ${formatQuoteMoney(totals.total, totals.currency)} · ${INVOICE_STATUS_LABELS[invoice.status]}`,
       href: `/sales/invoices/${invoice.id}`,
       icon: Receipt,
       keywords: [
@@ -219,15 +234,20 @@ function buildInvoiceRecords(): readonly RecordSearchResult[] {
 }
 
 function buildPaymentRecords(): readonly RecordSearchResult[] {
-  return paymentSeed.map((payment) => ({
-    id: `record.payment.${payment.id}`,
-    title: payment.number,
-    type: "Paiement",
-    description: `${payment.customerName} · ${formatQuoteMoney(payment.amount, payment.currency)} · ${PAYMENT_STATUS_LABELS[payment.status]}`,
-    href: `/sales/payments/${payment.id}`,
-    icon: WalletCards,
-    keywords: [payment.number, payment.invoiceNumber, payment.customerName, payment.status, payment.method, payment.reference, payment.companyId].filter(Boolean) as string[]
-  }));
+  const companyById = getCompanyMap();
+  return paymentSeed.map((payment) => {
+    const companyName = companyById.get(payment.companyId)?.displayName ?? payment.customerName;
+
+    return {
+      id: `record.payment.${payment.id}`,
+      title: payment.number,
+      type: "Paiement",
+      description: `${companyName} · ${formatQuoteMoney(payment.amount, payment.currency)} · ${PAYMENT_STATUS_LABELS[payment.status]}`,
+      href: `/sales/payments/${payment.id}`,
+      icon: WalletCards,
+      keywords: [payment.number, payment.invoiceNumber, companyName, payment.customerName, payment.status, payment.method, payment.reference, payment.companyId].filter(Boolean) as string[]
+    };
+  });
 }
 
 function buildOpportunityRecords(): readonly RecordSearchResult[] {
@@ -277,12 +297,17 @@ function iconKeyForRecordType(type: string) {
   const normalizedType = type.toLowerCase();
   if (normalizedType.includes("soci")) return "company";
   if (normalizedType.includes("contact")) return "contact";
-  if (normalizedType.includes("client")) return "customer";
+  if (normalizedType.includes("réunion") || normalizedType.includes("reunion")) return "calendar";
+  if (normalizedType.includes("tâche") || normalizedType.includes("tache")) return "task";
   if (normalizedType.includes("devis")) return "quote";
   if (normalizedType.includes("facture")) return "invoice";
   if (normalizedType.includes("paiement")) return "payment";
   if (normalizedType.includes("opportun")) return "opportunity";
   return "default";
+}
+
+function formatSearchDate(value: string) {
+  return new Intl.DateTimeFormat("fr-MA", { day: "2-digit", month: "short" }).format(new Date(value));
 }
 
 function scoreRecord(record: RecordSearchResult, normalizedQuery: string) {

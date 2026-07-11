@@ -3,6 +3,12 @@
 import type { Company } from "@/modules/crm/companies";
 import type { Contact } from "@/modules/crm/contacts";
 import type { Customer } from "@/modules/crm/customers";
+import type { Meeting } from "@/modules/crm/meetings";
+import { crmMeetingLocalService, notifyCrmMeetingStoreUpdated } from "@/modules/crm/meetings/ui/meeting-local-store";
+import type { Note } from "@/modules/crm/notes";
+import { crmNoteLocalService, notifyCrmNoteStoreUpdated } from "@/modules/crm/notes/ui/note-local-store";
+import type { Task } from "@/modules/crm/tasks";
+import { crmTaskLocalService, notifyCrmTaskStoreUpdated } from "@/modules/crm/tasks/ui/task-local-store";
 import { crmCompanyLocalService, notifyCrmCompanyStoreUpdated } from "@/modules/crm/companies/ui/company-local-store";
 import { crmContactLocalService, notifyCrmContactStoreUpdated } from "@/modules/crm/contacts/ui/contact-local-store";
 import { crmCustomerLocalService, notifyCrmCustomerStoreUpdated } from "@/modules/crm/customers/ui/customer-local-store";
@@ -17,6 +23,9 @@ export type CrmSalesPersistenceSnapshot = Readonly<{
   companies: Company[];
   customers: Customer[];
   contacts: Contact[];
+  meetings: Meeting[];
+  tasks: Task[];
+  notes: Note[];
   quotes: Quote[];
   invoices: Invoice[];
   payments: Payment[];
@@ -26,6 +35,9 @@ export type CrmSalesPersistenceResource =
   | "company"
   | "customer"
   | "contact"
+  | "meeting"
+  | "task"
+  | "note"
   | "quote"
   | "invoice"
   | "payment";
@@ -70,6 +82,9 @@ export function applyCrmSalesSnapshot(snapshot: CrmSalesPersistenceSnapshot) {
   crmCompanyLocalService.replaceCompanies(snapshot.companies);
   crmCustomerLocalService.replaceCustomers(snapshot.customers);
   crmContactLocalService.replaceContacts(snapshot.contacts);
+  crmMeetingLocalService.replaceMeetings(snapshot.meetings ?? []);
+  crmTaskLocalService.replaceTasks(snapshot.tasks ?? []);
+  crmNoteLocalService.replaceNotes(snapshot.notes ?? []);
   quoteService.replaceQuotes(snapshot.quotes);
   invoiceService.replaceInvoices(snapshot.invoices);
   paymentService.replacePayments(snapshot.payments);
@@ -80,6 +95,9 @@ export function notifyAllCrmSalesStores() {
   notifyCrmCompanyStoreUpdated();
   notifyCrmCustomerStoreUpdated();
   notifyCrmContactStoreUpdated();
+  notifyCrmMeetingStoreUpdated();
+  notifyCrmTaskStoreUpdated();
+  notifyCrmNoteStoreUpdated();
   notifyQuoteStoreUpdated();
   notifyInvoiceStoreUpdated();
   notifyPaymentStoreUpdated();

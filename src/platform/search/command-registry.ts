@@ -117,9 +117,8 @@ const coreCommandOverrides: Partial<Record<string, Partial<CommandCenterCommand>
 };
 
 const commandAliases: Record<string, readonly string[]> = {
-  "/crm": ["crm", "relation client", "clients"],
-  "/crm/companies": ["sociétés", "societes", "soc", "companies", "entreprises", "comptes"],
-  "/clients": ["clients", "customers", "customer", "cli"],
+  "/crm": ["crm", "relation client", "sociétés", "societes", "comptes"],
+  "/crm/companies": ["sociétés", "societes", "soc", "companies", "entreprises", "comptes", "clients", "customers", "customer", "cli"],
   "/crm/contacts": ["contacts", "contact", "cont", "personnes"],
   "/crm/activities": ["activités", "activites", "activity", "timeline"],
   "/crm/meetings": ["réunions", "reunions", "meetings", "agenda"],

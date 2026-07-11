@@ -153,10 +153,10 @@ export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
       <EntityHeader
         breadcrumb={["Ventes", "Devis", quote.number]}
         title={quote.number}
-        description={`Devis commercial pour ${quote.customerName}.`}
+        description={`Devis commercial pour ${companyLabel}.`}
         meta={
           <div className="flex flex-wrap items-center gap-2">
-            <InfoCard>{quote.customerName}</InfoCard>
+            <InfoCard>{companyLabel}</InfoCard>
             <QuoteStatusBadge status={quote.status} />
             {quote.status === "accepted" && (
               linkedInvoice ? (
@@ -190,9 +190,8 @@ export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
           <SectionCard className="p-4">
             <h2 className="font-display text-lg font-bold text-hicotech-navy dark:text-white">Informations commerciales</h2>
             <div className="mt-5 grid gap-3 md:grid-cols-2">
-              <InfoRow label="Client" value={quote.customerName} />
               <InfoRow label="Société" value={companyLabel} />
-              <InfoRow label="Contact" value={contactLabel} />
+              <InfoRow label="À l'attention" value={contactLabel} />
               <InfoRow label="Opportunité" value={opportunityLabel} />
               <InfoRow label="Responsable" value={quote.ownerId} />
               <InfoRow label="Statut" value={QUOTE_STATUS_LABELS[quote.status]} />

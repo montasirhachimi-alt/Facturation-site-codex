@@ -1,5 +1,5 @@
-import { CrmContactsWorkspace } from "@/modules/crm/home/contextual-workspaces";
+import { ContactsDirectoryPage } from "@/modules/crm/contacts/ui";
 
 export default function CrmContactsPage() {
-  return <CrmContactsWorkspace />;
+  return <ContactsDirectoryPage />;
 }

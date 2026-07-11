@@ -1,23 +1,19 @@
-import { Building2, ContactRound, Users } from "lucide-react";
+import { Building2, ContactRound } from "lucide-react";
 import { persistCrmSalesRecord } from "@/platform/persistence";
 import type { CompanyId } from "@/modules/crm/companies";
 import { CRM_COMPANIES_USER_ID, CRM_COMPANIES_WORKSPACE_ID } from "@/modules/crm/companies/ui/companies.seed";
 import { crmCompanyLocalService, notifyCrmCompanyStoreUpdated, subscribeToCrmCompanyStore } from "@/modules/crm/companies/ui/company-local-store";
 import { CRM_CONTACTS_USER_ID, CRM_CONTACTS_WORKSPACE_ID } from "@/modules/crm/contacts/ui/contacts.seed";
 import { crmContactLocalService, notifyCrmContactStoreUpdated, subscribeToCrmContactStore } from "@/modules/crm/contacts/ui/contact-local-store";
-import { CRM_CUSTOMERS_USER_ID, CRM_CUSTOMERS_WORKSPACE_ID } from "@/modules/crm/customers/ui/customers.seed";
-import { crmCustomerLocalService, notifyCrmCustomerStoreUpdated, subscribeToCrmCustomerStore } from "@/modules/crm/customers/ui/customer-local-store";
 import type { EntityPickerItem } from "./entity-picker.types";
 
 export function subscribeToCrmPickerSources(listener: () => void) {
   const unsubscribeCompanies = subscribeToCrmCompanyStore(listener);
   const unsubscribeContacts = subscribeToCrmContactStore(listener);
-  const unsubscribeCustomers = subscribeToCrmCustomerStore(listener);
 
   return () => {
     unsubscribeCompanies();
     unsubscribeContacts();
-    unsubscribeCustomers();
   };
 }
 
@@ -63,30 +59,7 @@ export function getContactPickerItems(companyId?: string): readonly EntityPicker
 }
 
 export function getCustomerPickerItems(): readonly EntityPickerItem[] {
-  return crmCustomerLocalService.listCustomers({ workspaceId: CRM_CUSTOMERS_WORKSPACE_ID, includeArchived: false }).customers.map((customer) => ({
-    id: customer.id,
-    title: customer.displayName,
-    type: "customer",
-    typeLabel: "Customer",
-    metadata: `${customer.companyName ?? "Sans société"} · ${formatStatus(customer.status)}`,
-    icon: Users,
-    relations: {
-      customerId: customer.id,
-      customerName: customer.displayName,
-      companyId: customer.companyId,
-      companyName: customer.companyName
-    },
-    keywords: [
-      customer.displayName,
-      customer.companyName,
-      customer.email,
-      customer.phone,
-      customer.status,
-      customer.type,
-      customer.source,
-      ...(customer.tags ?? [])
-    ].filter(Boolean) as string[]
-  }));
+  return getCompanyPickerItems();
 }
 
 export async function createCompanyPickerItem(title: string): Promise<EntityPickerItem> {
@@ -117,30 +90,12 @@ export async function createCompanyPickerItem(title: string): Promise<EntityPick
 }
 
 export async function createCustomerPickerItem(title: string, company?: { id?: string; name?: string }): Promise<EntityPickerItem> {
-  const snapshot = crmCustomerLocalService.listCustomers({ workspaceId: CRM_CUSTOMERS_WORKSPACE_ID, includeArchived: true }).customers;
-  const result = crmCustomerLocalService.createCustomer({
-    workspaceId: CRM_CUSTOMERS_WORKSPACE_ID,
-    displayName: title,
-    companyId: company?.id as CompanyId | undefined,
-    companyName: company?.name,
-    status: "lead",
-    type: "company",
-    source: "manual",
-    tags: [],
-    createdBy: CRM_CUSTOMERS_USER_ID
-  });
-
-  if (!result.customer) return createFallbackPickerItem(title, "customer", "Customer", "Client non enregistré");
-
-  try {
-    await persistCrmSalesRecord("customer", result.customer);
-  } catch {
-    crmCustomerLocalService.replaceCustomers(snapshot);
-    throw new Error("Le client n'a pas pu être enregistré dans la base. Vérifiez la connexion puis réessayez.");
+  if (company?.id) {
+    const existing = getCompanyPickerItems().find((item) => item.relations?.companyId === company.id);
+    if (existing) return existing;
   }
 
-  notifyCrmCustomerStoreUpdated();
-  return getCustomerPickerItems().find((item) => item.id === result.customer?.id) ?? createFallbackPickerItem(title, "customer", "Customer", "Client créé localement");
+  return createCompanyPickerItem(company?.name || title);
 }
 
 export async function createContactPickerItem(title: string, company?: { id?: string; name?: string }): Promise<EntityPickerItem> {
@@ -230,7 +185,7 @@ function createFallbackPickerItem(title: string, type: EntityPickerItem["type"],
     type,
     typeLabel,
     metadata,
-    icon: type === "company" ? Building2 : type === "contact" ? ContactRound : Users,
+    icon: type === "contact" ? ContactRound : Building2,
     keywords: [title, "inline", "local"]
   };
 }

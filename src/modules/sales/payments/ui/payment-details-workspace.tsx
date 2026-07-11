@@ -71,7 +71,7 @@ export function PaymentDetailsWorkspace({ paymentId }: { paymentId: string }) {
       <EntityHeader
         breadcrumb={["Ventes", "Paiements", payment.number]}
         title={payment.number}
-        description={`Paiement client pour ${payment.invoiceNumber}.`}
+        description={`Paiement société pour ${payment.invoiceNumber}.`}
         meta={
           <div className="flex flex-wrap items-center gap-2">
             <InfoCard>{payment.customerName}</InfoCard>
@@ -98,7 +98,6 @@ export function PaymentDetailsWorkspace({ paymentId }: { paymentId: string }) {
           <SectionCard className="p-4">
             <h2 className="font-display text-lg font-bold text-hicotech-navy dark:text-white">Informations paiement</h2>
             <div className="mt-5 grid gap-3 md:grid-cols-2">
-              <InfoRow label="Client" value={payment.customerName} />
               <InfoRow label="Société" value={company?.displayName ?? "Non définie"} />
               <InfoRow label="Facture liée" value={payment.invoiceNumber} href={`/sales/invoices/${payment.invoiceId}`} />
               <InfoRow label="Mode" value={PAYMENT_METHOD_LABELS[payment.method]} />

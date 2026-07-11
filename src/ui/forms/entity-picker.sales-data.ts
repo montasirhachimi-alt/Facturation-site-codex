@@ -17,7 +17,7 @@ export function getQuotePickerItems(): readonly EntityPickerItem[] {
       title: quote.number,
       type: "quote",
       typeLabel: "Quote",
-      metadata: `${quote.customerName} · ${formatQuoteMoney(totals.total, totals.currency)} · ${quote.status}`,
+      metadata: `${quote.companyName ?? quote.customerName} · ${formatQuoteMoney(totals.total, totals.currency)} · ${quote.status}`,
       icon: FileText,
       keywords: [quote.number, quote.customerName, quote.status, quote.notes, quote.companyId, quote.companyName, quote.contactId, quote.contactName, quote.opportunityId, quote.opportunityName].filter(Boolean) as string[]
     };
@@ -33,7 +33,7 @@ export function getInvoicePickerItems(): readonly EntityPickerItem[] {
       title: invoice.number,
       type: "invoice",
       typeLabel: "Invoice",
-      metadata: `${invoice.customerName} · ${formatQuoteMoney(totals.total, totals.currency)} · ${invoice.status}`,
+      metadata: `${invoice.companyName ?? invoice.customerName} · ${formatQuoteMoney(totals.total, totals.currency)} · ${invoice.status}`,
       icon: Receipt,
       keywords: [invoice.number, invoice.customerName, invoice.status, invoice.notes, invoice.quoteId, invoice.companyId, invoice.companyName, invoice.contactId, invoice.contactName, invoice.opportunityId, invoice.opportunityName].filter(Boolean) as string[]
     };

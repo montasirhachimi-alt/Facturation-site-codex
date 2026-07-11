@@ -44,12 +44,12 @@ export const coreModuleDefinitions: CoreModuleDefinition[] = [
   }),
   defineModule({
     id: "clients",
-    name: "Clients",
+    name: "Sociétés",
     category: "business",
     icon: CORE_MODULE_ICONS.clients,
-    route: "/clients",
+    route: "/crm/companies",
     permissionModule: "clients",
-    aliases: ["customers", "crm", "client"],
+    aliases: ["sociétés", "societes", "companies", "comptes", "clients", "customers", "crm"],
     searchable: true,
     favorite: true,
     widgets: []

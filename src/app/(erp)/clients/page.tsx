@@ -1,5 +1,5 @@
-import { CustomersPage } from "@/modules/crm/customers";
+import { redirect } from "next/navigation";
 
 export default function ClientsPage() {
-  return <CustomersPage />;
+  redirect("/crm/companies");
 }

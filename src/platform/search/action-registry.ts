@@ -1,11 +1,13 @@
 import {
   BriefcaseBusiness,
   Building2,
+  CalendarCheck,
   ContactRound,
+  FileText,
   Plus,
   Receipt,
+  ScrollText,
   TrendingUp,
-  Users,
   WalletCards
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -14,7 +16,9 @@ import type { UniversalSearchItem, UniversalSearchSection } from "./universal-se
 export type QuickCreateActionId =
   | "quick-create.company"
   | "quick-create.contact"
-  | "quick-create.customer"
+  | "quick-create.meeting"
+  | "quick-create.task"
+  | "quick-create.note"
   | "quick-create.opportunity"
   | "quick-create.quote"
   | "quick-create.invoice"
@@ -31,7 +35,9 @@ export type QuickCreateAction = Readonly<{
 const quickCreateActionIds = new Set<string>([
   "quick-create.company",
   "quick-create.contact",
-  "quick-create.customer",
+  "quick-create.meeting",
+  "quick-create.task",
+  "quick-create.note",
   "quick-create.opportunity",
   "quick-create.quote",
   "quick-create.invoice",
@@ -54,11 +60,25 @@ const seedQuickCreateActions: readonly QuickCreateAction[] = [
     keywords: ["new", "create", "nouveau", "contact", "personne", "interlocuteur", "cont"]
   },
   {
-    id: "quick-create.customer",
-    title: "New Customer",
-    description: "Créer un client depuis le flux de travail global.",
-    icon: Users,
-    keywords: ["new", "create", "nouveau", "client", "customer", "customers", "cli"]
+    id: "quick-create.meeting",
+    title: "New Meeting",
+    description: "Ouvrir le workspace Réunions pour créer un rendez-vous CRM.",
+    icon: CalendarCheck,
+    keywords: ["new", "create", "nouveau", "réunion", "reunion", "meeting", "rendez-vous", "agenda"]
+  },
+  {
+    id: "quick-create.task",
+    title: "New Task",
+    description: "Ouvrir le workspace Tâches pour créer une action de suivi.",
+    icon: ScrollText,
+    keywords: ["new", "create", "nouveau", "tâche", "tache", "task", "todo", "suivi"]
+  },
+  {
+    id: "quick-create.note",
+    title: "New Note",
+    description: "Ouvrir le workspace Notes pour ajouter du contexte CRM.",
+    icon: FileText,
+    keywords: ["new", "create", "nouveau", "note", "notes", "contexte"]
   },
   {
     id: "quick-create.opportunity",

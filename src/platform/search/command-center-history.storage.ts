@@ -33,17 +33,22 @@ function readHistoryItems(key: string, limit: number): readonly CommandCenterHis
     return parsed
       .map(normalizeHistoryItem)
       .filter((item): item is CommandCenterHistoryItem => Boolean(item))
+      .filter(isVisibleHistoryItem)
       .slice(0, limit);
   } catch {
     return [];
   }
 }
 
+function isVisibleHistoryItem(item: CommandCenterHistoryItem) {
+  return item.entityType !== "customer" && item.iconKey !== "customer" && !item.id.startsWith("record:customer:");
+}
+
 function writeHistoryItems(key: string, items: readonly CommandCenterHistoryItem[]) {
   if (typeof window === "undefined") return;
 
   try {
-    window.localStorage.setItem(key, JSON.stringify(items.map(normalizeForStorage).filter(Boolean)));
+    window.localStorage.setItem(key, JSON.stringify(items.filter(isVisibleHistoryItem).map(normalizeForStorage).filter(Boolean)));
   } catch {
     // Storage may be unavailable in private mode; command center behavior remains in-memory for the session.
   }

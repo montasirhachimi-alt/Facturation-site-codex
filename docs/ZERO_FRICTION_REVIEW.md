@@ -168,3 +168,29 @@ ZF-R2 must pass:
 - `npm run typecheck`
 - `npm run build`
 - `git diff --check`
+
+## ZF-R6 — CRM Contacts Directory & Activities Foundation
+
+Date: 2026-07-11
+
+### Resolved Issues
+
+- Global Contacts no longer renders the old seed-backed contextual workspace.
+- Contacts created from Company workspaces now appear in the global Contacts directory through the same `crmContactLocalService` source.
+- Global Contacts supports persisted list/search/filter/create/edit/archive/detail navigation.
+- Meetings, Tasks and Notes now have tenant-scoped Prisma models and persistence repository mappings.
+- Global Meetings, Tasks and Notes pages now render functional workspaces instead of demo-only lists.
+- Company details now expose functional Meetings, Tasks and Notes tabs.
+- Contact details now reuse the same embedded Meetings, Tasks and Notes workspaces with Company/Contact context.
+- Timeline/Activities is hidden from navigation until a real persisted event source exists.
+
+### Future Capabilities Intentionally Hidden
+
+- CRM Timeline remains hidden.
+- Global Notes search remains disabled to avoid noisy/sensitive Command Center results.
+- Quick Create Meeting/Task/Note opens the real workspace instead of a nested modal until the shared dialog host can reuse the same workflows without duplicate modal logic.
+
+### Remaining Issues
+
+- Opportunities remain seed-backed.
+- A complete CRM event timeline requires a dedicated future event model.

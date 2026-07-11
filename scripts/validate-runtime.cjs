@@ -1173,7 +1173,12 @@ test("CRM Module Foundation exposes manifest capabilities permissions navigation
   assert(capabilityIds.includes("crm.note.write"), "CRM module should expose note write capability.");
   assert(permissionKeys.includes("crm.customer.read"), "CRM module should expose customer read permission.");
   assert(permissionKeys.includes("crm.note.write"), "CRM module should expose note write permission.");
-  assert(crmModule.navigation.children.length === 7, "CRM navigation should prepare seven CRM child entries.");
+  const crmNavigationIds = crmModule.navigation.children.map((item) => item.id);
+  assert(crmNavigationIds.length === 5, "CRM navigation should expose five visible CRM child entries while Timeline remains hidden.");
+  assert(crmNavigationIds.includes("crm.companies"), "CRM navigation should expose Companies as the commercial account workspace.");
+  assert(crmNavigationIds.includes("crm.contacts"), "CRM navigation should expose Contacts as company-related people.");
+  assert(!crmNavigationIds.includes("crm.activities"), "CRM navigation should hide Timeline until a real persisted event source exists.");
+  assert(!crmNavigationIds.includes("crm.customers"), "CRM navigation should not expose Customers as a standalone visible workspace.");
   assert(crmModule.navigation.metadata.sidebarLabel === "Vue d'ensemble", "CRM navigation should expose a non-duplicated sidebar root label.");
   assert(!crmModule.navigation.children.some((item) => item.id === "crm.opportunities"), "CRM navigation should not duplicate the Sales pipeline entry.");
   assert(crmModule.routes.every((route) => route.lazy), "CRM routes should be lazy-load-ready placeholders.");
@@ -2007,7 +2012,6 @@ test("CRM Tasks Foundation validates invalid input and permission denial", () =>
   const invalid = validateCreateTaskInput({
     workspaceId: "",
     companyId: "",
-    contactId: "",
     title: "",
     dueDate: "not-a-date",
     assignedTo: ""
@@ -2026,7 +2030,7 @@ test("CRM Tasks Foundation validates invalid input and permission denial", () =>
   assert(invalid.valid === false, "Invalid task input should fail validation.");
   assert(codes.includes("missing_workspace"), "Task validation should require workspace scope.");
   assert(codes.includes("missing_company"), "Task validation should require company relationship.");
-  assert(codes.includes("missing_contact"), "Task validation should require contact relationship.");
+  assert(!codes.includes("invalid_contact"), "Task validation should allow a task without contact in the company-centric CRM model.");
   assert(codes.includes("missing_title"), "Task validation should require title.");
   assert(codes.includes("missing_assignee"), "Task validation should require assignee.");
   assert(codes.includes("invalid_due_date"), "Task validation should validate due date.");

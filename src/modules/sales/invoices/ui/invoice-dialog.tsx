@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { persistCrmSalesRecord } from "@/platform/persistence";
 import type { CompanyId } from "@/modules/crm/companies";
 import type { ContactId } from "@/modules/crm/contacts";
-import type { CustomerId } from "@/modules/crm/customers";
 import type { OpportunityId } from "@/modules/crm/opportunities";
 import { SalesLineItemsEditor, createEmptySalesLineItem, normalizeSalesLineItems, validateSalesLineItems } from "@/modules/sales/shared";
 import { quoteService } from "@/modules/sales/quotes/quote.store";
@@ -14,15 +13,13 @@ import { calculateQuoteTotals, formatQuoteMoney } from "@/modules/sales/quotes/q
 import { EntityDialog } from "@/ui/dialogs/entity-dialog";
 import { FormActions, FormField, FormSection, entityInputClassName } from "@/ui/forms/form-field";
 import { SmartEntityPicker } from "@/ui/forms/smart-entity-picker";
-import { createCompanyPickerItem, createContactPickerItem, createCustomerPickerItem, getCompanyPickerItems, getContactPickerItems, getCustomerPickerItems, subscribeToCrmPickerSources } from "@/ui/forms/entity-picker.crm-data";
+import { createCompanyPickerItem, createContactPickerItem, getCompanyPickerItems, getContactPickerItems, subscribeToCrmPickerSources } from "@/ui/forms/entity-picker.crm-data";
 import { getQuotePickerItems } from "@/ui/forms/entity-picker.sales-data";
 import type { EntityPickerItem } from "@/ui/forms/entity-picker.types";
 import { invoiceService, notifyInvoiceStoreUpdated } from "../invoice.store";
 import type { Invoice } from "../invoice.types";
 
 type InvoiceDialogState = {
-  customerId: string;
-  customerName: string;
   companyName: string;
   companyId: string;
   quoteId: string;
@@ -48,8 +45,6 @@ export function InvoiceDialog({
   open: boolean;
 }) {
   const [form, setForm] = useState<InvoiceDialogState>(() => ({
-    customerId: "",
-    customerName: "",
     companyName: "",
     companyId: "",
     quoteId: "",
@@ -66,10 +61,6 @@ export function InvoiceDialog({
   const companyPickerItems = useMemo(() => {
     void pickerVersion;
     return getCompanyPickerItems();
-  }, [pickerVersion]);
-  const customerPickerItems = useMemo(() => {
-    void pickerVersion;
-    return getCustomerPickerItems();
   }, [pickerVersion]);
   const contactPickerItems = useMemo(() => {
     void pickerVersion;
@@ -98,8 +89,6 @@ export function InvoiceDialog({
 
     updateForm({
       quoteId: quote.id,
-      customerId: quote.customerId ?? "",
-      customerName: quote.customerName,
       companyName: quote.companyName ?? form.companyName,
       companyId: quote.companyId,
       contactId: quote.contactId,
@@ -116,12 +105,7 @@ export function InvoiceDialog({
   async function submitInvoice() {
     const lineValidation = validateSalesLineItems(form.items);
     const companyId = resolveCompanyId(form.companyId, form.companyName);
-    const customerName = form.customerName.trim() || form.companyName.trim();
-
-    if (!customerName) {
-      setError("Sélectionnez ou renseignez un client.");
-      return;
-    }
+    const accountName = form.companyName.trim();
 
     if (!companyId) {
       setError("Sélectionnez une société pour rattacher la facture.");
@@ -136,8 +120,7 @@ export function InvoiceDialog({
     const snapshot = invoiceService.listInvoices({ workspaceId: SALES_QUOTES_WORKSPACE_ID, includeArchived: true }).invoices;
     const invoice = invoiceService.createInvoice({
       workspaceId: SALES_QUOTES_WORKSPACE_ID,
-      customerId: resolveCustomerId(form.customerId),
-      customerName,
+      customerName: accountName,
       companyId,
       companyName: form.companyName,
       contactId: resolveContactId(form.contactId),
@@ -180,27 +163,7 @@ export function InvoiceDialog({
       footer={<FormActions onCancel={onClose} submitLabel="Créer une facture" />}
     >
       <div className="mt-5 space-y-3">
-        <FormSection title="Contexte facture" description="La facture peut être créée manuellement ou préparée depuis un devis existant.">
-          <SmartEntityPicker
-            label="Client"
-            items={customerPickerItems}
-            value={form.customerName}
-            onChange={({ value, item }) => {
-              const companyId = item?.relations?.companyId ?? "";
-              updateForm({
-                customerId: item?.relations?.customerId ?? "",
-                customerName: value,
-                companyId: form.companyId || companyId,
-                companyName: form.companyName || item?.relations?.companyName || form.companyName
-              });
-            }}
-            placeholder="Rechercher un client..."
-            helper="Obligatoire"
-            allowCreate
-            createLabel="Créer le client"
-            entityType="client"
-            onCreate={(name) => createCustomerPickerItem(name, { id: form.companyId, name: form.companyName })}
-          />
+        <FormSection title="Contexte facture" description="La facture est rattachée à une société et peut être préparée depuis un devis existant.">
           <SmartEntityPicker
             label="Société"
             items={companyPickerItems}
@@ -309,10 +272,6 @@ function resolveCompanyId(companyId: string, companyName: string) {
   if (companyId) return companyId as CompanyId;
   const byName = getCompanyPickerItems().find((company) => company.title === companyName);
   return byName?.relations?.companyId as CompanyId | undefined;
-}
-
-function resolveCustomerId(customerId: string) {
-  return customerId ? customerId as CustomerId : undefined;
 }
 
 function resolveContactId(contactId: string | undefined) {

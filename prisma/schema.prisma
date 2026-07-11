@@ -90,6 +90,9 @@ model Company {
   crmCompanies      CrmCompany[]
   crmCustomers      CrmCustomer[]
   crmContacts       CrmContact[]
+  crmMeetings       CrmMeeting[]
+  crmTasks          CrmTask[]
+  crmNotes          CrmNote[]
   salesQuotes       SalesQuote[]
   salesInvoices     SalesInvoice[]
   salesPayments     SalesPayment[]
@@ -549,6 +552,9 @@ model CrmCompany {
   updatedBy          String?
   crmCustomers       CrmCustomer[]
   crmContacts        CrmContact[]
+  crmMeetings        CrmMeeting[]
+  crmTasks           CrmTask[]
+  crmNotes           CrmNote[]
   salesQuotes        SalesQuote[]
   salesInvoices      SalesInvoice[]
   salesPayments      SalesPayment[]
@@ -617,12 +623,100 @@ model CrmContact {
   salesQuotes       SalesQuote[]
   salesInvoices     SalesInvoice[]
   salesPayments     SalesPayment[]
+  crmMeetings       CrmMeeting[]
+  crmTasks          CrmTask[]
+  crmNotes          CrmNote[]
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 
   @@index([tenantCompanyId, workspaceId])
   @@index([tenantCompanyId, crmCompanyId])
   @@index([tenantCompanyId, status])
+}
+
+model CrmMeeting {
+  id              String      @id
+  tenantCompanyId String
+  tenantCompany   Company     @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  workspaceId     String
+  crmCompanyId    String
+  crmCompany      CrmCompany  @relation(fields: [crmCompanyId], references: [id], onDelete: Cascade)
+  crmContactId    String?
+  crmContact      CrmContact? @relation(fields: [crmContactId], references: [id], onDelete: SetNull)
+  contactIds      Json
+  title           String
+  description     String?
+  location        String?
+  meetingType     String
+  status          String
+  startAt         DateTime
+  endAt           DateTime
+  organizerId     String
+  participants    Json
+  notes           String?
+  tags            Json
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([tenantCompanyId, workspaceId])
+  @@index([tenantCompanyId, crmCompanyId])
+  @@index([tenantCompanyId, crmContactId])
+  @@index([tenantCompanyId, status])
+}
+
+model CrmTask {
+  id              String      @id
+  tenantCompanyId String
+  tenantCompany   Company     @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  workspaceId     String
+  crmCompanyId    String
+  crmCompany      CrmCompany  @relation(fields: [crmCompanyId], references: [id], onDelete: Cascade)
+  crmContactId    String?
+  crmContact      CrmContact? @relation(fields: [crmContactId], references: [id], onDelete: SetNull)
+  meetingId       String?
+  title           String
+  description     String?
+  taskType        String
+  priority        String
+  status          String
+  assignedTo      String
+  dueDate         DateTime
+  completedAt     DateTime?
+  tags            Json
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([tenantCompanyId, workspaceId])
+  @@index([tenantCompanyId, crmCompanyId])
+  @@index([tenantCompanyId, crmContactId])
+  @@index([tenantCompanyId, status])
+}
+
+model CrmNote {
+  id              String      @id
+  tenantCompanyId String
+  tenantCompany   Company     @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  workspaceId     String
+  crmCompanyId    String
+  crmCompany      CrmCompany  @relation(fields: [crmCompanyId], references: [id], onDelete: Cascade)
+  crmContactId    String?
+  crmContact      CrmContact? @relation(fields: [crmContactId], references: [id], onDelete: SetNull)
+  meetingId       String?
+  taskId          String?
+  title           String
+  content         String
+  visibility      String
+  authorId        String
+  tags            Json
+  attachments     Json
+  archivedAt      DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([tenantCompanyId, workspaceId])
+  @@index([tenantCompanyId, crmCompanyId])
+  @@index([tenantCompanyId, crmContactId])
+  @@index([tenantCompanyId, archivedAt])
 }
 
 model SalesQuote {

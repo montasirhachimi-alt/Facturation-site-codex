@@ -4,14 +4,17 @@ import { crmFeatureVisibility } from "@/modules/crm/crm-feature-visibility";
 const tabs: Array<{ id: CompanyDetailsTab; label: string }> = [
   { id: "overview", label: "Vue d'ensemble" },
   { id: "contacts", label: "Contacts" },
+  { id: "meetings", label: "Réunions" },
+  { id: "tasks", label: "Tâches" },
+  { id: "notes", label: "Notes" },
   { id: "opportunities", label: "Opportunités" },
   { id: "quotes", label: "Devis" },
   { id: "invoices", label: "Factures" },
+  { id: "payments", label: "Paiements" },
   ...(crmFeatureVisibility.companyTabs.customers ? [{ id: "customers" as const, label: "Clients liés" }] : []),
   ...(crmFeatureVisibility.companyTabs.sales ? [{ id: "sales" as const, label: "Ventes" }] : []),
   ...(crmFeatureVisibility.companyTabs.projects ? [{ id: "projects" as const, label: "Projets" }] : []),
   ...(crmFeatureVisibility.companyTabs.activity ? [{ id: "activity" as const, label: "Activité" }] : []),
-  ...(crmFeatureVisibility.companyTabs.notes ? [{ id: "notes" as const, label: "Notes" }] : []),
   ...(crmFeatureVisibility.companyTabs.settings ? [{ id: "settings" as const, label: "Paramètres" }] : [])
 ];
 

@@ -8,12 +8,12 @@ import { ActivityService } from "@/modules/crm/activities";
 import { crmActivitySeed } from "@/modules/crm/activities/ui/activities.seed";
 import { CRM_COMPANIES_WORKSPACE_ID } from "@/modules/crm/companies/ui/companies.seed";
 import { crmCompanyLocalService, subscribeToCrmCompanyStore } from "@/modules/crm/companies/ui/company-local-store";
-import { MeetingService } from "@/modules/crm/meetings";
-import { CRM_MEETINGS_WORKSPACE_ID, CRM_MEETINGS_USER_ID, crmMeetingSeed } from "@/modules/crm/meetings/ui/meetings.seed";
-import { NoteService } from "@/modules/crm/notes";
-import { CRM_NOTES_WORKSPACE_ID, CRM_NOTES_USER_ID, crmNoteSeed } from "@/modules/crm/notes/ui/notes.seed";
-import { TaskService } from "@/modules/crm/tasks";
-import { CRM_TASKS_WORKSPACE_ID, CRM_TASKS_USER_ID, crmTaskSeed } from "@/modules/crm/tasks/ui/tasks.seed";
+import { CRM_MEETINGS_WORKSPACE_ID, CRM_MEETINGS_USER_ID } from "@/modules/crm/meetings/ui/meetings.seed";
+import { crmMeetingLocalService, subscribeToCrmMeetingStore } from "@/modules/crm/meetings/ui/meeting-local-store";
+import { CRM_NOTES_WORKSPACE_ID, CRM_NOTES_USER_ID } from "@/modules/crm/notes/ui/notes.seed";
+import { crmNoteLocalService, subscribeToCrmNoteStore } from "@/modules/crm/notes/ui/note-local-store";
+import { CRM_TASKS_WORKSPACE_ID, CRM_TASKS_USER_ID } from "@/modules/crm/tasks/ui/tasks.seed";
+import { crmTaskLocalService, subscribeToCrmTaskStore } from "@/modules/crm/tasks/ui/task-local-store";
 import type { Activity, ActivityPriority, ActivityStatus, ActivityType } from "@/modules/crm/activities";
 import type { Company } from "@/modules/crm/companies";
 import type { Meeting, MeetingStatus, MeetingType } from "@/modules/crm/meetings";
@@ -166,9 +166,9 @@ export function useContactDetails(contactId: string) {
   const [contactService] = useState(() => crmContactLocalService);
   const [companyService] = useState(() => crmCompanyLocalService);
   const [activityService] = useState(() => new ActivityService({ seed: crmActivitySeed }));
-  const [meetingService] = useState(() => new MeetingService({ seed: crmMeetingSeed }));
-  const [noteService] = useState(() => new NoteService({ seed: crmNoteSeed }));
-  const [taskService] = useState(() => new TaskService({ seed: crmTaskSeed }));
+  const [meetingService] = useState(() => crmMeetingLocalService);
+  const [noteService] = useState(() => crmNoteLocalService);
+  const [taskService] = useState(() => crmTaskLocalService);
 
   const readDecision = useMemo(
     () =>
@@ -247,9 +247,15 @@ export function useContactDetails(contactId: string) {
     const refresh = () => setVersion((value) => value + 1);
     const unsubscribeContacts = subscribeToCrmContactStore(refresh);
     const unsubscribeCompanies = subscribeToCrmCompanyStore(refresh);
+    const unsubscribeMeetings = subscribeToCrmMeetingStore(refresh);
+    const unsubscribeTasks = subscribeToCrmTaskStore(refresh);
+    const unsubscribeNotes = subscribeToCrmNoteStore(refresh);
     return () => {
       unsubscribeContacts();
       unsubscribeCompanies();
+      unsubscribeMeetings();
+      unsubscribeTasks();
+      unsubscribeNotes();
     };
   }, []);
 

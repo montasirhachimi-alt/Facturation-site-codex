@@ -9,7 +9,7 @@ import { crmCompanyLocalService, subscribeToCrmCompanyStore } from "../../compan
 import type { Company, CompanyId, UpdateCompanyInput } from "../../../company.types";
 import { CRM_COMPANIES_USER_ID, CRM_COMPANIES_WORKSPACE_ID } from "../../companies.seed";
 
-export type CompanyDetailsTab = "overview" | "contacts" | "opportunities" | "customers" | "sales" | "quotes" | "projects" | "invoices" | "activity" | "notes" | "settings";
+export type CompanyDetailsTab = "overview" | "contacts" | "meetings" | "tasks" | "notes" | "opportunities" | "quotes" | "invoices" | "payments" | "customers" | "sales" | "projects" | "activity" | "settings";
 
 const emptyCompanyForm: CompanyFormState = {
   legalName: "",

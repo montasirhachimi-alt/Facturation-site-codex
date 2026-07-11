@@ -150,10 +150,10 @@ export function InvoiceDetailsWorkspace({ invoiceId }: { invoiceId: string }) {
       <EntityHeader
         breadcrumb={["Ventes", "Factures", invoice.number]}
         title={invoice.number}
-        description={`Facture commerciale pour ${invoice.customerName}.`}
+        description={`Facture commerciale pour ${companyLabel}.`}
         meta={
           <div className="flex flex-wrap items-center gap-2">
-            <InfoCard>{invoice.customerName}</InfoCard>
+            <InfoCard>{companyLabel}</InfoCard>
             <InvoiceStatusBadge status={invoice.status} />
             <Link href="/sales/invoices" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-hicotech-blue dark:border-hicotech-dark-border">
               <ArrowLeft size={14} />
@@ -178,9 +178,8 @@ export function InvoiceDetailsWorkspace({ invoiceId }: { invoiceId: string }) {
           <SectionCard className="p-4">
             <h2 className="font-display text-lg font-bold text-hicotech-navy dark:text-white">Informations facture</h2>
             <div className="mt-5 grid gap-3 md:grid-cols-2">
-              <InfoRow label="Client" value={invoice.customerName} />
               <InfoRow label="Société" value={companyLabel} />
-              <InfoRow label="Contact" value={contactLabel} />
+              <InfoRow label="À l'attention" value={contactLabel} />
               <InfoRow label="Devis source" value={quote?.number ?? "Non lié"} />
               <InfoRow label="Responsable" value={invoice.ownerId} />
               <InfoRow label="Émission" value={formatDate(invoice.issueDate)} />

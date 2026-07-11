@@ -39,6 +39,13 @@ export class MeetingService {
     }
   }
 
+  replaceMeetings(meetings: readonly Meeting[]) {
+    this.meetings.clear();
+    for (const meeting of meetings) {
+      this.meetings.set(meeting.id, freezeMeeting(meeting));
+    }
+  }
+
   listMeetings(filters: MeetingFilters, sort: MeetingSort = DEFAULT_MEETING_SORT): MeetingListResult {
     if (filters.permission && !filters.permission.allowed) {
       return createListResult([], 0, filters.workspaceId, filters.companyId, filters.contactId);

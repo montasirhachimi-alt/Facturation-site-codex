@@ -514,3 +514,41 @@ Plugin Runtime should host plugin state and lifecycle, not duplicate manifest va
 ### Consequences
 
 Plugin Runtime remains framework-independent and deterministic. It registers immutable descriptors, tracks lifecycle state, prepares permission decisions and exposes lookup/state APIs. It does not execute plugin code, dynamically import modules, install plugins, call remote resources or implement marketplace behavior.
+
+## ADR-021 — Company-Centric CRM Business Model
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+
+### Decision
+
+BOSIACO CRM is company-centric for the current B2B workflow. Company is the visible commercial account. Contacts, Opportunities, Quotes, Invoices and Payments belong to Companies.
+
+Customer is retained as an internal compatibility and future-edition layer, but it is no longer exposed as an independent visible business object in default navigation, Command Center creation, Smart Entity Picker selection or Sales document creation.
+
+### Motivation
+
+The previous Company + Customer model duplicated account selection in normal B2B selling. Users had to decide between two concepts that represented the same business account, which increased cognitive load and made Quote/Invoice creation feel less direct.
+
+### Consequences
+
+New Quotes and Invoices require Company and optionally Contact. Legacy `customerName` fields are filled from the selected Company label to preserve existing persistence, store, PDF and search contracts. `CrmCustomer` tables and Customer services remain available for compatibility and possible future B2C or advanced account editions.
+
+## ADR-022 — CRM Activities V1 Persistence Scope
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+
+### Decision
+
+Meetings, Tasks and Notes are persistent CRM V1 capabilities linked to a required Company and an optional Contact. Timeline remains hidden until BOSIACO has a real persisted CRM event source.
+
+### Motivation
+
+Manual review showed that Meetings, Tasks, Notes and Timeline looked like functional modules but were driven by demo-only data. This created an unfinished-product feeling and broke user confidence.
+
+### Consequences
+
+`CrmMeeting`, `CrmTask` and `CrmNote` are tenant-scoped Prisma models. Their UI workspaces reuse module-owned local services hydrated by persistence. Timeline is not exposed in navigation, and `/crm/activities` redirects to Companies for route compatibility.

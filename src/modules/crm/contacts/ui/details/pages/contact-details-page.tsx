@@ -3,10 +3,8 @@
 import { EntityEmptyState, EntityErrorState, EntityPageLayout } from "@/ui";
 import { Building2, CalendarClock, FileText, NotebookPen, TrendingUp, UserRound } from "lucide-react";
 import { ContactActivitiesPanel } from "../widgets/contact-activities-panel";
-import { ContactMeetingsPanel } from "@/modules/crm/meetings/ui/contact-meetings-panel";
-import { ContactNotesPanel } from "@/modules/crm/notes/ui/contact-notes-panel";
+import { CrmMeetingsWorkspace, CrmNotesWorkspace, CrmTasksWorkspace } from "@/modules/crm/activities/ui/crm-activity-workspaces";
 import { ContactOpportunitiesPanel } from "@/modules/crm/opportunities/ui/contact-opportunities-panel";
-import { ContactTasksPanel } from "@/modules/crm/tasks/ui/contact-tasks-panel";
 import { ContactQuotesPanel } from "@/modules/sales/quotes/ui";
 import { ContactInvoicesPanel } from "@/modules/sales/invoices/ui";
 import { ContextualActionStrip, useContextualActions } from "@/platform/contextual-actions";
@@ -124,11 +122,11 @@ export function ContactDetailsPage({ contactId }: { contactId: string }) {
           ) : state.activeTab === "activities" ? (
             <ContactActivitiesPanel activities={state.activities} filters={state.activityFilters} onFiltersChange={state.setActivityFilters} />
           ) : state.activeTab === "meetings" ? (
-            <ContactMeetingsPanel meetings={state.meetings} filters={state.meetingFilters} onFiltersChange={state.setMeetingFilters} />
+            <CrmMeetingsWorkspace companyId={contact.companyId} contactId={contact.id} embedded />
           ) : state.activeTab === "tasks" ? (
-            <ContactTasksPanel tasks={state.tasks} filters={state.taskFilters} onFiltersChange={state.setTaskFilters} />
+            <CrmTasksWorkspace companyId={contact.companyId} contactId={contact.id} embedded />
           ) : state.activeTab === "notes" ? (
-            <ContactNotesPanel notes={state.notes} filters={state.noteFilters} onFiltersChange={state.setNoteFilters} />
+            <CrmNotesWorkspace companyId={contact.companyId} contactId={contact.id} embedded />
           ) : (
             <ContactPlaceholderTab label={state.activeTab} />
           )}

@@ -3,7 +3,6 @@ import { SectionCard } from "@/ui";
 
 const relations = [
   { label: "Contacts", icon: UsersRound, value: "Connecté" },
-  { label: "Clients", icon: UsersRound, value: "Masqué" },
   { label: "Projets", icon: BriefcaseBusiness, value: "Masqué" },
   { label: "Factures", icon: ReceiptText, value: "Connecté" },
   { label: "Opportunités", icon: HandCoins, value: "Connecté" },
@@ -18,7 +17,7 @@ export function CompanyRelationsPanel() {
         <h2 className="font-display text-base font-bold text-hicotech-navy dark:text-white">Relations CRM</h2>
         <p className="text-xs font-medium text-slate-500 dark:text-slate-300">État des liens disponibles autour de la société.</p>
       </div>
-      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
         {relations.map((relation) => {
           const Icon = relation.icon;
           return (

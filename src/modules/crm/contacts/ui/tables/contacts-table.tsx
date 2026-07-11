@@ -49,7 +49,11 @@ export function ContactsTable({
   onToggleAll,
   onToggleRow,
   selectedIds,
-  sort
+  sort,
+  subtitle = "Contacts liés uniquement à cette société.",
+  title = "Contacts",
+  emptyTitle = "Aucun contact pour cette société",
+  emptyDescription = "Ajoutez les personnes clés pour préparer les échanges, réunions et opportunités."
 }: {
   canCreate: boolean;
   canWrite: boolean;
@@ -62,6 +66,10 @@ export function ContactsTable({
   onToggleRow: (id: ContactId) => void;
   selectedIds: readonly ContactId[];
   sort: Readonly<{ field: ContactSortKey; direction: "asc" | "desc" }>;
+  subtitle?: string;
+  title?: string;
+  emptyTitle?: string;
+  emptyDescription?: string;
 }) {
   const router = useRouter();
   const allVisibleSelected = contacts.length > 0 && contacts.every((contact) => selectedIds.includes(contact.id));
@@ -71,7 +79,7 @@ export function ContactsTable({
       allVisibleSelected={allVisibleSelected}
       bulkLabel={`${selectedIds.length} contact(s) sélectionné(s)`}
       columns={columns}
-      emptyState={<EntityEmptyState icon={UsersRound} title="Aucun contact pour cette société" description="Ajoutez les personnes clés pour préparer les échanges, réunions et opportunités." action={canCreate ? <button type="button" onClick={onCreate} className="rounded-xl bg-hicotech-blue px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-blue-200/60 transition hover:bg-blue-700">Ajouter contact</button> : null} />}
+      emptyState={<EntityEmptyState icon={UsersRound} title={emptyTitle} description={emptyDescription} action={canCreate ? <button type="button" onClick={onCreate} className="rounded-xl bg-hicotech-blue px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-blue-200/60 transition hover:bg-blue-700">Ajouter contact</button> : null} />}
       getRowLabel={(contact) => contact.fullName}
       items={contacts}
       onSort={onSort}
@@ -87,8 +95,8 @@ export function ContactsTable({
       )}
       selectedIds={selectedIds}
       sort={sort}
-      subtitle="Contacts liés uniquement à cette société."
-      title="Contacts"
+      subtitle={subtitle}
+      title={title}
     />
   );
 }

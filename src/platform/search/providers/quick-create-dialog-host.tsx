@@ -15,10 +15,6 @@ import { ContactDialog } from "@/modules/crm/contacts/ui/dialogs/contact-dialog"
 import type { ContactFormState } from "@/modules/crm/contacts/ui/hooks/use-company-contacts-workspace";
 import { CRM_CONTACTS_USER_ID, CRM_CONTACTS_WORKSPACE_ID } from "@/modules/crm/contacts/ui/contacts.seed";
 import { crmContactLocalService, notifyCrmContactStoreUpdated } from "@/modules/crm/contacts/ui/contact-local-store";
-import { CustomerDialog } from "@/modules/crm/customers/ui/dialogs/customer-dialog";
-import type { CustomerFormState } from "@/modules/crm/customers/ui/hooks/use-customers-page";
-import { CRM_CUSTOMERS_USER_ID, CRM_CUSTOMERS_WORKSPACE_ID } from "@/modules/crm/customers/ui/customers.seed";
-import { crmCustomerLocalService, notifyCrmCustomerStoreUpdated } from "@/modules/crm/customers/ui/customer-local-store";
 import { QuoteDialog } from "@/modules/sales/quotes/ui/quote-dialog";
 import { InvoiceDialog } from "@/modules/sales/invoices/ui/invoice-dialog";
 import { getCompanyPickerItems, getContactPickerItems, subscribeToCrmPickerSources } from "@/ui/forms/entity-picker.crm-data";
@@ -58,18 +54,6 @@ const emptyContactForm: ContactFormState = {
   tags: ""
 };
 
-const emptyCustomerForm: CustomerFormState = {
-  displayName: "",
-  companyId: "",
-  companyName: "",
-  email: "",
-  phone: "",
-  status: "lead",
-  type: "company",
-  tags: "",
-  notes: ""
-};
-
 const invoicePickerItems = getInvoicePickerItems();
 
 type QuickCreateDialogHostProps = {
@@ -82,7 +66,6 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
   const [companyForm, setCompanyForm] = useState<CompanyFormState>(emptyCompanyForm);
   const [contactForm, setContactForm] = useState<ContactFormState>(emptyContactForm);
   const [contactCompanyId, setContactCompanyId] = useState("");
-  const [customerForm, setCustomerForm] = useState<CustomerFormState>(emptyCustomerForm);
   const [error, setError] = useState<string | null>(null);
   const [pickerVersion, setPickerVersion] = useState(0);
   const liveCompanyPickerItems = useMemo(() => {
@@ -98,12 +81,23 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
     setCompanyForm(emptyCompanyForm);
     setContactForm(emptyContactForm);
     setContactCompanyId("");
-    setCustomerForm(emptyCustomerForm);
     setError(null);
     onClose();
   }, [onClose]);
 
   useEffect(() => subscribeToCrmPickerSources(() => setPickerVersion((value) => value + 1)), []);
+
+  useEffect(() => {
+    const routeByAction: Partial<Record<QuickCreateActionId, string>> = {
+      "quick-create.meeting": "/crm/meetings",
+      "quick-create.task": "/crm/tasks",
+      "quick-create.note": "/crm/notes"
+    };
+    const route = activeAction ? routeByAction[activeAction] : undefined;
+    if (!route) return;
+    onClose();
+    router.push(route);
+  }, [activeAction, onClose, router]);
 
   async function submitCompany() {
     const snapshot = crmCompanyLocalService.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID, includeArchived: true }).companies;
@@ -135,38 +129,6 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
       return false;
     }
     notifyCrmCompanyStoreUpdated();
-    closeAndReset();
-    return true;
-  }
-
-  async function submitCustomer() {
-    const snapshot = crmCustomerLocalService.listCustomers({ workspaceId: CRM_CUSTOMERS_WORKSPACE_ID, includeArchived: true }).customers;
-    const result = crmCustomerLocalService.createCustomer({
-      workspaceId: CRM_CUSTOMERS_WORKSPACE_ID,
-      displayName: customerForm.displayName,
-      companyId: customerForm.companyId ? customerForm.companyId as CompanyId : undefined,
-      companyName: customerForm.companyName,
-      email: customerForm.email,
-      phone: customerForm.phone,
-      status: customerForm.status,
-      type: customerForm.type,
-      source: "manual",
-      tags: customerForm.tags.split(",").map((item) => item.trim()).filter(Boolean),
-      notes: customerForm.notes,
-      createdBy: CRM_CUSTOMERS_USER_ID
-    });
-    if (!result.customer) {
-      setError(result.validation.issues[0]?.message ?? "Impossible de créer le client.");
-      return false;
-    }
-    try {
-      await persistCrmSalesRecord("customer", result.customer);
-    } catch {
-      crmCustomerLocalService.replaceCustomers(snapshot);
-      setError("Le client n'a pas pu être enregistré dans la base. Vérifiez la connexion puis réessayez.");
-      return false;
-    }
-    notifyCrmCustomerStoreUpdated();
     closeAndReset();
     return true;
   }
@@ -247,19 +209,6 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
             />
           </FormSection>
         }
-      />
-    );
-  }
-
-  if (activeAction === "quick-create.customer") {
-    return (
-      <CustomerDialog
-        error={error}
-        form={customerForm}
-        onChange={setCustomerForm}
-        onClose={closeAndReset}
-        onSubmit={submitCustomer}
-        open
       />
     );
   }

@@ -1,22 +1,21 @@
 "use client";
 
 import { EntityEmptyState, EntityErrorState, EntityPageLayout } from "@/ui";
-import { Building2, ContactRound, Receipt, TrendingUp } from "lucide-react";
+import { Building2, ContactRound, Receipt, TrendingUp, WalletCards } from "lucide-react";
 import { CompanyContactsWorkspace } from "@/modules/crm/contacts";
-import { CompanyActivityTimeline } from "@/modules/crm/activities/ui/company-activity-timeline";
+import { CrmMeetingsWorkspace, CrmNotesWorkspace, CrmTasksWorkspace } from "@/modules/crm/activities/ui/crm-activity-workspaces";
 import { CompanyOpportunitiesPanel } from "@/modules/crm/opportunities/ui/company-opportunities-panel";
 import { CompanyQuotesPanel } from "@/modules/sales/quotes/ui";
 import { CompanyInvoicesPanel } from "@/modules/sales/invoices/ui";
+import { CompanyPaymentsPanel } from "@/modules/sales/payments/ui";
 import { ContextualActionStrip, useContextualActions } from "@/platform/contextual-actions";
 import { CompanyDetailsHeader } from "../components/company-details-header";
 import { CompanyDetailsTabs } from "../components/company-details-tabs";
 import { CompanyInspectorPanel } from "../components/company-inspector-panel";
-import { CompanyNotesPanel } from "../components/company-notes-panel";
 import { CompanyOverview } from "../components/company-overview";
 import { CompanyPlaceholderTab } from "../components/company-placeholder-tab";
 import { CompanyRelationshipGraph } from "../components/company-relationship-graph";
 import { CompanySummaryCards } from "../components/company-summary-cards";
-import { CompanyTasksWidget } from "../components/company-tasks-widget";
 import { CompanyDialog } from "../../dialogs/company-dialog";
 import { useCompanyDetails } from "../hooks/use-company-details";
 
@@ -55,13 +54,23 @@ export function CompanyDetailsPage({ companyId }: { companyId: string }) {
       available: Boolean(state.company)
     },
     {
-      id: "company.show-customers",
+      id: "company.show-invoices",
       entityType: "company",
       label: "Factures",
       description: "Consulter les factures liées à cette société.",
       icon: Receipt,
       priority: 40,
       onSelect: () => state.setActiveTab("invoices"),
+      available: Boolean(state.company)
+    },
+    {
+      id: "company.show-payments",
+      entityType: "company",
+      label: "Paiements",
+      description: "Consulter les encaissements liés à cette société.",
+      icon: WalletCards,
+      priority: 50,
+      onSelect: () => state.setActiveTab("payments"),
       available: Boolean(state.company)
     }
   ]);
@@ -99,23 +108,24 @@ export function CompanyDetailsPage({ companyId }: { companyId: string }) {
           {state.activeTab === "overview" ? (
             <>
               <CompanyRelationshipGraph />
-              <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_360px]">
-                <CompanyActivityTimeline companyId={company.id} />
-                <div className="space-y-4">
-                  <CompanyNotesPanel />
-                  <CompanyTasksWidget />
-                </div>
-              </div>
               <CompanyOverview company={company} />
             </>
           ) : state.activeTab === "contacts" ? (
             <CompanyContactsWorkspace companyId={company.id} />
+          ) : state.activeTab === "meetings" ? (
+            <CrmMeetingsWorkspace companyId={company.id} embedded />
+          ) : state.activeTab === "tasks" ? (
+            <CrmTasksWorkspace companyId={company.id} embedded />
+          ) : state.activeTab === "notes" ? (
+            <CrmNotesWorkspace companyId={company.id} embedded />
           ) : state.activeTab === "opportunities" ? (
             <CompanyOpportunitiesPanel companyId={company.id} />
           ) : state.activeTab === "quotes" ? (
             <CompanyQuotesPanel companyId={company.id} />
           ) : state.activeTab === "invoices" ? (
             <CompanyInvoicesPanel companyId={company.id} />
+          ) : state.activeTab === "payments" ? (
+            <CompanyPaymentsPanel companyId={company.id} />
           ) : (
             <CompanyPlaceholderTab label={state.activeTab} />
           )}

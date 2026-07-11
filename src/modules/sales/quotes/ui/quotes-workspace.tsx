@@ -103,7 +103,7 @@ export function QuotesWorkspace() {
 
       <SectionCard className="p-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <ProductSectionHeader icon={Filter} title="Qualification des propositions" description="Filtrez le portefeuille par client, société, opportunité ou statut." />
+          <ProductSectionHeader icon={Filter} title="Qualification des propositions" description="Filtrez le portefeuille par société, opportunité ou statut." />
           <button
             type="button"
             onClick={() => setDialogOpen(true)}
@@ -201,8 +201,8 @@ function QuotesTable({ companyById, onCreate, onSort, quotes, sort }: { companyB
             <tr>
               {[
                 ["number", "Numéro"],
-                ["customerName", "Client"],
                 ["company", "Société"],
+                ["contact", "Attention"],
                 ["opportunity", "Opportunité"],
                 ["status", "Statut"],
                 ["issueDate", "Émission"],
@@ -211,7 +211,7 @@ function QuotesTable({ companyById, onCreate, onSort, quotes, sort }: { companyB
                 ["ownerId", "Responsable"]
               ].map(([field, label]) => (
                 <th key={field} className="px-4 py-2 font-display text-[10px] font-bold uppercase tracking-[0.11em] text-slate-500 dark:text-slate-300">
-                  {["company", "opportunity"].includes(field) ? label : (
+                  {["company", "contact", "opportunity"].includes(field) ? label : (
                     <button type="button" onClick={() => onSort(field as QuoteSort["field"])} className="rounded-md focus:outline-none focus:ring-2 focus:ring-hicotech-blue/30">
                       {label}{sort.field === field ? sort.direction === "asc" ? " ↑" : " ↓" : ""}
                     </button>
@@ -231,8 +231,8 @@ function QuotesTable({ companyById, onCreate, onSort, quotes, sort }: { companyB
                   className={`border-t border-slate-100 outline-none transition hover:bg-hicotech-sky/55 hover:shadow-[inset_4px_0_0_#0D6EFD] focus:bg-hicotech-sky/70 focus:shadow-[inset_4px_0_0_#0D6EFD] focus:ring-2 focus:ring-inset focus:ring-hicotech-blue/20 dark:border-hicotech-dark-border dark:hover:bg-hicotech-dark-page/60 ${index === tableNavigation.activeIndex ? "bg-hicotech-sky/55 shadow-[inset_4px_0_0_#0D6EFD] dark:bg-hicotech-blue/10" : ""}`}
                 >
                   <td className="px-4 py-3 font-bold text-hicotech-navy dark:text-white">{quote.number}</td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{quote.customerName}</td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{companyById.get(quote.companyId)?.displayName ?? quote.companyName ?? "Non définie"}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{quote.contactName ?? "-"}</td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{quote.opportunityId ? opportunityById.get(quote.opportunityId)?.title ?? quote.opportunityName ?? "Opportunité" : quote.opportunityName ?? "-"}</td>
                   <td className="px-4 py-3"><QuoteStatusBadge status={quote.status} /></td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{formatDate(quote.issueDate)}</td>

@@ -6,7 +6,7 @@ import {
 } from "@/server/persistence/crm-sales-repository";
 import { requirePersistenceTenantScope } from "@/server/persistence/tenant-scope";
 
-const resources = new Set<CrmSalesPersistenceResource>(["company", "customer", "contact", "quote", "invoice", "payment"]);
+const resources = new Set<CrmSalesPersistenceResource>(["company", "customer", "contact", "meeting", "task", "note", "quote", "invoice", "payment"]);
 
 export async function GET() {
   try {

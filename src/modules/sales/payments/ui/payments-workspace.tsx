@@ -73,12 +73,12 @@ export function PaymentsWorkspace() {
         <MetricCard icon={WalletCards} label="Paiements" value={String(payments.length)} helper="Encaissements visibles" />
         <MetricCard icon={CircleDollarSign} label="Montant reçu" value={formatQuoteMoney(stats.received, "MAD")} helper="Total filtré" />
         <MetricCard icon={CreditCard} label="À rapprocher" value={String(stats.recorded)} helper="En attente finance" />
-        <MetricCard icon={Building2} label="Clients" value={String(stats.customers)} helper="Comptes concernés" />
+        <MetricCard icon={Building2} label="Sociétés" value={String(stats.companies)} helper="Comptes concernés" />
         <MetricCard icon={Filter} label="Rapprochés" value={String(stats.reconciled)} helper="Paiements validés" />
       </section>
 
       <SectionCard className="p-4">
-        <ProductSectionHeader icon={Filter} title="Rythme des encaissements" description="Filtrez par facture, client, mode ou statut de paiement." />
+        <ProductSectionHeader icon={Filter} title="Rythme des encaissements" description="Filtrez par facture, société, mode ou statut de paiement." />
         <div className="mt-4 grid gap-2 lg:grid-cols-2 xl:grid-cols-5">
           <div className="xl:col-span-2">
             <EntitySearchBar value={filters.query} onChange={(value) => setFilters({ ...filters, query: value })} placeholder="Rechercher un paiement..." />
@@ -156,7 +156,7 @@ function PaymentsTable({
       <div className="relative overflow-hidden border-b border-slate-200 bg-hicotech-navy px-4 py-3.5 text-white dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
         <div className="absolute right-0 top-0 h-full w-28 bg-white/5" />
         <h2 className="relative font-display text-lg font-bold text-white">Liste des paiements</h2>
-        <p className="relative mt-0.5 text-xs font-medium text-cyan-50/70">Encaissements clients reliés aux factures commerciales.</p>
+        <p className="relative mt-0.5 text-xs font-medium text-cyan-50/70">Encaissements société reliés aux factures commerciales.</p>
       </div>
       <div className="overflow-x-auto" onKeyDown={tableNavigation.onKeyDown}>
         <table className="w-full min-w-[1120px] text-sm">
@@ -165,7 +165,6 @@ function PaymentsTable({
               {[
                 ["number", "Numéro"],
                 ["invoiceNumber", "Facture"],
-                ["customerName", "Client"],
                 ["company", "Société"],
                 ["method", "Mode"],
                 ["receivedAt", "Reçu le"],
@@ -191,7 +190,6 @@ function PaymentsTable({
               >
                 <td className="px-4 py-3 font-bold text-hicotech-navy dark:text-white">{payment.number}</td>
                 <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{payment.invoiceNumber}</td>
-                <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{payment.customerName}</td>
                 <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{companyById.get(payment.companyId)?.displayName ?? "Non définie"}</td>
                 <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{PAYMENT_METHOD_LABELS[payment.method]}</td>
                 <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{formatDate(payment.receivedAt)}</td>
@@ -224,12 +222,12 @@ export function PaymentStatusBadge({ status }: { status: PaymentStatus }) {
 }
 
 function buildPaymentStats(payments: readonly Payment[]) {
-  const customers = new Set(payments.map((payment) => payment.companyId)).size;
+  const companies = new Set(payments.map((payment) => payment.companyId)).size;
   return {
     received: payments.reduce((total, payment) => total + payment.amount, 0),
     recorded: payments.filter((payment) => payment.status === "recorded").length,
     reconciled: payments.filter((payment) => payment.status === "reconciled").length,
-    customers
+    companies
   };
 }
 

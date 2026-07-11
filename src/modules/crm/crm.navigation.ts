@@ -24,25 +24,11 @@ export const crmNavigation = Object.freeze({
       metadata: { icon: "Building2", permissionModule: "clients", activePath: `${CRM_MODULE_ROUTE}/companies` }
     },
     {
-      id: "crm.customers",
-      label: "Clients",
-      route: "/clients",
-      permission: "crm.customer.read",
-      metadata: { icon: "Users", permissionModule: "clients", activePath: "/clients" }
-    },
-    {
       id: "crm.contacts",
       label: "Contacts",
       route: `${CRM_MODULE_ROUTE}/contacts`,
       permission: "crm.contact.read",
       metadata: { icon: "ContactRound", permissionModule: "clients", activePath: `${CRM_MODULE_ROUTE}/contacts`, helper: "Contacts ouvre le répertoire CRM tout en conservant les liens vers les sociétés." }
-    },
-    {
-      id: "crm.activities",
-      label: "Activités / Timeline",
-      route: `${CRM_MODULE_ROUTE}/activities`,
-      permission: "crm.activity.read",
-      metadata: { icon: "ClipboardList", permissionModule: "clients", activePath: `${CRM_MODULE_ROUTE}/activities`, helper: "Activités ouvre la timeline CRM avec liens vers sociétés et contacts." }
     },
     {
       id: "crm.meetings",

@@ -202,16 +202,18 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - Durable CRM/Sales Persistence Foundation adds tenant-scoped Prisma models, a server persistence repository, a client hydration bridge and write-through paths for Companies, Customers, Contacts, Quotes, Invoices and stable Payments so core business records can survive refresh and restart once the local PostgreSQL migration is applied.
 - Database Activation & Persistence Verification tightened CRM/Sales writes so dialogs wait for persistence confirmation, rollback local caches on failure and keep entered form data visible.
 - Migration Baseline Repair adds the missing pre-PERSIST baseline migration before the CRM/Sales persistence migration, allowing Prisma to replay the complete schema from an empty PostgreSQL database and confirming Company, Customer, Contact, Quote, Invoice and Payment records survive a dev-server restart.
+- Company-Centric CRM Simplification makes Société the visible commercial account, hides standalone Customer entry points, maps Quote/Invoice compatibility customer fields from the selected Company and adds Company detail access to Payments.
+- ZF-R6 CRM Contacts & Activities Foundation unifies the global Contacts directory with the persisted Contact source, adds tenant-scoped persisted Meetings, Tasks and Notes, replaces demo-only CRM activity pages with functional workspaces and hides Timeline until a real persisted event source exists.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passed during PERSIST-001. |
-| `npm run build` | Yes | Passed during PERSIST-001; the known PDF preview image warning remains. |
-| `npm run validate:runtime` | Yes for Zero Friction work | Passed during PERSIST-001. |
-| Prisma schema validation | Yes for persistence work | Passed during PERSIST-001B with the documented local PostgreSQL `DATABASE_URL`. |
-| Prisma migration replay | Yes for persistence work | Passed during PERSIST-001B on the local development database and a fresh empty replay database. |
+| `npm run typecheck` | Yes | Passed during ZF-R6. |
+| `npm run build` | Yes | Passed during ZF-R6; the known PDF preview image warning remains. |
+| `npm run validate:runtime` | Yes for Zero Friction work | Passed during ZF-R6. |
+| Prisma schema validation | Yes for persistence work | Passed during ZF-R6. |
+| Prisma migration replay | Yes for persistence work | Passed during ZF-R6 on a fresh local replay database. |
 
 ## Repository Health
 

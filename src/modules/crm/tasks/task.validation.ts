@@ -7,7 +7,7 @@ export type TaskValidationIssueCode =
   | "missing_task_id"
   | "missing_workspace"
   | "missing_company"
-  | "missing_contact"
+  | "invalid_contact"
   | "missing_title"
   | "missing_assignee"
   | "invalid_type"
@@ -33,7 +33,6 @@ export function validateCreateTaskInput(input: CreateTaskInput): TaskValidationR
 
   addWorkspaceIssue(input.workspaceId, issues);
   addCompanyIssue(input.companyId, issues);
-  addContactIssue(input.contactId, issues);
   addTitleIssue(input.title, issues);
   addAssigneeIssue(input.assignedTo, issues);
   addTypeIssue(input.taskType, issues);
@@ -78,7 +77,7 @@ function addCompanyIssue(companyId: CompanyId | undefined, issues: TaskValidatio
 }
 
 function addContactIssue(contactId: ContactId | undefined, issues: TaskValidationIssue[]) {
-  if (!contactId?.trim()) issues.push({ code: "missing_contact", field: "contactId", message: "Contact id is required." });
+  if (!contactId?.trim()) issues.push({ code: "invalid_contact", field: "contactId", message: "Contact id is invalid." });
 }
 
 function addTitleIssue(title: string | undefined, issues: TaskValidationIssue[]) {

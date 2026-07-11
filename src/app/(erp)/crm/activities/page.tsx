@@ -1,5 +1,5 @@
-import { CrmActivitiesWorkspace } from "@/modules/crm/home/contextual-workspaces";
+import { redirect } from "next/navigation";
 
 export default function CrmActivitiesPage() {
-  return <CrmActivitiesWorkspace />;
+  redirect("/crm/companies");
 }
