@@ -11,6 +11,19 @@ export class QuoteService {
     }
   }
 
+  replaceQuotes(quotes: readonly Quote[]) {
+    this.quotes.clear();
+    for (const quote of quotes) {
+      this.quotes.set(quote.id, freezeQuote(quote));
+    }
+  }
+
+  upsertQuote(quote: Quote) {
+    const frozen = freezeQuote(quote);
+    this.quotes.set(frozen.id, frozen);
+    return frozen;
+  }
+
   listQuotes(filters: QuoteFilters, sort: QuoteSort = DEFAULT_QUOTE_SORT): QuoteListResult {
     const quotes = [...this.quotes.values()]
       .filter((quote) => quote.workspaceId === filters.workspaceId)
@@ -34,13 +47,18 @@ export class QuoteService {
       id: `quote-${Date.now()}` as QuoteId,
       workspaceId: input.workspaceId,
       number: `DEV-2026-${String(this.quotes.size + 1).padStart(3, "0")}`,
+      customerId: input.customerId,
       customerName: input.customerName.trim(),
       companyId: input.companyId,
+      companyName: cleanOptionalText(input.companyName),
       contactId: input.contactId,
+      contactName: cleanOptionalText(input.contactName),
       opportunityId: input.opportunityId,
+      opportunityName: cleanOptionalText(input.opportunityName),
       status: "draft",
       issueDate: now,
       expirationDate: addDays(now, input.validityDays),
+      validityDays: input.validityDays,
       currency: input.currency,
       items: input.items,
       discountRate: input.discountRate ?? 0,
@@ -53,6 +71,11 @@ export class QuoteService {
     this.quotes.set(quote.id, quote);
     return quote;
   }
+}
+
+function cleanOptionalText(value: string | undefined) {
+  const trimmed = value?.trim();
+  return trimmed || undefined;
 }
 
 export function freezeQuote(quote: Quote): Quote {

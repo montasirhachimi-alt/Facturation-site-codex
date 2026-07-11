@@ -12,6 +12,19 @@ export class InvoiceService {
     }
   }
 
+  replaceInvoices(invoices: readonly Invoice[]) {
+    this.invoices.clear();
+    for (const invoice of invoices) {
+      this.invoices.set(invoice.id, freezeInvoice(invoice));
+    }
+  }
+
+  upsertInvoice(invoice: Invoice) {
+    const frozen = freezeInvoice(invoice);
+    this.invoices.set(frozen.id, frozen);
+    return frozen;
+  }
+
   listInvoices(filters: InvoiceFilters, sort: InvoiceSort = DEFAULT_INVOICE_SORT): InvoiceListResult {
     const invoices = [...this.invoices.values()]
       .filter((invoice) => invoice.workspaceId === filters.workspaceId)
@@ -41,10 +54,14 @@ export class InvoiceService {
       id: `invoice-${Date.now()}` as InvoiceId,
       workspaceId: input.workspaceId,
       number: `FAC-2026-${String(this.invoices.size + 1).padStart(3, "0")}`,
+      customerId: input.customerId,
       customerName: input.customerName.trim(),
       companyId: input.companyId,
+      companyName: input.companyName?.trim(),
       contactId: input.contactId,
+      contactName: input.contactName?.trim(),
       opportunityId: input.opportunityId,
+      opportunityName: input.opportunityName?.trim(),
       quoteId: input.quoteId,
       status: input.status ?? "draft",
       issueDate: input.issueDate,

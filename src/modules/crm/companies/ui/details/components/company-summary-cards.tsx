@@ -1,15 +1,11 @@
-import { BriefcaseBusiness, FileText, HandCoins, ReceiptText, ShoppingCart, TrendingUp, UsersRound } from "lucide-react";
+import { BriefcaseBusiness, FileText, ReceiptText, UsersRound } from "lucide-react";
 import { MetricCard } from "@/ui";
 
 const summaryCards = [
   { icon: UsersRound, label: "Contacts", value: "0", helper: "Disponibles via l'onglet Contacts" },
-  { icon: UsersRound, label: "Clients liés", value: "0", helper: "Module client connecté plus tard" },
-  { icon: BriefcaseBusiness, label: "Projets", value: "0", helper: "Module projets à venir" },
-  { icon: ReceiptText, label: "Factures", value: "0", helper: "Connexion facturation future" },
-  { icon: HandCoins, label: "Opportunités ouvertes", value: "Voir", helper: "Pipeline commercial préparé" },
-  { icon: FileText, label: "Devis ouverts", value: "0", helper: "Module devis à connecter" },
-  { icon: ShoppingCart, label: "Commandes ouvertes", value: "0", helper: "Moteur de ventes futur" },
-  { icon: TrendingUp, label: "Revenu", value: "0 MAD", helper: "Placeholder financier" }
+  { icon: BriefcaseBusiness, label: "Opportunités", value: "Voir", helper: "Pipeline commercial" },
+  { icon: FileText, label: "Devis", value: "Voir", helper: "Documents commerciaux liés" },
+  { icon: ReceiptText, label: "Factures", value: "Voir", helper: "Suivi de facturation" }
 ];
 
 export function CompanySummaryCards() {

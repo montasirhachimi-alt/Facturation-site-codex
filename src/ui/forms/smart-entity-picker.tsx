@@ -30,7 +30,7 @@ export function SmartEntityPicker({
   initialCreateValue?: string;
   items: readonly EntityPickerItem[];
   label: string;
-  onCreate?: (value: string) => EntityPickerItem;
+  onCreate?: (value: string) => EntityPickerItem | Promise<EntityPickerItem>;
   onChange: (selection: { value: string; item: EntityPickerItem | null }) => void;
   placeholder?: string;
   value: string;
@@ -42,9 +42,11 @@ export function SmartEntityPicker({
   const [createOpen, setCreateOpen] = useState(false);
   const [createValue, setCreateValue] = useState("");
   const [createdItems, setCreatedItems] = useState<readonly EntityPickerItem[]>([]);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
-  const allItems = useMemo(() => [...createdItems, ...items], [createdItems, items]);
+  const allItems = useMemo(() => dedupeEntityPickerItems([...createdItems, ...items]), [createdItems, items]);
   const selectedItem = useMemo(() => findEntityPickerItem(allItems, value), [allItems, value]);
   const visibleItems = useMemo(() => filterEntityPickerItems(allItems, query), [allItems, query]);
   const createQuery = (initialCreateValue ?? query).trim();
@@ -99,16 +101,25 @@ export function SmartEntityPicker({
   function openCreateSurface() {
     if (!showCreateAction) return;
     setCreateValue(createQuery);
+    setCreateError(null);
     setCreateOpen(true);
   }
 
-  function submitCreate() {
+  async function submitCreate() {
     const trimmedValue = createValue.trim();
-    if (!trimmedValue || !onCreate) return;
-    const createdItem = onCreate(trimmedValue);
-    setCreatedItems((current) => [createdItem, ...current]);
-    selectItem(createdItem);
-    window.requestAnimationFrame(() => inputRef.current?.focus());
+    if (!trimmedValue || !onCreate || creating) return;
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const createdItem = await onCreate(trimmedValue);
+      setCreatedItems((current) => [createdItem, ...current]);
+      selectItem(createdItem);
+      window.requestAnimationFrame(() => inputRef.current?.focus());
+    } catch (error) {
+      setCreateError(error instanceof Error ? error.message : "Création impossible. Vérifiez la connexion puis réessayez.");
+    } finally {
+      setCreating(false);
+    }
   }
 
   function handleKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
@@ -200,7 +211,10 @@ export function SmartEntityPicker({
                 createLabel={createLabel}
                 entityType={entityType ?? label}
                 value={createValue}
+                error={createError}
+                submitting={creating}
                 onCancel={() => {
+                  if (creating) return;
                   setCreateOpen(false);
                   inputRef.current?.focus();
                 }}
@@ -239,6 +253,15 @@ export function SmartEntityPicker({
       )}
     </div>
   );
+}
+
+function dedupeEntityPickerItems(items: readonly EntityPickerItem[]) {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
 }
 
 function CreateActionRow({
@@ -286,16 +309,22 @@ function InlineCreatePanel({
   onCancel,
   onChange,
   onSubmit,
+  error,
+  submitting,
   value
 }: {
   createLabel: string;
   entityType: string;
   onCancel: () => void;
   onChange: (value: string) => void;
-  onSubmit: () => void;
+  onSubmit: () => void | Promise<void>;
+  error?: string | null;
+  submitting?: boolean;
   value: string;
 }) {
   function handleKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
+    if (submitting) return;
+
     if (event.key === "Escape") {
       event.preventDefault();
       event.stopPropagation();
@@ -317,23 +346,25 @@ function InlineCreatePanel({
         </span>
         <div className="min-w-0 flex-1">
           <p className="font-display text-sm font-bold text-hicotech-navy dark:text-white">{createLabel}</p>
-          <p className="mt-0.5 text-xs font-medium leading-5 text-slate-500 dark:text-slate-300">Création locale de {entityType}. Le formulaire parent reste intact.</p>
+          <p className="mt-0.5 text-xs font-medium leading-5 text-slate-500 dark:text-slate-300">Création de {entityType}. Le formulaire parent reste intact.</p>
         </div>
       </div>
+      {error && <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-200">{error}</p>}
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={handleKeyDown}
+        disabled={submitting}
         autoFocus
         className="mt-3 w-full rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm font-semibold text-hicotech-navy outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-emerald-400/20 dark:bg-hicotech-dark-page dark:text-white"
         aria-label={createLabel}
       />
       <div className="mt-3 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <button type="button" onClick={onCancel} className="inline-flex min-h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-hicotech-navy transition hover:bg-slate-50 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white">
+        <button type="button" onClick={onCancel} disabled={submitting} className="inline-flex min-h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-hicotech-navy transition hover:bg-slate-50 disabled:opacity-60 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white">
           Annuler
         </button>
-        <button type="button" onClick={onSubmit} className="inline-flex min-h-9 items-center justify-center rounded-lg bg-emerald-600 px-3 text-sm font-bold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-500/20">
-          Créer et sélectionner
+        <button type="button" onClick={() => void onSubmit()} disabled={submitting} className="inline-flex min-h-9 items-center justify-center rounded-lg bg-emerald-600 px-3 text-sm font-bold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-500/20 disabled:opacity-60">
+          {submitting ? "Enregistrement..." : "Créer et sélectionner"}
         </button>
       </div>
     </div>

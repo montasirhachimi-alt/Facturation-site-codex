@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { persistCrmSalesRecord } from "@/platform/persistence";
 import { PermissionEnforcement } from "@/runtime/permissions";
 import { PermissionService } from "@/services/permissions";
 import { ActivityService } from "@/modules/crm/activities";
 import { crmActivitySeed } from "@/modules/crm/activities/ui/activities.seed";
-import { CompanyService } from "@/modules/crm/companies";
-import { CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
+import { CRM_COMPANIES_WORKSPACE_ID } from "@/modules/crm/companies/ui/companies.seed";
+import { crmCompanyLocalService, subscribeToCrmCompanyStore } from "@/modules/crm/companies/ui/company-local-store";
 import { MeetingService } from "@/modules/crm/meetings";
 import { CRM_MEETINGS_WORKSPACE_ID, CRM_MEETINGS_USER_ID, crmMeetingSeed } from "@/modules/crm/meetings/ui/meetings.seed";
 import { NoteService } from "@/modules/crm/notes";
@@ -18,9 +19,10 @@ import type { Company } from "@/modules/crm/companies";
 import type { Meeting, MeetingStatus, MeetingType } from "@/modules/crm/meetings";
 import type { Note, NoteVisibility } from "@/modules/crm/notes";
 import type { Task, TaskPriority, TaskStatus, TaskType } from "@/modules/crm/tasks";
-import { ContactService } from "../../../contact.service";
-import type { Contact, ContactId } from "../../../contact.types";
-import { CRM_CONTACTS_USER_ID, CRM_CONTACTS_WORKSPACE_ID, crmContactSeed } from "../../contacts.seed";
+import type { ContactFormState } from "../../hooks/use-company-contacts-workspace";
+import { crmContactLocalService, subscribeToCrmContactStore } from "../../contact-local-store";
+import type { Contact, ContactId, UpdateContactInput } from "../../../contact.types";
+import { CRM_CONTACTS_USER_ID, CRM_CONTACTS_WORKSPACE_ID } from "../../contacts.seed";
 
 export type ContactDetailsTab = "overview" | "opportunities" | "quotes" | "invoices" | "activities" | "meetings" | "tasks" | "emails" | "notes" | "documents" | "settings";
 
@@ -112,8 +114,31 @@ const notePermissionService = new PermissionService(
   })
 );
 
+const emptyContactForm: ContactFormState = {
+  firstName: "",
+  lastName: "",
+  jobTitle: "",
+  department: "",
+  email: "",
+  mobilePhone: "",
+  officePhone: "",
+  preferredLanguage: "fr",
+  timezone: "Africa/Casablanca",
+  status: "active",
+  isPrimaryContact: false,
+  isDecisionMaker: false,
+  linkedin: "",
+  notes: "",
+  tags: ""
+};
+
 export function useContactDetails(contactId: string) {
   const [activeTab, setActiveTab] = useState<ContactDetailsTab>("overview");
+  const [version, setVersion] = useState(0);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
+  const [form, setForm] = useState<ContactFormState>(emptyContactForm);
+  const [error, setError] = useState<string | null>(null);
   const [activityFilters, setActivityFilters] = useState<ContactActivityFilters>({
     query: "",
     type: "all",
@@ -138,8 +163,8 @@ export function useContactDetails(contactId: string) {
     visibility: "all",
     sortDirection: "desc"
   });
-  const [contactService] = useState(() => new ContactService({ seed: crmContactSeed }));
-  const [companyService] = useState(() => new CompanyService({ seed: crmCompanySeed }));
+  const [contactService] = useState(() => crmContactLocalService);
+  const [companyService] = useState(() => crmCompanyLocalService);
   const [activityService] = useState(() => new ActivityService({ seed: crmActivitySeed }));
   const [meetingService] = useState(() => new MeetingService({ seed: crmMeetingSeed }));
   const [noteService] = useState(() => new NoteService({ seed: crmNoteSeed }));
@@ -205,15 +230,28 @@ export function useContactDetails(contactId: string) {
     []
   );
 
-  const contact = useMemo(
-    () => contactService.getContact(contactId as ContactId, CRM_CONTACTS_WORKSPACE_ID, readDecision),
-    [contactId, contactService, readDecision]
-  );
+  const contact = useMemo(() => {
+    void version;
+    return contactService.getContact(contactId as ContactId, CRM_CONTACTS_WORKSPACE_ID, readDecision);
+  }, [contactId, contactService, readDecision, version]);
 
   const company = useMemo(
-    () => (contact ? companyService.getCompany(contact.companyId, CRM_COMPANIES_WORKSPACE_ID, readDecision) : undefined),
-    [companyService, contact, readDecision]
+    () => {
+      void version;
+      return contact ? companyService.getCompany(contact.companyId, CRM_COMPANIES_WORKSPACE_ID, readDecision) : undefined;
+    },
+    [companyService, contact, readDecision, version]
   );
+
+  useEffect(() => {
+    const refresh = () => setVersion((value) => value + 1);
+    const unsubscribeContacts = subscribeToCrmContactStore(refresh);
+    const unsubscribeCompanies = subscribeToCrmCompanyStore(refresh);
+    return () => {
+      unsubscribeContacts();
+      unsubscribeCompanies();
+    };
+  }, []);
 
   const activities = useMemo(() => {
     if (!contact) return [];
@@ -324,21 +362,90 @@ export function useContactDetails(contactId: string) {
 
   const summary = useMemo(() => buildContactSummary(activities, meetings, tasks, notes), [activities, meetings, notes, tasks]);
 
+  const openEditDialog = useCallback((contactToEdit: Contact) => {
+    setError(null);
+    setEditingContact(contactToEdit);
+    setForm(contactToForm(contactToEdit));
+    setDialogOpen(true);
+  }, []);
+
+  const closeDialog = useCallback(() => {
+    setDialogOpen(false);
+    setEditingContact(null);
+    setError(null);
+  }, []);
+
+  const saveContact = useCallback(async () => {
+    if (!editingContact) return false;
+    const snapshot = contactService.listContacts({ workspaceId: CRM_CONTACTS_WORKSPACE_ID, includeArchived: true }).contacts;
+
+    const input: UpdateContactInput = {
+      id: editingContact.id,
+      workspaceId: CRM_CONTACTS_WORKSPACE_ID,
+      companyId: editingContact.companyId,
+      firstName: form.firstName,
+      lastName: form.lastName,
+      jobTitle: form.jobTitle,
+      department: form.department,
+      email: form.email,
+      mobilePhone: form.mobilePhone,
+      officePhone: form.officePhone,
+      preferredLanguage: form.preferredLanguage,
+      timezone: form.timezone,
+      status: form.status,
+      isPrimaryContact: form.isPrimaryContact,
+      isDecisionMaker: form.isDecisionMaker,
+      linkedin: form.linkedin,
+      notes: form.notes,
+      tags: form.tags.split(",").map((item) => item.trim()).filter(Boolean),
+      ownerId: editingContact.ownerId,
+      updatedBy: CRM_CONTACTS_USER_ID,
+      permission: writeDecision
+    };
+    const result = contactService.updateContact(input);
+
+    if (!result.validation.valid || !result.contact) {
+      setError(result.validation.issues[0]?.message ?? "Impossible de modifier le contact.");
+      return false;
+    }
+
+    try {
+      await persistCrmSalesRecord("contact", result.contact);
+    } catch {
+      contactService.replaceContacts(snapshot);
+      setError("Les modifications n'ont pas pu être enregistrées dans la base. Vérifiez la connexion puis réessayez.");
+      return false;
+    }
+
+    setDialogOpen(false);
+    setEditingContact(null);
+    setVersion((value) => value + 1);
+    return true;
+  }, [contactService, editingContact, form, writeDecision]);
+
   return {
     activities,
     activeTab,
     activityFilters,
     canRead: readDecision.allowed,
     canWrite: writeDecision.allowed,
+    closeDialog,
     company,
     contact,
+    dialogOpen,
+    editingContact,
+    error,
+    form,
     meetingFilters,
     meetings,
     noteFilters,
     notes,
+    openEditDialog,
     readDecision,
+    saveContact,
     setActiveTab,
     setActivityFilters,
+    setForm,
     setMeetingFilters,
     setNoteFilters,
     setTaskFilters,
@@ -366,6 +473,26 @@ function buildContactSummary(activities: readonly Activity[], meetings: readonly
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("fr-MA", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value));
+}
+
+function contactToForm(contact: Contact): ContactFormState {
+  return {
+    firstName: contact.firstName,
+    lastName: contact.lastName,
+    jobTitle: contact.jobTitle ?? "",
+    department: contact.department ?? "",
+    email: contact.email ?? "",
+    mobilePhone: contact.mobilePhone ?? "",
+    officePhone: contact.officePhone ?? "",
+    preferredLanguage: contact.preferredLanguage ?? "fr",
+    timezone: contact.timezone ?? "Africa/Casablanca",
+    status: contact.status,
+    isPrimaryContact: contact.isPrimaryContact,
+    isDecisionMaker: contact.isDecisionMaker,
+    linkedin: contact.linkedin ?? "",
+    notes: contact.notes ?? "",
+    tags: contact.tags.join(", ")
+  };
 }
 
 export type ContactDetailsState = ReturnType<typeof useContactDetails>;

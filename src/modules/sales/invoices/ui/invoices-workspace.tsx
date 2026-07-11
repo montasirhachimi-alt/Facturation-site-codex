@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, CalendarClock, CircleDollarSign, FileText, Filter, Sparkles, WalletCards } from "lucide-react";
-import { CompanyService } from "@/modules/crm/companies";
-import { CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
+import { CRM_COMPANIES_WORKSPACE_ID } from "@/modules/crm/companies/ui/companies.seed";
+import { crmCompanyLocalService, subscribeToCrmCompanyStore } from "@/modules/crm/companies/ui/company-local-store";
 import { SALES_QUOTES_WORKSPACE_ID, formatQuoteMoney, quoteService, subscribeToQuoteStore } from "@/modules/sales/quotes";
 import { getPlatformModifierLabel, useTableKeyboardNavigation, useWorkspaceCreateShortcut } from "@/platform/keyboard";
 import { EntityPageLayout, EntitySearchBar, MetricCard, ProductHero, ProductSectionHeader, SectionCard, entityInputClassName, workspacePrimaryActionClassName, workspaceTableActionClassName } from "@/ui";
@@ -14,10 +14,6 @@ import { invoiceService, notifyInvoiceStoreUpdated, subscribeToInvoiceStore } fr
 import type { Invoice, InvoiceSort, InvoiceStatus } from "../invoice.types";
 import { getInvoiceTotals } from "../invoice.utils";
 import { InvoiceDialog } from "./invoice-dialog";
-
-const companyService = new CompanyService({ seed: crmCompanySeed });
-const companies = companyService.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID }).companies;
-const companyById = new Map(companies.map((company) => [company.id, company]));
 
 export function InvoicesWorkspace() {
   const router = useRouter();
@@ -30,6 +26,8 @@ export function InvoicesWorkspace() {
   const [pageSize, setPageSize] = useState(8);
   const quotes = quoteService.listQuotes({ workspaceId: SALES_QUOTES_WORKSPACE_ID }).quotes;
   const quoteById = new Map(quotes.map((quote) => [quote.id, quote]));
+  const companies = crmCompanyLocalService.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID, includeArchived: false }).companies;
+  const companyById = new Map(companies.map((company) => [company.id, company]));
   const invoices = invoiceService.listInvoices({
     workspaceId: SALES_QUOTES_WORKSPACE_ID,
     query: filters.query,
@@ -43,9 +41,11 @@ export function InvoicesWorkspace() {
   useEffect(() => {
     const unsubscribeInvoices = subscribeToInvoiceStore(() => setStoreVersion((value) => value + 1));
     const unsubscribeQuotes = subscribeToQuoteStore(() => setStoreVersion((value) => value + 1));
+    const unsubscribeCompanies = subscribeToCrmCompanyStore(() => setStoreVersion((value) => value + 1));
     return () => {
       unsubscribeInvoices();
       unsubscribeQuotes();
+      unsubscribeCompanies();
     };
   }, []);
 
@@ -113,7 +113,7 @@ export function InvoicesWorkspace() {
         </div>
       </SectionCard>
 
-      <InvoicesTable invoices={paginated} quoteById={quoteById} sort={sort} onCreate={() => setDialogOpen(true)} onSort={updateSort} />
+      <InvoicesTable companyById={companyById} invoices={paginated} quoteById={quoteById} sort={sort} onCreate={() => setDialogOpen(true)} onSort={updateSort} />
 
       <div className="flex flex-col gap-2.5 rounded-xl border border-slate-200 bg-white p-3 shadow-sm shadow-slate-200/50 md:flex-row md:items-center md:justify-between dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
         <p className="text-sm font-semibold text-slate-500 dark:text-slate-300">Page {page} sur {totalPages} • {invoices.length} facture(s)</p>
@@ -144,12 +144,14 @@ export function InvoicesWorkspace() {
 
 function InvoicesTable({
   invoices,
+  companyById,
   onCreate,
   onSort,
   quoteById,
   sort
 }: {
   invoices: readonly Invoice[];
+  companyById: ReadonlyMap<string, { displayName: string }>;
   onCreate: () => void;
   onSort: (field: InvoiceSort["field"]) => void;
   quoteById: ReadonlyMap<string, { number: string }>;

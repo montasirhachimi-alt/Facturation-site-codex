@@ -15,6 +15,19 @@ export class PaymentService {
     }
   }
 
+  replacePayments(payments: readonly Payment[]) {
+    this.payments.clear();
+    for (const payment of payments) {
+      this.payments.set(payment.id, freezePayment(payment));
+    }
+  }
+
+  upsertPayment(payment: Payment) {
+    const frozen = freezePayment(payment);
+    this.payments.set(frozen.id, frozen);
+    return frozen;
+  }
+
   listPayments(filters: PaymentFilters, sort: PaymentSort = DEFAULT_PAYMENT_SORT): PaymentListResult {
     const payments = [...this.payments.values()]
       .filter((payment) => payment.workspaceId === filters.workspaceId)

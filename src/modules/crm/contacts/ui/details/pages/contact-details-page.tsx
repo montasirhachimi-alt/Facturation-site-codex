@@ -17,6 +17,7 @@ import { ContactOverview } from "../components/contact-overview";
 import { ContactPlaceholderTab } from "../components/contact-placeholder-tab";
 import { ContactSummaryCards } from "../components/contact-summary-cards";
 import { useContactDetails } from "../hooks/use-contact-details";
+import { ContactDialog } from "../../dialogs/contact-dialog";
 
 export function ContactDetailsPage({ contactId }: { contactId: string }) {
   const state = useContactDetails(contactId);
@@ -92,9 +93,11 @@ export function ContactDetailsPage({ contactId }: { contactId: string }) {
     );
   }
 
+  const contact = state.contact;
+
   return (
     <EntityPageLayout>
-      <ContactDetailsHeader canWrite={state.canWrite} company={state.company} contact={state.contact} />
+      <ContactDetailsHeader canWrite={state.canWrite} company={state.company} contact={contact} onEdit={() => state.openEditDialog(contact)} />
       <ContextualActionStrip
         actions={contextualActions}
         description="Passez naturellement du contact vers la société, les ventes ou le suivi relationnel."
@@ -106,18 +109,18 @@ export function ContactDetailsPage({ contactId }: { contactId: string }) {
         <main className="space-y-4">
           {state.activeTab === "overview" ? (
             <>
-              <ContactOverview company={state.company} contact={state.contact} />
-              <ContactOpportunitiesPanel contactId={state.contact.id} />
-              <ContactQuotesPanel contactId={state.contact.id} />
-              <ContactInvoicesPanel contactId={state.contact.id} />
+              <ContactOverview company={state.company} contact={contact} />
+              <ContactOpportunitiesPanel contactId={contact.id} />
+              <ContactQuotesPanel contactId={contact.id} />
+              <ContactInvoicesPanel contactId={contact.id} />
               <ContactActivitiesPanel activities={state.activities} filters={state.activityFilters} onFiltersChange={state.setActivityFilters} />
             </>
           ) : state.activeTab === "opportunities" ? (
-            <ContactOpportunitiesPanel contactId={state.contact.id} />
+            <ContactOpportunitiesPanel contactId={contact.id} />
           ) : state.activeTab === "quotes" ? (
-            <ContactQuotesPanel contactId={state.contact.id} />
+            <ContactQuotesPanel contactId={contact.id} />
           ) : state.activeTab === "invoices" ? (
-            <ContactInvoicesPanel contactId={state.contact.id} />
+            <ContactInvoicesPanel contactId={contact.id} />
           ) : state.activeTab === "activities" ? (
             <ContactActivitiesPanel activities={state.activities} filters={state.activityFilters} onFiltersChange={state.setActivityFilters} />
           ) : state.activeTab === "meetings" ? (
@@ -130,8 +133,18 @@ export function ContactDetailsPage({ contactId }: { contactId: string }) {
             <ContactPlaceholderTab label={state.activeTab} />
           )}
         </main>
-        <ContactInspectorPanel company={state.company} contact={state.contact} />
+        <ContactInspectorPanel company={state.company} contact={contact} />
       </div>
+
+      <ContactDialog
+        editing={Boolean(state.editingContact)}
+        error={state.error}
+        form={state.form}
+        onChange={state.setForm}
+        onClose={state.closeDialog}
+        onSubmit={state.saveContact}
+        open={state.dialogOpen}
+      />
     </EntityPageLayout>
   );
 }

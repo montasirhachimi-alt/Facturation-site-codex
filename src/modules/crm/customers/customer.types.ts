@@ -1,4 +1,5 @@
 import type { PermissionDecision } from "@/runtime/permissions";
+import type { CompanyId } from "../companies/company.types";
 
 export type CustomerId = string & { readonly __brand: "CustomerId" };
 export type WorkspaceId = string & { readonly __brand: "WorkspaceId" };
@@ -12,6 +13,7 @@ export type Customer = Readonly<{
   id: CustomerId;
   workspaceId: WorkspaceId;
   displayName: string;
+  companyId?: CompanyId;
   companyName?: string;
   email?: string;
   phone?: string;
@@ -34,6 +36,7 @@ export type CustomerPermissionContext = Readonly<{
 export type CreateCustomerInput = Readonly<{
   workspaceId: WorkspaceId;
   displayName: string;
+  companyId?: CompanyId;
   companyName?: string;
   email?: string;
   phone?: string;
@@ -50,6 +53,7 @@ export type UpdateCustomerInput = Readonly<{
   id: CustomerId;
   workspaceId: WorkspaceId;
   displayName?: string;
+  companyId?: CompanyId;
   companyName?: string;
   email?: string;
   phone?: string;
@@ -93,4 +97,3 @@ export type CustomerListResult = Readonly<{
   filtered: number;
   workspaceId: WorkspaceId;
 }>;
-

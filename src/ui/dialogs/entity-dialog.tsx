@@ -1,6 +1,19 @@
+"use client";
+
 import { AlertCircle, X } from "lucide-react";
 import type { FormEvent, KeyboardEvent } from "react";
+import { useState } from "react";
+import { clsx } from "clsx";
 import { isModKey } from "@/platform/keyboard/keyboard-shortcut.utils";
+
+export type EntityDialogSize = "sm" | "md" | "lg" | "xl";
+
+const dialogSizeClassNames: Record<EntityDialogSize, string> = {
+  sm: "max-w-[30rem]",
+  md: "max-w-[40rem]",
+  lg: "max-w-[55rem]",
+  xl: "max-w-[72rem]"
+};
 
 export function EntityDialog({
   children,
@@ -11,6 +24,7 @@ export function EntityDialog({
   onClose,
   onSubmit,
   open,
+  size = "md",
   title
 }: {
   children: React.ReactNode;
@@ -19,18 +33,29 @@ export function EntityDialog({
   eyebrow: string;
   footer: React.ReactNode;
   onClose: () => void;
-  onSubmit: () => void;
+  onSubmit: () => void | boolean | Promise<void | boolean>;
   open: boolean;
+  size?: EntityDialogSize;
   title: string;
 }) {
+  const [submitting, setSubmitting] = useState(false);
+
   if (!open) return null;
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    onSubmit();
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await onSubmit();
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLFormElement>) {
+    if (submitting) return;
+
     if (event.key === "Escape") {
       event.preventDefault();
       event.stopPropagation();
@@ -47,17 +72,21 @@ export function EntityDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-hicotech-dark-sidebar/65 px-4 py-6 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-hicotech-dark-sidebar/65 px-3 py-4 backdrop-blur-sm sm:px-4 sm:py-6">
       <form
         onSubmit={submit}
         onKeyDown={handleKeyDown}
-        className="max-h-[88vh] w-full max-w-3xl overflow-y-auto rounded-[1.35rem] border border-slate-200 bg-white p-5 shadow-[0_28px_90px_rgba(10,30,63,0.24)] dark:border-hicotech-dark-border dark:bg-hicotech-dark-card"
+        className={clsx(
+          "flex max-h-[calc(100vh-2rem)] w-full flex-col overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-[0_28px_90px_rgba(10,30,63,0.24)] dark:border-hicotech-dark-border dark:bg-hicotech-dark-card sm:max-h-[88vh]",
+          dialogSizeClassNames[size]
+        )}
         role="dialog"
         aria-modal="true"
         aria-label={title}
         aria-keyshortcuts="Meta+Enter Control+Enter Meta+S Control+S Escape"
       >
-        <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-4 dark:border-hicotech-dark-border">
+        <div className="shrink-0 border-b border-slate-200 px-4 py-4 dark:border-hicotech-dark-border sm:px-5">
+          <div className="flex items-start justify-between gap-4">
           <div>
             <p className="font-display text-[11px] font-bold uppercase tracking-[0.16em] text-hicotech-blue">{eyebrow}</p>
             <h2 className="mt-1.5 font-display text-xl font-bold text-hicotech-navy dark:text-white">{title}</h2>
@@ -65,23 +94,29 @@ export function EntityDialog({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={submitting ? undefined : onClose}
+            disabled={submitting}
             className="grid size-9 shrink-0 place-items-center rounded-xl border border-slate-200 text-hicotech-navy transition hover:bg-hicotech-cloud focus:outline-none focus:ring-4 focus:ring-hicotech-blue/10 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white"
             aria-label="Fermer"
           >
             <X size={18} />
           </button>
+          </div>
         </div>
 
-        {error && (
-          <p className="mt-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold leading-6 text-red-700 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-200">
-            <AlertCircle size={16} className="mt-0.5 shrink-0" />
-            {error}
-          </p>
-        )}
+        <fieldset disabled={submitting} className="contents" aria-busy={submitting}>
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
+          {error && (
+            <p className="mb-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold leading-6 text-red-700 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-200">
+              <AlertCircle size={16} className="mt-0.5 shrink-0" />
+              {error}
+            </p>
+          )}
 
-        {children}
-        {footer}
+          {children}
+        </div>
+        <div className="shrink-0 px-4 pb-4 sm:px-5">{footer}</div>
+        </fieldset>
       </form>
     </div>
   );

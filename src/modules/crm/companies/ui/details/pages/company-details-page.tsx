@@ -1,7 +1,7 @@
 "use client";
 
 import { EntityEmptyState, EntityErrorState, EntityPageLayout } from "@/ui";
-import { Building2, ContactRound, Receipt, TrendingUp, UsersRound } from "lucide-react";
+import { Building2, ContactRound, Receipt, TrendingUp } from "lucide-react";
 import { CompanyContactsWorkspace } from "@/modules/crm/contacts";
 import { CompanyActivityTimeline } from "@/modules/crm/activities/ui/company-activity-timeline";
 import { CompanyOpportunitiesPanel } from "@/modules/crm/opportunities/ui/company-opportunities-panel";
@@ -17,6 +17,7 @@ import { CompanyPlaceholderTab } from "../components/company-placeholder-tab";
 import { CompanyRelationshipGraph } from "../components/company-relationship-graph";
 import { CompanySummaryCards } from "../components/company-summary-cards";
 import { CompanyTasksWidget } from "../components/company-tasks-widget";
+import { CompanyDialog } from "../../dialogs/company-dialog";
 import { useCompanyDetails } from "../hooks/use-company-details";
 
 export function CompanyDetailsPage({ companyId }: { companyId: string }) {
@@ -56,11 +57,11 @@ export function CompanyDetailsPage({ companyId }: { companyId: string }) {
     {
       id: "company.show-customers",
       entityType: "company",
-      label: "Clients liés",
-      description: "Vérifier les clients connectés au compte.",
-      icon: UsersRound,
+      label: "Factures",
+      description: "Consulter les factures liées à cette société.",
+      icon: Receipt,
       priority: 40,
-      onSelect: () => state.setActiveTab("customers"),
+      onSelect: () => state.setActiveTab("invoices"),
       available: Boolean(state.company)
     }
   ]);
@@ -81,9 +82,11 @@ export function CompanyDetailsPage({ companyId }: { companyId: string }) {
     );
   }
 
+  const company = state.company;
+
   return (
     <EntityPageLayout>
-      <CompanyDetailsHeader canWrite={state.canWrite} company={state.company} />
+      <CompanyDetailsHeader canWrite={state.canWrite} company={company} onEdit={() => state.openEditDialog(company)} />
       <ContextualActionStrip
         actions={contextualActions}
         description="Continuez depuis la société sans chercher le bon onglet."
@@ -97,28 +100,37 @@ export function CompanyDetailsPage({ companyId }: { companyId: string }) {
             <>
               <CompanyRelationshipGraph />
               <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_360px]">
-                <CompanyActivityTimeline companyId={state.company.id} />
+                <CompanyActivityTimeline companyId={company.id} />
                 <div className="space-y-4">
                   <CompanyNotesPanel />
                   <CompanyTasksWidget />
                 </div>
               </div>
-              <CompanyOverview company={state.company} />
+              <CompanyOverview company={company} />
             </>
           ) : state.activeTab === "contacts" ? (
-            <CompanyContactsWorkspace companyId={state.company.id} />
+            <CompanyContactsWorkspace companyId={company.id} />
           ) : state.activeTab === "opportunities" ? (
-            <CompanyOpportunitiesPanel companyId={state.company.id} />
+            <CompanyOpportunitiesPanel companyId={company.id} />
           ) : state.activeTab === "quotes" ? (
-            <CompanyQuotesPanel companyId={state.company.id} />
+            <CompanyQuotesPanel companyId={company.id} />
           ) : state.activeTab === "invoices" ? (
-            <CompanyInvoicesPanel companyId={state.company.id} />
+            <CompanyInvoicesPanel companyId={company.id} />
           ) : (
             <CompanyPlaceholderTab label={state.activeTab} />
           )}
         </main>
         <CompanyInspectorPanel />
       </div>
+      <CompanyDialog
+        editing={Boolean(state.editingCompany)}
+        error={state.error}
+        form={state.form}
+        onChange={state.setForm}
+        onClose={state.closeDialog}
+        onSubmit={state.saveCompany}
+        open={state.dialogOpen}
+      />
     </EntityPageLayout>
   );
 }

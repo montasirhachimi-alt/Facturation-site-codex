@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { persistCrmSalesRecord } from "@/platform/persistence";
 import { PermissionEnforcement } from "@/runtime/permissions";
 import { PermissionService } from "@/services/permissions";
 import { filterCrmEntities, paginateCrmItems, searchCrmEntities, sortCrmEntities } from "@/modules/crm/shared";
-import { CompanyService } from "../../company.service";
-import type { Company, CompanyId, CompanyIndustry, CompanyStatus, CreateCompanyInput } from "../../company.types";
-import { CRM_COMPANIES_USER_ID, CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "../companies.seed";
+import type { Company, CompanyId, CompanyIndustry, CompanyStatus, CreateCompanyInput, UpdateCompanyInput } from "../../company.types";
+import { crmCompanyLocalService, notifyCrmCompanyStoreUpdated, subscribeToCrmCompanyStore } from "../company-local-store";
+import { CRM_COMPANIES_USER_ID, CRM_COMPANIES_WORKSPACE_ID } from "../companies.seed";
 
 export type CompanySortKey = "displayName" | "industry" | "country" | "email" | "phone" | "status" | "updatedAt";
 
@@ -51,7 +52,7 @@ const permissionService = new PermissionService(
 );
 
 export function useCompaniesPage() {
-  const [service] = useState(() => new CompanyService({ seed: crmCompanySeed }));
+  const [service] = useState(() => crmCompanyLocalService);
   const [version, setVersion] = useState(0);
   const [query, setQuery] = useState("");
   const [industry, setIndustry] = useState<CompanyIndustry | "all">("all");
@@ -67,6 +68,7 @@ export function useCompaniesPage() {
   });
   const [selectedIds, setSelectedIds] = useState<readonly CompanyId[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [form, setForm] = useState<CompanyFormState>(emptyForm);
   const [error, setError] = useState<string | null>(null);
 
@@ -94,6 +96,8 @@ export function useCompaniesPage() {
     void version;
     return service.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID, includeArchived: false, permission: readDecision }).companies;
   }, [readDecision, service, version]);
+
+  useEffect(() => subscribeToCrmCompanyStore(() => setVersion((value) => value + 1)), []);
 
   const countryOptions = useMemo(() => ["all", ...Array.from(new Set(baseCompanies.map((company) => company.country ?? "Maroc"))).sort()], [baseCompanies]);
   const ownerOptions = useMemo(() => ["all", ...Array.from(new Set(baseCompanies.map((company) => company.ownerId ?? "system"))).sort()], [baseCompanies]);
@@ -156,13 +160,26 @@ export function useCompaniesPage() {
 
   const openCreateDialog = useCallback(() => {
     setError(null);
+    setEditingCompany(null);
     setForm(emptyForm);
     setDialogOpen(true);
   }, []);
 
-  const closeDialog = useCallback(() => setDialogOpen(false), []);
+  const openEditDialog = useCallback((company: Company) => {
+    setError(null);
+    setEditingCompany(company);
+    setForm(companyToForm(company));
+    setDialogOpen(true);
+  }, []);
 
-  const createCompany = useCallback(() => {
+  const closeDialog = useCallback(() => {
+    setDialogOpen(false);
+    setEditingCompany(null);
+    setError(null);
+  }, []);
+
+  const createCompany = useCallback(async () => {
+    const snapshot = service.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID, includeArchived: true }).companies;
     const input: CreateCompanyInput = {
       workspaceId: CRM_COMPANIES_WORKSPACE_ID,
       legalName: form.legalName,
@@ -187,18 +204,84 @@ export function useCompaniesPage() {
       return false;
     }
 
+    try {
+      await persistCrmSalesRecord("company", result.company);
+    } catch {
+      service.replaceCompanies(snapshot);
+      setError("La société n'a pas pu être enregistrée dans la base. Vérifiez la connexion puis réessayez.");
+      return false;
+    }
+
     setDialogOpen(false);
     setVersion((value) => value + 1);
+    notifyCrmCompanyStoreUpdated();
     setPage(1);
     return true;
   }, [form, service, writeDecision]);
 
+  const saveCompany = useCallback(async () => {
+    if (!editingCompany) return createCompany();
+    const snapshot = service.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID, includeArchived: true }).companies;
+
+    const input: UpdateCompanyInput = {
+      id: editingCompany.id,
+      workspaceId: CRM_COMPANIES_WORKSPACE_ID,
+      legalName: form.legalName,
+      displayName: form.displayName,
+      industry: form.industry,
+      website: form.website,
+      email: form.email,
+      phone: form.phone,
+      city: form.city,
+      country: form.country,
+      status: form.status,
+      tags: form.tags.split(",").map((item) => item.trim()).filter(Boolean),
+      notes: form.notes,
+      ownerId: editingCompany.ownerId,
+      updatedBy: CRM_COMPANIES_USER_ID,
+      permission: writeDecision
+    };
+    const result = service.updateCompany(input);
+
+    if (!result.validation.valid || !result.company) {
+      setError(result.validation.issues[0]?.message ?? "Impossible de modifier la société.");
+      return false;
+    }
+
+    try {
+      await persistCrmSalesRecord("company", result.company);
+    } catch {
+      service.replaceCompanies(snapshot);
+      setError("Les modifications n'ont pas pu être enregistrées dans la base. Vérifiez la connexion puis réessayez.");
+      return false;
+    }
+
+    setDialogOpen(false);
+    setEditingCompany(null);
+    setVersion((value) => value + 1);
+    notifyCrmCompanyStoreUpdated();
+    return true;
+  }, [createCompany, editingCompany, form, service, writeDecision]);
+
   const archiveCompany = useCallback(
-    (company: Company) => {
+    async (company: Company) => {
       if (!writeDecision.allowed) return;
-      service.archiveCompany(company.id, CRM_COMPANIES_WORKSPACE_ID, CRM_COMPANIES_USER_ID, writeDecision);
+      const snapshot = service.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID, includeArchived: true }).companies;
+      const result = service.archiveCompany(company.id, CRM_COMPANIES_WORKSPACE_ID, CRM_COMPANIES_USER_ID, writeDecision);
+      if (result.company) {
+        try {
+          await persistCrmSalesRecord("company", result.company);
+        } catch {
+          service.replaceCompanies(snapshot);
+          setError("La société n'a pas pu être archivée dans la base. Vérifiez la connexion puis réessayez.");
+          setVersion((value) => value + 1);
+          notifyCrmCompanyStoreUpdated();
+          return;
+        }
+      }
       setSelectedIds((current) => current.filter((id) => id !== company.id));
       setVersion((value) => value + 1);
+      notifyCrmCompanyStoreUpdated();
     },
     [service, writeDecision]
   );
@@ -212,10 +295,12 @@ export function useCompaniesPage() {
     countryOptions,
     createCompany,
     dialogOpen,
+    editingCompany,
     error,
     form,
     industry,
     openCreateDialog,
+    openEditDialog,
     owner,
     ownerOptions,
     page,
@@ -225,6 +310,7 @@ export function useCompaniesPage() {
     readDecision,
     refresh,
     resetPage,
+    saveCompany,
     selectedIds,
     setCountry,
     setForm,
@@ -248,3 +334,18 @@ export function useCompaniesPage() {
   };
 }
 
+function companyToForm(company: Company): CompanyFormState {
+  return {
+    legalName: company.legalName,
+    displayName: company.displayName,
+    industry: company.industry,
+    website: company.website ?? "",
+    email: company.email ?? "",
+    phone: company.phone ?? "",
+    city: company.city ?? "",
+    country: company.country ?? "Maroc",
+    status: company.status,
+    tags: company.tags.join(", "),
+    notes: company.notes ?? ""
+  };
+}

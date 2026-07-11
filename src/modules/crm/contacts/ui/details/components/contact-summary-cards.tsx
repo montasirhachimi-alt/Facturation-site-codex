@@ -1,4 +1,4 @@
-import { CalendarClock, Mail, MessageSquareText, StickyNote, Target, Timer } from "lucide-react";
+import { CalendarClock, MessageSquareText, StickyNote, Target, Timer } from "lucide-react";
 import { MetricCard } from "@/ui";
 
 export function ContactSummaryCards({
@@ -17,7 +17,6 @@ export function ContactSummaryCards({
     { icon: Target, label: "Activités ouvertes", value: String(summary.openActivities), helper: "Liées à ce contact" },
     { icon: CalendarClock, label: "Réunions", value: String(summary.meetings), helper: "Workflow réunions actif" },
     { icon: MessageSquareText, label: "Tâches", value: String(summary.tasks), helper: "Actions de suivi" },
-    { icon: Mail, label: "Emails", value: String(summary.emails), helper: "Module email futur" },
     { icon: StickyNote, label: "Notes", value: String(summary.notes), helper: "Contexte commercial" },
     { icon: Timer, label: "Dernière interaction", value: summary.lastInteraction, helper: "Depuis ActivityService" }
   ];

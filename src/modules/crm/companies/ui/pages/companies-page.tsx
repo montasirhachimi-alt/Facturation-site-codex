@@ -3,7 +3,6 @@
 import { Building2, Globe2, HandCoins, Layers3, MapPinned } from "lucide-react";
 import { useWorkspaceCreateShortcut } from "@/platform/keyboard";
 import { EntityErrorState, EntityHeader, EntityPageLayout, EntityPagination, EntityStatsCards, InfoCard } from "@/ui";
-import { CompanyRelationsPanel } from "../components/company-relations-panel";
 import { CompanyDialog } from "../dialogs/company-dialog";
 import { CompaniesFilterSummary } from "../filters/companies-filter-summary";
 import { useCompaniesPage } from "../hooks/use-companies-page";
@@ -34,7 +33,7 @@ export function CompaniesPage() {
           { icon: Layers3, label: "Actives", value: String(state.stats.active), helper: "Sociétés opérationnelles" },
           { icon: Globe2, label: "Industries", value: String(state.stats.industries), helper: "Segments couverts" },
           { icon: MapPinned, label: "Pays", value: String(state.stats.countries), helper: "Présence commerciale" },
-          { icon: HandCoins, label: "Revenu futur", value: state.stats.futureRevenue, helper: "Prévision ventes" }
+          { icon: HandCoins, label: "Pipeline", value: state.stats.futureRevenue, helper: "Prévision commerciale" }
         ]}
       />
 
@@ -78,8 +77,6 @@ export function CompaniesPage() {
         }}
       />
 
-      <CompanyRelationsPanel />
-
       {state.readDecision.allowed ? (
         <>
           <CompaniesTable
@@ -88,6 +85,7 @@ export function CompaniesPage() {
             companies={state.paginatedCompanies.items}
             onArchive={state.archiveCompany}
             onCreate={state.openCreateDialog}
+            onEdit={state.openEditDialog}
             onSort={state.updateSort}
             onToggleAll={state.toggleAllVisible}
             onToggleRow={state.toggleRow}
@@ -114,8 +112,9 @@ export function CompaniesPage() {
         form={state.form}
         onChange={state.setForm}
         onClose={state.closeDialog}
-        onSubmit={state.createCompany}
+        onSubmit={state.saveCompany}
         open={state.dialogOpen}
+        editing={Boolean(state.editingCompany)}
       />
     </EntityPageLayout>
   );

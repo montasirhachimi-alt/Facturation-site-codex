@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, CalendarClock, CircleDollarSign, FileText, Filter, Plus, Sparkles, UserRound } from "lucide-react";
-import { CompanyService } from "@/modules/crm/companies";
-import { CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
+import { CRM_COMPANIES_WORKSPACE_ID } from "@/modules/crm/companies/ui/companies.seed";
+import { crmCompanyLocalService, subscribeToCrmCompanyStore } from "@/modules/crm/companies/ui/company-local-store";
 import { OpportunityService } from "@/modules/crm/opportunities";
-import { crmOpportunitySeed } from "@/modules/crm/opportunities/ui/opportunities.seed";
+import { CRM_OPPORTUNITIES_WORKSPACE_ID, crmOpportunitySeed } from "@/modules/crm/opportunities/ui/opportunities.seed";
 import { getPlatformModifierLabel, useTableKeyboardNavigation, useWorkspaceCreateShortcut } from "@/platform/keyboard";
 import { EntityPageLayout, EntitySearchBar, MetricCard, ProductHero, ProductSectionHeader, SectionCard, entityInputClassName, workspacePrimaryActionClassName, workspaceTableActionClassName } from "@/ui";
 import { QUOTE_STATUS_LABELS } from "../quote.constants";
@@ -17,11 +17,8 @@ import { notifyQuoteStoreUpdated, quoteService, subscribeToQuoteStore } from "..
 import { SALES_QUOTES_WORKSPACE_ID } from "../quotes.seed";
 import { QuoteDialog } from "./quote-dialog";
 
-const companyService = new CompanyService({ seed: crmCompanySeed });
 const opportunityService = new OpportunityService({ seed: crmOpportunitySeed });
-const companies = companyService.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID }).companies;
-const opportunities = opportunityService.listOpportunities({ workspaceId: SALES_QUOTES_WORKSPACE_ID }).opportunities;
-const companyById = new Map(companies.map((company) => [company.id, company]));
+const opportunities = opportunityService.listOpportunities({ workspaceId: CRM_OPPORTUNITIES_WORKSPACE_ID }).opportunities;
 const opportunityById = new Map(opportunities.map((opportunity) => [opportunity.id, opportunity]));
 
 type QuoteFilters = Readonly<{
@@ -41,7 +38,14 @@ export function QuotesWorkspace() {
   const [sort, setSort] = useState<QuoteSort>({ field: "issueDate", direction: "desc" });
   const [filters, setFilters] = useState<QuoteFilters>({ query: "", status: "all", companyId: "all", opportunityId: "all" });
 
-  useEffect(() => subscribeToQuoteStore(() => setQuotesVersion((value) => value + 1)), []);
+  useEffect(() => {
+    const unsubscribeQuotes = subscribeToQuoteStore(() => setQuotesVersion((value) => value + 1));
+    const unsubscribeCompanies = subscribeToCrmCompanyStore(() => setQuotesVersion((value) => value + 1));
+    return () => {
+      unsubscribeQuotes();
+      unsubscribeCompanies();
+    };
+  }, []);
 
   const quotes = quoteService.listQuotes({
       workspaceId: SALES_QUOTES_WORKSPACE_ID,
@@ -52,6 +56,8 @@ export function QuotesWorkspace() {
     }, sort).quotes;
 
   const stats = useMemo(() => buildQuoteStats(quotes), [quotes]);
+  const companies = crmCompanyLocalService.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID, includeArchived: false }).companies;
+  const companyById = new Map(companies.map((company) => [company.id, company]));
   const paginatedQuotes = quotes.slice((page - 1) * pageSize, page * pageSize);
   const totalPages = Math.max(1, Math.ceil(quotes.length / pageSize));
 
@@ -128,7 +134,7 @@ export function QuotesWorkspace() {
         </div>
       </SectionCard>
 
-      <QuotesTable quotes={paginatedQuotes} sort={sort} onCreate={() => setDialogOpen(true)} onSort={updateSort} />
+      <QuotesTable companyById={companyById} quotes={paginatedQuotes} sort={sort} onCreate={() => setDialogOpen(true)} onSort={updateSort} />
 
       <div className="flex flex-col gap-2.5 rounded-xl border border-slate-200 bg-white p-3 shadow-sm shadow-slate-200/50 md:flex-row md:items-center md:justify-between dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
         <p className="text-sm font-semibold text-slate-500 dark:text-slate-300">Page {page} sur {totalPages} • {quotes.length} devis</p>
@@ -157,7 +163,7 @@ export function QuotesWorkspace() {
   );
 }
 
-function QuotesTable({ onCreate, onSort, quotes, sort }: { onCreate: () => void; onSort: (field: QuoteSort["field"]) => void; quotes: readonly Quote[]; sort: QuoteSort }) {
+function QuotesTable({ companyById, onCreate, onSort, quotes, sort }: { companyById: ReadonlyMap<string, { displayName: string }>; onCreate: () => void; onSort: (field: QuoteSort["field"]) => void; quotes: readonly Quote[]; sort: QuoteSort }) {
   const router = useRouter();
   const tableNavigation = useTableKeyboardNavigation({
     items: quotes,
@@ -226,8 +232,8 @@ function QuotesTable({ onCreate, onSort, quotes, sort }: { onCreate: () => void;
                 >
                   <td className="px-4 py-3 font-bold text-hicotech-navy dark:text-white">{quote.number}</td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{quote.customerName}</td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{companyById.get(quote.companyId)?.displayName ?? "Non définie"}</td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{quote.opportunityId ? opportunityById.get(quote.opportunityId)?.title ?? "Opportunité" : "-"}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{companyById.get(quote.companyId)?.displayName ?? quote.companyName ?? "Non définie"}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{quote.opportunityId ? opportunityById.get(quote.opportunityId)?.title ?? quote.opportunityName ?? "Opportunité" : quote.opportunityName ?? "-"}</td>
                   <td className="px-4 py-3"><QuoteStatusBadge status={quote.status} /></td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{formatDate(quote.issueDate)}</td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{formatDate(quote.expirationDate)}</td>

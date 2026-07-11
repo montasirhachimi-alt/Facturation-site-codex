@@ -1,39 +1,48 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Building2, CalendarClock, Download, Eye, FileText, HandCoins, NotebookPen, Printer, Receipt, TrendingUp } from "lucide-react";
-import { CompanyService } from "@/modules/crm/companies";
-import { CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
-import { ContactService } from "@/modules/crm/contacts";
-import { crmContactSeed } from "@/modules/crm/contacts/ui/contacts.seed";
+import { persistCrmSalesRecord } from "@/platform/persistence";
+import { CRM_COMPANIES_WORKSPACE_ID } from "@/modules/crm/companies/ui/companies.seed";
+import { crmCompanyLocalService, subscribeToCrmCompanyStore } from "@/modules/crm/companies/ui/company-local-store";
+import { CRM_CONTACTS_WORKSPACE_ID } from "@/modules/crm/contacts/ui/contacts.seed";
+import { crmContactLocalService, subscribeToCrmContactStore } from "@/modules/crm/contacts/ui/contact-local-store";
 import { OpportunityService } from "@/modules/crm/opportunities";
-import { crmOpportunitySeed } from "@/modules/crm/opportunities/ui/opportunities.seed";
+import { CRM_OPPORTUNITIES_WORKSPACE_ID, crmOpportunitySeed } from "@/modules/crm/opportunities/ui/opportunities.seed";
 import { ContextualActionStrip, createContextualActionRegistry } from "@/platform/contextual-actions";
 import { EntityEmptyState, EntityHeader, EntityPageLayout, InfoCard, MetricCard, SectionCard } from "@/ui";
 import { SalesDocumentPreviewDialog, buildQuotePdfDocument, downloadSalesDocumentPdf, printSalesDocumentPdf } from "@/modules/sales/documents";
 import type { QuoteId } from "../quote.types";
 import { formatQuoteMoney, getQuoteTotals } from "../quote.utils";
-import { quoteService } from "../quote.store";
+import { quoteService, subscribeToQuoteStore } from "../quote.store";
 import { SALES_QUOTES_WORKSPACE_ID } from "../quotes.seed";
 import { QuoteStatusBadge } from "./quotes-workspace";
 import { invoiceService, notifyInvoiceStoreUpdated } from "@/modules/sales/invoices";
+import { QUOTE_STATUS_LABELS } from "../quote.constants";
 
-const companyService = new CompanyService({ seed: crmCompanySeed });
-const contactService = new ContactService({ seed: crmContactSeed });
 const opportunityService = new OpportunityService({ seed: crmOpportunitySeed });
-const companies = companyService.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID }).companies;
-const contacts = contactService.listContacts({ workspaceId: CRM_COMPANIES_WORKSPACE_ID }).contacts;
-const opportunities = opportunityService.listOpportunities({ workspaceId: SALES_QUOTES_WORKSPACE_ID }).opportunities;
-const companyById = new Map(companies.map((company) => [company.id, company]));
-const contactById = new Map(contacts.map((contact) => [contact.id, contact]));
+const opportunities = opportunityService.listOpportunities({ workspaceId: CRM_OPPORTUNITIES_WORKSPACE_ID }).opportunities;
 const opportunityById = new Map(opportunities.map((opportunity) => [opportunity.id, opportunity]));
 
 export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
   const router = useRouter();
+  const [, setStoreVersion] = useState(0);
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
   const quote = quoteService.getQuote(quoteId as QuoteId, SALES_QUOTES_WORKSPACE_ID);
+
+  useEffect(() => {
+    const refresh = () => setStoreVersion((value) => value + 1);
+    const unsubscribeQuotes = subscribeToQuoteStore(refresh);
+    const unsubscribeCompanies = subscribeToCrmCompanyStore(refresh);
+    const unsubscribeContacts = subscribeToCrmContactStore(refresh);
+    return () => {
+      unsubscribeQuotes();
+      unsubscribeCompanies();
+      unsubscribeContacts();
+    };
+  }, []);
 
   if (!quote) {
     return (
@@ -45,11 +54,19 @@ export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
 
   const quoteValue = quote;
   const totals = getQuoteTotals(quoteValue);
+  const companies = crmCompanyLocalService.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID, includeArchived: false }).companies;
+  const contacts = crmContactLocalService.listContacts({ workspaceId: CRM_CONTACTS_WORKSPACE_ID, includeArchived: false }).contacts;
+  const companyById = new Map(companies.map((company) => [company.id, company]));
+  const contactById = new Map(contacts.map((contact) => [contact.id, contact]));
   const company = companyById.get(quoteValue.companyId);
   const contact = quoteValue.contactId ? contactById.get(quoteValue.contactId) : undefined;
   const opportunity = quoteValue.opportunityId ? opportunityById.get(quoteValue.opportunityId) : undefined;
+  const companyLabel = company?.displayName ?? quoteValue.companyName ?? "Non définie";
+  const contactLabel = contact?.fullName ?? quoteValue.contactName ?? "Non lié";
+  const opportunityLabel = opportunity?.title ?? quoteValue.opportunityName ?? "Non liée";
+  const validityLabel = quoteValue.validityDays ? `${quoteValue.validityDays} jours` : formatDate(quoteValue.expirationDate);
   const linkedInvoice = invoiceService.getInvoiceByQuote(quoteValue.id, quoteValue.workspaceId);
-  const pdfDocument = buildQuotePdfDocument(quoteValue, { company, contact });
+  const pdfDocument = buildQuotePdfDocument(quoteValue, { company, companyName: quoteValue.companyName, contact, contactName: quoteValue.contactName });
   const contextualActions = createContextualActionRegistry([
     {
       id: "quote.preview-pdf",
@@ -117,8 +134,16 @@ export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
     }
   ]).getAll();
 
-  function createInvoice() {
+  async function createInvoice() {
+    const snapshot = invoiceService.listInvoices({ workspaceId: SALES_QUOTES_WORKSPACE_ID, includeArchived: true }).invoices;
     const invoice = invoiceService.createFromQuote(quoteValue);
+    try {
+      await persistCrmSalesRecord("invoice", invoice);
+    } catch (error) {
+      invoiceService.replaceInvoices(snapshot);
+      console.error(error);
+      return;
+    }
     notifyInvoiceStoreUpdated();
     router.push(`/sales/invoices/${invoice.id}`);
   }
@@ -155,8 +180,8 @@ export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard icon={HandCoins} label="Total TTC" value={formatQuoteMoney(totals.total, totals.currency)} helper="Montant proposé" />
-        <MetricCard icon={Building2} label="Société" value={company?.displayName ?? "Non définie"} helper="Compte CRM" />
-        <MetricCard icon={CalendarClock} label="Validité" value={formatDate(quote.expirationDate)} helper="Date d'expiration" />
+        <MetricCard icon={Building2} label="Société" value={companyLabel} helper="Compte CRM" />
+        <MetricCard icon={CalendarClock} label="Validité" value={validityLabel} helper={`Expire le ${formatDate(quote.expirationDate)}`} />
         <MetricCard icon={FileText} label="Lignes" value={String(quote.items.length)} helper="Articles devis" />
       </section>
 
@@ -166,9 +191,12 @@ export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
             <h2 className="font-display text-lg font-bold text-hicotech-navy dark:text-white">Informations commerciales</h2>
             <div className="mt-5 grid gap-3 md:grid-cols-2">
               <InfoRow label="Client" value={quote.customerName} />
-              <InfoRow label="Société" value={company?.displayName ?? "Non définie"} />
-              <InfoRow label="Opportunité" value={opportunity?.title ?? "Non liée"} />
+              <InfoRow label="Société" value={companyLabel} />
+              <InfoRow label="Contact" value={contactLabel} />
+              <InfoRow label="Opportunité" value={opportunityLabel} />
               <InfoRow label="Responsable" value={quote.ownerId} />
+              <InfoRow label="Statut" value={QUOTE_STATUS_LABELS[quote.status]} />
+              <InfoRow label="Devise" value={quote.currency} />
               <InfoRow label="Émission" value={formatDate(quote.issueDate)} />
               <InfoRow label="Expiration" value={formatDate(quote.expirationDate)} />
             </div>
@@ -186,6 +214,7 @@ export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
                     <th className="px-5 py-3 font-bold text-slate-500">Quantité</th>
                     <th className="px-5 py-3 font-bold text-slate-500">Prix unitaire</th>
                     <th className="px-5 py-3 font-bold text-slate-500">TVA</th>
+                    <th className="px-5 py-3 font-bold text-slate-500">Total ligne</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -195,6 +224,7 @@ export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{item.quantity}</td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{formatQuoteMoney(item.unitPrice, quote.currency)}</td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{item.taxRate}%</td>
+                      <td className="px-4 py-3 font-bold text-hicotech-navy dark:text-white">{formatQuoteMoney(item.quantity * item.unitPrice * (1 + item.taxRate / 100), quote.currency)}</td>
                     </tr>
                   ))}
                 </tbody>

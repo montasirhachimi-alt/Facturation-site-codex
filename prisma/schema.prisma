@@ -57,38 +57,44 @@ enum StockMovementType {
 }
 
 model Company {
-  id        String     @id @default(cuid())
-  name      String
-  ice       String?
-  taxId     String?
-  rc        String?
-  phone     String?
-  email     String?
-  address   String?
-  city      String?
-  logoUrl   String?
-  stampUrl  String?
-  signUrl   String?
-  users     User[]
-  clients   Client[]
-  suppliers Supplier[]
-  products  Product[]
-  documents Document[]
-  deliveryNotes DeliveryNote[]
-  purchases PurchaseInvoice[]
-  cashEntries CashEntry[]
-  employees Employee[]
+  id                String             @id @default(cuid())
+  name              String
+  ice               String?
+  taxId             String?
+  rc                String?
+  phone             String?
+  email             String?
+  address           String?
+  city              String?
+  logoUrl           String?
+  stampUrl          String?
+  signUrl           String?
+  users             User[]
+  clients           Client[]
+  suppliers         Supplier[]
+  products          Product[]
+  documents         Document[]
+  deliveryNotes     DeliveryNote[]
+  purchases         PurchaseInvoice[]
+  cashEntries       CashEntry[]
+  employees         Employee[]
   employeeContracts EmployeeContract[]
-  attendances Attendance[]
-  hrLeaves HrLeave[]
-  salarySlips SalarySlip[]
-  salaryAdvances SalaryAdvance[]
-  hrDocuments HrDocument[]
-  expenses  Expense[]
-  categories Category[]
-  movements  StockMovement[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  attendances       Attendance[]
+  hrLeaves          HrLeave[]
+  salarySlips       SalarySlip[]
+  salaryAdvances    SalaryAdvance[]
+  hrDocuments       HrDocument[]
+  expenses          Expense[]
+  categories        Category[]
+  movements         StockMovement[]
+  crmCompanies      CrmCompany[]
+  crmCustomers      CrmCustomer[]
+  crmContacts       CrmContact[]
+  salesQuotes       SalesQuote[]
+  salesInvoices     SalesInvoice[]
+  salesPayments     SalesPayment[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 }
 
 model User {
@@ -108,24 +114,24 @@ model User {
 }
 
 model Client {
-  id          String     @id @default(cuid())
-  companyId   String
-  company     Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  name        String
-  contactName String?
-  ice         String?
-  taxId       String?
-  rc          String?
-  phone       String?
-  email       String?
-  address     String?
-  city        String?
-  balance     Decimal    @default(0)
-  documents   Document[]
+  id            String         @id @default(cuid())
+  companyId     String
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name          String
+  contactName   String?
+  ice           String?
+  taxId         String?
+  rc            String?
+  phone         String?
+  email         String?
+  address       String?
+  city          String?
+  balance       Decimal        @default(0)
+  documents     Document[]
   deliveryNotes DeliveryNote[]
-  reminders   Reminder[]
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  reminders     Reminder[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   @@index([companyId])
   @@index([companyId, ice])
@@ -166,52 +172,52 @@ model Category {
 }
 
 model Product {
-  id            String          @id @default(cuid())
+  id            String                @id @default(cuid())
   companyId     String
-  company       Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company       Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   categoryId    String?
-  category      Category?       @relation(fields: [categoryId], references: [id])
+  category      Category?             @relation(fields: [categoryId], references: [id])
   reference     String
   designation   String
   description   String?
   imageUrl      String?
-  purchasePrice Decimal         @default(0)
+  purchasePrice Decimal               @default(0)
   salePrice     Decimal
-  vatRate       Decimal         @default(20)
-  stock         Int             @default(0)
-  minStock      Int             @default(0)
+  vatRate       Decimal               @default(20)
+  stock         Int                   @default(0)
+  minStock      Int                   @default(0)
   lines         DocumentLine[]
   deliveryLines DeliveryNoteLine[]
   purchaseLines PurchaseInvoiceLine[]
   movements     StockMovement[]
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
 
   @@unique([companyId, reference])
   @@index([companyId])
 }
 
 model Document {
-  id          String           @id @default(cuid())
-  companyId   String
-  company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  clientId    String?
-  client      Client?          @relation(fields: [clientId], references: [id])
-  type        DocumentType
-  status      DocumentStatus   @default(DRAFT)
-  number      String
-  issueDate   DateTime         @default(now())
-  dueDate     DateTime?
-  subtotal    Decimal          @default(0)
-  vatTotal    Decimal          @default(0)
-  total       Decimal          @default(0)
-  paidAmount  Decimal          @default(0)
-  notes       String?
-  lines       DocumentLine[]
-  payments    Payment[]
-  sourceId    String?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id         String         @id @default(cuid())
+  companyId  String
+  company    Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  clientId   String?
+  client     Client?        @relation(fields: [clientId], references: [id])
+  type       DocumentType
+  status     DocumentStatus @default(DRAFT)
+  number     String
+  issueDate  DateTime       @default(now())
+  dueDate    DateTime?
+  subtotal   Decimal        @default(0)
+  vatTotal   Decimal        @default(0)
+  total      Decimal        @default(0)
+  paidAmount Decimal        @default(0)
+  notes      String?
+  lines      DocumentLine[]
+  payments   Payment[]
+  sourceId   String?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
 
   @@unique([companyId, type, number])
   @@index([companyId, status])
@@ -233,13 +239,13 @@ model DocumentLine {
 }
 
 model Payment {
-  id          String      @id @default(cuid())
-  documentId  String
-  document    Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  amount      Decimal
-  mode        PaymentMode
-  reference   String?
-  paidAt      DateTime    @default(now())
+  id         String      @id @default(cuid())
+  documentId String
+  document   Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  amount     Decimal
+  mode       PaymentMode
+  reference  String?
+  paidAt     DateTime    @default(now())
 }
 
 model DeliveryNote {
@@ -347,32 +353,32 @@ model Expense {
 }
 
 model Employee {
-  id            String             @id @default(cuid())
-  companyId     String
-  company       Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  photoUrl      String?
-  firstName     String
-  lastName      String
-  cin           String
-  phone         String?
-  email         String?
-  address       String?
-  city          String?
-  birthDate     DateTime?
-  hireDate      DateTime
-  position      String
-  department    String
-  contractType  String
-  baseSalary    Decimal            @default(0)
-  status        String             @default("actif")
-  contracts     EmployeeContract[]
-  attendances   Attendance[]
-  leaves        HrLeave[]
-  salarySlips   SalarySlip[]
-  advances      SalaryAdvance[]
-  documents     HrDocument[]
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
+  id           String             @id @default(cuid())
+  companyId    String
+  company      Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  photoUrl     String?
+  firstName    String
+  lastName     String
+  cin          String
+  phone        String?
+  email        String?
+  address      String?
+  city         String?
+  birthDate    DateTime?
+  hireDate     DateTime
+  position     String
+  department   String
+  contractType String
+  baseSalary   Decimal            @default(0)
+  status       String             @default("actif")
+  contracts    EmployeeContract[]
+  attendances  Attendance[]
+  leaves       HrLeave[]
+  salarySlips  SalarySlip[]
+  advances     SalaryAdvance[]
+  documents    HrDocument[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
 
   @@index([companyId])
   @@index([companyId, status])
@@ -380,125 +386,125 @@ model Employee {
 }
 
 model EmployeeContract {
-  id             String   @id @default(cuid())
-  companyId      String
-  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  employeeId     String
-  employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  type           String
-  startDate      DateTime
-  endDate        DateTime?
-  salary         Decimal  @default(0)
-  position       String
-  signedFileUrl  String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id            String    @id @default(cuid())
+  companyId     String
+  company       Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeId    String
+  employee      Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type          String
+  startDate     DateTime
+  endDate       DateTime?
+  salary        Decimal   @default(0)
+  position      String
+  signedFileUrl String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@index([companyId, employeeId])
   @@index([companyId, type])
 }
 
 model Attendance {
-  id             String   @id @default(cuid())
-  companyId      String
-  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  employeeId     String
-  employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  workDate       DateTime
-  checkIn        DateTime?
-  checkOut       DateTime?
-  lateMinutes    Int      @default(0)
-  workedHours    Decimal  @default(0)
-  createdAt      DateTime @default(now())
+  id          String    @id @default(cuid())
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  workDate    DateTime
+  checkIn     DateTime?
+  checkOut    DateTime?
+  lateMinutes Int       @default(0)
+  workedHours Decimal   @default(0)
+  createdAt   DateTime  @default(now())
 
   @@index([companyId, employeeId])
   @@index([companyId, workDate])
 }
 
 model HrLeave {
-  id          String   @id @default(cuid())
-  companyId   String
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  employeeId  String
-  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  type        String
-  reason      String
-  startDate   DateTime
-  endDate     DateTime
-  days        Decimal  @default(0)
-  status      String   @default("en attente")
-  balance     Decimal  @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type       String
+  reason     String
+  startDate  DateTime
+  endDate    DateTime
+  days       Decimal  @default(0)
+  status     String   @default("en attente")
+  balance    Decimal  @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([companyId, employeeId])
   @@index([companyId, status])
 }
 
 model SalarySlip {
-  id              String   @id @default(cuid())
-  companyId       String
-  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  employeeId      String
-  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  month           String
-  baseSalary      Decimal  @default(0)
-  bonuses         Decimal  @default(0)
-  advances        Decimal  @default(0)
-  deductions      Decimal  @default(0)
-  unpaidAbsences  Decimal  @default(0)
-  netSalary       Decimal  @default(0)
-  paidAt          DateTime?
-  createdAt       DateTime @default(now())
+  id             String    @id @default(cuid())
+  companyId      String
+  company        Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeId     String
+  employee       Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  month          String
+  baseSalary     Decimal   @default(0)
+  bonuses        Decimal   @default(0)
+  advances       Decimal   @default(0)
+  deductions     Decimal   @default(0)
+  unpaidAbsences Decimal   @default(0)
+  netSalary      Decimal   @default(0)
+  paidAt         DateTime?
+  createdAt      DateTime  @default(now())
 
   @@unique([companyId, employeeId, month])
   @@index([companyId, month])
 }
 
 model SalaryAdvance {
-  id          String      @id @default(cuid())
-  companyId   String
-  company     Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  employeeId  String
-  employee    Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  amount      Decimal
-  mode        PaymentMode
-  paidAt      DateTime    @default(now())
-  deducted    Boolean     @default(false)
-  createdAt   DateTime    @default(now())
+  id         String      @id @default(cuid())
+  companyId  String
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeId String
+  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  amount     Decimal
+  mode       PaymentMode
+  paidAt     DateTime    @default(now())
+  deducted   Boolean     @default(false)
+  createdAt  DateTime    @default(now())
 
   @@index([companyId, employeeId])
   @@index([companyId, paidAt])
 }
 
 model HrDocument {
-  id          String   @id @default(cuid())
-  companyId   String
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  employeeId  String
-  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  type        String
-  title       String
-  fileUrl     String?
-  issuedAt    DateTime @default(now())
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type       String
+  title      String
+  fileUrl    String?
+  issuedAt   DateTime @default(now())
+  createdAt  DateTime @default(now())
 
   @@index([companyId, employeeId])
   @@index([companyId, type])
 }
 
 model StockMovement {
-  id        String   @id @default(cuid())
+  id        String            @id @default(cuid())
   companyId String
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company   Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   productId String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product   Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
   type      StockMovementType
   quantity  Int
   reason    String
   reference String?
   note      String?
-  createdAt DateTime @default(now())
+  createdAt DateTime          @default(now())
 
   @@index([companyId, productId])
   @@index([companyId, type])
@@ -517,4 +523,242 @@ model Reminder {
   createdAt DateTime @default(now())
 
   @@index([companyId, clientId])
+}
+
+model CrmCompany {
+  id                 String         @id
+  tenantCompanyId    String
+  tenantCompany      Company        @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  workspaceId        String
+  legalName          String
+  displayName        String
+  registrationNumber String?
+  taxNumber          String?
+  industry           String
+  website            String?
+  email              String?
+  phone              String?
+  address            String?
+  city               String?
+  country            String?
+  status             String
+  tags               Json
+  notes              String?
+  ownerId            String?
+  createdBy          String
+  updatedBy          String?
+  crmCustomers       CrmCustomer[]
+  crmContacts        CrmContact[]
+  salesQuotes        SalesQuote[]
+  salesInvoices      SalesInvoice[]
+  salesPayments      SalesPayment[]
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@index([tenantCompanyId, workspaceId])
+  @@index([tenantCompanyId, status])
+}
+
+model CrmCustomer {
+  id              String         @id
+  tenantCompanyId String
+  tenantCompany   Company        @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  workspaceId     String
+  displayName     String
+  crmCompanyId    String?
+  crmCompany      CrmCompany?    @relation(fields: [crmCompanyId], references: [id], onDelete: SetNull)
+  companyName     String?
+  email           String?
+  phone           String?
+  status          String
+  type            String
+  source          String
+  tags            Json
+  notes           String?
+  createdBy       String
+  updatedBy       String?
+  salesQuotes     SalesQuote[]
+  salesInvoices   SalesInvoice[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([tenantCompanyId, workspaceId])
+  @@index([tenantCompanyId, crmCompanyId])
+  @@index([tenantCompanyId, status])
+}
+
+model CrmContact {
+  id                String         @id
+  tenantCompanyId   String
+  tenantCompany     Company        @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  workspaceId       String
+  crmCompanyId      String
+  crmCompany        CrmCompany     @relation(fields: [crmCompanyId], references: [id], onDelete: Cascade)
+  firstName         String
+  lastName          String
+  fullName          String
+  jobTitle          String?
+  department        String?
+  email             String?
+  mobilePhone       String?
+  officePhone       String?
+  preferredLanguage String?
+  timezone          String?
+  status            String
+  role              String?
+  isPrimaryContact  Boolean        @default(false)
+  isDecisionMaker   Boolean        @default(false)
+  linkedin          String?
+  notes             String?
+  tags              Json
+  ownerId           String?
+  createdBy         String
+  updatedBy         String?
+  salesQuotes       SalesQuote[]
+  salesInvoices     SalesInvoice[]
+  salesPayments     SalesPayment[]
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([tenantCompanyId, workspaceId])
+  @@index([tenantCompanyId, crmCompanyId])
+  @@index([tenantCompanyId, status])
+}
+
+model SalesQuote {
+  id              String           @id
+  tenantCompanyId String
+  tenantCompany   Company          @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  workspaceId     String
+  number          String
+  crmCustomerId   String?
+  crmCustomer     CrmCustomer?     @relation(fields: [crmCustomerId], references: [id], onDelete: SetNull)
+  customerName    String
+  crmCompanyId    String
+  crmCompany      CrmCompany       @relation(fields: [crmCompanyId], references: [id], onDelete: Restrict)
+  companyName     String?
+  crmContactId    String?
+  crmContact      CrmContact?      @relation(fields: [crmContactId], references: [id], onDelete: SetNull)
+  contactName     String?
+  opportunityId   String?
+  opportunityName String?
+  status          String
+  issueDate       DateTime
+  expirationDate  DateTime
+  validityDays    Int?
+  currency        String
+  discountRate    Float            @default(0)
+  notes           String?
+  ownerId         String
+  lines           SalesQuoteLine[]
+  salesInvoices   SalesInvoice[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@unique([tenantCompanyId, number])
+  @@index([tenantCompanyId, workspaceId])
+  @@index([tenantCompanyId, crmCompanyId])
+  @@index([tenantCompanyId, crmCustomerId])
+  @@index([tenantCompanyId, status])
+}
+
+model SalesQuoteLine {
+  id          String     @id
+  quoteId     String
+  quote       SalesQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  description String
+  quantity    Float
+  unitPrice   Float
+  taxRate     Float
+  position    Int
+
+  @@index([quoteId])
+}
+
+model SalesInvoice {
+  id              String             @id
+  tenantCompanyId String
+  tenantCompany   Company            @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  workspaceId     String
+  number          String
+  crmCustomerId   String?
+  crmCustomer     CrmCustomer?       @relation(fields: [crmCustomerId], references: [id], onDelete: SetNull)
+  customerName    String
+  crmCompanyId    String
+  crmCompany      CrmCompany         @relation(fields: [crmCompanyId], references: [id], onDelete: Restrict)
+  companyName     String?
+  crmContactId    String?
+  crmContact      CrmContact?        @relation(fields: [crmContactId], references: [id], onDelete: SetNull)
+  contactName     String?
+  opportunityId   String?
+  opportunityName String?
+  quoteId         String?
+  quote           SalesQuote?        @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  status          String
+  issueDate       DateTime
+  dueDate         DateTime
+  currency        String
+  discountRate    Float              @default(0)
+  notes           String?
+  ownerId         String
+  paidAmount      Float              @default(0)
+  archivedAt      DateTime?
+  lines           SalesInvoiceLine[]
+  payments        SalesPayment[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@unique([tenantCompanyId, number])
+  @@index([tenantCompanyId, workspaceId])
+  @@index([tenantCompanyId, crmCompanyId])
+  @@index([tenantCompanyId, crmCustomerId])
+  @@index([tenantCompanyId, quoteId])
+  @@index([tenantCompanyId, status])
+}
+
+model SalesInvoiceLine {
+  id          String       @id
+  invoiceId   String
+  invoice     SalesInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description String
+  quantity    Float
+  unitPrice   Float
+  taxRate     Float
+  position    Int
+
+  @@index([invoiceId])
+}
+
+model SalesPayment {
+  id              String       @id
+  tenantCompanyId String
+  tenantCompany   Company      @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  workspaceId     String
+  number          String
+  invoiceId       String
+  invoice         SalesInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceNumber   String
+  customerName    String
+  crmCompanyId    String
+  crmCompany      CrmCompany   @relation(fields: [crmCompanyId], references: [id], onDelete: Restrict)
+  crmContactId    String?
+  crmContact      CrmContact?  @relation(fields: [crmContactId], references: [id], onDelete: SetNull)
+  opportunityId   String?
+  status          String
+  method          String
+  amount          Float
+  currency        String
+  receivedAt      DateTime
+  reference       String?
+  notes           String?
+  ownerId         String
+  archivedAt      DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([tenantCompanyId, number])
+  @@index([tenantCompanyId, workspaceId])
+  @@index([tenantCompanyId, invoiceId])
+  @@index([tenantCompanyId, crmCompanyId])
+  @@index([tenantCompanyId, status])
 }

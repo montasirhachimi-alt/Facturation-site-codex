@@ -95,7 +95,7 @@ export function CrmHomePage() {
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7" aria-label="Indicateurs CRM">
-        <MetricCard icon={Building2} label="Sociétés" value={String(companies.length)} helper="Données de démonstration" />
+        <MetricCard icon={Building2} label="Sociétés" value={String(companies.length)} helper="Comptes CRM suivis" />
         <MetricCard icon={ContactRound} label="Contacts" value={String(contacts.length)} helper="Reliés aux sociétés" />
         <MetricCard icon={HandCoins} label="Pipeline commercial" value={String(openOpportunities.length)} helper={formatOpportunityValue(totalPipelineValue(openOpportunities))} />
         <MetricCard icon={CalendarCheck} label="Réunions" value={String(meetings.length)} helper={`${upcomingMeetings.length} à venir`} />

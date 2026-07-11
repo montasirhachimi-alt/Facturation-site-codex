@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { persistCrmSalesRecord } from "@/platform/persistence";
 import type { CompanyId } from "@/modules/crm/companies";
-import { crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
 import type { ContactId } from "@/modules/crm/contacts";
-import { crmContactSeed } from "@/modules/crm/contacts/ui/contacts.seed";
+import type { CustomerId } from "@/modules/crm/customers";
 import type { OpportunityId } from "@/modules/crm/opportunities";
 import { SalesLineItemsEditor, createEmptySalesLineItem, normalizeSalesLineItems, validateSalesLineItems } from "@/modules/sales/shared";
 import { quoteService } from "@/modules/sales/quotes/quote.store";
@@ -14,18 +14,14 @@ import { calculateQuoteTotals, formatQuoteMoney } from "@/modules/sales/quotes/q
 import { EntityDialog } from "@/ui/dialogs/entity-dialog";
 import { FormActions, FormField, FormSection, entityInputClassName } from "@/ui/forms/form-field";
 import { SmartEntityPicker } from "@/ui/forms/smart-entity-picker";
-import { getCompanyPickerItems, getCustomerPickerItems } from "@/ui/forms/entity-picker.crm-data";
+import { createCompanyPickerItem, createContactPickerItem, createCustomerPickerItem, getCompanyPickerItems, getContactPickerItems, getCustomerPickerItems, subscribeToCrmPickerSources } from "@/ui/forms/entity-picker.crm-data";
 import { getQuotePickerItems } from "@/ui/forms/entity-picker.sales-data";
 import type { EntityPickerItem } from "@/ui/forms/entity-picker.types";
 import { invoiceService, notifyInvoiceStoreUpdated } from "../invoice.store";
 import type { Invoice } from "../invoice.types";
 
-const companies = crmCompanySeed;
-const contacts = crmContactSeed;
-const companyPickerItems = getCompanyPickerItems();
-const customerPickerItems = getCustomerPickerItems();
-
 type InvoiceDialogState = {
+  customerId: string;
   customerName: string;
   companyName: string;
   companyId: string;
@@ -36,7 +32,9 @@ type InvoiceDialogState = {
   discountRate: number;
   notes: string;
   contactId?: ContactId;
+  contactName?: string;
   opportunityId?: OpportunityId;
+  opportunityName?: string;
   items: readonly QuoteItem[];
 };
 
@@ -49,11 +47,11 @@ export function InvoiceDialog({
   onSubmit: (invoice: Invoice) => void;
   open: boolean;
 }) {
-  const initialCompany = companies[0];
   const [form, setForm] = useState<InvoiceDialogState>(() => ({
-    customerName: initialCompany?.displayName ?? "",
-    companyName: initialCompany?.displayName ?? "",
-    companyId: initialCompany?.id ?? "",
+    customerId: "",
+    customerName: "",
+    companyName: "",
+    companyId: "",
     quoteId: "",
     issueDate: "2026-07-03T11:00:00.000Z",
     dueDate: addDays("2026-07-03T11:00:00.000Z", 30),
@@ -63,8 +61,23 @@ export function InvoiceDialog({
     items: [createEmptySalesLineItem("invoice-line")]
   }));
   const [error, setError] = useState<string | null>(null);
+  const [pickerVersion, setPickerVersion] = useState(0);
   const quotePickerItems = useMemo(() => getQuotePickerItems(), []);
+  const companyPickerItems = useMemo(() => {
+    void pickerVersion;
+    return getCompanyPickerItems();
+  }, [pickerVersion]);
+  const customerPickerItems = useMemo(() => {
+    void pickerVersion;
+    return getCustomerPickerItems();
+  }, [pickerVersion]);
+  const contactPickerItems = useMemo(() => {
+    void pickerVersion;
+    return getContactPickerItems(form.companyId);
+  }, [form.companyId, pickerVersion]);
   const totals = useMemo(() => calculateQuoteTotals(form.items, form.discountRate, form.currency), [form.currency, form.discountRate, form.items]);
+
+  useEffect(() => subscribeToCrmPickerSources(() => setPickerVersion((value) => value + 1)), []);
 
   function updateForm(patch: Partial<InvoiceDialogState>) {
     setForm((current) => ({ ...current, ...patch }));
@@ -83,14 +96,16 @@ export function InvoiceDialog({
       return;
     }
 
-    const company = companies.find((entry) => entry.id === quote.companyId);
     updateForm({
       quoteId: quote.id,
+      customerId: quote.customerId ?? "",
       customerName: quote.customerName,
-      companyName: company?.displayName ?? form.companyName,
+      companyName: quote.companyName ?? form.companyName,
       companyId: quote.companyId,
       contactId: quote.contactId,
+      contactName: quote.contactName,
       opportunityId: quote.opportunityId,
+      opportunityName: quote.opportunityName,
       currency: quote.currency,
       discountRate: quote.discountRate,
       notes: quote.notes ? `Facture préparée depuis ${quote.number}. ${quote.notes}` : `Facture préparée depuis ${quote.number}.`,
@@ -98,7 +113,7 @@ export function InvoiceDialog({
     });
   }
 
-  function submitInvoice() {
+  async function submitInvoice() {
     const lineValidation = validateSalesLineItems(form.items);
     const companyId = resolveCompanyId(form.companyId, form.companyName);
     const customerName = form.customerName.trim() || form.companyName.trim();
@@ -118,12 +133,17 @@ export function InvoiceDialog({
       return;
     }
 
+    const snapshot = invoiceService.listInvoices({ workspaceId: SALES_QUOTES_WORKSPACE_ID, includeArchived: true }).invoices;
     const invoice = invoiceService.createInvoice({
       workspaceId: SALES_QUOTES_WORKSPACE_ID,
+      customerId: resolveCustomerId(form.customerId),
       customerName,
       companyId,
+      companyName: form.companyName,
       contactId: resolveContactId(form.contactId),
+      contactName: form.contactName,
       opportunityId: form.opportunityId,
+      opportunityName: form.opportunityName,
       quoteId: resolveQuoteId(form.quoteId),
       status: "draft",
       issueDate: form.issueDate,
@@ -134,6 +154,14 @@ export function InvoiceDialog({
       notes: form.notes,
       ownerId: SALES_QUOTES_USER_ID
     });
+
+    try {
+      await persistCrmSalesRecord("invoice", invoice);
+    } catch {
+      invoiceService.replaceInvoices(snapshot);
+      setError("La facture n'a pas pu être enregistrée dans la base. Vérifiez la connexion puis réessayez.");
+      return;
+    }
 
     notifyInvoiceStoreUpdated();
     onSubmit(invoice);
@@ -147,6 +175,7 @@ export function InvoiceDialog({
       open={open}
       onClose={onClose}
       onSubmit={submitInvoice}
+      size="xl"
       error={error}
       footer={<FormActions onCancel={onClose} submitLabel="Créer une facture" />}
     >
@@ -156,25 +185,53 @@ export function InvoiceDialog({
             label="Client"
             items={customerPickerItems}
             value={form.customerName}
-            onChange={({ value }) => updateForm({ customerName: value })}
+            onChange={({ value, item }) => {
+              const companyId = item?.relations?.companyId ?? "";
+              updateForm({
+                customerId: item?.relations?.customerId ?? "",
+                customerName: value,
+                companyId: form.companyId || companyId,
+                companyName: form.companyName || item?.relations?.companyName || form.companyName
+              });
+            }}
             placeholder="Rechercher un client..."
             helper="Obligatoire"
             allowCreate
             createLabel="Créer le client"
             entityType="client"
-            onCreate={(name) => createLocalPickerItem(customerPickerItems, name, "customer", "Customer")}
+            onCreate={(name) => createCustomerPickerItem(name, { id: form.companyId, name: form.companyName })}
           />
           <SmartEntityPicker
             label="Société"
             items={companyPickerItems}
             value={form.companyName}
-            onChange={({ value, item }) => updateForm({ companyName: value, companyId: item?.id ?? form.companyId })}
+            onChange={({ value, item }) => updateForm({ companyName: value, companyId: item?.relations?.companyId ?? "", contactId: undefined, contactName: "" })}
             placeholder="Rechercher une société..."
             helper="Obligatoire"
             allowCreate
             createLabel="Créer la société"
             entityType="société"
-            onCreate={(name) => createLocalPickerItem(companyPickerItems, name, "company", "Company")}
+            onCreate={(name) => createCompanyPickerItem(name)}
+          />
+          <SmartEntityPicker
+            label="Contact"
+            items={contactPickerItems}
+            value={form.contactName ?? ""}
+            onChange={({ value, item }) => {
+              const companyId = item?.relations?.companyId ?? "";
+              updateForm({
+                contactName: value,
+                contactId: item?.relations?.contactId as ContactId | undefined,
+                companyId: form.companyId || companyId,
+                companyName: form.companyName || item?.relations?.companyName || form.companyName
+              });
+            }}
+            placeholder="Rechercher un contact..."
+            helper="Optionnel"
+            allowCreate
+            createLabel="Créer le contact"
+            entityType="contact"
+            onCreate={(name) => createContactPickerItem(name, { id: form.companyId, name: form.companyName })}
           />
           <SmartEntityPicker
             label="Devis source"
@@ -249,31 +306,21 @@ export function InvoiceDialog({
 }
 
 function resolveCompanyId(companyId: string, companyName: string) {
-  const direct = companies.find((company) => company.id === companyId);
-  if (direct) return direct.id as CompanyId;
-  const byName = companies.find((company) => company.displayName === companyName || company.legalName === companyName);
-  return (byName ?? companies[0])?.id as CompanyId | undefined;
+  if (companyId) return companyId as CompanyId;
+  const byName = getCompanyPickerItems().find((company) => company.title === companyName);
+  return byName?.relations?.companyId as CompanyId | undefined;
+}
+
+function resolveCustomerId(customerId: string) {
+  return customerId ? customerId as CustomerId : undefined;
 }
 
 function resolveContactId(contactId: string | undefined) {
-  return contacts.some((contact) => contact.id === contactId) ? contactId as ContactId : undefined;
+  return contactId ? contactId as ContactId : undefined;
 }
 
 function resolveQuoteId(quoteId: string) {
   return quoteService.getQuote(quoteId as QuoteId, SALES_QUOTES_WORKSPACE_ID) ? quoteId as QuoteId : undefined;
-}
-
-function createLocalPickerItem(items: readonly EntityPickerItem[], title: string, type: EntityPickerItem["type"], typeLabel: string): EntityPickerItem {
-  const fallback = items.find((item) => !item.disabled) ?? items[0];
-  return {
-    id: `inline-${type}-${slugify(title)}-${Date.now()}`,
-    title,
-    type,
-    typeLabel,
-    metadata: "Créé localement dans ce formulaire",
-    icon: fallback.icon,
-    keywords: [title, "inline", "local"]
-  };
 }
 
 function TotalPill({ label, strong, value }: { label: string; strong?: boolean; value: string }) {
@@ -293,13 +340,4 @@ function addDays(date: string, days: number) {
 
 function toIsoDate(date: string) {
   return new Date(`${date}T11:00:00.000Z`).toISOString();
-}
-
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
 }

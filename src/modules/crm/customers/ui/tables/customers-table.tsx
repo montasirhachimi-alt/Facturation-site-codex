@@ -1,4 +1,4 @@
-import { Archive, Eye, MoreHorizontal, Pencil } from "lucide-react";
+import { Archive, Eye, Pencil } from "lucide-react";
 import { EntityActionButton, EntityActionMenu, EntityTable, type EntityTableColumn } from "@/ui";
 import type { Customer, CustomerId } from "../../customer.types";
 import type { CustomerSortKey } from "../hooks/use-customers-page";
@@ -67,6 +67,8 @@ export function CustomersTable({
   isLoading,
   onArchive,
   onCreate,
+  onEdit,
+  onView,
   onSort,
   onToggleAll,
   onToggleRow,
@@ -79,6 +81,8 @@ export function CustomersTable({
   isLoading?: boolean;
   onArchive: (customer: Customer) => void;
   onCreate: () => void;
+  onEdit: (customer: Customer) => void;
+  onView: (customer: Customer) => void;
   onSort: (field: CustomerSortKey) => void;
   onToggleAll: () => void;
   onToggleRow: (id: CustomerId) => void;
@@ -97,20 +101,14 @@ export function CustomersTable({
       isLoading={isLoading}
       items={customers}
       onSort={onSort}
+      onOpenRow={onView}
       onToggleAll={onToggleAll}
       onToggleRow={onToggleRow}
       renderActions={(customer) => (
         <EntityActionMenu>
-          <EntityActionButton icon={<Eye size={16} />} label="Voir" />
-          <EntityActionButton icon={<Pencil size={16} />} label="Modifier" disabled={!canEdit} />
-          <EntityActionButton icon={<Archive size={16} />} label="Archiver" disabled={!canEdit} onClick={() => onArchive(customer)} danger />
-          <button
-            type="button"
-            className="rounded-xl border border-slate-200 p-2 text-slate-500 transition hover:border-hicotech-blue/30 hover:bg-hicotech-sky/50 dark:border-hicotech-dark-border dark:text-slate-300 dark:hover:bg-hicotech-dark-page"
-            aria-label="Plus d'actions"
-          >
-            <MoreHorizontal size={16} />
-          </button>
+          <EntityActionButton icon={<Eye size={16} />} label="Voir" onClick={() => onView(customer)} />
+          <EntityActionButton icon={<Pencil size={16} />} label="Modifier" disabled={!canEdit} disabledReason="Modification client non autorisée." onClick={() => onEdit(customer)} />
+          <EntityActionButton icon={<Archive size={16} />} label="Archiver" disabled={!canEdit} disabledReason="Archivage client non autorisé." onClick={() => onArchive(customer)} danger />
         </EntityActionMenu>
       )}
       selectedIds={selectedIds}

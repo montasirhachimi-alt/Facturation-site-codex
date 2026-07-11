@@ -37,10 +37,19 @@ export type PdfLayoutDocument = {
   dueDate?: string;
   status?: string;
   internalReference?: string;
+  currency?: string;
   recipient: PdfParty;
   lines: PdfLineItem[];
   paidAmount?: number;
   discount?: number;
+  totals?: {
+    subtotal: number;
+    discount: number;
+    tax: number;
+    total: number;
+    paid?: number;
+    remaining?: number;
+  };
   amountInWords?: string;
   paymentTerms?: string;
   notes?: string;

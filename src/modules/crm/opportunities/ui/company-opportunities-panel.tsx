@@ -53,7 +53,7 @@ export function CompanyOpportunitiesPanel({ companyId }: { companyId: CompanyId 
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-hicotech-blue">Moteur de ventes</p>
           <h2 className="mt-2 font-display text-lg font-bold text-hicotech-navy dark:text-white">Opportunités</h2>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-300">
-            Pipeline commercial préparé pour relier cette société aux futurs devis, commandes et factures.
+            Pipeline commercial relié à cette société, ses contacts et ses documents de vente.
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -69,7 +69,7 @@ export function CompanyOpportunitiesPanel({ companyId }: { companyId: CompanyId 
           <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/80 p-5 text-sm dark:border-hicotech-dark-border dark:bg-slate-900/30">
             <p className="font-bold text-hicotech-navy dark:text-white">Aucune opportunité ouverte</p>
             <p className="mt-1 leading-6 text-slate-500 dark:text-slate-300">
-              Les opportunités seront créées depuis le futur workflow commercial.
+              Les opportunités liées à cette société apparaîtront ici.
             </p>
           </div>
         )}

@@ -3,6 +3,7 @@ import { calculatePdfPreviewTotals, formatPdfMoney } from "./sales-document-pdf.
 
 export function SalesDocumentTemplate({ document }: { document: PdfLayoutDocument }) {
   const totals = calculatePdfPreviewTotals(document);
+  const currency = document.currency ?? "MAD";
 
   return (
     <article className="mx-auto w-full max-w-[860px] rounded-2xl border border-slate-200 bg-white p-5 text-hicotech-navy shadow-xl shadow-slate-900/10 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:text-white sm:p-7">
@@ -24,24 +25,24 @@ export function SalesDocumentTemplate({ document }: { document: PdfLayoutDocumen
         <PartyBlock
           title="Émetteur"
           rows={[
-            document.company?.name,
-            document.company?.address,
-            document.company?.city,
-            document.company?.ice ? `ICE ${document.company.ice}` : undefined,
-            document.company?.phone,
-            document.company?.email
+            { id: "issuer.name", value: document.company?.name },
+            { id: "issuer.address", value: document.company?.address },
+            { id: "issuer.city", value: document.company?.city },
+            { id: "issuer.ice", value: document.company?.ice ? `ICE ${document.company.ice}` : undefined },
+            { id: "issuer.phone", value: document.company?.phone },
+            { id: "issuer.email", value: document.company?.email }
           ]}
         />
         <PartyBlock
           title={document.recipient.label}
           rows={[
-            document.recipient.name,
-            document.recipient.company,
-            document.recipient.address,
-            document.recipient.city,
-            document.recipient.ice ? `ICE ${document.recipient.ice}` : undefined,
-            document.recipient.phone,
-            document.recipient.email
+            { id: "recipient.name", value: document.recipient.name },
+            { id: "recipient.company", value: document.recipient.company },
+            { id: "recipient.address", value: document.recipient.address },
+            { id: "recipient.city", value: document.recipient.city },
+            { id: "recipient.ice", value: document.recipient.ice ? `ICE ${document.recipient.ice}` : undefined },
+            { id: "recipient.phone", value: document.recipient.phone },
+            { id: "recipient.email", value: document.recipient.email }
           ]}
         />
       </section>
@@ -65,9 +66,9 @@ export function SalesDocumentTemplate({ document }: { document: PdfLayoutDocumen
                   <td className="px-4 py-3 text-slate-500 dark:text-slate-300">{line.reference}</td>
                   <td className="px-4 py-3 font-semibold">{line.designation}</td>
                   <td className="px-4 py-3 text-right text-slate-600 dark:text-slate-300">{formatQuantity(line.quantity)}</td>
-                  <td className="px-4 py-3 text-right text-slate-600 dark:text-slate-300">{formatPdfMoney(line.unitPrice)}</td>
+                  <td className="px-4 py-3 text-right text-slate-600 dark:text-slate-300">{formatPdfMoney(line.unitPrice, currency)}</td>
                   <td className="px-4 py-3 text-right text-slate-600 dark:text-slate-300">{line.vat}%</td>
-                  <td className="px-4 py-3 text-right font-bold">{formatPdfMoney(line.quantity * line.unitPrice)}</td>
+                  <td className="px-4 py-3 text-right font-bold">{formatPdfMoney(line.quantity * line.unitPrice, currency)}</td>
                 </tr>
               ))}
             </tbody>
@@ -82,14 +83,14 @@ export function SalesDocumentTemplate({ document }: { document: PdfLayoutDocumen
           {document.notes ? <p className="mt-3">{document.notes}</p> : null}
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
-          <PreviewTotal label="Sous-total" value={formatPdfMoney(totals.subtotal)} />
-          <PreviewTotal label="TVA" value={formatPdfMoney(totals.tax)} />
-          <PreviewTotal label="Remise" value={formatPdfMoney(totals.discount)} />
-          <PreviewTotal label="Total TTC" value={formatPdfMoney(totals.total)} strong />
+          <PreviewTotal label="Sous-total" value={formatPdfMoney(totals.subtotal, currency)} />
+          <PreviewTotal label="TVA" value={formatPdfMoney(totals.tax, currency)} />
+          <PreviewTotal label="Remise" value={formatPdfMoney(totals.discount, currency)} />
+          <PreviewTotal label="Total TTC" value={formatPdfMoney(totals.total, currency)} strong />
           {document.paidAmount !== undefined ? (
             <>
-              <PreviewTotal label="Payé" value={formatPdfMoney(totals.paid)} />
-              <PreviewTotal label="Reste à payer" value={formatPdfMoney(totals.remaining)} strong />
+              <PreviewTotal label="Payé" value={formatPdfMoney(totals.paid, currency)} />
+              <PreviewTotal label="Reste à payer" value={formatPdfMoney(totals.remaining, currency)} strong />
             </>
           ) : null}
         </div>
@@ -107,12 +108,19 @@ function PreviewMeta({ label, value }: { label: string; value: string }) {
   );
 }
 
-function PartyBlock({ rows, title }: { rows: readonly (string | undefined)[]; title: string }) {
+type PartyRow = Readonly<{
+  id: string;
+  value?: string;
+}>;
+
+function PartyBlock({ rows, title }: { rows: readonly PartyRow[]; title: string }) {
+  const visibleRows = rows.filter((row) => Boolean(row.value));
+
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-hicotech-dark-border dark:bg-slate-900/30">
       <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-hicotech-blue">{title}</p>
       <div className="mt-3 space-y-1 text-sm font-semibold text-slate-600 dark:text-slate-300">
-        {rows.filter(Boolean).map((row) => <p key={row}>{row}</p>)}
+        {visibleRows.map((row) => <p key={row.id}>{row.value}</p>)}
       </div>
     </div>
   );
@@ -130,4 +138,3 @@ function PreviewTotal({ label, value, strong = false }: { label: string; value: 
 function formatQuantity(value: number) {
   return Number.isInteger(value) ? String(value) : value.toLocaleString("fr-MA", { maximumFractionDigits: 2 });
 }
-

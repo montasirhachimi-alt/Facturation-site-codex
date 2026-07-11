@@ -10,6 +10,7 @@ export type EntityPickerItem = Readonly<{
   metadata: string;
   icon: LucideIcon;
   keywords?: readonly string[];
+  relations?: Readonly<Record<string, string | undefined>>;
   disabled?: boolean;
 }>;
 

@@ -1,5 +1,6 @@
 import type { CompanyId } from "@/modules/crm/companies";
 import type { ContactId } from "@/modules/crm/contacts";
+import type { CustomerId } from "@/modules/crm/customers";
 import type { OpportunityId } from "@/modules/crm/opportunities";
 import type { QuoteCurrency, QuoteId, QuoteItem, UserId, WorkspaceId } from "@/modules/sales/quotes";
 
@@ -11,10 +12,14 @@ export type Invoice = Readonly<{
   id: InvoiceId;
   workspaceId: WorkspaceId;
   number: string;
+  customerId?: CustomerId;
   customerName: string;
   companyId: CompanyId;
+  companyName?: string;
   contactId?: ContactId;
+  contactName?: string;
   opportunityId?: OpportunityId;
+  opportunityName?: string;
   quoteId?: QuoteId;
   status: InvoiceStatus;
   issueDate: string;

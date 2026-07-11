@@ -1,31 +1,26 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { persistCrmSalesRecord } from "@/platform/persistence";
 import type { CompanyId } from "@/modules/crm/companies";
-import { crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
 import type { ContactId } from "@/modules/crm/contacts";
-import { crmContactSeed } from "@/modules/crm/contacts/ui/contacts.seed";
+import type { CustomerId } from "@/modules/crm/customers";
 import { crmOpportunitySeed } from "@/modules/crm/opportunities/ui/opportunities.seed";
 import type { OpportunityId } from "@/modules/crm/opportunities";
 import { SalesLineItemsEditor, createEmptySalesLineItem, normalizeSalesLineItems, validateSalesLineItems } from "@/modules/sales/shared";
 import { EntityDialog } from "@/ui/dialogs/entity-dialog";
 import { FormActions, FormField, FormSection, entityInputClassName } from "@/ui/forms/form-field";
 import { SmartEntityPicker } from "@/ui/forms/smart-entity-picker";
-import { getCompanyPickerItems, getContactPickerItems, getCustomerPickerItems } from "@/ui/forms/entity-picker.crm-data";
-import type { EntityPickerItem } from "@/ui/forms/entity-picker.types";
+import { createCompanyPickerItem, createContactPickerItem, createCustomerPickerItem, getCompanyPickerItems, getContactPickerItems, getCustomerPickerItems, subscribeToCrmPickerSources } from "@/ui/forms/entity-picker.crm-data";
 import { calculateQuoteTotals, formatQuoteMoney } from "../quote.utils";
 import { notifyQuoteStoreUpdated, quoteService } from "../quote.store";
 import type { Quote, QuoteCurrency, QuoteItem } from "../quote.types";
 import { SALES_QUOTES_USER_ID, SALES_QUOTES_WORKSPACE_ID } from "../quotes.seed";
 
-const companies = crmCompanySeed;
-const contacts = crmContactSeed;
 const opportunities = crmOpportunitySeed;
-const companyPickerItems = getCompanyPickerItems();
-const contactPickerItems = getContactPickerItems();
-const customerPickerItems = getCustomerPickerItems();
 
 type QuoteDialogState = {
+  customerId: string;
   customerName: string;
   companyName: string;
   companyId: string;
@@ -48,11 +43,11 @@ export function QuoteDialog({
   onSubmit: (quote: Quote) => void;
   open: boolean;
 }) {
-  const initialCompany = companies[0];
   const [form, setForm] = useState<QuoteDialogState>(() => ({
-    customerName: initialCompany?.displayName ?? "",
-    companyName: initialCompany?.displayName ?? "",
-    companyId: initialCompany?.id ?? "",
+    customerId: "",
+    customerName: "",
+    companyName: "",
+    companyId: "",
     contactName: "",
     contactId: "",
     opportunityId: opportunities[0]?.id ?? "",
@@ -63,14 +58,29 @@ export function QuoteDialog({
     items: [createEmptySalesLineItem("quote-line")]
   }));
   const [error, setError] = useState<string | null>(null);
+  const [pickerVersion, setPickerVersion] = useState(0);
   const totals = useMemo(() => calculateQuoteTotals(form.items, form.discountRate, form.currency), [form.currency, form.discountRate, form.items]);
+  const companyPickerItems = useMemo(() => {
+    void pickerVersion;
+    return getCompanyPickerItems();
+  }, [pickerVersion]);
+  const contactPickerItems = useMemo(() => {
+    void pickerVersion;
+    return getContactPickerItems(form.companyId);
+  }, [form.companyId, pickerVersion]);
+  const customerPickerItems = useMemo(() => {
+    void pickerVersion;
+    return getCustomerPickerItems();
+  }, [pickerVersion]);
+
+  useEffect(() => subscribeToCrmPickerSources(() => setPickerVersion((value) => value + 1)), []);
 
   function updateForm(patch: Partial<QuoteDialogState>) {
     setForm((current) => ({ ...current, ...patch }));
     setError(null);
   }
 
-  function submitQuote() {
+  async function submitQuote() {
     const lineValidation = validateSalesLineItems(form.items);
     const companyId = resolveCompanyId(form.companyId, form.companyName);
     const customerName = form.customerName.trim() || form.companyName.trim();
@@ -90,12 +100,17 @@ export function QuoteDialog({
       return;
     }
 
+    const snapshot = quoteService.listQuotes({ workspaceId: SALES_QUOTES_WORKSPACE_ID }).quotes;
     const quote = quoteService.createQuote({
       workspaceId: SALES_QUOTES_WORKSPACE_ID,
+      customerId: resolveCustomerId(form.customerId),
       customerName,
       companyId,
+      companyName: form.companyName,
       contactId: resolveContactId(form.contactId),
+      contactName: form.contactName,
       opportunityId: resolveOpportunityId(form.opportunityId),
+      opportunityName: resolveOpportunityName(form.opportunityId),
       validityDays: Math.max(1, Number(form.validityDays) || 30),
       currency: form.currency,
       ownerId: SALES_QUOTES_USER_ID,
@@ -103,6 +118,14 @@ export function QuoteDialog({
       notes: form.notes,
       items: normalizeSalesLineItems(form.items)
     });
+
+    try {
+      await persistCrmSalesRecord("quote", quote);
+    } catch {
+      quoteService.replaceQuotes(snapshot);
+      setError("Le devis n'a pas pu être enregistré dans la base. Vérifiez la connexion puis réessayez.");
+      return;
+    }
 
     notifyQuoteStoreUpdated();
     onSubmit(quote);
@@ -116,6 +139,7 @@ export function QuoteDialog({
       open={open}
       onClose={onClose}
       onSubmit={submitQuote}
+      size="xl"
       error={error}
       footer={<FormActions onCancel={onClose} submitLabel="Créer un devis" />}
     >
@@ -125,36 +149,52 @@ export function QuoteDialog({
             label="Client"
             items={customerPickerItems}
             value={form.customerName}
-            onChange={({ value }) => updateForm({ customerName: value })}
+            onChange={({ value, item }) => {
+              const companyId = item?.relations?.companyId ?? "";
+              updateForm({
+                customerId: item?.relations?.customerId ?? "",
+                customerName: value,
+                companyId: form.companyId || companyId,
+                companyName: form.companyName || item?.relations?.companyName || form.companyName
+              });
+            }}
             placeholder="Rechercher un client..."
             helper="Obligatoire"
             allowCreate
             createLabel="Créer le client"
             entityType="client"
-            onCreate={(name) => createLocalPickerItem(customerPickerItems, name, "customer", "Customer")}
+            onCreate={(name) => createCustomerPickerItem(name, { id: form.companyId, name: form.companyName })}
           />
           <SmartEntityPicker
             label="Société"
             items={companyPickerItems}
             value={form.companyName}
-            onChange={({ value, item }) => updateForm({ companyName: value, companyId: item?.id ?? form.companyId })}
+            onChange={({ value, item }) => updateForm({ companyName: value, companyId: item?.relations?.companyId ?? "", contactName: "", contactId: "" })}
             placeholder="Rechercher une société..."
             helper="Obligatoire"
             allowCreate
             createLabel="Créer la société"
             entityType="société"
-            onCreate={(name) => createLocalPickerItem(companyPickerItems, name, "company", "Company")}
+            onCreate={(name) => createCompanyPickerItem(name)}
           />
           <SmartEntityPicker
             label="Contact"
             items={contactPickerItems}
             value={form.contactName}
-            onChange={({ value, item }) => updateForm({ contactName: value, contactId: item?.id ?? "" })}
+            onChange={({ value, item }) => {
+              const companyId = item?.relations?.companyId ?? "";
+              updateForm({
+                contactName: value,
+                contactId: item?.relations?.contactId ?? "",
+                companyId: form.companyId || companyId,
+                companyName: form.companyName || item?.relations?.companyName || form.companyName
+              });
+            }}
             placeholder="Rechercher un contact..."
             allowCreate
             createLabel="Créer le contact"
             entityType="contact"
-            onCreate={(name) => createLocalPickerItem(contactPickerItems, name, "contact", "Contact")}
+            onCreate={(name) => createContactPickerItem(name, { id: form.companyId, name: form.companyName })}
           />
           <label className="block">
             <span className="text-sm font-bold text-hicotech-navy dark:text-white">Opportunité</span>
@@ -227,31 +267,25 @@ export function QuoteDialog({
 }
 
 function resolveCompanyId(companyId: string, companyName: string) {
-  const direct = companies.find((company) => company.id === companyId);
-  if (direct) return direct.id as CompanyId;
-  const byName = companies.find((company) => company.displayName === companyName || company.legalName === companyName);
-  return (byName ?? companies[0])?.id as CompanyId | undefined;
+  if (companyId) return companyId as CompanyId;
+  const byName = getCompanyPickerItems().find((company) => company.title === companyName);
+  return byName?.relations?.companyId as CompanyId | undefined;
+}
+
+function resolveCustomerId(customerId: string) {
+  return customerId ? customerId as CustomerId : undefined;
 }
 
 function resolveContactId(contactId: string) {
-  return contacts.some((contact) => contact.id === contactId) ? contactId as ContactId : undefined;
+  return contactId ? contactId as ContactId : undefined;
 }
 
 function resolveOpportunityId(opportunityId: string) {
   return opportunities.some((opportunity) => opportunity.id === opportunityId) ? opportunityId as OpportunityId : undefined;
 }
 
-function createLocalPickerItem(items: readonly EntityPickerItem[], title: string, type: EntityPickerItem["type"], typeLabel: string): EntityPickerItem {
-  const fallback = items.find((item) => !item.disabled) ?? items[0];
-  return {
-    id: `inline-${type}-${slugify(title)}-${Date.now()}`,
-    title,
-    type,
-    typeLabel,
-    metadata: "Créé localement dans ce formulaire",
-    icon: fallback.icon,
-    keywords: [title, "inline", "local"]
-  };
+function resolveOpportunityName(opportunityId: string) {
+  return opportunities.find((opportunity) => opportunity.id === opportunityId)?.title;
 }
 
 function TotalPill({ label, strong, value }: { label: string; strong?: boolean; value: string }) {
@@ -261,13 +295,4 @@ function TotalPill({ label, strong, value }: { label: string; strong?: boolean; 
       <p className={`mt-1 text-sm font-bold ${strong ? "text-hicotech-blue" : "text-hicotech-navy dark:text-white"}`}>{value}</p>
     </div>
   );
-}
-
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
 }

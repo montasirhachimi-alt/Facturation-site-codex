@@ -1,5 +1,5 @@
 import { useRouter } from "next/navigation";
-import { Archive, Eye, Link2, MoreHorizontal, Pencil } from "lucide-react";
+import { Archive, Eye, Link2, Pencil } from "lucide-react";
 import { EntityActionButton, EntityActionMenu, EntityEmptyState, EntityTable, type EntityTableColumn } from "@/ui";
 import type { Company, CompanyId } from "../../company.types";
 import type { CompanySortKey } from "../hooks/use-companies-page";
@@ -42,6 +42,7 @@ export function CompaniesTable({
   companies,
   onArchive,
   onCreate,
+  onEdit,
   onSort,
   onToggleAll,
   onToggleRow,
@@ -53,6 +54,7 @@ export function CompaniesTable({
   companies: readonly Company[];
   onArchive: (company: Company) => void;
   onCreate: () => void;
+  onEdit: (company: Company) => void;
   onSort: (field: CompanySortKey) => void;
   onToggleAll: () => void;
   onToggleRow: (id: CompanyId) => void;
@@ -77,17 +79,13 @@ export function CompaniesTable({
       renderActions={(company) => (
         <EntityActionMenu>
           <EntityActionButton icon={<Eye size={16} />} label="Voir" onClick={() => router.push(`/crm/companies/${company.id}`)} />
-          <EntityActionButton icon={<Pencil size={16} />} label="Modifier" disabled={!canWrite} />
-          <EntityActionButton icon={<Archive size={16} />} label="Archiver" disabled={!canWrite} onClick={() => onArchive(company)} danger />
-          <EntityActionButton icon={<Link2 size={16} />} label="Relations" />
-          <button type="button" className="rounded-xl border border-slate-200 p-2 text-slate-500 transition hover:border-hicotech-blue/30 hover:bg-hicotech-sky/50 dark:border-hicotech-dark-border dark:text-slate-300 dark:hover:bg-hicotech-dark-page" aria-label="Plus d'actions">
-            <MoreHorizontal size={16} />
-          </button>
+          <EntityActionButton icon={<Pencil size={16} />} label="Modifier" disabled={!canWrite} disabledReason="Modification société non autorisée." onClick={() => onEdit(company)} />
+          <EntityActionButton icon={<Archive size={16} />} label="Archiver" disabled={!canWrite} disabledReason="Archivage société non autorisé." onClick={() => onArchive(company)} danger />
         </EntityActionMenu>
       )}
       selectedIds={selectedIds}
       sort={sort}
-      subtitle="Sociétés centrales reliées aux futurs contacts, opportunités, devis, commandes et factures."
+      subtitle="Sociétés centrales reliées aux contacts, opportunités, devis et factures."
       title="Sociétés"
     />
   );

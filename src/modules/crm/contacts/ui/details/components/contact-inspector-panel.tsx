@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Building2, CalendarClock, FileText, Link2, Pin, UserRound } from "lucide-react";
+import { Building2, CalendarClock, Pin, UserRound } from "lucide-react";
 import { SectionCard } from "@/ui";
 import type { Company } from "@/modules/crm/companies";
 import type { Contact } from "../../../contact.types";
@@ -10,9 +10,7 @@ export function ContactInspectorPanel({ company, contact }: { company?: Company;
     { icon: UserRound, title: "Responsable", text: contact.ownerId ?? "Non assigné" },
     { icon: Pin, title: "Statut", text: contact.status },
     { icon: CalendarClock, title: "Créé", text: formatDate(contact.createdAt) },
-    { icon: CalendarClock, title: "Mis à jour", text: formatDate(contact.updatedAt) },
-    { icon: FileText, title: "Documents", text: "Module à venir" },
-    { icon: Link2, title: "Liens rapides", text: "Réunions, emails et ventes prêts" }
+    { icon: CalendarClock, title: "Mis à jour", text: formatDate(contact.updatedAt) }
   ];
 
   return (
@@ -20,7 +18,7 @@ export function ContactInspectorPanel({ company, contact }: { company?: Company;
       <SectionCard className="p-4">
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">Inspecteur</p>
         <h2 className="mt-2 font-display text-lg font-bold text-hicotech-navy dark:text-white">Contexte contact</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-300">Société, responsabilité et raccourcis d&apos;interaction futurs.</p>
+        <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-300">Société, responsabilité et état de la fiche contact.</p>
       </SectionCard>
 
       {sections.map((section) => {

@@ -21,7 +21,12 @@ export function matchesInvoiceSearch(invoice: Invoice, query: string) {
     invoice.ownerId,
     invoice.notes,
     invoice.quoteId,
-    invoice.companyId
+    invoice.companyId,
+    invoice.companyName,
+    invoice.contactId,
+    invoice.contactName,
+    invoice.opportunityId,
+    invoice.opportunityName
   ].join(" ").toLowerCase().includes(normalized);
 }
 
@@ -43,10 +48,14 @@ export function createInvoiceInputFromQuote(quote: Quote) {
 
   return Object.freeze({
     workspaceId: quote.workspaceId,
+    customerId: quote.customerId,
     customerName: quote.customerName,
     companyId: quote.companyId,
+    companyName: quote.companyName,
     contactId: quote.contactId,
+    contactName: quote.contactName,
     opportunityId: quote.opportunityId,
+    opportunityName: quote.opportunityName,
     quoteId: quote.id,
     issueDate,
     dueDate: dueDate.toISOString(),

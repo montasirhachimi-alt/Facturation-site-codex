@@ -8,14 +8,18 @@ import {
   WalletCards
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
-import { crmContactSeed } from "@/modules/crm/contacts/ui/contacts.seed";
-import { crmCustomerSeed } from "@/modules/crm/customers/ui/customers.seed";
+import { CRM_COMPANIES_WORKSPACE_ID } from "@/modules/crm/companies/ui/companies.seed";
+import { crmCompanyLocalService } from "@/modules/crm/companies/ui/company-local-store";
+import { CRM_CONTACTS_WORKSPACE_ID } from "@/modules/crm/contacts/ui/contacts.seed";
+import { crmContactLocalService } from "@/modules/crm/contacts/ui/contact-local-store";
+import { CRM_CUSTOMERS_WORKSPACE_ID } from "@/modules/crm/customers/ui/customers.seed";
+import { crmCustomerLocalService } from "@/modules/crm/customers/ui/customer-local-store";
 import { crmOpportunitySeed } from "@/modules/crm/opportunities/ui/opportunities.seed";
-import { quoteSeed } from "@/modules/sales/quotes/quotes.seed";
+import { SALES_QUOTES_WORKSPACE_ID } from "@/modules/sales/quotes/quotes.seed";
+import { quoteService } from "@/modules/sales/quotes/quote.store";
 import { QUOTE_STATUS_LABELS } from "@/modules/sales/quotes/quote.constants";
 import { formatQuoteMoney, getQuoteTotals } from "@/modules/sales/quotes/quote.utils";
-import { invoiceSeed } from "@/modules/sales/invoices/invoices.seed";
+import { invoiceService } from "@/modules/sales/invoices/invoice.store";
 import { INVOICE_STATUS_LABELS } from "@/modules/sales/invoices/invoice.constants";
 import { getInvoiceTotals } from "@/modules/sales/invoices/invoice.utils";
 import { paymentSeed } from "@/modules/sales/payments/payments.seed";
@@ -64,8 +68,6 @@ export class RecordSearchRegistry {
   }
 }
 
-const companyById = new Map(crmCompanySeed.map((company) => [company.id, company]));
-
 export function createRecordSearchRegistry() {
   return new RecordSearchRegistry()
     .registerMany(buildCompanyRecords())
@@ -91,7 +93,7 @@ export function getRecordSearchSection(query: string): UniversalSearchSection {
 }
 
 function buildCompanyRecords(): readonly RecordSearchResult[] {
-  return crmCompanySeed.map((company) => ({
+  return crmCompanyLocalService.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID, includeArchived: false }).companies.map((company) => ({
     id: `record.company.${company.id}`,
     title: company.displayName,
     type: "Société",
@@ -113,7 +115,8 @@ function buildCompanyRecords(): readonly RecordSearchResult[] {
 }
 
 function buildContactRecords(): readonly RecordSearchResult[] {
-  return crmContactSeed.map((contact) => {
+  const companyById = getCompanyMap();
+  return crmContactLocalService.listContacts({ workspaceId: CRM_CONTACTS_WORKSPACE_ID, includeArchived: false }).contacts.map((contact) => {
     const company = companyById.get(contact.companyId);
 
     return {
@@ -140,7 +143,7 @@ function buildContactRecords(): readonly RecordSearchResult[] {
 }
 
 function buildCustomerRecords(): readonly RecordSearchResult[] {
-  return crmCustomerSeed.map((customer) => ({
+  return crmCustomerLocalService.listCustomers({ workspaceId: CRM_CUSTOMERS_WORKSPACE_ID, includeArchived: false }).customers.map((customer) => ({
     id: `record.customer.${customer.id}`,
     title: customer.displayName,
     type: "Client",
@@ -161,7 +164,7 @@ function buildCustomerRecords(): readonly RecordSearchResult[] {
 }
 
 function buildQuoteRecords(): readonly RecordSearchResult[] {
-  return quoteSeed.map((quote) => {
+  return quoteService.listQuotes({ workspaceId: SALES_QUOTES_WORKSPACE_ID }).quotes.map((quote) => {
     const totals = getQuoteTotals(quote);
 
     return {
@@ -171,13 +174,24 @@ function buildQuoteRecords(): readonly RecordSearchResult[] {
       description: `${quote.customerName} · ${formatQuoteMoney(totals.total, totals.currency)} · ${QUOTE_STATUS_LABELS[quote.status]}`,
       href: `/sales/quotes/${quote.id}`,
       icon: BriefcaseBusiness,
-      keywords: [quote.number, quote.customerName, quote.status, quote.notes, quote.companyId, quote.contactId, quote.opportunityId].filter(Boolean) as string[]
+      keywords: [
+        quote.number,
+        quote.customerName,
+        quote.status,
+        quote.notes,
+        quote.companyId,
+        quote.companyName,
+        quote.contactId,
+        quote.contactName,
+        quote.opportunityId,
+        quote.opportunityName
+      ].filter(Boolean) as string[]
     };
   });
 }
 
 function buildInvoiceRecords(): readonly RecordSearchResult[] {
-  return invoiceSeed.map((invoice) => {
+  return invoiceService.listInvoices({ workspaceId: SALES_QUOTES_WORKSPACE_ID }).invoices.map((invoice) => {
     const totals = getInvoiceTotals(invoice);
 
     return {
@@ -187,7 +201,19 @@ function buildInvoiceRecords(): readonly RecordSearchResult[] {
       description: `${invoice.customerName} · ${formatQuoteMoney(totals.total, totals.currency)} · ${INVOICE_STATUS_LABELS[invoice.status]}`,
       href: `/sales/invoices/${invoice.id}`,
       icon: Receipt,
-      keywords: [invoice.number, invoice.customerName, invoice.status, invoice.notes, invoice.quoteId, invoice.companyId, invoice.contactId].filter(Boolean) as string[]
+      keywords: [
+        invoice.number,
+        invoice.customerName,
+        invoice.status,
+        invoice.notes,
+        invoice.quoteId,
+        invoice.companyId,
+        invoice.companyName,
+        invoice.contactId,
+        invoice.contactName,
+        invoice.opportunityId,
+        invoice.opportunityName
+      ].filter(Boolean) as string[]
     };
   });
 }
@@ -205,6 +231,7 @@ function buildPaymentRecords(): readonly RecordSearchResult[] {
 }
 
 function buildOpportunityRecords(): readonly RecordSearchResult[] {
+  const companyById = getCompanyMap();
   return crmOpportunitySeed.map((opportunity) => {
     const company = companyById.get(opportunity.companyId);
 
@@ -226,6 +253,10 @@ function buildOpportunityRecords(): readonly RecordSearchResult[] {
       ].filter(Boolean) as string[]
     };
   });
+}
+
+function getCompanyMap() {
+  return new Map(crmCompanyLocalService.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID, includeArchived: false }).companies.map((company) => [company.id, company]));
 }
 
 function recordToSearchItem(record: RecordSearchResult): UniversalSearchItem {

@@ -6,8 +6,8 @@ export function ContactPlaceholderTab({ label }: { label: string }) {
     <SectionCard className="p-6">
       <EntityEmptyState
         icon={Clock3}
-        title={`${formatLabel(label)} sera disponible prochainement`}
-        description="Ce workspace est préparé pour les futurs modules CRM connectés sans ajouter de logique métier prématurée."
+        title={`${formatLabel(label)} est masqué dans cette édition`}
+        description="Cette section n'est pas affichée dans le workspace Contact actuel afin de préserver une expérience complète et claire."
       />
     </SectionCard>
   );

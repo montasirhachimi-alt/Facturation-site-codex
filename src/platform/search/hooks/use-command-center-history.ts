@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CommandCenterHistoryItem } from "../command-center-history.types";
+import { COMMAND_CENTER_FAVORITES_CHANGED_EVENT, toggleCommandCenterFavorite } from "../command-center-favorites";
 import { createCommandCenterHistoryItem, getCommandCenterHistoryId } from "../command-center-history.utils";
 import {
-  COMMAND_CENTER_FAVORITES_LIMIT,
   COMMAND_CENTER_RECENT_LIMIT,
   readCommandCenterFavorites,
   readCommandCenterRecent,
@@ -25,6 +25,15 @@ export function useCommandCenterHistory() {
   }, []);
 
   useEffect(() => {
+    function syncFavorites() {
+      setFavorites(readCommandCenterFavorites());
+    }
+
+    window.addEventListener(COMMAND_CENTER_FAVORITES_CHANGED_EVENT, syncFavorites);
+    return () => window.removeEventListener(COMMAND_CENTER_FAVORITES_CHANGED_EVENT, syncFavorites);
+  }, []);
+
+  useEffect(() => {
     if (hydrated) writeCommandCenterFavorites(favorites);
   }, [favorites, hydrated]);
 
@@ -40,18 +49,8 @@ export function useCommandCenterHistory() {
   }, [favoriteIds]);
 
   const toggleFavorite = useCallback((item: UniversalSearchItem) => {
-    const existingId = item.historyId ?? getCommandCenterHistoryId(item);
-    if (!existingId) return;
-
-    setFavorites((current) => {
-      if (current.some((favorite) => favorite.id === existingId)) {
-        return current.filter((favorite) => favorite.id !== existingId);
-      }
-
-      const snapshot = createCommandCenterHistoryItem(item, Date.now());
-      if (!snapshot) return current;
-      return [snapshot, ...current.filter((favorite) => favorite.id !== snapshot.id)].slice(0, COMMAND_CENTER_FAVORITES_LIMIT);
-    });
+    toggleCommandCenterFavorite(item);
+    setFavorites(readCommandCenterFavorites());
   }, []);
 
   const recordRecent = useCallback((item: UniversalSearchItem) => {

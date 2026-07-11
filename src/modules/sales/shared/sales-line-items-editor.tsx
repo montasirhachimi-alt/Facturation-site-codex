@@ -94,7 +94,7 @@ export function SalesLineItemsEditor({
                 </button>
               </div>
 
-              <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(220px,1.2fr)_minmax(260px,1.4fr)_120px_140px_110px_130px]">
+              <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(180px,1.1fr)_minmax(220px,1.4fr)_96px_120px_90px_120px]">
                 <SmartEntityPicker
                   label="Produit"
                   items={productItems}

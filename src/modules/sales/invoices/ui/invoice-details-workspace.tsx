@@ -1,37 +1,41 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, Building2, CalendarClock, Download, Eye, FileText, NotebookPen, Printer, Receipt, WalletCards } from "lucide-react";
-import { CompanyService } from "@/modules/crm/companies";
-import { CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
-import { ContactService } from "@/modules/crm/contacts";
-import { crmContactSeed } from "@/modules/crm/contacts/ui/contacts.seed";
-import { QuoteService, quoteSeed, SALES_QUOTES_WORKSPACE_ID, formatQuoteMoney } from "@/modules/sales/quotes";
+import { persistCrmSalesRecord } from "@/platform/persistence";
+import { CRM_COMPANIES_WORKSPACE_ID } from "@/modules/crm/companies/ui/companies.seed";
+import { crmCompanyLocalService, subscribeToCrmCompanyStore } from "@/modules/crm/companies/ui/company-local-store";
+import { CRM_CONTACTS_WORKSPACE_ID } from "@/modules/crm/contacts/ui/contacts.seed";
+import { crmContactLocalService, subscribeToCrmContactStore } from "@/modules/crm/contacts/ui/contact-local-store";
+import { SALES_QUOTES_WORKSPACE_ID, formatQuoteMoney, quoteService } from "@/modules/sales/quotes";
 import { SalesDocumentPreviewDialog, buildInvoicePdfDocument, downloadSalesDocumentPdf, printSalesDocumentPdf } from "@/modules/sales/documents";
 import { paymentService, PAYMENT_METHOD_LABELS } from "@/modules/sales/payments";
 import { PaymentStatusBadge } from "@/modules/sales/payments/ui";
 import { ContextualActionStrip, createContextualActionRegistry } from "@/platform/contextual-actions";
 import { EntityEmptyState, EntityHeader, EntityPageLayout, InfoCard, MetricCard, SectionCard } from "@/ui";
-import { invoiceService } from "../invoice.store";
+import { invoiceService, subscribeToInvoiceStore } from "../invoice.store";
 import type { InvoiceId } from "../invoice.types";
 import { getInvoiceTotals } from "../invoice.utils";
 import { InvoiceStatusBadge } from "./invoices-workspace";
 
-const companyService = new CompanyService({ seed: crmCompanySeed });
-const contactService = new ContactService({ seed: crmContactSeed });
-const quoteService = new QuoteService({ seed: quoteSeed });
-const companies = companyService.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID }).companies;
-const contacts = contactService.listContacts({ workspaceId: CRM_COMPANIES_WORKSPACE_ID }).contacts;
-const quotes = quoteService.listQuotes({ workspaceId: SALES_QUOTES_WORKSPACE_ID }).quotes;
-const companyById = new Map(companies.map((company) => [company.id, company]));
-const contactById = new Map(contacts.map((contact) => [contact.id, contact]));
-const quoteById = new Map(quotes.map((quote) => [quote.id, quote]));
-
 export function InvoiceDetailsWorkspace({ invoiceId }: { invoiceId: string }) {
+  const [, setStoreVersion] = useState(0);
   const [, setPaymentVersion] = useState(0);
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
   const invoice = invoiceService.getInvoice(invoiceId as InvoiceId, SALES_QUOTES_WORKSPACE_ID);
+
+  useEffect(() => {
+    const refresh = () => setStoreVersion((value) => value + 1);
+    const unsubscribeInvoices = subscribeToInvoiceStore(refresh);
+    const unsubscribeCompanies = subscribeToCrmCompanyStore(refresh);
+    const unsubscribeContacts = subscribeToCrmContactStore(refresh);
+    return () => {
+      unsubscribeInvoices();
+      unsubscribeCompanies();
+      unsubscribeContacts();
+    };
+  }, []);
 
   if (!invoice) {
     return (
@@ -43,11 +47,19 @@ export function InvoiceDetailsWorkspace({ invoiceId }: { invoiceId: string }) {
 
   const invoiceValue = invoice;
   const totals = getInvoiceTotals(invoiceValue);
+  const companies = crmCompanyLocalService.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID, includeArchived: false }).companies;
+  const contacts = crmContactLocalService.listContacts({ workspaceId: CRM_CONTACTS_WORKSPACE_ID, includeArchived: false }).contacts;
+  const quotes = quoteService.listQuotes({ workspaceId: SALES_QUOTES_WORKSPACE_ID }).quotes;
+  const companyById = new Map(companies.map((company) => [company.id, company]));
+  const contactById = new Map(contacts.map((contact) => [contact.id, contact]));
+  const quoteById = new Map(quotes.map((quote) => [quote.id, quote]));
   const company = companyById.get(invoiceValue.companyId);
   const contact = invoiceValue.contactId ? contactById.get(invoiceValue.contactId) : undefined;
   const quote = invoiceValue.quoteId ? quoteById.get(invoiceValue.quoteId) : undefined;
+  const companyLabel = company?.displayName ?? invoiceValue.companyName ?? "Non définie";
+  const contactLabel = contact?.fullName ?? invoiceValue.contactName ?? "Non lié";
   const payments = paymentService.listPaymentsForInvoice(invoiceValue.id, SALES_QUOTES_WORKSPACE_ID);
-  const pdfDocument = buildInvoicePdfDocument(invoiceValue, { company, contact, sourceQuoteNumber: quote?.number });
+  const pdfDocument = buildInvoicePdfDocument(invoiceValue, { company, companyName: invoiceValue.companyName, contact, contactName: invoiceValue.contactName, sourceQuoteNumber: quote?.number });
   const contextualActions = createContextualActionRegistry([
     {
       id: "invoice.preview-pdf",
@@ -115,9 +127,21 @@ export function InvoiceDetailsWorkspace({ invoiceId }: { invoiceId: string }) {
     }
   ]).getAll();
 
-  function recordPayment() {
+  async function recordPayment() {
+    const paymentSnapshot = paymentService.listPayments({ workspaceId: SALES_QUOTES_WORKSPACE_ID, includeArchived: true }).payments;
+    const invoiceSnapshot = invoiceService.listInvoices({ workspaceId: SALES_QUOTES_WORKSPACE_ID, includeArchived: true }).invoices;
     const payment = paymentService.createFromInvoice(invoiceValue);
     if (!payment) return;
+    const updatedInvoice = invoiceService.getInvoice(invoiceValue.id, invoiceValue.workspaceId);
+    try {
+      await persistCrmSalesRecord("payment", payment);
+      if (updatedInvoice) await persistCrmSalesRecord("invoice", updatedInvoice);
+    } catch (error) {
+      paymentService.replacePayments(paymentSnapshot);
+      invoiceService.replaceInvoices(invoiceSnapshot);
+      console.error(error);
+      return;
+    }
     setPaymentVersion((value) => value + 1);
   }
 
@@ -145,7 +169,7 @@ export function InvoiceDetailsWorkspace({ invoiceId }: { invoiceId: string }) {
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard icon={WalletCards} label="Total TTC" value={formatQuoteMoney(totals.total, totals.currency)} helper="Montant facturé" />
         <MetricCard icon={WalletCards} label="Reste à payer" value={formatQuoteMoney(totals.remaining, totals.currency)} helper="Suivi paiement" />
-        <MetricCard icon={Building2} label="Société" value={company?.displayName ?? "Non définie"} helper="Compte CRM" />
+        <MetricCard icon={Building2} label="Société" value={companyLabel} helper="Compte CRM" />
         <MetricCard icon={CalendarClock} label="Échéance" value={formatDate(invoice.dueDate)} helper="Date limite" />
       </section>
 
@@ -155,7 +179,8 @@ export function InvoiceDetailsWorkspace({ invoiceId }: { invoiceId: string }) {
             <h2 className="font-display text-lg font-bold text-hicotech-navy dark:text-white">Informations facture</h2>
             <div className="mt-5 grid gap-3 md:grid-cols-2">
               <InfoRow label="Client" value={invoice.customerName} />
-              <InfoRow label="Société" value={company?.displayName ?? "Non définie"} />
+              <InfoRow label="Société" value={companyLabel} />
+              <InfoRow label="Contact" value={contactLabel} />
               <InfoRow label="Devis source" value={quote?.number ?? "Non lié"} />
               <InfoRow label="Responsable" value={invoice.ownerId} />
               <InfoRow label="Émission" value={formatDate(invoice.issueDate)} />

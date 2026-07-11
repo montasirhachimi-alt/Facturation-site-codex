@@ -25,7 +25,7 @@ export function ContactTasksPanel({
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-hicotech-blue">Tâches</p>
           <h2 className="mt-2 font-display text-lg font-bold text-hicotech-navy dark:text-white">Tâches du contact</h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">Actions de suivi liées au contact, aux réunions et aux futurs workflows.</p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">Actions de suivi liées au contact et aux réunions.</p>
         </div>
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
           <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm shadow-slate-200/30 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:shadow-none">

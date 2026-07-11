@@ -1,19 +1,27 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { persistCrmSalesRecord } from "@/platform/persistence";
 import { EntityDialog } from "@/ui/dialogs/entity-dialog";
 import { FormActions, FormSection } from "@/ui/forms/form-field";
 import { SmartEntityPicker } from "@/ui/forms/smart-entity-picker";
+import type { CompanyId } from "@/modules/crm/companies";
 import { CompanyDialog } from "@/modules/crm/companies/ui/dialogs/company-dialog";
 import type { CompanyFormState } from "@/modules/crm/companies/ui/hooks/use-companies-page";
+import { CRM_COMPANIES_USER_ID, CRM_COMPANIES_WORKSPACE_ID } from "@/modules/crm/companies/ui/companies.seed";
+import { crmCompanyLocalService, notifyCrmCompanyStoreUpdated } from "@/modules/crm/companies/ui/company-local-store";
 import { ContactDialog } from "@/modules/crm/contacts/ui/dialogs/contact-dialog";
 import type { ContactFormState } from "@/modules/crm/contacts/ui/hooks/use-company-contacts-workspace";
+import { CRM_CONTACTS_USER_ID, CRM_CONTACTS_WORKSPACE_ID } from "@/modules/crm/contacts/ui/contacts.seed";
+import { crmContactLocalService, notifyCrmContactStoreUpdated } from "@/modules/crm/contacts/ui/contact-local-store";
 import { CustomerDialog } from "@/modules/crm/customers/ui/dialogs/customer-dialog";
 import type { CustomerFormState } from "@/modules/crm/customers/ui/hooks/use-customers-page";
+import { CRM_CUSTOMERS_USER_ID, CRM_CUSTOMERS_WORKSPACE_ID } from "@/modules/crm/customers/ui/customers.seed";
+import { crmCustomerLocalService, notifyCrmCustomerStoreUpdated } from "@/modules/crm/customers/ui/customer-local-store";
 import { QuoteDialog } from "@/modules/sales/quotes/ui/quote-dialog";
 import { InvoiceDialog } from "@/modules/sales/invoices/ui/invoice-dialog";
-import { getCompanyPickerItems, getContactPickerItems } from "@/ui/forms/entity-picker.crm-data";
+import { getCompanyPickerItems, getContactPickerItems, subscribeToCrmPickerSources } from "@/ui/forms/entity-picker.crm-data";
 import { getInvoicePickerItems } from "@/ui/forms/entity-picker.sales-data";
 import type { EntityPickerItem } from "@/ui/forms/entity-picker.types";
 import type { QuickCreateActionId } from "../action-registry";
@@ -52,6 +60,7 @@ const emptyContactForm: ContactFormState = {
 
 const emptyCustomerForm: CustomerFormState = {
   displayName: "",
+  companyId: "",
   companyName: "",
   email: "",
   phone: "",
@@ -61,8 +70,6 @@ const emptyCustomerForm: CustomerFormState = {
   notes: ""
 };
 
-const companyPickerItems = getCompanyPickerItems();
-const contactPickerItems = getContactPickerItems();
 const invoicePickerItems = getInvoicePickerItems();
 
 type QuickCreateDialogHostProps = {
@@ -74,26 +81,146 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
   const router = useRouter();
   const [companyForm, setCompanyForm] = useState<CompanyFormState>(emptyCompanyForm);
   const [contactForm, setContactForm] = useState<ContactFormState>(emptyContactForm);
+  const [contactCompanyId, setContactCompanyId] = useState("");
   const [customerForm, setCustomerForm] = useState<CustomerFormState>(emptyCustomerForm);
+  const [error, setError] = useState<string | null>(null);
+  const [pickerVersion, setPickerVersion] = useState(0);
+  const liveCompanyPickerItems = useMemo(() => {
+    void pickerVersion;
+    return getCompanyPickerItems();
+  }, [pickerVersion]);
+  const liveContactPickerItems = useMemo(() => {
+    void pickerVersion;
+    return getContactPickerItems();
+  }, [pickerVersion]);
 
   const closeAndReset = useCallback(() => {
     setCompanyForm(emptyCompanyForm);
     setContactForm(emptyContactForm);
+    setContactCompanyId("");
     setCustomerForm(emptyCustomerForm);
+    setError(null);
     onClose();
   }, [onClose]);
+
+  useEffect(() => subscribeToCrmPickerSources(() => setPickerVersion((value) => value + 1)), []);
+
+  async function submitCompany() {
+    const snapshot = crmCompanyLocalService.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID, includeArchived: true }).companies;
+    const result = crmCompanyLocalService.createCompany({
+      workspaceId: CRM_COMPANIES_WORKSPACE_ID,
+      legalName: companyForm.legalName,
+      displayName: companyForm.displayName,
+      industry: companyForm.industry,
+      website: companyForm.website,
+      email: companyForm.email,
+      phone: companyForm.phone,
+      city: companyForm.city,
+      country: companyForm.country,
+      status: companyForm.status,
+      tags: companyForm.tags.split(",").map((item) => item.trim()).filter(Boolean),
+      notes: companyForm.notes,
+      ownerId: CRM_COMPANIES_USER_ID,
+      createdBy: CRM_COMPANIES_USER_ID
+    });
+    if (!result.company) {
+      setError(result.validation.issues[0]?.message ?? "Impossible de créer la société.");
+      return false;
+    }
+    try {
+      await persistCrmSalesRecord("company", result.company);
+    } catch {
+      crmCompanyLocalService.replaceCompanies(snapshot);
+      setError("La société n'a pas pu être enregistrée dans la base. Vérifiez la connexion puis réessayez.");
+      return false;
+    }
+    notifyCrmCompanyStoreUpdated();
+    closeAndReset();
+    return true;
+  }
+
+  async function submitCustomer() {
+    const snapshot = crmCustomerLocalService.listCustomers({ workspaceId: CRM_CUSTOMERS_WORKSPACE_ID, includeArchived: true }).customers;
+    const result = crmCustomerLocalService.createCustomer({
+      workspaceId: CRM_CUSTOMERS_WORKSPACE_ID,
+      displayName: customerForm.displayName,
+      companyId: customerForm.companyId ? customerForm.companyId as CompanyId : undefined,
+      companyName: customerForm.companyName,
+      email: customerForm.email,
+      phone: customerForm.phone,
+      status: customerForm.status,
+      type: customerForm.type,
+      source: "manual",
+      tags: customerForm.tags.split(",").map((item) => item.trim()).filter(Boolean),
+      notes: customerForm.notes,
+      createdBy: CRM_CUSTOMERS_USER_ID
+    });
+    if (!result.customer) {
+      setError(result.validation.issues[0]?.message ?? "Impossible de créer le client.");
+      return false;
+    }
+    try {
+      await persistCrmSalesRecord("customer", result.customer);
+    } catch {
+      crmCustomerLocalService.replaceCustomers(snapshot);
+      setError("Le client n'a pas pu être enregistré dans la base. Vérifiez la connexion puis réessayez.");
+      return false;
+    }
+    notifyCrmCustomerStoreUpdated();
+    closeAndReset();
+    return true;
+  }
+
+  async function submitContact() {
+    if (!contactCompanyId) {
+      setError("Sélectionnez une société pour rattacher le contact.");
+      return;
+    }
+    const snapshot = crmContactLocalService.listContacts({ workspaceId: CRM_CONTACTS_WORKSPACE_ID, includeArchived: true }).contacts;
+    const result = crmContactLocalService.createContact({
+      workspaceId: CRM_CONTACTS_WORKSPACE_ID,
+      companyId: contactCompanyId as CompanyId,
+      firstName: contactForm.firstName,
+      lastName: contactForm.lastName,
+      jobTitle: contactForm.jobTitle,
+      department: contactForm.department,
+      email: contactForm.email,
+      mobilePhone: contactForm.mobilePhone,
+      officePhone: contactForm.officePhone,
+      preferredLanguage: contactForm.preferredLanguage,
+      timezone: contactForm.timezone,
+      status: contactForm.status,
+      isPrimaryContact: contactForm.isPrimaryContact,
+      isDecisionMaker: contactForm.isDecisionMaker,
+      linkedin: contactForm.linkedin,
+      notes: contactForm.notes,
+      tags: contactForm.tags.split(",").map((item) => item.trim()).filter(Boolean),
+      ownerId: CRM_CONTACTS_USER_ID,
+      createdBy: CRM_CONTACTS_USER_ID
+    });
+    if (!result.contact) {
+      setError(result.validation.issues[0]?.message ?? "Impossible de créer le contact.");
+      return;
+    }
+    try {
+      await persistCrmSalesRecord("contact", result.contact);
+    } catch {
+      crmContactLocalService.replaceContacts(snapshot);
+      setError("Le contact n'a pas pu être enregistré dans la base. Vérifiez la connexion puis réessayez.");
+      return;
+    }
+    notifyCrmContactStoreUpdated();
+    closeAndReset();
+  }
 
   if (activeAction === "quick-create.company") {
     return (
       <CompanyDialog
-        error={null}
+        error={error}
         form={companyForm}
         onChange={setCompanyForm}
         onClose={closeAndReset}
-        onSubmit={() => {
-          closeAndReset();
-          return true;
-        }}
+        onSubmit={submitCompany}
         open
       />
     );
@@ -103,12 +230,23 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
     return (
       <ContactDialog
         editing={false}
-        error={null}
+        error={error}
         form={contactForm}
         onChange={setContactForm}
         onClose={closeAndReset}
-        onSubmit={closeAndReset}
+        onSubmit={submitContact}
         open
+        relationshipField={
+          <FormSection title="Relation CRM" description="Chaque contact doit être rattaché à une société existante.">
+            <SmartEntityPicker
+              label="Société"
+              items={liveCompanyPickerItems}
+              value={liveCompanyPickerItems.find((item) => item.id === contactCompanyId)?.title ?? ""}
+              onChange={({ item }) => setContactCompanyId(item?.relations?.companyId ?? "")}
+              placeholder="Rechercher une société..."
+            />
+          </FormSection>
+        }
       />
     );
   }
@@ -116,14 +254,11 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
   if (activeAction === "quick-create.customer") {
     return (
       <CustomerDialog
-        error={null}
+        error={error}
         form={customerForm}
         onChange={setCustomerForm}
         onClose={closeAndReset}
-        onSubmit={() => {
-          closeAndReset();
-          return true;
-        }}
+        onSubmit={submitCustomer}
         open
       />
     );
@@ -143,8 +278,8 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
           ["Montant estimé", "À renseigner"]
         ]}
         pickerRows={[
-          { key: "company", label: "Société", items: companyPickerItems, placeholder: "Rechercher une société..." },
-          { key: "contact", label: "Contact", items: contactPickerItems, placeholder: "Rechercher un contact..." }
+          { key: "company", label: "Société", items: liveCompanyPickerItems, placeholder: "Rechercher une société..." },
+          { key: "contact", label: "Contact", items: liveContactPickerItems, placeholder: "Rechercher un contact..." }
         ]}
       />
     );
@@ -234,6 +369,7 @@ function QuickCreatePreviewDialog({
       open
       onClose={onClose}
       onSubmit={onClose}
+      size="lg"
       footer={<FormActions onCancel={onClose} submitLabel={submitLabel} />}
     >
       <div className="mt-5 space-y-3">

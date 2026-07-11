@@ -3,6 +3,7 @@
 import { Command, X } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { buildShortcutDisplay } from "./keyboard-shortcut.utils";
+import type { KeyboardShortcutDefinition } from "./keyboard-shortcut.types";
 
 const implementedShortcuts = [
   {
@@ -73,7 +74,7 @@ const implementedShortcuts = [
     category: "Actions contextuelles" as const,
     scope: "contextual-actions" as const
   }
-];
+] satisfies readonly Omit<KeyboardShortcutDefinition, "handler">[];
 
 export function KeyboardShortcutsHelp({ onClose, open }: { onClose: () => void; open: boolean }) {
   const shortcuts = useMemo(() => buildShortcutDisplay(implementedShortcuts), []);
@@ -153,4 +154,3 @@ export function KeyboardShortcutsHelp({ onClose, open }: { onClose: () => void; 
     </div>
   );
 }
-

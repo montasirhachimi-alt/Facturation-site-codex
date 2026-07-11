@@ -44,6 +44,19 @@ export class CustomerService {
     }
   }
 
+  replaceCustomers(customers: readonly Customer[]) {
+    this.customers.clear();
+    for (const customer of customers) {
+      this.customers.set(customer.id, freezeCustomer(customer));
+    }
+  }
+
+  upsertCustomer(customer: Customer) {
+    const frozen = freezeCustomer(customer);
+    this.customers.set(frozen.id, frozen);
+    return frozen;
+  }
+
   listCustomers(filters: CustomerFilters, sort: CustomerSort = DEFAULT_CUSTOMER_SORT): CustomerListResult {
     if (filters.permission && !filters.permission.allowed) {
       return createListResult([], 0, filters.workspaceId);
@@ -74,6 +87,7 @@ export class CustomerService {
       id: this.createId(),
       workspaceId: normalized.workspaceId,
       displayName: normalized.displayName,
+      companyId: normalized.companyId,
       companyName: normalized.companyName,
       email: normalized.email,
       phone: normalized.phone,
@@ -106,6 +120,7 @@ export class CustomerService {
     const customer = freezeCustomer({
       ...existing,
       displayName: normalized.displayName ?? existing.displayName,
+      companyId: normalized.companyId ?? existing.companyId,
       companyName: normalized.companyName ?? existing.companyName,
       email: normalized.email ?? existing.email,
       phone: normalized.phone ?? existing.phone,
@@ -155,4 +170,3 @@ function createListResult(customers: readonly Customer[], total: number, workspa
 }
 
 export const customerService = new CustomerService();
-

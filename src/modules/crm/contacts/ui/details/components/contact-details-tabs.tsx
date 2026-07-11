@@ -1,4 +1,5 @@
 import { clsx } from "clsx";
+import { crmFeatureVisibility } from "@/modules/crm/crm-feature-visibility";
 import type { ContactDetailsTab } from "../hooks/use-contact-details";
 
 const tabs: Array<{ id: ContactDetailsTab; label: string }> = [
@@ -9,10 +10,10 @@ const tabs: Array<{ id: ContactDetailsTab; label: string }> = [
   { id: "activities", label: "Activités" },
   { id: "meetings", label: "Réunions" },
   { id: "tasks", label: "Tâches" },
-  { id: "emails", label: "Emails" },
   { id: "notes", label: "Notes" },
-  { id: "documents", label: "Documents" },
-  { id: "settings", label: "Paramètres" }
+  ...(crmFeatureVisibility.contactTabs.emails ? [{ id: "emails" as const, label: "Emails" }] : []),
+  ...(crmFeatureVisibility.contactTabs.documents ? [{ id: "documents" as const, label: "Documents" }] : []),
+  ...(crmFeatureVisibility.contactTabs.settings ? [{ id: "settings" as const, label: "Paramètres" }] : [])
 ];
 
 export function ContactDetailsTabs({ activeTab, onChange }: { activeTab: ContactDetailsTab; onChange: (tab: ContactDetailsTab) => void }) {

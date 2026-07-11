@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { persistCrmSalesRecord } from "@/platform/persistence";
 import { PermissionEnforcement } from "@/runtime/permissions";
 import { PermissionService } from "@/services/permissions";
 import { paginateCrmItems, searchCrmEntities, sortCrmEntities } from "@/modules/crm/shared";
-import { CRM_CONTACTS_USER_ID, CRM_CONTACTS_WORKSPACE_ID, crmContactSeed } from "../contacts.seed";
-import { ContactService } from "../../contact.service";
+import { crmContactLocalService, notifyCrmContactStoreUpdated, subscribeToCrmContactStore } from "../contact-local-store";
+import { CRM_CONTACTS_USER_ID, CRM_CONTACTS_WORKSPACE_ID } from "../contacts.seed";
 import type { Contact, ContactId, ContactSortField, ContactStatus, CreateContactInput, UpdateContactInput } from "../../contact.types";
 import type { CompanyId } from "../../../companies/company.types";
 
@@ -61,7 +62,7 @@ const permissionService = new PermissionService(
 );
 
 export function useCompanyContactsWorkspace(companyId: CompanyId) {
-  const [service] = useState(() => new ContactService({ seed: crmContactSeed }));
+  const [service] = useState(() => crmContactLocalService);
   const [version, setVersion] = useState(0);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<ContactStatus | "all">("all");
@@ -101,6 +102,8 @@ export function useCompanyContactsWorkspace(companyId: CompanyId) {
     void version;
     return service.getContactsByCompany(companyId, CRM_CONTACTS_WORKSPACE_ID, readDecision).contacts;
   }, [companyId, readDecision, service, version]);
+
+  useEffect(() => subscribeToCrmContactStore(() => setVersion((value) => value + 1)), []);
 
   const departmentOptions = useMemo(() => ["all", ...Array.from(new Set(baseContacts.map((contact) => contact.department).filter(Boolean) as string[])).sort()], [baseContacts]);
 
@@ -194,7 +197,8 @@ export function useCompanyContactsWorkspace(companyId: CompanyId) {
 
   const closeDialog = useCallback(() => setDialogOpen(false), []);
 
-  const saveContact = useCallback(() => {
+  const saveContact = useCallback(async () => {
+    const snapshot = service.listContacts({ workspaceId: CRM_CONTACTS_WORKSPACE_ID, includeArchived: true }).contacts;
     const common = {
       workspaceId: CRM_CONTACTS_WORKSPACE_ID,
       companyId,
@@ -226,19 +230,41 @@ export function useCompanyContactsWorkspace(companyId: CompanyId) {
       return false;
     }
 
+    try {
+      await persistCrmSalesRecord("contact", result.contact);
+    } catch {
+      service.replaceContacts(snapshot);
+      setError("Le contact n'a pas pu être enregistré dans la base. Vérifiez la connexion puis réessayez.");
+      return false;
+    }
+
     setDialogOpen(false);
     setEditingContact(null);
     setVersion((value) => value + 1);
+    notifyCrmContactStoreUpdated();
     setPage(1);
     return true;
   }, [companyId, editingContact, form, service, writeDecision]);
 
   const archiveContact = useCallback(
-    (contact: Contact) => {
+    async (contact: Contact) => {
       if (!writeDecision.allowed) return;
-      service.archiveContact(contact.id, CRM_CONTACTS_WORKSPACE_ID, CRM_CONTACTS_USER_ID, writeDecision);
+      const snapshot = service.listContacts({ workspaceId: CRM_CONTACTS_WORKSPACE_ID, includeArchived: true }).contacts;
+      const result = service.archiveContact(contact.id, CRM_CONTACTS_WORKSPACE_ID, CRM_CONTACTS_USER_ID, writeDecision);
+      if (result.contact) {
+        try {
+          await persistCrmSalesRecord("contact", result.contact);
+        } catch {
+          service.replaceContacts(snapshot);
+          setError("Le contact n'a pas pu être archivé dans la base. Vérifiez la connexion puis réessayez.");
+          setVersion((value) => value + 1);
+          notifyCrmContactStoreUpdated();
+          return;
+        }
+      }
       setSelectedIds((current) => current.filter((id) => id !== contact.id));
       setVersion((value) => value + 1);
+      notifyCrmContactStoreUpdated();
     },
     [service, writeDecision]
   );

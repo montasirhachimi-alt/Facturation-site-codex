@@ -1,13 +1,10 @@
-import { Activity, CalendarClock, FileText, FolderOpen, Pin, StickyNote } from "lucide-react";
+import { Activity, CalendarClock, StickyNote } from "lucide-react";
 import { SectionCard } from "@/ui";
 
 const inspectorSections = [
-  { icon: Activity, title: "Activité récente", text: "5 interactions de démonstration préparées" },
-  { icon: Pin, title: "Épinglé", text: "Compte stratégique en préparation" },
-  { icon: FolderOpen, title: "Fichiers", text: "Disponible dans un futur module" },
-  { icon: CalendarClock, title: "Réunions à venir", text: "1 réunion de démonstration" },
-  { icon: FileText, title: "Documents récents", text: "Disponible dans un futur module" },
-  { icon: StickyNote, title: "Notes récentes", text: "3 notes de démonstration préparées" }
+  { icon: Activity, title: "Activité récente", text: "Interactions commerciales liées à la société" },
+  { icon: CalendarClock, title: "Réunions à venir", text: "Prochain échange à préparer" },
+  { icon: StickyNote, title: "Notes récentes", text: "Contexte relationnel disponible" }
 ];
 
 export function CompanyInspectorPanel() {

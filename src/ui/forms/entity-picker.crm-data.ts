@@ -1,36 +1,38 @@
 import { Building2, ContactRound, Users } from "lucide-react";
+import { persistCrmSalesRecord } from "@/platform/persistence";
+import type { CompanyId } from "@/modules/crm/companies";
+import { CRM_COMPANIES_USER_ID, CRM_COMPANIES_WORKSPACE_ID } from "@/modules/crm/companies/ui/companies.seed";
+import { crmCompanyLocalService, notifyCrmCompanyStoreUpdated, subscribeToCrmCompanyStore } from "@/modules/crm/companies/ui/company-local-store";
+import { CRM_CONTACTS_USER_ID, CRM_CONTACTS_WORKSPACE_ID } from "@/modules/crm/contacts/ui/contacts.seed";
+import { crmContactLocalService, notifyCrmContactStoreUpdated, subscribeToCrmContactStore } from "@/modules/crm/contacts/ui/contact-local-store";
+import { CRM_CUSTOMERS_USER_ID, CRM_CUSTOMERS_WORKSPACE_ID } from "@/modules/crm/customers/ui/customers.seed";
+import { crmCustomerLocalService, notifyCrmCustomerStoreUpdated, subscribeToCrmCustomerStore } from "@/modules/crm/customers/ui/customer-local-store";
 import type { EntityPickerItem } from "./entity-picker.types";
-import { crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
-import { crmContactSeed } from "@/modules/crm/contacts/ui/contacts.seed";
-import { crmCustomerSeed } from "@/modules/crm/customers/ui/customers.seed";
 
-const companyById = new Map(crmCompanySeed.map((company) => [company.id, company]));
+export function subscribeToCrmPickerSources(listener: () => void) {
+  const unsubscribeCompanies = subscribeToCrmCompanyStore(listener);
+  const unsubscribeContacts = subscribeToCrmContactStore(listener);
+  const unsubscribeCustomers = subscribeToCrmCustomerStore(listener);
 
-export function getCompanyPickerItems(): readonly EntityPickerItem[] {
-  return crmCompanySeed.map((company) => ({
-    id: company.id,
-    title: company.displayName,
-    type: "company",
-    typeLabel: "Company",
-    metadata: `${company.city ?? "Ville non renseignée"} · ${formatStatus(company.status)} · ${company.industry}`,
-    icon: Building2,
-    keywords: [
-      company.displayName,
-      company.legalName,
-      company.email,
-      company.phone,
-      company.city,
-      company.country,
-      company.industry,
-      company.status,
-      ...(company.tags ?? [])
-    ].filter(Boolean) as string[]
-  }));
+  return () => {
+    unsubscribeCompanies();
+    unsubscribeContacts();
+    unsubscribeCustomers();
+  };
 }
 
-export function getContactPickerItems(): readonly EntityPickerItem[] {
-  return crmContactSeed.map((contact) => {
-    const company = companyById.get(contact.companyId);
+export function getCompanyPickerItems(): readonly EntityPickerItem[] {
+  return crmCompanyLocalService.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID, includeArchived: false }).companies.map(companyToPickerItem);
+}
+
+export function getContactPickerItems(companyId?: string): readonly EntityPickerItem[] {
+  const companies = getCompanyMap();
+  return crmContactLocalService.listContacts({
+    workspaceId: CRM_CONTACTS_WORKSPACE_ID,
+    companyId: companyId as CompanyId | undefined,
+    includeArchived: false
+  }).contacts.map((contact) => {
+    const company = companies.get(contact.companyId);
 
     return {
       id: contact.id,
@@ -39,6 +41,12 @@ export function getContactPickerItems(): readonly EntityPickerItem[] {
       typeLabel: "Contact",
       metadata: `${company?.displayName ?? "Société inconnue"} · ${contact.jobTitle ?? contact.department ?? "Contact CRM"}`,
       icon: ContactRound,
+      relations: {
+        contactId: contact.id,
+        contactName: contact.fullName,
+        companyId: contact.companyId,
+        companyName: company?.displayName
+      },
       keywords: [
         contact.fullName,
         contact.firstName,
@@ -55,13 +63,19 @@ export function getContactPickerItems(): readonly EntityPickerItem[] {
 }
 
 export function getCustomerPickerItems(): readonly EntityPickerItem[] {
-  return crmCustomerSeed.map((customer) => ({
+  return crmCustomerLocalService.listCustomers({ workspaceId: CRM_CUSTOMERS_WORKSPACE_ID, includeArchived: false }).customers.map((customer) => ({
     id: customer.id,
     title: customer.displayName,
     type: "customer",
     typeLabel: "Customer",
     metadata: `${customer.companyName ?? "Sans société"} · ${formatStatus(customer.status)}`,
     icon: Users,
+    relations: {
+      customerId: customer.id,
+      customerName: customer.displayName,
+      companyId: customer.companyId,
+      companyName: customer.companyName
+    },
     keywords: [
       customer.displayName,
       customer.companyName,
@@ -75,6 +89,152 @@ export function getCustomerPickerItems(): readonly EntityPickerItem[] {
   }));
 }
 
+export async function createCompanyPickerItem(title: string): Promise<EntityPickerItem> {
+  const snapshot = crmCompanyLocalService.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID, includeArchived: true }).companies;
+  const result = crmCompanyLocalService.createCompany({
+    workspaceId: CRM_COMPANIES_WORKSPACE_ID,
+    legalName: title,
+    displayName: title,
+    industry: "unknown",
+    country: "Maroc",
+    status: "lead",
+    tags: [],
+    createdBy: CRM_COMPANIES_USER_ID,
+    ownerId: CRM_COMPANIES_USER_ID
+  });
+
+  if (!result.company) return createFallbackPickerItem(title, "company", "Company", "Société non enregistrée");
+
+  try {
+    await persistCrmSalesRecord("company", result.company);
+  } catch {
+    crmCompanyLocalService.replaceCompanies(snapshot);
+    throw new Error("La société n'a pas pu être enregistrée dans la base. Vérifiez la connexion puis réessayez.");
+  }
+
+  notifyCrmCompanyStoreUpdated();
+  return companyToPickerItem(result.company);
+}
+
+export async function createCustomerPickerItem(title: string, company?: { id?: string; name?: string }): Promise<EntityPickerItem> {
+  const snapshot = crmCustomerLocalService.listCustomers({ workspaceId: CRM_CUSTOMERS_WORKSPACE_ID, includeArchived: true }).customers;
+  const result = crmCustomerLocalService.createCustomer({
+    workspaceId: CRM_CUSTOMERS_WORKSPACE_ID,
+    displayName: title,
+    companyId: company?.id as CompanyId | undefined,
+    companyName: company?.name,
+    status: "lead",
+    type: "company",
+    source: "manual",
+    tags: [],
+    createdBy: CRM_CUSTOMERS_USER_ID
+  });
+
+  if (!result.customer) return createFallbackPickerItem(title, "customer", "Customer", "Client non enregistré");
+
+  try {
+    await persistCrmSalesRecord("customer", result.customer);
+  } catch {
+    crmCustomerLocalService.replaceCustomers(snapshot);
+    throw new Error("Le client n'a pas pu être enregistré dans la base. Vérifiez la connexion puis réessayez.");
+  }
+
+  notifyCrmCustomerStoreUpdated();
+  return getCustomerPickerItems().find((item) => item.id === result.customer?.id) ?? createFallbackPickerItem(title, "customer", "Customer", "Client créé localement");
+}
+
+export async function createContactPickerItem(title: string, company?: { id?: string; name?: string }): Promise<EntityPickerItem> {
+  const companyId = resolveCompanyId(company);
+  if (!companyId) return createFallbackPickerItem(title, "contact", "Contact", "Sélectionnez une société avant de créer le contact");
+
+  const snapshot = crmContactLocalService.listContacts({ workspaceId: CRM_CONTACTS_WORKSPACE_ID, includeArchived: true }).contacts;
+  const { firstName, lastName } = splitContactName(title);
+  const result = crmContactLocalService.createContact({
+    workspaceId: CRM_CONTACTS_WORKSPACE_ID,
+    companyId,
+    firstName,
+    lastName,
+    status: "active",
+    isPrimaryContact: false,
+    isDecisionMaker: false,
+    tags: [],
+    createdBy: CRM_CONTACTS_USER_ID,
+    ownerId: CRM_CONTACTS_USER_ID
+  });
+
+  if (!result.contact) return createFallbackPickerItem(title, "contact", "Contact", "Contact non enregistré");
+
+  try {
+    await persistCrmSalesRecord("contact", result.contact);
+  } catch {
+    crmContactLocalService.replaceContacts(snapshot);
+    throw new Error("Le contact n'a pas pu être enregistré dans la base. Vérifiez la connexion puis réessayez.");
+  }
+
+  notifyCrmContactStoreUpdated();
+  return getContactPickerItems().find((item) => item.id === result.contact?.id) ?? createFallbackPickerItem(title, "contact", "Contact", "Contact créé localement");
+}
+
+function companyToPickerItem(company: ReturnType<typeof crmCompanyLocalService.listCompanies>["companies"][number]): EntityPickerItem {
+  return {
+    id: company.id,
+    title: company.displayName,
+    type: "company",
+    typeLabel: "Company",
+    metadata: `${company.city ?? "Ville non renseignée"} · ${formatStatus(company.status)} · ${company.industry}`,
+    icon: Building2,
+    relations: {
+      companyId: company.id,
+      companyName: company.displayName
+    },
+    keywords: [
+      company.displayName,
+      company.legalName,
+      company.email,
+      company.phone,
+      company.city,
+      company.country,
+      company.industry,
+      company.status,
+      ...(company.tags ?? [])
+    ].filter(Boolean) as string[]
+  };
+}
+
+function resolveCompanyId(company?: { id?: string; name?: string }) {
+  if (company?.id && crmCompanyLocalService.getCompany(company.id as CompanyId, CRM_COMPANIES_WORKSPACE_ID)) {
+    return company.id as CompanyId;
+  }
+
+  if (!company?.name) return undefined;
+  const existing = crmCompanyLocalService.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID, includeArchived: false }).companies
+    .find((entry) => entry.displayName === company.name || entry.legalName === company.name);
+  return existing?.id;
+}
+
+function getCompanyMap() {
+  return new Map(crmCompanyLocalService.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID, includeArchived: false }).companies.map((company) => [company.id, company]));
+}
+
+function splitContactName(value: string) {
+  const parts = value.trim().split(/\s+/).filter(Boolean);
+  const firstName = parts[0] ?? value.trim();
+  const lastName = parts.slice(1).join(" ") || "-";
+  return { firstName, lastName };
+}
+
+function createFallbackPickerItem(title: string, type: EntityPickerItem["type"], typeLabel: string, metadata: string): EntityPickerItem {
+  return {
+    id: `inline-${type}-${slugify(title)}-${Date.now()}`,
+    title,
+    type,
+    typeLabel,
+    metadata,
+    icon: type === "company" ? Building2 : type === "contact" ? ContactRound : Users,
+    keywords: [title, "inline", "local"]
+  };
+}
+
 function formatStatus(status: string) {
   const labels: Record<string, string> = {
     active: "Actif",
@@ -84,4 +244,13 @@ function formatStatus(status: string) {
   };
 
   return labels[status] ?? status;
+}
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
 }

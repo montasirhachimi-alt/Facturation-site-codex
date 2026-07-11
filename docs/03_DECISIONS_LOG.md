@@ -1,5 +1,41 @@
 # HicoPilot Architecture Decision Records
 
+## ADR-019 — Durable CRM/Sales Persistence Bridge
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-07-10 |
+
+### Decision
+
+PERSIST-001 introduces dedicated Prisma models for product CRM/Sales records instead of overloading the existing tenant `Company`, legacy `Client`, `Document` and `Payment` tables.
+
+The existing module-owned local services remain the live client cache/subscription layer. Durable authority moves to a server-side Prisma persistence repository scoped by the authenticated session `companyId`.
+
+### Motivation
+
+ZF-R5 made CRM and Sales coherent inside one browser session, but Companies, Customers, Contacts, Quotes, Invoices and stable Payments were still lost after refresh because the services were in-memory.
+
+The project needs durable records without replacing existing dialogs, Smart Entity Picker, Command Center, details pages or PDF workflows.
+
+### Alternatives
+
+- Reuse the tenant `Company` model as CRM Company records.
+- Reuse legacy `Document` rows directly for the newer Quote/Invoice workspaces.
+- Store records in `localStorage` or another browser-only source.
+- Rewrite CRM/Sales workflows around new server-first pages.
+
+### Consequences
+
+UI and generic picker components remain database-free.
+
+CRM/Sales records are scoped by the current authenticated `companyId`.
+
+The local services become caches over persisted data and are hydrated when the ERP shell loads.
+
+A future reliability sprint should make form submit states await database confirmation and surface persistence failures directly in the UI.
+
 ## ADR-001 — Core Registry
 
 | Field | Value |

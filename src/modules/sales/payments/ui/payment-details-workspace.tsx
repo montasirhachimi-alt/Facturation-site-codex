@@ -1,24 +1,36 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Building2, CalendarClock, FileText, NotebookPen, WalletCards } from "lucide-react";
-import { CompanyService } from "@/modules/crm/companies";
-import { CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
-import { invoiceService, type InvoiceId } from "@/modules/sales/invoices";
+import { CRM_COMPANIES_WORKSPACE_ID } from "@/modules/crm/companies/ui/companies.seed";
+import { crmCompanyLocalService, subscribeToCrmCompanyStore } from "@/modules/crm/companies/ui/company-local-store";
+import { invoiceService, subscribeToInvoiceStore, type InvoiceId } from "@/modules/sales/invoices";
 import { SALES_QUOTES_WORKSPACE_ID, formatQuoteMoney } from "@/modules/sales/quotes";
 import { ContextualActionStrip, createContextualActionRegistry } from "@/platform/contextual-actions";
 import { EntityEmptyState, EntityHeader, EntityPageLayout, InfoCard, MetricCard, SectionCard } from "@/ui";
 import { PAYMENT_METHOD_LABELS } from "../payment.constants";
-import { paymentService } from "../payment.store";
+import { paymentService, subscribeToPaymentStore } from "../payment.store";
 import type { PaymentId } from "../payment.types";
 import { PaymentStatusBadge } from "./payments-workspace";
 
-const companyService = new CompanyService({ seed: crmCompanySeed });
-const companies = companyService.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID }).companies;
-const companyById = new Map(companies.map((company) => [company.id, company]));
-
 export function PaymentDetailsWorkspace({ paymentId }: { paymentId: string }) {
+  const [, setStoreVersion] = useState(0);
   const payment = paymentService.getPayment(paymentId as PaymentId, SALES_QUOTES_WORKSPACE_ID);
+  const companies = crmCompanyLocalService.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID }).companies;
+  const companyById = useMemo(() => new Map(companies.map((company) => [company.id, company])), [companies]);
+
+  useEffect(() => {
+    const refresh = () => setStoreVersion((value) => value + 1);
+    const unsubscribePayments = subscribeToPaymentStore(refresh);
+    const unsubscribeInvoices = subscribeToInvoiceStore(refresh);
+    const unsubscribeCompanies = subscribeToCrmCompanyStore(refresh);
+    return () => {
+      unsubscribePayments();
+      unsubscribeInvoices();
+      unsubscribeCompanies();
+    };
+  }, []);
 
   if (!payment) {
     return (

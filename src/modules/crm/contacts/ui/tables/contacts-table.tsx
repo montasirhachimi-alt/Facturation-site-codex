@@ -1,5 +1,4 @@
-import { Archive, CalendarClock, Edit3, Eye, Mail, MoreHorizontal, UsersRound } from "lucide-react";
-import Link from "next/link";
+import { Archive, Edit3, Eye, UsersRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { EntityActionButton, EntityActionMenu, EntityEmptyState, EntityTable, type EntityTableColumn } from "@/ui";
 import { getContactAvatarLabel } from "../../contact.utils";
@@ -81,20 +80,9 @@ export function ContactsTable({
       onToggleRow={onToggleRow}
       renderActions={(contact) => (
         <EntityActionMenu>
-          <Link
-            href={`/crm/contacts/${contact.id}`}
-            className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-2.5 py-2 text-xs font-bold text-hicotech-navy transition hover:border-hicotech-blue/30 hover:bg-hicotech-sky/50 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/10 dark:border-hicotech-dark-border dark:text-white dark:hover:bg-hicotech-dark-page"
-          >
-            <Eye size={16} />
-            Voir
-          </Link>
-          <EntityActionButton icon={<Edit3 size={16} />} label="Modifier" disabled={!canWrite} onClick={() => onEdit(contact)} />
-          <EntityActionButton icon={<Archive size={16} />} label="Archiver" disabled={!canWrite} onClick={() => onArchive(contact)} danger />
-          <EntityActionButton icon={<CalendarClock size={16} />} label="Activités" disabled />
-          <EntityActionButton icon={<Mail size={16} />} label="Emails" disabled />
-          <button type="button" className="rounded-xl border border-slate-200 p-2 text-slate-500 transition hover:border-hicotech-blue/30 hover:bg-hicotech-sky/50 dark:border-hicotech-dark-border dark:text-slate-300 dark:hover:bg-hicotech-dark-page" aria-label="Plus d'actions">
-            <MoreHorizontal size={16} />
-          </button>
+          <EntityActionButton icon={<Eye size={16} />} label="Voir" onClick={() => router.push(`/crm/contacts/${contact.id}`)} />
+          <EntityActionButton icon={<Edit3 size={16} />} label="Modifier" disabled={!canWrite} disabledReason="Modification contact non autorisée." onClick={() => onEdit(contact)} />
+          <EntityActionButton icon={<Archive size={16} />} label="Archiver" disabled={!canWrite} disabledReason="Archivage contact non autorisé." onClick={() => onArchive(contact)} danger />
         </EntityActionMenu>
       )}
       selectedIds={selectedIds}

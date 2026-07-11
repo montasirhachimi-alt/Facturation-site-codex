@@ -94,8 +94,8 @@ async function renderPremiumPdf(document: PdfLayoutDocument, mode: PdfOutputMode
   const company = resolveCompanyProfile(document.company);
   const pdfSettings = resolvePdfSettings();
   const logo = await loadLogo(company.logoUrl);
-  const totals = calculateTotals(document.lines, document.discount ?? 0, document.paidAmount ?? 0);
-  const amountInWords = document.amountInWords || `${numberToFrench(Math.round(totals.ttc))} dirhams toutes taxes comprises.`;
+  const totals = calculateTotals(document);
+  const amountInWords = document.amountInWords || `${numberToFrench(Math.round(totals.ttc))} ${getCurrencyWords(totals.currency)} toutes taxes comprises.`;
   let page = 1;
   let y = drawPageHeader(pdf, document, page, company, logo, pdfSettings);
 
@@ -109,7 +109,7 @@ async function renderPremiumPdf(document: PdfLayoutDocument, mode: PdfOutputMode
       y = drawPageHeader(pdf, document, page, company, logo, pdfSettings);
       y = drawProductsTableHeader(pdf, y);
     }
-    y = drawProductRow(pdf, line, index, y);
+    y = drawProductRow(pdf, line, index, y, totals.currency);
   });
 
   if (y > 176) {
@@ -528,7 +528,7 @@ function drawProductsTableHeader(pdf: jsPDF, y: number) {
   return y + 10;
 }
 
-function drawProductRow(pdf: jsPDF, line: PdfLineItem, index: number, y: number) {
+function drawProductRow(pdf: jsPDF, line: PdfLineItem, index: number, y: number, currency = "MAD") {
   const ht = line.quantity * line.unitPrice;
   const vat = ht * (line.vat / 100);
   const ttc = ht + vat;
@@ -548,12 +548,12 @@ function drawProductRow(pdf: jsPDF, line: PdfLineItem, index: number, y: number)
   pdf.text((line.reference || "-").slice(0, 16), 76, y + 5);
   pdf.setTextColor(...colors.ink);
   pdf.text(formatQty(line.quantity), 105, y + 5, { align: "right" });
-  pdf.text(formatMoney(line.unitPrice), 126, y + 5, { align: "right" });
+  pdf.text(formatMoney(line.unitPrice, currency), 126, y + 5, { align: "right" });
   pdf.text(`${formatQty(line.vat)}%`, 145, y + 5, { align: "right" });
-  pdf.text(formatMoney(ht), 169, y + 5, { align: "right" });
+  pdf.text(formatMoney(ht, currency), 169, y + 5, { align: "right" });
   pdf.setFont("helvetica", "bold");
   pdf.setTextColor(...colors.navy);
-  pdf.text(formatMoney(ttc), 193, y + 5, { align: "right" });
+  pdf.text(formatMoney(ttc, currency), 193, y + 5, { align: "right" });
 
   pdf.setDrawColor(...colors.border);
   pdf.setLineWidth(0.15);
@@ -642,7 +642,7 @@ function drawTotalsBlock(pdf: jsPDF, x: number, y: number, width: number, totals
     pdf.text(row[0], x + 4, rowY);
     pdf.setFont("helvetica", "bold");
     pdf.setTextColor(...colors.navy);
-    pdf.text(formatMoney(row[1]), x + width - 4, rowY, { align: "right" });
+    pdf.text(formatMoney(row[1], totals.currency), x + width - 4, rowY, { align: "right" });
   });
 
   pdf.setFillColor(...colors.blue);
@@ -651,7 +651,7 @@ function drawTotalsBlock(pdf: jsPDF, x: number, y: number, width: number, totals
   pdf.setFontSize(8.5);
   pdf.setTextColor(...colors.white);
   pdf.text("Total TTC", x + 7, y + 50);
-  pdf.text(formatMoney(totals.ttc), x + width - 7, y + 50, { align: "right" });
+  pdf.text(formatMoney(totals.ttc, totals.currency), x + width - 7, y + 50, { align: "right" });
 }
 
 function drawSignatureBlocks(pdf: jsPDF, y: number, pdfSettings: StoredPdfSettings) {
@@ -784,17 +784,52 @@ function outputPdf(pdf: jsPDF, fileName: string, mode: PdfOutputMode) {
   pdf.save(fileName);
 }
 
-function calculateTotals(lines: PdfLineItem[], discount: number, paid: number) {
-  const ht = lines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0);
-  const vat = lines.reduce((sum, line) => sum + line.quantity * line.unitPrice * (line.vat / 100), 0);
+function calculateTotals(document: PdfLayoutDocument) {
+  const currency = document.currency ?? "MAD";
+  if (document.totals) {
+    const paid = document.totals.paid ?? document.paidAmount ?? 0;
+    const outstanding = document.totals.remaining ?? Math.max(0, document.totals.total - paid);
+    return {
+      ht: document.totals.subtotal,
+      vat: document.totals.tax,
+      discount: document.totals.discount,
+      paid,
+      outstanding,
+      ttc: document.totals.total,
+      currency
+    };
+  }
+
+  const ht = document.lines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0);
+  const vat = document.lines.reduce((sum, line) => sum + line.quantity * line.unitPrice * (line.vat / 100), 0);
+  const discount = document.discount ?? 0;
+  const paid = document.paidAmount ?? 0;
   const ttcBeforeDiscount = ht + vat;
   const ttc = Math.max(0, ttcBeforeDiscount - discount);
   const outstanding = Math.max(0, ttc - paid);
-  return { ht, vat, discount, paid, outstanding, ttc };
+  return { ht, vat, discount, paid, outstanding, ttc, currency };
 }
 
-function formatMoney(value: number) {
+function formatMoney(value: number, currency = "MAD") {
+  if (currency !== "MAD") {
+    return new Intl.NumberFormat("fr-MA", {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(value);
+  }
+
   return `${value.toLocaleString("fr-MA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} DH`;
+}
+
+function getCurrencyWords(currency: string) {
+  const labels: Record<string, string> = {
+    MAD: "dirhams",
+    EUR: "euros",
+    USD: "dollars"
+  };
+  return labels[currency] ?? currency;
 }
 
 function formatQty(value: number) {

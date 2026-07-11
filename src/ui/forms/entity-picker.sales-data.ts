@@ -19,7 +19,7 @@ export function getQuotePickerItems(): readonly EntityPickerItem[] {
       typeLabel: "Quote",
       metadata: `${quote.customerName} · ${formatQuoteMoney(totals.total, totals.currency)} · ${quote.status}`,
       icon: FileText,
-      keywords: [quote.number, quote.customerName, quote.status, quote.notes, quote.companyId, quote.contactId, quote.opportunityId].filter(Boolean) as string[]
+      keywords: [quote.number, quote.customerName, quote.status, quote.notes, quote.companyId, quote.companyName, quote.contactId, quote.contactName, quote.opportunityId, quote.opportunityName].filter(Boolean) as string[]
     };
   });
 }
@@ -35,7 +35,7 @@ export function getInvoicePickerItems(): readonly EntityPickerItem[] {
       typeLabel: "Invoice",
       metadata: `${invoice.customerName} · ${formatQuoteMoney(totals.total, totals.currency)} · ${invoice.status}`,
       icon: Receipt,
-      keywords: [invoice.number, invoice.customerName, invoice.status, invoice.notes, invoice.quoteId, invoice.companyId, invoice.contactId].filter(Boolean) as string[]
+      keywords: [invoice.number, invoice.customerName, invoice.status, invoice.notes, invoice.quoteId, invoice.companyId, invoice.companyName, invoice.contactId, invoice.contactName, invoice.opportunityId, invoice.opportunityName].filter(Boolean) as string[]
     };
   });
 }

@@ -1,14 +1,12 @@
-import { BriefcaseBusiness, Building2, HandCoins, ReceiptText, ShoppingCart, UsersRound } from "lucide-react";
+import { BriefcaseBusiness, Building2, ReceiptText, UsersRound } from "lucide-react";
 import { SectionCard } from "@/ui";
 
 const nodes = [
   { icon: Building2, label: "Société", active: true },
   { icon: UsersRound, label: "Contacts" },
-  { icon: UsersRound, label: "Clients" },
-  { icon: BriefcaseBusiness, label: "Projets" },
-  { icon: ReceiptText, label: "Factures" },
-  { icon: HandCoins, label: "Ventes" },
-  { icon: ShoppingCart, label: "Commandes" }
+  { icon: BriefcaseBusiness, label: "Opportunités" },
+  { icon: ReceiptText, label: "Devis" },
+  { icon: ReceiptText, label: "Factures" }
 ];
 
 export function CompanyRelationshipGraph() {
@@ -19,10 +17,10 @@ export function CompanyRelationshipGraph() {
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-hicotech-blue">Graphe relationnel</p>
           <h2 className="mt-2 font-display text-lg font-bold text-hicotech-navy dark:text-white">Contexte métier connecté</h2>
         </div>
-        <p className="max-w-md text-sm text-slate-500 dark:text-slate-300">Les futurs modules se connecteront ici à mesure que le graphe opérationnel de la société grandit.</p>
+        <p className="max-w-md text-sm text-slate-500 dark:text-slate-300">Les relations déjà disponibles restent lisibles depuis une seule fiche société.</p>
       </div>
 
-      <div className="mt-5 grid gap-3 lg:grid-cols-7">
+      <div className="mt-5 grid gap-3 lg:grid-cols-5">
         {nodes.map((node, index) => {
           const Icon = node.icon;
           return (
@@ -32,7 +30,7 @@ export function CompanyRelationshipGraph() {
                   <Icon size={18} />
                 </span>
                 <p className="mt-3 text-sm font-bold text-hicotech-navy dark:text-white">{node.label}</p>
-                {!node.active && <p className="mt-1 text-xs text-slate-400">À venir</p>}
+                {!node.active && <p className="mt-1 text-xs text-slate-400">Connecté</p>}
               </div>
               {index < nodes.length - 1 && <span className="absolute left-full top-1/2 hidden h-px w-3 bg-slate-200 lg:block dark:bg-hicotech-dark-border" />}
             </div>

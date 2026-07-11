@@ -3,6 +3,7 @@ import type { CompanyIndustry, CompanyStatus } from "../../company.types";
 import type { CompanyFormState } from "../hooks/use-companies-page";
 
 export function CompanyDialog({
+  editing = false,
   error,
   form,
   onChange,
@@ -10,26 +11,28 @@ export function CompanyDialog({
   onSubmit,
   open
 }: {
+  editing?: boolean;
   error: string | null;
   form: CompanyFormState;
   onChange: (form: CompanyFormState) => void;
   onClose: () => void;
-  onSubmit: () => boolean;
+  onSubmit: () => boolean | Promise<boolean>;
   open: boolean;
 }) {
   return (
     <EntityDialog
       open={open}
+      size="lg"
       eyebrow="CRM"
-      title="Ajouter société"
-      description="Création en mémoire via le service Sociétés."
+      title={editing ? "Modifier société" : "Ajouter société"}
+      description={editing ? "Mettez à jour la fiche société via CompanyService." : "Création en mémoire via le service Sociétés."}
       error={error}
       onClose={onClose}
-      onSubmit={() => {
-        onSubmit();
+      onSubmit={async () => {
+        await onSubmit();
       }}
       footer={
-        <FormActions onCancel={onClose} submitLabel="Enregistrer" />
+        <FormActions onCancel={onClose} submitLabel={editing ? "Enregistrer les modifications" : "Enregistrer"} />
       }
     >
       <div className="mt-5 space-y-3">

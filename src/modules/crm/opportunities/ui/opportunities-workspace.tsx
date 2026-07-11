@@ -10,7 +10,6 @@ import {
   Filter,
   GripVertical,
   HandCoins,
-  MoreHorizontal,
   Search,
   Sparkles,
   Target,
@@ -162,7 +161,7 @@ function PipelineHero({ filteredCount, stats }: { filteredCount: number; stats: 
             Pipeline commercial
           </p>
           <h1 className="mt-5 max-w-4xl font-display text-4xl font-bold leading-[1.04] md:text-5xl">
-            Un revenu futur lisible en un seul regard.
+            Une valeur commerciale lisible en un seul regard.
           </h1>
           <p className="mt-3 max-w-2xl text-base leading-7 text-cyan-50/75">
             Chaque opportunité reste reliée à sa société, son contact et sa prochaine décision commerciale.
@@ -306,7 +305,7 @@ function OpportunityPipelineCard({ onSelect, opportunity, selected }: { onSelect
       <span className="absolute inset-x-0 top-0 h-1 bg-hicotech-blue/80" />
       <div className="flex items-start justify-between gap-3">
         <h3 className="font-display text-sm font-bold leading-5 text-hicotech-navy dark:text-white">{opportunity.title}</h3>
-        <GripVertical size={16} className="text-slate-300 transition group-hover:text-hicotech-blue" aria-label="Déplacement bientôt disponible" />
+        <GripVertical size={16} className="text-slate-300 transition group-hover:text-hicotech-blue" aria-hidden="true" />
       </div>
       <p className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-300">
         <Building2 size={14} />
@@ -331,7 +330,6 @@ function OpportunityPipelineCard({ onSelect, opportunity, selected }: { onSelect
       </div>
       <div className="mt-4 flex items-center justify-between text-xs font-bold text-slate-400">
         <span>{opportunity.ownerId}</span>
-        <MoreHorizontal size={16} />
       </div>
     </button>
   );
@@ -371,12 +369,6 @@ function PipelineInspector({ opportunity }: { opportunity?: Opportunity }) {
         </div>
       </SectionCard>
 
-      <SectionCard className="p-4">
-        <p className="font-display text-lg font-bold text-hicotech-navy dark:text-white">Mouvement futur</p>
-        <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-300">
-          Le déplacement par glisser-déposer sera connecté dans un prochain sprint. Les cartes sont déjà structurées pour préparer ce comportement.
-        </p>
-      </SectionCard>
     </aside>
   );
 }

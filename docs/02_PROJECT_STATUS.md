@@ -10,7 +10,7 @@
 | Current Phase | Business Module Foundations |
 | Current Sprint | SPR-344 — Keyboard Everywhere |
 | Next Sprint | To define |
-| Repository Health | Builds successfully with one known existing image optimization warning. |
+| Repository Health | Builds successfully with one known existing image optimization warning; local CRM/Sales persistence migrations now replay from an empty PostgreSQL database. |
 
 ## Completed Core Engines
 
@@ -140,7 +140,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 
 ## Known Risks
 
-- Database schema exists, but the platform engines are not yet persisted.
+- Database schema and Prisma migration history now support durable CRM/Sales persistence; platform engines are not yet persisted.
 - Workspace switching UI does not exist yet.
 - AI features are not yet permission-aware because AI platform integration has not started.
 - Build currently reports an existing `next/image` warning in `src/components/pdf-preview.tsx`.
@@ -196,14 +196,22 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - Quote & Invoice Creation Workflow completion adds shared Sales line-item editing, real Quote and Invoice dialogs, product-assisted manual lines, calculated totals and local store synchronization so new commercial documents appear immediately in their workspace lists.
 - Quote & Invoice PDF Export adds saved-document PDF preview, download and print actions to Quote and Invoice details, reusing the existing premium PDF renderer and routing newly created documents to their detail page for immediate export.
 - Keyboard Everywhere adds a client-safe keyboard foundation, contextual create shortcuts, stable dialog submit shortcuts, shortcut help, table/list row navigation and refined contextual action keyboard behavior without changing business logic.
+- Zero Friction CRM Workspace & Details Polish hides unfinished CRM detail tabs, removes inert CRM controls, connects Company detail favorite/edit actions, simplifies Contact table actions and removes visible "coming soon" CRM copy while preserving future surfaces behind lightweight visibility configuration.
+- Zero Friction Dialog Sizing adds shared `EntityDialog` sizes, applies wider surfaces to Quote, Invoice, Company, Customer and Payment creation/edit flows, and improves sales line-item desktop readability while preserving mobile stacking and existing form behavior.
+- Zero Friction CRM ↔ Sales Entity Sync makes Companies, Customers and Contacts share live local module-owned sources with Sales creation flows, Smart Entity Picker, Quick Create and Command Center Record Search so current-session entities become available without refresh.
+- Durable CRM/Sales Persistence Foundation adds tenant-scoped Prisma models, a server persistence repository, a client hydration bridge and write-through paths for Companies, Customers, Contacts, Quotes, Invoices and stable Payments so core business records can survive refresh and restart once the local PostgreSQL migration is applied.
+- Database Activation & Persistence Verification tightened CRM/Sales writes so dialogs wait for persistence confirmation, rollback local caches on failure and keep entered form data visible.
+- Migration Baseline Repair adds the missing pre-PERSIST baseline migration before the CRM/Sales persistence migration, allowing Prisma to replay the complete schema from an empty PostgreSQL database and confirming Company, Customer, Contact, Quote, Invoice and Payment records survive a dev-server restart.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passed during SPR-344. |
-| `npm run build` | Yes | Passed during SPR-344; the known PDF preview image warning remains. |
-| `npm run validate:runtime` | Yes for SPR-344 | Passed during SPR-344. |
+| `npm run typecheck` | Yes | Passed during PERSIST-001. |
+| `npm run build` | Yes | Passed during PERSIST-001; the known PDF preview image warning remains. |
+| `npm run validate:runtime` | Yes for Zero Friction work | Passed during PERSIST-001. |
+| Prisma schema validation | Yes for persistence work | Passed during PERSIST-001B with the documented local PostgreSQL `DATABASE_URL`. |
+| Prisma migration replay | Yes for persistence work | Passed during PERSIST-001B on the local development database and a fresh empty replay database. |
 
 ## Repository Health
 

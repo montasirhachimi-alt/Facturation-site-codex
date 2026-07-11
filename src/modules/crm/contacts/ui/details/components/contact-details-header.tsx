@@ -1,12 +1,40 @@
+"use client";
+
 import Link from "next/link";
-import { ArrowLeft, Building2, Mail, Pencil, Phone, Pin, Settings, Star } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { clsx } from "clsx";
+import { ArrowLeft, Building2, ContactRound, Mail, Pencil, Phone, Pin, Star } from "lucide-react";
+import { isCommandCenterFavorite, toggleCommandCenterFavorite } from "@/platform/search/command-center-favorites";
+import type { UniversalSearchItem } from "@/platform/search/universal-search.types";
 import { InfoCard, SectionCard } from "@/ui";
 import { getContactAvatarLabel } from "../../../contact.utils";
 import type { Contact } from "../../../contact.types";
 import type { Company } from "@/modules/crm/companies";
 import { ContactStatusBadge } from "../../components/contact-status-badge";
 
-export function ContactDetailsHeader({ canWrite, company, contact }: { canWrite: boolean; company?: Company; contact: Contact }) {
+export function ContactDetailsHeader({
+  canWrite,
+  company,
+  contact,
+  onEdit
+}: {
+  canWrite: boolean;
+  company?: Company;
+  contact: Contact;
+  onEdit: () => void;
+}) {
+  const favoriteItem = useMemo(() => createContactFavoriteItem(contact, company), [company, contact]);
+  const [favoriteActive, setFavoriteActive] = useState(false);
+  const phoneNumber = contact.mobilePhone ?? contact.officePhone;
+
+  useEffect(() => {
+    setFavoriteActive(isCommandCenterFavorite(favoriteItem));
+  }, [favoriteItem]);
+
+  function toggleFavorite() {
+    setFavoriteActive(toggleCommandCenterFavorite(favoriteItem));
+  }
+
   return (
     <SectionCard className="overflow-hidden">
       <div className="bg-hicotech-navy px-6 py-4 text-white dark:bg-hicotech-dark-card">
@@ -38,12 +66,11 @@ export function ContactDetailsHeader({ canWrite, company, contact }: { canWrite:
         </div>
 
         <div className="flex flex-wrap gap-2 xl:justify-end">
-          <QuickAction icon={<Star size={16} />} label="Favori" />
-          <QuickAction icon={<Pin size={16} />} label="Épingler" />
-          <QuickAction href={contact.email ? `mailto:${contact.email}` : undefined} icon={<Mail size={16} />} label="Email" />
-          <QuickAction href={contact.mobilePhone ? `tel:${contact.mobilePhone}` : undefined} icon={<Phone size={16} />} label="Appeler" />
-          <QuickAction disabled={!canWrite} icon={<Pencil size={16} />} label="Modifier" />
-          <QuickAction icon={<Settings size={16} />} label="Options" />
+          <QuickAction active={favoriteActive} icon={<Star size={16} className={favoriteActive ? "fill-current" : undefined} />} label={favoriteActive ? "Favori actif" : "Favori"} onClick={toggleFavorite} pressed={favoriteActive} />
+          <QuickAction disabled disabledReason="Épinglage non disponible sur les fiches contact." icon={<Pin size={16} />} label="Épingler" />
+          <QuickAction disabled={!contact.email} disabledReason="Email non renseigné pour ce contact." href={contact.email ? `mailto:${contact.email}` : undefined} icon={<Mail size={16} />} label="Email" />
+          <QuickAction disabled={!phoneNumber} disabledReason="Téléphone non renseigné pour ce contact." href={phoneNumber ? `tel:${phoneNumber}` : undefined} icon={<Phone size={16} />} label="Appeler" />
+          <QuickAction disabled={!canWrite} disabledReason="Modification contact non autorisée." icon={<Pencil size={16} />} label="Modifier" onClick={onEdit} />
         </div>
       </div>
 
@@ -66,22 +93,34 @@ function Badge({ label }: { label: string }) {
 }
 
 function QuickAction({
+  active,
   disabled,
+  disabledReason,
   href,
   icon,
-  label
+  label,
+  onClick,
+  pressed
 }: {
+  active?: boolean;
   disabled?: boolean;
+  disabledReason?: string;
   href?: string;
   icon: React.ReactNode;
   label: string;
+  onClick?: () => void;
+  pressed?: boolean;
 }) {
-  const className =
-    "inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm font-bold text-white shadow-sm shadow-black/10 transition hover:-translate-y-0.5 hover:bg-white/18 focus:outline-none focus:ring-4 focus:ring-white/15 disabled:cursor-not-allowed disabled:opacity-40";
+  if (!href && !onClick && !disabled) return null;
+
+  const className = clsx(
+    "inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold text-white shadow-sm shadow-black/10 transition hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-white/15 disabled:cursor-not-allowed disabled:opacity-45",
+    active ? "border-amber-200/50 bg-amber-300/22 text-amber-50 hover:bg-amber-300/30" : "border-white/15 bg-white/10 hover:bg-white/18"
+  );
 
   if (href && !disabled) {
     return (
-      <a href={href} className={className}>
+      <a href={href} className={className} onClick={(event) => event.stopPropagation()}>
         {icon}
         {label}
       </a>
@@ -89,9 +128,36 @@ function QuickAction({
   }
 
   return (
-    <button type="button" disabled={disabled} className={className}>
+    <button type="button" aria-pressed={pressed} disabled={disabled} title={disabled ? disabledReason : undefined} aria-label={disabled && disabledReason ? `${label} - ${disabledReason}` : label} onClick={(event) => {
+      event.stopPropagation();
+      onClick?.();
+    }} className={className}>
       {icon}
       {label}
     </button>
   );
+}
+
+function createContactFavoriteItem(contact: Contact, company?: Company): UniversalSearchItem {
+  return {
+    id: `record.contact.${contact.id}`,
+    title: contact.fullName,
+    description: `${company?.displayName ?? "Société inconnue"} · ${contact.jobTitle ?? contact.department ?? "Contact CRM"}`,
+    badge: "Contact",
+    eyebrow: "Record",
+    href: `/crm/contacts/${contact.id}`,
+    icon: ContactRound,
+    iconKey: "contact",
+    keywords: [
+      contact.fullName,
+      contact.firstName,
+      contact.lastName,
+      contact.email,
+      contact.mobilePhone,
+      contact.jobTitle,
+      contact.department,
+      company?.displayName,
+      ...(contact.tags ?? [])
+    ].filter(Boolean) as string[]
+  };
 }

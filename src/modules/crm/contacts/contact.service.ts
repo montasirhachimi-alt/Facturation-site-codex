@@ -39,6 +39,19 @@ export class ContactService {
     }
   }
 
+  replaceContacts(contacts: readonly Contact[]) {
+    this.contacts.clear();
+    for (const contact of contacts) {
+      this.contacts.set(contact.id, freezeContact(contact));
+    }
+  }
+
+  upsertContact(contact: Contact) {
+    const frozen = freezeContact(contact);
+    this.contacts.set(frozen.id, frozen);
+    return frozen;
+  }
+
   listContacts(filters: ContactFilters, sort: ContactSort = DEFAULT_CONTACT_SORT): ContactListResult {
     if (filters.permission && !filters.permission.allowed) {
       return createListResult([], 0, filters.workspaceId, filters.companyId);

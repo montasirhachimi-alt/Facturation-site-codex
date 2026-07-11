@@ -26,8 +26,12 @@ export function isModKey(event: KeyboardEvent) {
   return event.metaKey || event.ctrlKey;
 }
 
-export function matchesShortcut(event: KeyboardEvent, shortcut: Pick<KeyboardShortcutDefinition, "key" | "modifiers">) {
-  const keyMatches = normalizeKey(event.key) === normalizeKey(shortcut.key);
+export function matchesShortcut(event: KeyboardEvent, shortcut: Partial<Pick<KeyboardShortcutDefinition, "key" | "modifiers">>) {
+  const eventKey = normalizeKey(event.key);
+  const shortcutKey = normalizeKey(shortcut.key);
+  if (!eventKey || !shortcutKey) return false;
+
+  const keyMatches = eventKey === shortcutKey;
   if (!keyMatches) return false;
 
   const modifiers = new Set(shortcut.modifiers ?? []);
@@ -40,7 +44,8 @@ export function matchesShortcut(event: KeyboardEvent, shortcut: Pick<KeyboardSho
   return platformModifierSatisfied && event.shiftKey === wantsShift && event.altKey === wantsAlt;
 }
 
-export function normalizeKey(key: string) {
+export function normalizeKey(key: string | null | undefined) {
+  if (typeof key !== "string" || key.length === 0) return "";
   if (key === " ") return "space";
   return key.toLowerCase();
 }
@@ -51,15 +56,16 @@ export function getPlatformModifierLabel() {
   return platform.includes("mac") ? "⌘" : "Ctrl";
 }
 
-export function formatShortcutLabel(key: string, modifiers: KeyboardShortcutDefinition["modifiers"] = []) {
+export function formatShortcutLabel(key: string | null | undefined, modifiers: KeyboardShortcutDefinition["modifiers"] = []) {
   const pieces = modifiers.length > 0 ? [getPlatformModifierLabel()] : [];
   const normalized = normalizeKey(key);
-  const displayKey = normalized === "enter" ? "Enter" : normalized === "escape" ? "Esc" : normalized === "space" ? "Espace" : key.toUpperCase();
+  if (!normalized) return pieces.join("");
+  const displayKey = normalized === "enter" ? "Enter" : normalized === "escape" ? "Esc" : normalized === "space" ? "Espace" : String(key).toUpperCase();
   return [...pieces, displayKey].join(modifiers.length > 0 && pieces[0] === "Ctrl" ? " " : "");
 }
 
 export function buildShortcutDisplay(shortcuts: readonly Omit<KeyboardShortcutDefinition, "handler">[]): KeyboardShortcutDisplay[] {
-  return shortcuts.map((shortcut) => ({
+  return shortcuts.filter(hasValidShortcutKey).map((shortcut) => ({
     id: shortcut.id,
     label: shortcut.label,
     description: shortcut.description,
@@ -68,3 +74,6 @@ export function buildShortcutDisplay(shortcuts: readonly Omit<KeyboardShortcutDe
   }));
 }
 
+export function hasValidShortcutKey(shortcut: Partial<Pick<KeyboardShortcutDefinition, "key">>) {
+  return normalizeKey(shortcut.key).length > 0;
+}

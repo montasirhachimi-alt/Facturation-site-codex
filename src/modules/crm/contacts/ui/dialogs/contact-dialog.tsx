@@ -1,4 +1,5 @@
 import { EntityDialog, FormActions, FormBooleanField, FormField, FormSection, entityInputClassName } from "@/ui";
+import type { ReactNode } from "react";
 import type { ContactFormState } from "../hooks/use-company-contacts-workspace";
 
 export function ContactDialog({
@@ -8,15 +9,17 @@ export function ContactDialog({
   onChange,
   onClose,
   onSubmit,
-  open
+  open,
+  relationshipField
 }: {
   editing: boolean;
   error: string | null;
   form: ContactFormState;
   onChange: (form: ContactFormState) => void;
   onClose: () => void;
-  onSubmit: () => void;
+  onSubmit: () => void | boolean | Promise<void | boolean>;
   open: boolean;
+  relationshipField?: ReactNode;
 }) {
   return (
     <EntityDialog
@@ -29,9 +32,11 @@ export function ContactDialog({
       onClose={onClose}
       onSubmit={onSubmit}
       open={open}
+      size="md"
       title={editing ? "Modifier le contact" : "Ajouter un contact"}
     >
       <div className="mt-5 space-y-3">
+        {relationshipField}
         <FormSection title="Identité" description="Les champs essentiels pour reconnaître rapidement la personne.">
         <FormField label="Prénom" required>
           <input value={form.firstName} onChange={(event) => onChange({ ...form, firstName: event.target.value })} className={entityInputClassName} />

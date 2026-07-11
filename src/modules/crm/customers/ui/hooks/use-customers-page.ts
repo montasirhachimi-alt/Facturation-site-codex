@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { persistCrmSalesRecord } from "@/platform/persistence";
 import { PermissionService } from "@/services/permissions";
 import {
   filterCrmEntities,
@@ -8,14 +9,16 @@ import {
   searchCrmEntities,
   sortCrmEntities
 } from "@/modules/crm/shared";
-import { CustomerService } from "../../customer.service";
-import type { CreateCustomerInput, Customer, CustomerId, CustomerStatus, CustomerType } from "../../customer.types";
-import { CRM_CUSTOMERS_USER_ID, CRM_CUSTOMERS_WORKSPACE_ID, crmCustomerSeed } from "../customers.seed";
+import { crmCustomerLocalService, notifyCrmCustomerStoreUpdated, subscribeToCrmCustomerStore } from "../customer-local-store";
+import type { CreateCustomerInput, Customer, CustomerId, CustomerStatus, CustomerType, UpdateCustomerInput } from "../../customer.types";
+import type { CompanyId } from "../../../companies";
+import { CRM_CUSTOMERS_USER_ID, CRM_CUSTOMERS_WORKSPACE_ID } from "../customers.seed";
 
 export type CustomerSortKey = "displayName" | "companyName" | "email" | "phone" | "status" | "updatedAt";
 
 export type CustomerFormState = Readonly<{
   displayName: string;
+  companyId: string;
   companyName: string;
   email: string;
   phone: string;
@@ -27,6 +30,7 @@ export type CustomerFormState = Readonly<{
 
 const emptyForm: CustomerFormState = {
   displayName: "",
+  companyId: "",
   companyName: "",
   email: "",
   phone: "",
@@ -39,7 +43,7 @@ const emptyForm: CustomerFormState = {
 const permissionService = new PermissionService();
 
 export function useCustomersPage() {
-  const [service] = useState(() => new CustomerService({ seed: crmCustomerSeed }));
+  const [service] = useState(() => crmCustomerLocalService);
   const [version, setVersion] = useState(0);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<CustomerStatus | "all">("all");
@@ -53,6 +57,8 @@ export function useCustomersPage() {
   });
   const [selectedIds, setSelectedIds] = useState<readonly CustomerId[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [viewingCustomer, setViewingCustomer] = useState<Customer | null>(null);
   const [form, setForm] = useState<CustomerFormState>(emptyForm);
   const [error, setError] = useState<string | null>(null);
 
@@ -90,6 +96,8 @@ export function useCustomersPage() {
     void version;
     return service.listCustomers({ workspaceId: CRM_CUSTOMERS_WORKSPACE_ID, includeArchived: false, permission: readDecision }).customers;
   }, [readDecision, service, version]);
+
+  useEffect(() => subscribeToCrmCustomerStore(() => setVersion((value) => value + 1)), []);
 
   const tagOptions = useMemo(
     () => ["all", ...Array.from(new Set(baseCustomers.flatMap((customer) => customer.tags))).sort((first, second) => first.localeCompare(second))],
@@ -154,16 +162,36 @@ export function useCustomersPage() {
 
   const openCreateDialog = useCallback(() => {
     setError(null);
+    setEditingCustomer(null);
     setForm(emptyForm);
     setDialogOpen(true);
   }, []);
 
-  const closeDialog = useCallback(() => setDialogOpen(false), []);
+  const openEditDialog = useCallback((customer: Customer) => {
+    setError(null);
+    setEditingCustomer(customer);
+    setForm(customerToForm(customer));
+    setDialogOpen(true);
+  }, []);
 
-  const createCustomer = useCallback(() => {
+  const openViewDialog = useCallback((customer: Customer) => {
+    setViewingCustomer(customer);
+  }, []);
+
+  const closeViewDialog = useCallback(() => setViewingCustomer(null), []);
+
+  const closeDialog = useCallback(() => {
+    setDialogOpen(false);
+    setEditingCustomer(null);
+    setError(null);
+  }, []);
+
+  const createCustomer = useCallback(async () => {
+    const snapshot = service.listCustomers({ workspaceId: CRM_CUSTOMERS_WORKSPACE_ID, includeArchived: true }).customers;
     const input: CreateCustomerInput = {
       workspaceId: CRM_CUSTOMERS_WORKSPACE_ID,
       displayName: form.displayName,
+      companyId: form.companyId ? form.companyId as CompanyId : undefined,
       companyName: form.companyName,
       email: form.email,
       phone: form.phone,
@@ -182,36 +210,107 @@ export function useCustomersPage() {
       return false;
     }
 
+    try {
+      await persistCrmSalesRecord("customer", result.customer);
+    } catch {
+      service.replaceCustomers(snapshot);
+      setError("Le client n'a pas pu être enregistré dans la base. Vérifiez la connexion puis réessayez.");
+      return false;
+    }
+
     setDialogOpen(false);
     setVersion((value) => value + 1);
+    notifyCrmCustomerStoreUpdated();
     setPage(1);
     return true;
   }, [createDecision, form, service]);
 
+  const saveCustomer = useCallback(async () => {
+    if (!editingCustomer) return createCustomer();
+    const snapshot = service.listCustomers({ workspaceId: CRM_CUSTOMERS_WORKSPACE_ID, includeArchived: true }).customers;
+
+    const input: UpdateCustomerInput = {
+      id: editingCustomer.id,
+      workspaceId: CRM_CUSTOMERS_WORKSPACE_ID,
+      displayName: form.displayName,
+      companyId: form.companyId ? form.companyId as CompanyId : undefined,
+      companyName: form.companyName,
+      email: form.email,
+      phone: form.phone,
+      status: form.status,
+      type: form.type,
+      tags: form.tags.split(",").map((item) => item.trim()).filter(Boolean),
+      notes: form.notes,
+      updatedBy: CRM_CUSTOMERS_USER_ID,
+      permission: editDecision
+    };
+    const result = service.updateCustomer(input);
+
+    if (!result.validation.valid || !result.customer) {
+      setError(result.validation.issues[0]?.message ?? "Impossible de modifier le client.");
+      return false;
+    }
+
+    try {
+      await persistCrmSalesRecord("customer", result.customer);
+    } catch {
+      service.replaceCustomers(snapshot);
+      setError("Les modifications n'ont pas pu être enregistrées dans la base. Vérifiez la connexion puis réessayez.");
+      return false;
+    }
+
+    setDialogOpen(false);
+    setEditingCustomer(null);
+    setVersion((value) => value + 1);
+    notifyCrmCustomerStoreUpdated();
+    setViewingCustomer((current) => (current?.id === result.customer?.id ? result.customer : current));
+    return true;
+  }, [createCustomer, editDecision, editingCustomer, form, service]);
+
   const archiveCustomer = useCallback(
-    (customer: Customer) => {
+    async (customer: Customer) => {
       if (!editDecision.allowed) return;
-      service.archiveCustomer(customer.id, CRM_CUSTOMERS_WORKSPACE_ID, CRM_CUSTOMERS_USER_ID, editDecision);
+      const snapshot = service.listCustomers({ workspaceId: CRM_CUSTOMERS_WORKSPACE_ID, includeArchived: true }).customers;
+      const result = service.archiveCustomer(customer.id, CRM_CUSTOMERS_WORKSPACE_ID, CRM_CUSTOMERS_USER_ID, editDecision);
+      if (result.customer) {
+        try {
+          await persistCrmSalesRecord("customer", result.customer);
+        } catch {
+          service.replaceCustomers(snapshot);
+          setError("Le client n'a pas pu être archivé dans la base. Vérifiez la connexion puis réessayez.");
+          setVersion((value) => value + 1);
+          notifyCrmCustomerStoreUpdated();
+          return;
+        }
+      }
       setSelectedIds((current) => current.filter((id) => id !== customer.id));
+      setViewingCustomer((current) => (current?.id === customer.id ? null : current));
       setVersion((value) => value + 1);
+      notifyCrmCustomerStoreUpdated();
     },
     [editDecision, service]
   );
 
   const refresh = useCallback(() => {
     setVersion((value) => value + 1);
-  }, []);
+    setSelectedIds((current) => current.filter((id) => Boolean(service.getCustomerById(id, CRM_CUSTOMERS_WORKSPACE_ID, readDecision))));
+    setViewingCustomer((current) => current ? service.getCustomerById(current.id, CRM_CUSTOMERS_WORKSPACE_ID, readDecision) ?? null : null);
+  }, [readDecision, service]);
 
   return {
     archiveCustomer,
     closeDialog,
+    closeViewDialog,
     createCustomer,
     createDecision,
     dialogOpen,
+    editingCustomer,
     editDecision,
     error,
     form,
     openCreateDialog,
+    openEditDialog,
+    openViewDialog,
     page,
     pageSize,
     paginatedCustomers,
@@ -227,6 +326,7 @@ export function useCustomersPage() {
     setStatus,
     setTag,
     setType,
+    saveCustomer,
     sort,
     stats,
     status,
@@ -236,7 +336,21 @@ export function useCustomersPage() {
     toggleRow,
     totalFiltered: sortedCustomers.length,
     type,
-    updateSort
+    updateSort,
+    viewingCustomer
   };
 }
 
+function customerToForm(customer: Customer): CustomerFormState {
+  return {
+    displayName: customer.displayName,
+    companyId: customer.companyId ?? "",
+    companyName: customer.companyName ?? "",
+    email: customer.email ?? "",
+    phone: customer.phone ?? "",
+    status: customer.status === "archived" ? "inactive" : customer.status,
+    type: customer.type,
+    tags: customer.tags.join(", "),
+    notes: customer.notes ?? ""
+  };
+}

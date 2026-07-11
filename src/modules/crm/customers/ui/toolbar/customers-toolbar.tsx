@@ -1,4 +1,7 @@
+"use client";
+
 import { Filter, Plus, RefreshCcw } from "lucide-react";
+import { useState } from "react";
 import { EntityFilterPanel, EntitySearchBar, EntityToolbar } from "@/ui";
 import type { CustomerStatus, CustomerType } from "../../customer.types";
 
@@ -31,13 +34,28 @@ export function CustomersToolbar({
   tagOptions: readonly string[];
   type: CustomerType | "all";
 }) {
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const activeFilterCount = [query.trim(), status !== "all", type !== "all", tag !== "all"].filter(Boolean).length;
+
   return (
     <EntityToolbar
       actions={
         <>
-          <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-bold text-hicotech-navy dark:border-hicotech-dark-border dark:text-white">
+          <button
+            type="button"
+            onClick={() => setFiltersOpen((value) => !value)}
+            aria-expanded={filtersOpen}
+            className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-bold transition focus:outline-none focus:ring-4 focus:ring-hicotech-blue/10 dark:border-hicotech-dark-border dark:text-white ${
+              activeFilterCount > 0 || filtersOpen
+                ? "border-hicotech-blue/30 bg-hicotech-sky text-hicotech-blue dark:bg-hicotech-blue/15"
+                : "border-slate-200 text-hicotech-navy hover:bg-hicotech-cloud dark:hover:bg-hicotech-dark-page"
+            }`}
+          >
             <Filter size={16} />
             Filtres
+            {activeFilterCount > 0 && (
+              <span className="rounded-full bg-hicotech-blue px-1.5 py-0.5 text-[10px] font-black text-white">{activeFilterCount}</span>
+            )}
           </button>
           <button
             type="button"
@@ -60,6 +78,7 @@ export function CustomersToolbar({
         </>
       }
     >
+      {filtersOpen ? (
         <EntityFilterPanel>
           <EntitySearchBar
             value={query}
@@ -112,6 +131,18 @@ export function CustomersToolbar({
             ))}
           </select>
         </EntityFilterPanel>
+      ) : (
+        <div className="min-w-0 flex-1">
+          <EntitySearchBar
+            value={query}
+            onChange={(value) => {
+              setQuery(value);
+              onResetPage();
+            }}
+            placeholder="Rechercher client, société, email, téléphone..."
+          />
+        </div>
+      )}
     </EntityToolbar>
   );
 }

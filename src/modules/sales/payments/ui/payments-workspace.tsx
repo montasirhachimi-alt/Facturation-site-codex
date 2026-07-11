@@ -3,21 +3,18 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Building2, CircleDollarSign, CreditCard, Filter, Sparkles, WalletCards } from "lucide-react";
-import { useState } from "react";
-import { CompanyService } from "@/modules/crm/companies";
-import { CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "@/modules/crm/companies/ui/companies.seed";
+import { useEffect, useMemo, useState } from "react";
+import { CRM_COMPANIES_WORKSPACE_ID } from "@/modules/crm/companies/ui/companies.seed";
+import { crmCompanyLocalService, subscribeToCrmCompanyStore } from "@/modules/crm/companies/ui/company-local-store";
 import { SALES_QUOTES_WORKSPACE_ID, formatQuoteMoney } from "@/modules/sales/quotes";
 import { useTableKeyboardNavigation } from "@/platform/keyboard";
 import { EntityPageLayout, EntitySearchBar, MetricCard, ProductHero, ProductSectionHeader, SectionCard, entityInputClassName, workspacePrimaryActionClassName, workspaceTableActionClassName } from "@/ui";
 import { PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS } from "../payment.constants";
-import { paymentService } from "../payment.store";
+import { paymentService, subscribeToPaymentStore } from "../payment.store";
 import type { Payment, PaymentMethod, PaymentSort, PaymentStatus } from "../payment.types";
 
-const companyService = new CompanyService({ seed: crmCompanySeed });
-const companies = companyService.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID }).companies;
-const companyById = new Map(companies.map((company) => [company.id, company]));
-
 export function PaymentsWorkspace() {
+  const [, setStoreVersion] = useState(0);
   const [filters, setFilters] = useState({ query: "", status: "all" as PaymentStatus | "all", method: "all" as PaymentMethod | "all", companyId: "all" });
   const [sort, setSort] = useState<PaymentSort>({ field: "receivedAt", direction: "desc" });
   const [page, setPage] = useState(1);
@@ -30,8 +27,20 @@ export function PaymentsWorkspace() {
     companyId: filters.companyId === "all" ? "all" : filters.companyId as never
   }, sort).payments;
   const stats = buildPaymentStats(payments);
+  const companies = crmCompanyLocalService.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID }).companies;
+  const companyById = useMemo(() => new Map(companies.map((company) => [company.id, company])), [companies]);
   const totalPages = Math.max(1, Math.ceil(payments.length / pageSize));
   const paginated = payments.slice((page - 1) * pageSize, page * pageSize);
+
+  useEffect(() => {
+    const refresh = () => setStoreVersion((value) => value + 1);
+    const unsubscribePayments = subscribeToPaymentStore(refresh);
+    const unsubscribeCompanies = subscribeToCrmCompanyStore(refresh);
+    return () => {
+      unsubscribePayments();
+      unsubscribeCompanies();
+    };
+  }, []);
 
   function updateSort(field: PaymentSort["field"]) {
     setSort((current) => ({
@@ -89,7 +98,7 @@ export function PaymentsWorkspace() {
         </div>
       </SectionCard>
 
-      <PaymentsTable payments={paginated} sort={sort} onSort={updateSort} />
+      <PaymentsTable companyById={companyById} payments={paginated} sort={sort} onSort={updateSort} />
 
       <div className="flex flex-col gap-2.5 rounded-xl border border-slate-200 bg-white p-3 shadow-sm shadow-slate-200/50 md:flex-row md:items-center md:justify-between dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
         <p className="text-sm font-semibold text-slate-500 dark:text-slate-300">Page {page} sur {totalPages} • {payments.length} paiement(s)</p>
@@ -107,7 +116,17 @@ export function PaymentsWorkspace() {
   );
 }
 
-function PaymentsTable({ onSort, payments, sort }: { onSort: (field: PaymentSort["field"]) => void; payments: readonly Payment[]; sort: PaymentSort }) {
+function PaymentsTable({
+  companyById,
+  onSort,
+  payments,
+  sort
+}: {
+  companyById: ReadonlyMap<string, { displayName: string }>;
+  onSort: (field: PaymentSort["field"]) => void;
+  payments: readonly Payment[];
+  sort: PaymentSort;
+}) {
   const router = useRouter();
   const tableNavigation = useTableKeyboardNavigation({
     items: payments,

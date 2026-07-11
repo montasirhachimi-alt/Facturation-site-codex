@@ -1,14 +1,13 @@
 import { EntityDialog } from "@/ui/dialogs/entity-dialog";
 import { FormActions, FormField, FormSection, entityInputClassName } from "@/ui/forms/form-field";
-import { getCompanyPickerItems } from "@/ui/forms/entity-picker.crm-data";
-import type { EntityPickerItem } from "@/ui/forms/entity-picker.types";
+import { createCompanyPickerItem, getCompanyPickerItems, subscribeToCrmPickerSources } from "@/ui/forms/entity-picker.crm-data";
 import { SmartEntityPicker } from "@/ui/forms/smart-entity-picker";
 import type { CustomerStatus, CustomerType } from "../../customer.types";
 import type { CustomerFormState } from "../hooks/use-customers-page";
-
-const companyPickerItems = getCompanyPickerItems();
+import { useEffect, useState } from "react";
 
 export function CustomerDialog({
+  editing = false,
   error,
   form,
   onChange,
@@ -16,26 +15,32 @@ export function CustomerDialog({
   onSubmit,
   open
 }: {
+  editing?: boolean;
   error: string | null;
   form: CustomerFormState;
   onChange: (form: CustomerFormState) => void;
   onClose: () => void;
-  onSubmit: () => boolean;
+  onSubmit: () => boolean | Promise<boolean>;
   open: boolean;
 }) {
+  const [companyPickerItems, setCompanyPickerItems] = useState(() => getCompanyPickerItems());
+
+  useEffect(() => subscribeToCrmPickerSources(() => setCompanyPickerItems(getCompanyPickerItems())), []);
+
   return (
     <EntityDialog
       open={open}
+      size="lg"
       eyebrow="CRM"
-      title="Ajouter client"
-      description="Création en mémoire via CustomerService."
+      title={editing ? "Modifier client" : "Ajouter client"}
+      description={editing ? "Mettez à jour la fiche client via CustomerService." : "Création en mémoire via CustomerService."}
       error={error}
       onClose={onClose}
-      onSubmit={() => {
-        onSubmit();
+      onSubmit={async () => {
+        await onSubmit();
       }}
       footer={
-        <FormActions onCancel={onClose} submitLabel="Enregistrer" />
+        <FormActions onCancel={onClose} submitLabel={editing ? "Enregistrer les modifications" : "Enregistrer"} />
       }
     >
       <div className="mt-5 space-y-3">
@@ -47,13 +52,13 @@ export function CustomerDialog({
             label="Société"
             items={companyPickerItems}
             value={form.companyName}
-            onChange={({ value }) => onChange({ ...form, companyName: value })}
+            onChange={({ value, item }) => onChange({ ...form, companyName: value, companyId: item?.relations?.companyId ?? "" })}
             placeholder="Rechercher une société..."
             helper="Le champ reste compatible avec le nom de société attendu par le formulaire."
             allowCreate
             createLabel="Créer la société"
             entityType="société"
-            onCreate={(name) => createLocalCompanyItem(name)}
+            onCreate={(name) => createCompanyPickerItem(name)}
           />
           <FormField label="Statut">
             <select value={form.status} onChange={(event) => onChange({ ...form, status: event.target.value as CustomerStatus })} className={entityInputClassName}>
@@ -87,26 +92,4 @@ export function CustomerDialog({
       </div>
     </EntityDialog>
   );
-}
-
-function createLocalCompanyItem(title: string): EntityPickerItem {
-  const fallback = companyPickerItems[0];
-  return {
-    id: `inline-company-${slugify(title)}-${Date.now()}`,
-    title,
-    type: "company",
-    typeLabel: "Company",
-    metadata: "Créée localement dans ce formulaire",
-    icon: fallback.icon,
-    keywords: [title, "inline", "local"]
-  };
-}
-
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
 }

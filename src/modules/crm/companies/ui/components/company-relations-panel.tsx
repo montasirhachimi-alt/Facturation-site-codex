@@ -2,21 +2,21 @@ import { BriefcaseBusiness, FileText, HandCoins, ReceiptText, ShoppingCart, User
 import { SectionCard } from "@/ui";
 
 const relations = [
-  { label: "Contacts", icon: UsersRound, value: "Bientôt" },
-  { label: "Clients", icon: UsersRound, value: "Bientôt" },
-  { label: "Projets", icon: BriefcaseBusiness, value: "Bientôt" },
-  { label: "Factures", icon: ReceiptText, value: "Bientôt" },
-  { label: "Opportunités", icon: HandCoins, value: "Bientôt" },
-  { label: "Devis", icon: FileText, value: "Bientôt" },
-  { label: "Commandes", icon: ShoppingCart, value: "Bientôt" }
+  { label: "Contacts", icon: UsersRound, value: "Connecté" },
+  { label: "Clients", icon: UsersRound, value: "Masqué" },
+  { label: "Projets", icon: BriefcaseBusiness, value: "Masqué" },
+  { label: "Factures", icon: ReceiptText, value: "Connecté" },
+  { label: "Opportunités", icon: HandCoins, value: "Connecté" },
+  { label: "Devis", icon: FileText, value: "Connecté" },
+  { label: "Commandes", icon: ShoppingCart, value: "Masqué" }
 ];
 
 export function CompanyRelationsPanel() {
   return (
     <SectionCard className="p-4">
       <div className="flex flex-col gap-1">
-        <h2 className="font-display text-base font-bold text-hicotech-navy dark:text-white">Relations futures</h2>
-        <p className="text-xs font-medium text-slate-500 dark:text-slate-300">Points d&apos;intégration préparés autour de la société.</p>
+        <h2 className="font-display text-base font-bold text-hicotech-navy dark:text-white">Relations CRM</h2>
+        <p className="text-xs font-medium text-slate-500 dark:text-slate-300">État des liens disponibles autour de la société.</p>
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
         {relations.map((relation) => {

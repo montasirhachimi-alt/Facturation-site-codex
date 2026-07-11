@@ -11,7 +11,9 @@ import type { SalesDocumentPdfMode } from "./sales-document-pdf.types";
 
 type SalesPdfContext = Readonly<{
   company?: Company;
+  companyName?: string;
   contact?: Contact;
+  contactName?: string;
   sourceQuoteNumber?: string;
 }>;
 
@@ -24,10 +26,17 @@ export function buildQuotePdfDocument(quote: Quote, context: SalesPdfContext = {
     date: formatPdfDate(quote.issueDate),
     dueDate: formatPdfDate(quote.expirationDate),
     status: normalizeStatus(quote.status),
-    internalReference: quote.opportunityId,
+    internalReference: quote.opportunityName ?? quote.opportunityId,
+    currency: quote.currency,
     recipient: buildRecipient(quote.customerName, context),
     lines: buildPdfLines(quote.items),
-    discount: calculatePdfDiscountAdjustment(quote.items, totals.total),
+    discount: totals.discount,
+    totals: {
+      subtotal: totals.subtotal,
+      discount: totals.discount,
+      tax: totals.tax,
+      total: totals.total
+    },
     notes: quote.notes,
     paymentTerms: "Validité du devis selon la date d'expiration indiquée.",
     filename: sanitizeFileName(`Devis-${quote.number}`),
@@ -45,10 +54,19 @@ export function buildInvoicePdfDocument(invoice: Invoice, context: SalesPdfConte
     dueDate: formatPdfDate(invoice.dueDate),
     status: normalizeStatus(invoice.status),
     internalReference: context.sourceQuoteNumber ?? invoice.quoteId,
+    currency: invoice.currency,
     recipient: buildRecipient(invoice.customerName, context),
     lines: buildPdfLines(invoice.items),
-    discount: calculatePdfDiscountAdjustment(invoice.items, totals.total),
+    discount: totals.discount,
     paidAmount: roundMoney(invoice.paidAmount),
+    totals: {
+      subtotal: totals.subtotal,
+      discount: totals.discount,
+      tax: totals.tax,
+      total: totals.total,
+      paid: roundMoney(invoice.paidAmount),
+      remaining: roundMoney(Math.max(0, totals.total - invoice.paidAmount))
+    },
     notes: invoice.notes,
     paymentTerms: "Règlement selon les conditions commerciales convenues.",
     filename: sanitizeFileName(`Facture-${invoice.number}`),
@@ -69,6 +87,19 @@ export async function exportSalesDocumentPdf(document: PdfLayoutDocument, mode: 
 }
 
 export function calculatePdfPreviewTotals(document: PdfLayoutDocument) {
+  if (document.totals) {
+    const paid = document.totals.paid ?? document.paidAmount ?? 0;
+    const remaining = document.totals.remaining ?? Math.max(0, document.totals.total - paid);
+    return {
+      subtotal: roundMoney(document.totals.subtotal),
+      discount: roundMoney(document.totals.discount),
+      tax: roundMoney(document.totals.tax),
+      total: roundMoney(document.totals.total),
+      paid: roundMoney(paid),
+      remaining: roundMoney(remaining)
+    };
+  }
+
   const subtotal = document.lines.reduce((total, line) => total + line.quantity * line.unitPrice, 0);
   const discount = document.discount ?? 0;
   const taxable = Math.max(0, subtotal - discount);
@@ -86,10 +117,10 @@ export function calculatePdfPreviewTotals(document: PdfLayoutDocument) {
   };
 }
 
-export function formatPdfMoney(amount: number) {
+export function formatPdfMoney(amount: number, currency = "MAD") {
   return new Intl.NumberFormat("fr-MA", {
     style: "currency",
-    currency: "MAD",
+    currency,
     maximumFractionDigits: 0
   }).format(amount);
 }
@@ -97,17 +128,28 @@ export function formatPdfMoney(amount: number) {
 function buildRecipient(customerName: string, context: SalesPdfContext): PdfParty {
   const company = context.company;
   const contact = context.contact;
+  const name = contact?.fullName ?? context.contactName ?? customerName;
+  const companyName = company?.displayName ?? company?.legalName ?? context.companyName;
+  const city = [company?.city, company?.country].filter(Boolean).join(", ") || undefined;
 
   return {
     label: "Client",
-    name: contact?.fullName ?? customerName,
-    company: company?.displayName ?? company?.legalName,
+    name,
+    company: isSamePdfText(companyName, name) ? undefined : companyName,
     address: company?.address,
-    city: [company?.city, company?.country].filter(Boolean).join(", ") || undefined,
+    city: isSamePdfText(city, company?.address) ? undefined : city,
     ice: company?.taxNumber,
     phone: contact?.mobilePhone ?? contact?.officePhone ?? company?.phone,
     email: contact?.email ?? company?.email
   };
+}
+
+function isSamePdfText(left: string | undefined, right: string | undefined) {
+  return Boolean(left && right && normalizePdfText(left) === normalizePdfText(right));
+}
+
+function normalizePdfText(value: string) {
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
 function buildPdfLines(items: readonly QuoteItem[]): PdfLineItem[] {
@@ -118,12 +160,6 @@ function buildPdfLines(items: readonly QuoteItem[]): PdfLineItem[] {
     unitPrice: item.unitPrice,
     vat: item.taxRate
   }));
-}
-
-function calculatePdfDiscountAdjustment(items: readonly QuoteItem[], salesTotal: number) {
-  const subtotal = items.reduce((total, item) => total + item.quantity * item.unitPrice, 0);
-  const rawTax = items.reduce((total, item) => total + item.quantity * item.unitPrice * (item.taxRate / 100), 0);
-  return roundMoney(Math.max(0, subtotal + rawTax - salesTotal));
 }
 
 function formatPdfDate(value: string) {

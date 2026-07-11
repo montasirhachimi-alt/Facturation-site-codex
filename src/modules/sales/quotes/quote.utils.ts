@@ -38,7 +38,11 @@ export function matchesQuoteSearch(quote: Quote, query: string) {
     quote.ownerId,
     quote.notes,
     quote.opportunityId,
-    quote.companyId
+    quote.opportunityName,
+    quote.companyId,
+    quote.companyName,
+    quote.contactId,
+    quote.contactName
   ].join(" ").toLowerCase().includes(normalized);
 }
 

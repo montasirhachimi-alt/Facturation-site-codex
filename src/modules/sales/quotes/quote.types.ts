@@ -1,5 +1,6 @@
 import type { CompanyId } from "@/modules/crm/companies";
 import type { ContactId } from "@/modules/crm/contacts";
+import type { CustomerId } from "@/modules/crm/customers";
 import type { OpportunityId } from "@/modules/crm/opportunities";
 
 export type QuoteId = string & { readonly __brand: "QuoteId" };
@@ -21,13 +22,18 @@ export type Quote = Readonly<{
   id: QuoteId;
   workspaceId: WorkspaceId;
   number: string;
+  customerId?: CustomerId;
   customerName: string;
   companyId: CompanyId;
+  companyName?: string;
   contactId?: ContactId;
+  contactName?: string;
   opportunityId?: OpportunityId;
+  opportunityName?: string;
   status: QuoteStatus;
   issueDate: string;
   expirationDate: string;
+  validityDays?: number;
   currency: QuoteCurrency;
   items: readonly QuoteItem[];
   discountRate: number;
@@ -47,10 +53,14 @@ export type QuoteTotals = Readonly<{
 
 export type CreateQuoteInput = Readonly<{
   workspaceId: WorkspaceId;
+  customerId?: CustomerId;
   customerName: string;
   companyId: CompanyId;
+  companyName?: string;
   contactId?: ContactId;
+  contactName?: string;
   opportunityId?: OpportunityId;
+  opportunityName?: string;
   validityDays: number;
   currency: QuoteCurrency;
   items: readonly QuoteItem[];

@@ -6,20 +6,19 @@ import type { CompanyId } from "@/modules/crm/companies";
 import type { ContactId } from "@/modules/crm/contacts";
 import type { OpportunityId } from "@/modules/crm/opportunities";
 import { SectionCard } from "@/ui";
-import { QuoteService } from "../quote.service";
+import type { Quote } from "../quote.types";
 import { formatQuoteMoney, getQuoteTotals } from "../quote.utils";
-import { SALES_QUOTES_WORKSPACE_ID, quoteSeed } from "../quotes.seed";
+import { quoteService } from "../quote.store";
+import { SALES_QUOTES_WORKSPACE_ID } from "../quotes.seed";
 import { QuoteStatusBadge } from "./quotes-workspace";
 
-const service = new QuoteService({ seed: quoteSeed });
-
 export function CompanyQuotesPanel({ companyId }: { companyId: CompanyId }) {
-  const quotes = service.listQuotes({ workspaceId: SALES_QUOTES_WORKSPACE_ID, companyId }).quotes;
+  const quotes = quoteService.listQuotes({ workspaceId: SALES_QUOTES_WORKSPACE_ID, companyId }).quotes;
   return <QuotesPanel title="Devis" description="Devis commerciaux reliés à cette société." quotes={quotes} empty="Aucun devis lié à cette société." />;
 }
 
 export function ContactQuotesPanel({ contactId }: { contactId: ContactId }) {
-  const quotes = service.listQuotes({ workspaceId: SALES_QUOTES_WORKSPACE_ID }).quotes.filter((quote) => quote.contactId === contactId);
+  const quotes = quoteService.listQuotes({ workspaceId: SALES_QUOTES_WORKSPACE_ID }).quotes.filter((quote) => quote.contactId === contactId);
   return <QuotesPanel title="Devis liés" description="Devis associés à ce contact." quotes={quotes} empty="Aucun devis lié à ce contact." />;
 }
 
@@ -32,7 +31,7 @@ export function OpportunityQuoteAction({ opportunityId }: { opportunityId: Oppor
   );
 }
 
-function QuotesPanel({ description, empty, quotes, title }: { description: string; empty: string; quotes: readonly ReturnType<QuoteService["listQuotes"]>["quotes"][number][]; title: string }) {
+function QuotesPanel({ description, empty, quotes, title }: { description: string; empty: string; quotes: readonly Quote[]; title: string }) {
   return (
     <SectionCard className="p-5">
       <div className="flex items-start gap-3">

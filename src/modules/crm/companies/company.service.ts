@@ -39,6 +39,19 @@ export class CompanyService {
     }
   }
 
+  replaceCompanies(companies: readonly Company[]) {
+    this.companies.clear();
+    for (const company of companies) {
+      this.companies.set(company.id, freezeCompany(company));
+    }
+  }
+
+  upsertCompany(company: Company) {
+    const frozen = freezeCompany(company);
+    this.companies.set(frozen.id, frozen);
+    return frozen;
+  }
+
   listCompanies(filters: CompanyFilters, sort: CompanySort = DEFAULT_COMPANY_SORT): CompanyListResult {
     if (filters.permission && !filters.permission.allowed) {
       return createListResult([], 0, filters.workspaceId);
@@ -162,4 +175,3 @@ function createListResult(companies: readonly Company[], total: number, workspac
 }
 
 export const companyService = new CompanyService();
-
