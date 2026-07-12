@@ -4,8 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { persistCrmSalesRecord } from "@/platform/persistence";
 import type { CompanyId } from "@/modules/crm/companies";
 import type { ContactId } from "@/modules/crm/contacts";
-import { crmOpportunitySeed } from "@/modules/crm/opportunities/ui/opportunities.seed";
-import type { OpportunityId } from "@/modules/crm/opportunities";
 import { SalesLineItemsEditor, createEmptySalesLineItem, normalizeSalesLineItems, validateSalesLineItems } from "@/modules/sales/shared";
 import { EntityDialog } from "@/ui/dialogs/entity-dialog";
 import { FormActions, FormField, FormSection, entityInputClassName } from "@/ui/forms/form-field";
@@ -16,14 +14,11 @@ import { notifyQuoteStoreUpdated, quoteService } from "../quote.store";
 import type { Quote, QuoteCurrency, QuoteItem } from "../quote.types";
 import { SALES_QUOTES_USER_ID, SALES_QUOTES_WORKSPACE_ID } from "../quotes.seed";
 
-const opportunities = crmOpportunitySeed;
-
 type QuoteDialogState = {
   companyName: string;
   companyId: string;
   contactName: string;
   contactId: string;
-  opportunityId: string;
   validityDays: number;
   currency: QuoteCurrency;
   discountRate: number;
@@ -45,7 +40,6 @@ export function QuoteDialog({
     companyId: "",
     contactName: "",
     contactId: "",
-    opportunityId: opportunities[0]?.id ?? "",
     validityDays: 30,
     currency: "MAD",
     discountRate: 0,
@@ -53,6 +47,7 @@ export function QuoteDialog({
     items: [createEmptySalesLineItem("quote-line")]
   }));
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [pickerVersion, setPickerVersion] = useState(0);
   const totals = useMemo(() => calculateQuoteTotals(form.items, form.discountRate, form.currency), [form.currency, form.discountRate, form.items]);
   const companyPickerItems = useMemo(() => {
@@ -71,6 +66,7 @@ export function QuoteDialog({
   }
 
   async function submitQuote() {
+    if (saving) return;
     const lineValidation = validateSalesLineItems(form.items);
     const companyId = resolveCompanyId(form.companyId, form.companyName);
     const accountName = form.companyName.trim();
@@ -86,6 +82,7 @@ export function QuoteDialog({
     }
 
     const snapshot = quoteService.listQuotes({ workspaceId: SALES_QUOTES_WORKSPACE_ID }).quotes;
+    setSaving(true);
     const quote = quoteService.createQuote({
       workspaceId: SALES_QUOTES_WORKSPACE_ID,
       customerName: accountName,
@@ -93,8 +90,6 @@ export function QuoteDialog({
       companyName: form.companyName,
       contactId: resolveContactId(form.contactId),
       contactName: form.contactName,
-      opportunityId: resolveOpportunityId(form.opportunityId),
-      opportunityName: resolveOpportunityName(form.opportunityId),
       validityDays: Math.max(1, Number(form.validityDays) || 30),
       currency: form.currency,
       ownerId: SALES_QUOTES_USER_ID,
@@ -108,10 +103,12 @@ export function QuoteDialog({
     } catch {
       quoteService.replaceQuotes(snapshot);
       setError("Le devis n'a pas pu être enregistré dans la base. Vérifiez la connexion puis réessayez.");
+      setSaving(false);
       return;
     }
 
     notifyQuoteStoreUpdated();
+    setSaving(false);
     onSubmit(quote);
   }
 
@@ -125,7 +122,7 @@ export function QuoteDialog({
       onSubmit={submitQuote}
       size="xl"
       error={error}
-      footer={<FormActions onCancel={onClose} submitLabel="Créer un devis" />}
+      footer={<FormActions onCancel={onClose} submitBusy={saving} submitLabel="Créer un devis" busyLabel="Création du devis..." />}
     >
       <div className="mt-5 space-y-3">
         <FormSection title="Contexte commercial" description="Reliez le devis à la société commerciale. Le contact reste optionnel.">
@@ -160,19 +157,6 @@ export function QuoteDialog({
             entityType="contact"
             onCreate={(name) => createContactPickerItem(name, { id: form.companyId, name: form.companyName })}
           />
-          <label className="block">
-            <span className="text-sm font-bold text-hicotech-navy dark:text-white">Opportunité</span>
-            <select
-              value={form.opportunityId}
-              onChange={(event) => updateForm({ opportunityId: event.target.value })}
-              className={entityInputClassName}
-            >
-              <option value="">Aucune opportunité</option>
-              {opportunities.map((opportunity) => (
-                <option key={opportunity.id} value={opportunity.id}>{opportunity.title}</option>
-              ))}
-            </select>
-          </label>
         </FormSection>
 
         <FormSection title="Conditions" description="Les règles existantes sont conservées : validité, devise, remise et TVA de ligne.">
@@ -238,14 +222,6 @@ function resolveCompanyId(companyId: string, companyName: string) {
 
 function resolveContactId(contactId: string) {
   return contactId ? contactId as ContactId : undefined;
-}
-
-function resolveOpportunityId(opportunityId: string) {
-  return opportunities.some((opportunity) => opportunity.id === opportunityId) ? opportunityId as OpportunityId : undefined;
-}
-
-function resolveOpportunityName(opportunityId: string) {
-  return opportunities.find((opportunity) => opportunity.id === opportunityId)?.title;
 }
 
 function TotalPill({ label, strong, value }: { label: string; strong?: boolean; value: string }) {

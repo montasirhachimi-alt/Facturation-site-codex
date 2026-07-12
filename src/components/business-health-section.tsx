@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  Bot,
   PackageOpen,
   ReceiptText,
   TrendingUp,
@@ -43,12 +42,11 @@ const healthCards: BusinessHealthCard[] = [
   },
   {
     icon: PackageOpen,
-    title: "Stock",
+    title: "Produits",
     badge: "Attention",
     value: "12 produits",
     subtitle: "À réapprovisionner",
-    footer: "Voir Produits",
-    href: "/stock",
+    footer: "Suivi à activer plus tard",
     accent: "orange"
   },
   {
@@ -69,16 +67,6 @@ const healthCards: BusinessHealthCard[] = [
     subtitle: "Marge nette",
     footer: "Supérieure au mois dernier",
     accent: "emerald"
-  },
-  {
-    icon: Bot,
-    title: "AI Assistant",
-    badge: "Ready",
-    value: "2 recommandations",
-    subtitle: "Disponibles",
-    footer: "Ouvrir Assistant IA",
-    href: "/assistant-ia",
-    accent: "purple"
   }
 ];
 

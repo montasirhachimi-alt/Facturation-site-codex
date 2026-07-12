@@ -41,34 +41,9 @@ const legacySidebarGroups: readonly Readonly<{
     modules: ["dashboard"]
   },
   {
-    label: "Stock",
-    category: "stock",
-    modules: ["products"]
-  },
-  {
-    label: "Finance",
-    category: "finance",
-    modules: ["cash", "payments", "purchases"]
-  },
-  {
-    label: "Équipe",
-    category: "people",
-    modules: ["employees", "contracts", "attendance", "absences", "leaves", "payroll", "advances", "hr_documents"]
-  },
-  {
-    label: "Analyse",
-    category: "analytics",
-    modules: ["statistics", "reports", "pdf"]
-  },
-  {
-    label: "IA",
-    category: "ai",
-    modules: ["ai_assistant"]
-  },
-  {
     label: "Système",
     category: "system",
-    modules: ["users", "settings"]
+    modules: ["settings"]
   }
 ];
 

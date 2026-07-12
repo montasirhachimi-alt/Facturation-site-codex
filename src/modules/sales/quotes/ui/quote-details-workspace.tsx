@@ -3,14 +3,12 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Building2, CalendarClock, Download, Eye, FileText, HandCoins, NotebookPen, Printer, Receipt, TrendingUp } from "lucide-react";
+import { ArrowLeft, Building2, CalendarClock, Download, Eye, FileText, HandCoins, NotebookPen, Printer, Receipt } from "lucide-react";
 import { persistCrmSalesRecord } from "@/platform/persistence";
 import { CRM_COMPANIES_WORKSPACE_ID } from "@/modules/crm/companies/ui/companies.seed";
 import { crmCompanyLocalService, subscribeToCrmCompanyStore } from "@/modules/crm/companies/ui/company-local-store";
 import { CRM_CONTACTS_WORKSPACE_ID } from "@/modules/crm/contacts/ui/contacts.seed";
 import { crmContactLocalService, subscribeToCrmContactStore } from "@/modules/crm/contacts/ui/contact-local-store";
-import { OpportunityService } from "@/modules/crm/opportunities";
-import { CRM_OPPORTUNITIES_WORKSPACE_ID, crmOpportunitySeed } from "@/modules/crm/opportunities/ui/opportunities.seed";
 import { ContextualActionStrip, createContextualActionRegistry } from "@/platform/contextual-actions";
 import { EntityEmptyState, EntityHeader, EntityPageLayout, InfoCard, MetricCard, SectionCard } from "@/ui";
 import { SalesDocumentPreviewDialog, buildQuotePdfDocument, downloadSalesDocumentPdf, printSalesDocumentPdf } from "@/modules/sales/documents";
@@ -21,10 +19,6 @@ import { SALES_QUOTES_WORKSPACE_ID } from "../quotes.seed";
 import { QuoteStatusBadge } from "./quotes-workspace";
 import { invoiceService, notifyInvoiceStoreUpdated } from "@/modules/sales/invoices";
 import { QUOTE_STATUS_LABELS } from "../quote.constants";
-
-const opportunityService = new OpportunityService({ seed: crmOpportunitySeed });
-const opportunities = opportunityService.listOpportunities({ workspaceId: CRM_OPPORTUNITIES_WORKSPACE_ID }).opportunities;
-const opportunityById = new Map(opportunities.map((opportunity) => [opportunity.id, opportunity]));
 
 export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
   const router = useRouter();
@@ -60,10 +54,8 @@ export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
   const contactById = new Map(contacts.map((contact) => [contact.id, contact]));
   const company = companyById.get(quoteValue.companyId);
   const contact = quoteValue.contactId ? contactById.get(quoteValue.contactId) : undefined;
-  const opportunity = quoteValue.opportunityId ? opportunityById.get(quoteValue.opportunityId) : undefined;
   const companyLabel = company?.displayName ?? quoteValue.companyName ?? "Non définie";
   const contactLabel = contact?.fullName ?? quoteValue.contactName ?? "Non lié";
-  const opportunityLabel = opportunity?.title ?? quoteValue.opportunityName ?? "Non liée";
   const validityLabel = quoteValue.validityDays ? `${quoteValue.validityDays} jours` : formatDate(quoteValue.expirationDate);
   const linkedInvoice = invoiceService.getInvoiceByQuote(quoteValue.id, quoteValue.workspaceId);
   const pdfDocument = buildQuotePdfDocument(quoteValue, { company, companyName: quoteValue.companyName, contact, contactName: quoteValue.contactName });
@@ -120,17 +112,6 @@ export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
       href: company ? `/crm/companies/${company.id}` : undefined,
       disabled: !company,
       disabledReason: "Aucune société CRM liée à ce devis."
-    },
-    {
-      id: "quote.open-pipeline",
-      entityType: "quote",
-      label: opportunity ? "Ouvrir le pipeline" : "Pipeline",
-      description: opportunity ? "Consulter le contexte commercial de l'opportunité." : "Aucune opportunité liée à ce devis.",
-      icon: TrendingUp,
-      priority: 30,
-      href: opportunity ? "/crm/opportunities" : undefined,
-      disabled: !opportunity,
-      disabledReason: "Aucune opportunité liée à ce devis."
     }
   ]).getAll();
 
@@ -192,7 +173,6 @@ export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
             <div className="mt-5 grid gap-3 md:grid-cols-2">
               <InfoRow label="Société" value={companyLabel} />
               <InfoRow label="À l'attention" value={contactLabel} />
-              <InfoRow label="Opportunité" value={opportunityLabel} />
               <InfoRow label="Responsable" value={quote.ownerId} />
               <InfoRow label="Statut" value={QUOTE_STATUS_LABELS[quote.status]} />
               <InfoRow label="Devise" value={quote.currency} />

@@ -29,42 +29,6 @@ export const demoRecentItems: RecentItemInput[] = [
     pinned: true
   },
   {
-    id: "recent-product-screen-86",
-    targetId: "product-screen-86",
-    targetType: "product",
-    moduleId: "products",
-    title: "Product Screen 86\"",
-    subtitle: "Stock critique · 2 unités",
-    icon: "Boxes",
-    color: "orange",
-    lastOpened: "2026-06-29T08:48:00.000Z",
-    openCount: 4
-  },
-  {
-    id: "recent-purchase-po-2026-19",
-    targetId: "purchase-po-2026-19",
-    targetType: "purchase",
-    moduleId: "purchases",
-    title: "Purchase PO-2026-19",
-    subtitle: "Atlas Distribution",
-    icon: "HandCoins",
-    color: "green",
-    lastOpened: "2026-06-29T08:30:00.000Z",
-    openCount: 3
-  },
-  {
-    id: "recent-employee-ahmed",
-    targetId: "employee-ahmed",
-    targetType: "employee",
-    moduleId: "employees",
-    title: "Employee Ahmed",
-    subtitle: "Technicien · Département technique",
-    icon: "ContactRound",
-    color: "blue",
-    lastOpened: "2026-06-28T17:30:00.000Z",
-    openCount: 2
-  },
-  {
     id: "recent-finance-dashboard",
     targetId: "finance-dashboard",
     targetType: "dashboard",
@@ -76,55 +40,6 @@ export const demoRecentItems: RecentItemInput[] = [
     lastOpened: "2026-06-28T16:50:00.000Z",
     openCount: 7,
     favorite: true
-  },
-  {
-    id: "recent-sales-report",
-    targetId: "sales-report",
-    targetType: "report",
-    moduleId: "reports",
-    title: "Sales Report",
-    subtitle: "Rapport ventes mensuel",
-    icon: "FileText",
-    color: "blue",
-    lastOpened: "2026-06-28T15:45:00.000Z",
-    openCount: 4
-  },
-  {
-    id: "recent-inventory",
-    targetId: "inventory",
-    targetType: "module",
-    moduleId: "products",
-    title: "Inventory",
-    subtitle: "Produits & stock",
-    icon: "Package",
-    color: "orange",
-    lastOpened: "2026-06-28T14:20:00.000Z",
-    openCount: 6
-  },
-  {
-    id: "recent-supplier-lg",
-    targetId: "supplier-lg",
-    targetType: "supplier",
-    moduleId: "suppliers",
-    title: "Supplier LG",
-    subtitle: "Fournisseur matériel informatique",
-    icon: "Building2",
-    color: "purple",
-    lastOpened: "2026-06-28T13:40:00.000Z",
-    openCount: 2
-  },
-  {
-    id: "recent-ai-assistant",
-    targetId: "ai-assistant",
-    targetType: "ai",
-    moduleId: "ai_assistant",
-    title: "AI Assistant",
-    subtitle: "Recommandations commerciales",
-    icon: "Bot",
-    color: "purple",
-    lastOpened: "2026-06-28T12:10:00.000Z",
-    openCount: 9,
-    pinned: true
   },
   {
     id: "recent-search-clients",

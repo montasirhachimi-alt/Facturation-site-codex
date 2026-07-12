@@ -10,6 +10,7 @@ const standardPermissions = (module: string): CorePermissionRequirement[] => {
 
 const defineModule = (
   definition: Omit<CoreModuleDefinition, "enabled" | "permissions"> & {
+    enabled?: boolean;
     permissionModule: string;
     permissions?: CorePermissionRequirement[];
   }
@@ -18,7 +19,7 @@ const defineModule = (
 
   return {
     ...rest,
-    enabled: true,
+    enabled: rest.enabled ?? true,
     permissions: permissions ?? standardPermissions(permissionModule)
   };
 };
@@ -62,8 +63,9 @@ export const coreModuleDefinitions: CoreModuleDefinition[] = [
     route: "/fournisseurs",
     permissionModule: "suppliers",
     aliases: ["vendors", "suppliers", "supplier"],
-    searchable: true,
-    favorite: true,
+    enabled: false,
+    searchable: false,
+    favorite: false,
     widgets: []
   }),
   defineModule({
@@ -74,8 +76,9 @@ export const coreModuleDefinitions: CoreModuleDefinition[] = [
     route: "/stock",
     permissionModule: "stock",
     aliases: ["stock", "inventory", "catalog", "products", "produits"],
-    searchable: true,
-    favorite: true,
+    enabled: false,
+    searchable: false,
+    favorite: false,
     widgets: [{ id: "stock_alerts", area: "dashboard", defaultEnabled: true }]
   }),
   defineModule({
@@ -86,16 +89,17 @@ export const coreModuleDefinitions: CoreModuleDefinition[] = [
     route: "/ventes",
     permissionModule: "quotes",
     aliases: ["sales", "commercial documents", "documents commerciaux"],
-    searchable: true,
-    favorite: true,
+    enabled: false,
+    searchable: false,
+    favorite: false,
     widgets: []
   }),
   defineModule({
     id: "quotes",
-    name: "Quotes",
+    name: "Devis",
     category: "sales",
     icon: CORE_MODULE_ICONS.quotes,
-    route: "/devis",
+    route: "/sales/quotes",
     permissionModule: "quotes",
     aliases: ["quotes", "estimate", "proposal"],
     searchable: true,
@@ -104,10 +108,10 @@ export const coreModuleDefinitions: CoreModuleDefinition[] = [
   }),
   defineModule({
     id: "invoices",
-    name: "Invoices",
+    name: "Factures",
     category: "sales",
     icon: CORE_MODULE_ICONS.invoices,
-    route: "/factures",
+    route: "/sales/invoices",
     permissionModule: "invoices",
     aliases: ["invoice", "billing", "facturation"],
     searchable: true,
@@ -122,8 +126,9 @@ export const coreModuleDefinitions: CoreModuleDefinition[] = [
     route: "/livraisons",
     permissionModule: "delivery_notes",
     aliases: ["delivery", "shipping", "bl", "bons de livraison"],
-    searchable: true,
-    favorite: true,
+    enabled: false,
+    searchable: false,
+    favorite: false,
     widgets: []
   }),
   defineModule({
@@ -134,8 +139,9 @@ export const coreModuleDefinitions: CoreModuleDefinition[] = [
     route: "/achats",
     permissionModule: "purchases",
     aliases: ["purchase", "buying", "factures achat"],
-    searchable: true,
-    favorite: true,
+    enabled: false,
+    searchable: false,
+    favorite: false,
     widgets: []
   }),
   defineModule({
@@ -146,16 +152,17 @@ export const coreModuleDefinitions: CoreModuleDefinition[] = [
     route: "/caisse",
     permissionModule: "cash",
     aliases: ["cash desk", "treasury", "trésorerie"],
-    searchable: true,
-    favorite: true,
+    enabled: false,
+    searchable: false,
+    favorite: false,
     widgets: [{ id: "cash_balance", area: "dashboard", defaultEnabled: true }]
   }),
   defineModule({
     id: "payments",
-    name: "Payments",
+    name: "Paiements",
     category: "finance",
     icon: CORE_MODULE_ICONS.payments,
-    route: "/paiements",
+    route: "/sales/payments",
     permissionModule: "payments",
     aliases: ["payment tracking", "receivables", "suivi paiements"],
     searchable: true,
@@ -170,8 +177,9 @@ export const coreModuleDefinitions: CoreModuleDefinition[] = [
     route: "/rh/employes",
     permissionModule: "hr",
     aliases: ["staff", "employees", "rh"],
-    searchable: true,
-    favorite: true,
+    enabled: false,
+    searchable: false,
+    favorite: false,
     widgets: []
   }),
   defineModule({
@@ -182,8 +190,9 @@ export const coreModuleDefinitions: CoreModuleDefinition[] = [
     route: "/rh/contrats",
     permissionModule: "hr",
     aliases: ["contracts", "employment contracts", "contrats rh"],
-    searchable: true,
-    favorite: true,
+    enabled: false,
+    searchable: false,
+    favorite: false,
     widgets: []
   }),
   defineModule({
@@ -194,8 +203,9 @@ export const coreModuleDefinitions: CoreModuleDefinition[] = [
     route: "/rh/presences",
     permissionModule: "hr",
     aliases: ["attendance", "time tracking", "pointage"],
-    searchable: true,
-    favorite: true,
+    enabled: false,
+    searchable: false,
+    favorite: false,
     widgets: []
   }),
   defineModule({
@@ -206,8 +216,9 @@ export const coreModuleDefinitions: CoreModuleDefinition[] = [
     route: "/rh/absences",
     permissionModule: "hr",
     aliases: ["absence", "absences rh"],
-    searchable: true,
-    favorite: true,
+    enabled: false,
+    searchable: false,
+    favorite: false,
     widgets: []
   }),
   defineModule({
@@ -218,8 +229,9 @@ export const coreModuleDefinitions: CoreModuleDefinition[] = [
     route: "/rh/conges",
     permissionModule: "hr",
     aliases: ["leave", "vacation", "congés"],
-    searchable: true,
-    favorite: true,
+    enabled: false,
+    searchable: false,
+    favorite: false,
     widgets: []
   }),
   defineModule({
@@ -230,8 +242,9 @@ export const coreModuleDefinitions: CoreModuleDefinition[] = [
     route: "/rh/salaires",
     permissionModule: "hr",
     aliases: ["salary", "payslip", "paie"],
-    searchable: true,
-    favorite: true,
+    enabled: false,
+    searchable: false,
+    favorite: false,
     widgets: []
   }),
   defineModule({
@@ -242,8 +255,9 @@ export const coreModuleDefinitions: CoreModuleDefinition[] = [
     route: "/rh/avances",
     permissionModule: "hr",
     aliases: ["salary advances", "advance"],
-    searchable: true,
-    favorite: true,
+    enabled: false,
+    searchable: false,
+    favorite: false,
     widgets: []
   }),
   defineModule({
@@ -254,8 +268,9 @@ export const coreModuleDefinitions: CoreModuleDefinition[] = [
     route: "/rh/documents",
     permissionModule: "hr",
     aliases: ["hr documents", "documents ressources humaines"],
-    searchable: true,
-    favorite: true,
+    enabled: false,
+    searchable: false,
+    favorite: false,
     widgets: []
   }),
   defineModule({
@@ -266,8 +281,9 @@ export const coreModuleDefinitions: CoreModuleDefinition[] = [
     route: "/rapports",
     permissionModule: "reports",
     aliases: ["reports", "analytics", "reporting"],
-    searchable: true,
-    favorite: true,
+    enabled: false,
+    searchable: false,
+    favorite: false,
     widgets: []
   }),
   defineModule({
@@ -278,8 +294,9 @@ export const coreModuleDefinitions: CoreModuleDefinition[] = [
     route: "/statistiques",
     permissionModule: "reports",
     aliases: ["stats", "statistics", "analytics"],
-    searchable: true,
-    favorite: true,
+    enabled: false,
+    searchable: false,
+    favorite: false,
     widgets: [{ id: "financial_statistics", area: "dashboard", defaultEnabled: true }]
   }),
   defineModule({
@@ -290,8 +307,9 @@ export const coreModuleDefinitions: CoreModuleDefinition[] = [
     route: "/pdf",
     permissionModule: "pdf_documents",
     aliases: ["pdf documents", "print", "exports"],
-    searchable: true,
-    favorite: true,
+    enabled: false,
+    searchable: false,
+    favorite: false,
     widgets: []
   }),
   defineModule({
@@ -302,8 +320,9 @@ export const coreModuleDefinitions: CoreModuleDefinition[] = [
     route: "/assistant-ia",
     permissionModule: "assistant",
     aliases: ["ai", "assistant", "copilot", "intelligence artificielle"],
-    searchable: true,
-    favorite: true,
+    enabled: false,
+    searchable: false,
+    favorite: false,
     widgets: [{ id: "ai_assistant", area: "dashboard", defaultEnabled: true }]
   }),
   defineModule({
@@ -326,7 +345,8 @@ export const coreModuleDefinitions: CoreModuleDefinition[] = [
     route: "/utilisateurs",
     permissionModule: "users",
     aliases: ["users", "roles", "permissions"],
-    searchable: true,
+    enabled: false,
+    searchable: false,
     favorite: false,
     widgets: []
   })

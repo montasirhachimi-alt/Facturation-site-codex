@@ -5,7 +5,6 @@ import {
   CalendarCheck,
   Receipt,
   ScrollText,
-  UserRound,
   WalletCards
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -17,7 +16,6 @@ import { CRM_MEETINGS_WORKSPACE_ID } from "@/modules/crm/meetings/ui/meetings.se
 import { crmMeetingLocalService } from "@/modules/crm/meetings/ui/meeting-local-store";
 import { CRM_TASKS_WORKSPACE_ID } from "@/modules/crm/tasks/ui/tasks.seed";
 import { crmTaskLocalService } from "@/modules/crm/tasks/ui/task-local-store";
-import { crmOpportunitySeed } from "@/modules/crm/opportunities/ui/opportunities.seed";
 import { SALES_QUOTES_WORKSPACE_ID } from "@/modules/sales/quotes/quotes.seed";
 import { quoteService } from "@/modules/sales/quotes/quote.store";
 import { QUOTE_STATUS_LABELS } from "@/modules/sales/quotes/quote.constants";
@@ -25,9 +23,8 @@ import { formatQuoteMoney, getQuoteTotals } from "@/modules/sales/quotes/quote.u
 import { invoiceService } from "@/modules/sales/invoices/invoice.store";
 import { INVOICE_STATUS_LABELS } from "@/modules/sales/invoices/invoice.constants";
 import { getInvoiceTotals } from "@/modules/sales/invoices/invoice.utils";
-import { paymentSeed } from "@/modules/sales/payments/payments.seed";
+import { paymentService } from "@/modules/sales/payments/payment.store";
 import { PAYMENT_STATUS_LABELS } from "@/modules/sales/payments/payment.constants";
-import { OPPORTUNITY_STAGE_LABELS, OPPORTUNITY_STATUS_LABELS } from "@/modules/crm/opportunities/opportunity.constants";
 import type { UniversalSearchItem, UniversalSearchSection } from "./universal-search.types";
 
 export type RecordSearchResult = Readonly<{
@@ -79,8 +76,7 @@ export function createRecordSearchRegistry() {
     .registerMany(buildTaskRecords())
     .registerMany(buildQuoteRecords())
     .registerMany(buildInvoiceRecords())
-    .registerMany(buildPaymentRecords())
-    .registerMany(buildOpportunityRecords());
+    .registerMany(buildPaymentRecords());
 }
 
 export function getRecordSearchSection(query: string): UniversalSearchSection {
@@ -88,9 +84,9 @@ export function getRecordSearchSection(query: string): UniversalSearchSection {
 
   return {
     id: "records",
-    title: "Records",
-    description: query ? "Résultats métier issus des données locales." : "Sociétés, contacts, devis, factures, paiements et opportunités.",
-    emptyTitle: "Aucun record trouvé",
+    title: "Données",
+    description: query ? "Résultats métier issus des données locales." : "Sociétés, contacts, devis, factures et paiements.",
+    emptyTitle: "Aucune donnée trouvée",
     emptyDescription: "Essayez un nom, un code de devis, une facture, un paiement ou une société.",
     items
   };
@@ -235,7 +231,7 @@ function buildInvoiceRecords(): readonly RecordSearchResult[] {
 
 function buildPaymentRecords(): readonly RecordSearchResult[] {
   const companyById = getCompanyMap();
-  return paymentSeed.map((payment) => {
+  return paymentService.listPayments({ workspaceId: SALES_QUOTES_WORKSPACE_ID, includeArchived: false }).payments.map((payment) => {
     const companyName = companyById.get(payment.companyId)?.displayName ?? payment.customerName;
 
     return {
@@ -246,31 +242,6 @@ function buildPaymentRecords(): readonly RecordSearchResult[] {
       href: `/sales/payments/${payment.id}`,
       icon: WalletCards,
       keywords: [payment.number, payment.invoiceNumber, companyName, payment.customerName, payment.status, payment.method, payment.reference, payment.companyId].filter(Boolean) as string[]
-    };
-  });
-}
-
-function buildOpportunityRecords(): readonly RecordSearchResult[] {
-  const companyById = getCompanyMap();
-  return crmOpportunitySeed.map((opportunity) => {
-    const company = companyById.get(opportunity.companyId);
-
-    return {
-      id: `record.opportunity.${opportunity.id}`,
-      title: opportunity.title,
-      type: "Opportunité",
-      description: `${company?.displayName ?? "Société inconnue"} · ${formatQuoteMoney(opportunity.estimatedValue.amount, opportunity.estimatedValue.currency)} · ${OPPORTUNITY_STAGE_LABELS[opportunity.stage]} · ${OPPORTUNITY_STATUS_LABELS[opportunity.status]}`,
-      href: "/crm/opportunities",
-      icon: UserRound,
-      keywords: [
-        opportunity.title,
-        opportunity.description,
-        opportunity.stage,
-        opportunity.status,
-        opportunity.priority,
-        company?.displayName,
-        ...(opportunity.tags ?? [])
-      ].filter(Boolean) as string[]
     };
   });
 }
@@ -302,7 +273,6 @@ function iconKeyForRecordType(type: string) {
   if (normalizedType.includes("devis")) return "quote";
   if (normalizedType.includes("facture")) return "invoice";
   if (normalizedType.includes("paiement")) return "payment";
-  if (normalizedType.includes("opportun")) return "opportunity";
   return "default";
 }
 

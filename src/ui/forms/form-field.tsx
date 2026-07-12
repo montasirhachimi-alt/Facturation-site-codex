@@ -44,32 +44,43 @@ export function FormSection({
 }
 
 export function FormActions({
+  busyLabel,
   cancelLabel = "Annuler",
   children,
   onCancel,
+  submitBusy = false,
+  submitDisabled = false,
   submitLabel
 }: {
+  busyLabel?: string;
   cancelLabel?: string;
   children?: React.ReactNode;
   onCancel: () => void;
+  submitBusy?: boolean;
+  submitDisabled?: boolean;
   submitLabel: string;
 }) {
+  const disabled = submitDisabled || submitBusy;
+
   return (
     <div className="mt-5 flex flex-col-reverse gap-2 border-t border-slate-200 pt-4 dark:border-hicotech-dark-border sm:flex-row sm:items-center sm:justify-end">
       {children}
       <button
         type="button"
         onClick={onCancel}
+        disabled={submitBusy}
         className="inline-flex min-h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-hicotech-navy transition hover:bg-hicotech-cloud focus:outline-none focus:ring-4 focus:ring-hicotech-blue/10 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white"
       >
         {cancelLabel}
       </button>
       <button
         type="submit"
+        disabled={disabled}
         aria-keyshortcuts="Meta+Enter Control+Enter Meta+S Control+S"
-        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-hicotech-blue px-4 py-2 text-sm font-bold text-white shadow-[0_10px_24px_rgba(13,110,253,0.18)] transition hover:-translate-y-0.5 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/20"
+        aria-busy={submitBusy}
+        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-hicotech-blue px-4 py-2 text-sm font-bold text-white shadow-[0_10px_24px_rgba(13,110,253,0.18)] transition hover:-translate-y-0.5 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/20 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-60"
       >
-        {submitLabel}
+        {submitBusy ? busyLabel ?? "Enregistrement..." : submitLabel}
         <span className="hidden rounded-md bg-white/15 px-1.5 py-0.5 text-[10px] font-black sm:inline-flex">⌘/Ctrl Enter</span>
       </button>
     </div>

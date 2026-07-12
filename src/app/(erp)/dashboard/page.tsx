@@ -11,7 +11,6 @@ import {
   HandCoins,
   Receipt,
   Sparkles,
-  TrendingUp,
   WalletCards
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -24,9 +23,9 @@ import { MetricCard, ProductHero, ProductSectionHeader, SectionCard } from "@/ui
 const quickActions: QuickActionCardProps[] = [
   {
     icon: ContactRound,
-    label: "Nouveau client",
-    description: "Créer ou retrouver une relation client.",
-    href: "/clients"
+    label: "Nouvelle société",
+    description: "Créer ou retrouver un compte commercial.",
+    href: "/crm/companies"
   },
   {
     icon: FileText,
@@ -45,12 +44,6 @@ const quickActions: QuickActionCardProps[] = [
     label: "Nouveau paiement",
     description: "Consulter les encaissements clients.",
     href: "/sales/payments"
-  },
-  {
-    icon: HandCoins,
-    label: "Nouvelle opportunité",
-    description: "Ouvrir le pipeline commercial.",
-    href: "/crm/opportunities"
   }
 ];
 
@@ -104,11 +97,6 @@ const recentActivity = [
     time: "Hier, 13:00"
   },
   {
-    title: "Nouvelle opportunité ouverte",
-    description: "Renouvellement Al Hikma ajouté au pipeline.",
-    time: "Cette semaine"
-  },
-  {
     title: "Réunion commerciale confirmée",
     description: "Point de suivi avec le contact principal.",
     time: "Cette semaine"
@@ -129,10 +117,10 @@ export default async function DashboardPage() {
           icon={Sparkles}
           personality="dashboard"
           title={`Bonjour ${userFirstName}, trois éléments méritent votre attention.`}
-          subtitle={`${dashboardStats.overdueInvoices} facture(s) sont à suivre, ${formatCurrency(dashboardStats.outstanding)} restent à encaisser et le pipeline actif contient 9 opportunités.`}
+          subtitle={`${dashboardStats.overdueInvoices} facture(s) sont à suivre, ${formatCurrency(dashboardStats.outstanding)} restent à encaisser et les sociétés actives concentrent les priorités du jour.`}
           actions={[
             { href: priorityLead.href, icon: priorityLead.icon, label: "Traiter la priorité" },
-            { href: "/crm/opportunities", icon: HandCoins, label: "Voir l'opportunité", tone: "secondary" }
+            { href: "/crm/companies", icon: ContactRound, label: "Voir les sociétés", tone: "secondary" }
           ]}
           insight={
             <div className="rounded-[1.25rem] border border-white/10 bg-white p-4 text-hicotech-navy shadow-xl shadow-black/15">
@@ -150,12 +138,12 @@ export default async function DashboardPage() {
         />
 
         <section className="space-y-2.5">
-          <ProductSectionHeader icon={BadgeDollarSign} title="Santé business" description="Le battement du jour : revenu, cash, marge et opportunités." />
+          <ProductSectionHeader icon={BadgeDollarSign} title="Santé business" description="Le battement du jour : revenu, cash, marge et sociétés." />
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <MetricCard icon={BadgeDollarSign} label="Chiffre d'affaires" value={formatCurrency(dashboardStats.revenue)} helper="+12,5% ce mois" />
             <MetricCard icon={WalletCards} label="Reste à encaisser" value={formatCurrency(dashboardStats.outstanding)} helper="Factures ouvertes" />
             <MetricCard icon={HandCoins} label="Marge brute" value={formatCurrency(dashboardStats.grossMargin)} helper="61,5% du CA" />
-            <MetricCard icon={ClipboardList} label="Pipeline actif" value="9 opportunités" helper="À suivre cette semaine" />
+            <MetricCard icon={ClipboardList} label="Sociétés actives" value="CRM" helper="À suivre cette semaine" />
           </div>
         </section>
 
@@ -184,11 +172,11 @@ export default async function DashboardPage() {
         </SectionCard>
 
         <section className="space-y-3">
-          <ProductSectionHeader icon={BarChart3} title="Performance" description="La lecture business après les urgences : progression, encaissement et pipeline." />
+          <ProductSectionHeader icon={BarChart3} title="Performance" description="La lecture business après les urgences : progression, encaissement et documents commerciaux." />
           <div className="grid gap-4 lg:grid-cols-3">
-            <PerformanceCard icon={TrendingUp} label="Progression commerciale" value="+12,5%" helper="Le chiffre d'affaires progresse ce mois-ci." />
+            <PerformanceCard icon={BadgeDollarSign} label="Progression commerciale" value="+12,5%" helper="Le chiffre d'affaires progresse ce mois-ci." />
             <PerformanceCard icon={WalletCards} label="Cash à sécuriser" value={formatCurrency(dashboardStats.outstanding)} helper="Montant ouvert à transformer en encaissement." />
-            <PerformanceCard icon={HandCoins} label="Plus grande opportunité" value="9 opportunités" helper="Le pipeline reste le meilleur relais de croissance." />
+            <PerformanceCard icon={FileText} label="Documents actifs" value="Devis & factures" helper="Le suivi commercial reste concentré sur les documents réels." />
           </div>
         </section>
 

@@ -5,12 +5,12 @@
 | Field | Value |
 | --- | --- |
 | Product | HicoPilot |
-| Version | Pre-Alpha |
-| Current Milestone | Milestone 3 — Business Suite |
-| Current Phase | Business Module Foundations |
-| Current Sprint | SPR-344 — Keyboard Everywhere |
+| Version | v0.9.0-alpha |
+| Current Milestone | Modular Editions Platform |
+| Current Phase | Module Registry Foundation |
+| Current Sprint | SPR-401 — Module Registry Foundation |
 | Next Sprint | To define |
-| Repository Health | Builds successfully with one known existing image optimization warning; local CRM/Sales persistence migrations now replay from an empty PostgreSQL database. |
+| Repository Health | Builds successfully with one known existing image optimization warning; Alpha-visible navigation is restricted to stable Dashboard, CRM, Sales and Settings surfaces while the Module Registry foundation is now available as metadata only. |
 
 ## Completed Core Engines
 
@@ -48,6 +48,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | Permission Enforcement | `src/runtime/permissions/` | Implemented as framework-independent structured authorization decision foundation. |
 | Plugin Runtime | `src/runtime/plugins/` | Implemented as framework-independent host state foundation for prepared module descriptors. |
 | Runtime Validation | `scripts/validate-runtime.cjs` | Implemented as lightweight architecture regression validation. |
+| Platform Module Registry | `src/platform/modules/` | Implemented as a client-safe declarative descriptor registry for future Editions and activation work. |
 
 ## Completed Integrations
 
@@ -104,6 +105,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | CRM Experience 2.0 upgrades CRM home, companies, contacts, pipeline, contextual panels and shared CRM UI primitives for a more premium SaaS demo experience. | Completed |
 | Core Search React UI is separated into Platform Search. | Completed |
 | Runtime validation checks Platform Events, event subscribers, Permission Enforcement, Permission Runtime Integration, Capability Registry, Manifest System, Module Loader, Plugin Runtime, CRM Module Foundation, CRM Customers Foundation, Preferences Runtime, Widget Runtime, Workspace Context and Platform Search separation. | Completed |
+| Platform Module Registry describes Alpha-ready, hidden and planned modules with lifecycle, dependency, navigation, Command Center and dashboard metadata without changing visible product behavior. | Completed |
 
 ## Known Technical Debt
 
@@ -204,14 +206,17 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - Migration Baseline Repair adds the missing pre-PERSIST baseline migration before the CRM/Sales persistence migration, allowing Prisma to replay the complete schema from an empty PostgreSQL database and confirming Company, Customer, Contact, Quote, Invoice and Payment records survive a dev-server restart.
 - Company-Centric CRM Simplification makes Société the visible commercial account, hides standalone Customer entry points, maps Quote/Invoice compatibility customer fields from the selected Company and adds Company detail access to Payments.
 - ZF-R6 CRM Contacts & Activities Foundation unifies the global Contacts directory with the persisted Contact source, adds tenant-scoped persisted Meetings, Tasks and Notes, replaces demo-only CRM activity pages with functional workspaces and hides Timeline until a real persisted event source exists.
+- ZF-R7A Alpha Blockers Cleanup hides demo-era ERP modules from production navigation, removes unfinished topbar controls, converts CRM Home to shared live CRM/Sales stores and hides the seed-backed Pipeline/Opportunities workflow until persistence exists.
+- ZF-R7B High Priority Product Cleanup restricts Quick Create to stable dialog-backed actions, cleans Command Center labels/results, standardizes CRM activity save feedback and redirects legacy demo routes away from unfinished screens.
+- SPR-401 Module Registry Foundation adds a platform-owned declarative module descriptor registry for future Editions, module activation, dependency management and dynamic product surfaces. Registration is metadata only and does not activate or expose hidden modules.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passed during ZF-R6. |
-| `npm run build` | Yes | Passed during ZF-R6; the known PDF preview image warning remains. |
-| `npm run validate:runtime` | Yes for Zero Friction work | Passed during ZF-R6. |
+| `npm run typecheck` | Yes | Passed during SPR-401. |
+| `npm run build` | Yes | Passed during SPR-401; the known PDF preview image warning remains. |
+| `npm run validate:runtime` | Yes for platform work | Passed during SPR-401 with Module Registry checks. |
 | Prisma schema validation | Yes for persistence work | Passed during ZF-R6. |
 | Prisma migration replay | Yes for persistence work | Passed during ZF-R6 on a fresh local replay database. |
 

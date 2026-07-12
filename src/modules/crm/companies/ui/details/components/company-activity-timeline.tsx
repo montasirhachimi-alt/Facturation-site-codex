@@ -2,11 +2,11 @@ import { CalendarClock, Mail, MessageCircle, Phone, StickyNote } from "lucide-re
 import { SectionCard } from "@/ui";
 
 const activities = [
-  { icon: CalendarClock, title: "Réunion", detail: "Revue du compte et prochaines opportunités", time: "Aujourd'hui — 09:30" },
+  { icon: CalendarClock, title: "Réunion", detail: "Revue du compte et prochains échanges", time: "Aujourd'hui — 09:30" },
   { icon: Phone, title: "Call", detail: "Appel de qualification avec le responsable achat", time: "Hier — 16:20" },
   { icon: Mail, title: "Email", detail: "Documents commerciaux envoyés", time: "Hier — 10:45" },
   { icon: MessageCircle, title: "Task", detail: "Préparer une proposition pour le prochain cycle", time: "Cette semaine" },
-  { icon: StickyNote, title: "Note", detail: "Compte stratégique à suivre dans le pipeline CRM", time: "Cette semaine" }
+  { icon: StickyNote, title: "Note", detail: "Compte stratégique à suivre dans le CRM", time: "Cette semaine" }
 ];
 
 export function CompanyActivityTimeline() {

@@ -1,6 +1,6 @@
 import {
-  Brain,
   Package,
+  ReceiptText,
   TrendingUp,
   Wallet
 } from "lucide-react";
@@ -39,10 +39,10 @@ const insights: SmartInsight[] = [
     accent: "orange"
   },
   {
-    icon: Brain,
-    title: "Assistant IA",
+    icon: ReceiptText,
+    title: "Encaissements",
     message: "Relancez aujourd'hui les factures impayées de plus de 30 jours.",
-    badge: "Suggestion",
+    badge: "Priorité",
     accent: "purple"
   }
 ];

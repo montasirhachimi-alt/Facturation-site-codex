@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
   Activity,
   ArrowRight,
@@ -14,61 +15,132 @@ import {
   MessageSquareText,
   NotebookPen,
   FileText,
+  Receipt,
   Sparkles,
   ShieldCheck,
-  TrendingUp,
   Users
 } from "lucide-react";
 import { EntityPageLayout, MetricCard, SectionCard } from "@/ui";
-import { ActivityService } from "../activities";
-import { crmActivitySeed } from "../activities/ui/activities.seed";
-import { CompanyService } from "../companies";
-import { CRM_COMPANIES_WORKSPACE_ID, crmCompanySeed } from "../companies/ui/companies.seed";
-import { ContactService } from "../contacts";
-import { crmContactSeed } from "../contacts/ui/contacts.seed";
-import { MeetingService } from "../meetings";
-import { crmMeetingSeed } from "../meetings/ui/meetings.seed";
-import { NoteService } from "../notes";
-import { crmNoteSeed } from "../notes/ui/notes.seed";
-import { OpportunityService, formatOpportunityValue } from "../opportunities";
-import { crmOpportunitySeed } from "../opportunities/ui/opportunities.seed";
-import { QuoteService, formatQuoteMoney, getQuoteTotals, quoteSeed, SALES_QUOTES_WORKSPACE_ID } from "@/modules/sales/quotes";
+import { CRM_COMPANIES_WORKSPACE_ID } from "../companies/ui/companies.seed";
+import { crmCompanyLocalService, subscribeToCrmCompanyStore } from "../companies/ui/company-local-store";
+import { CRM_CONTACTS_WORKSPACE_ID } from "../contacts/ui/contacts.seed";
+import { crmContactLocalService, subscribeToCrmContactStore } from "../contacts/ui/contact-local-store";
+import { CRM_MEETINGS_WORKSPACE_ID } from "../meetings/ui/meetings.seed";
+import { crmMeetingLocalService, subscribeToCrmMeetingStore } from "../meetings/ui/meeting-local-store";
+import { CRM_NOTES_WORKSPACE_ID } from "../notes/ui/notes.seed";
+import { crmNoteLocalService, subscribeToCrmNoteStore } from "../notes/ui/note-local-store";
+import { formatQuoteMoney, getQuoteTotals, quoteService, SALES_QUOTES_WORKSPACE_ID, subscribeToQuoteStore } from "@/modules/sales/quotes";
 import { invoiceService, getInvoiceTotals } from "@/modules/sales/invoices";
-import { TaskService } from "../tasks";
-import { crmTaskSeed } from "../tasks/ui/tasks.seed";
+import { subscribeToInvoiceStore } from "@/modules/sales/invoices";
+import { paymentService, subscribeToPaymentStore } from "@/modules/sales/payments";
+import { CRM_TASKS_WORKSPACE_ID } from "../tasks/ui/tasks.seed";
+import { crmTaskLocalService, subscribeToCrmTaskStore } from "../tasks/ui/task-local-store";
 
 const workspaceId = CRM_COMPANIES_WORKSPACE_ID;
 
-const companyService = new CompanyService({ seed: crmCompanySeed });
-const contactService = new ContactService({ seed: crmContactSeed });
-const activityService = new ActivityService({ seed: crmActivitySeed });
-const meetingService = new MeetingService({ seed: crmMeetingSeed });
-const taskService = new TaskService({ seed: crmTaskSeed });
-const noteService = new NoteService({ seed: crmNoteSeed });
-const opportunityService = new OpportunityService({ seed: crmOpportunitySeed });
-const quoteService = new QuoteService({ seed: quoteSeed });
+type RecentSignal = Readonly<{
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  badge: string;
+}>;
 
-const companies = companyService.listCompanies({ workspaceId }).companies;
-const contacts = contactService.listContacts({ workspaceId }).contacts;
-const activities = activityService.listActivities({ workspaceId }).activities;
-const meetings = meetingService.listMeetings({ workspaceId }).meetings;
-const tasks = taskService.listTasks({ workspaceId }).tasks;
-const notes = noteService.listNotes({ workspaceId }).notes;
-const opportunities = opportunityService.listOpportunities({ workspaceId }).opportunities;
-const quotes = quoteService.listQuotes({ workspaceId: SALES_QUOTES_WORKSPACE_ID }).quotes;
-const invoices = invoiceService.listInvoices({ workspaceId: SALES_QUOTES_WORKSPACE_ID }).invoices;
+function readCrmHomeSnapshot() {
+  const companies = crmCompanyLocalService.listCompanies({ workspaceId, includeArchived: false }).companies;
+  const contacts = crmContactLocalService.listContacts({ workspaceId: CRM_CONTACTS_WORKSPACE_ID, includeArchived: false }).contacts;
+  const meetings = crmMeetingLocalService.listMeetings({ workspaceId: CRM_MEETINGS_WORKSPACE_ID }).meetings;
+  const tasks = crmTaskLocalService.listTasks({ workspaceId: CRM_TASKS_WORKSPACE_ID }).tasks;
+  const notes = crmNoteLocalService.listNotes({ workspaceId: CRM_NOTES_WORKSPACE_ID }).notes;
+  const quotes = quoteService.listQuotes({ workspaceId: SALES_QUOTES_WORKSPACE_ID }).quotes;
+  const invoices = invoiceService.listInvoices({ workspaceId: SALES_QUOTES_WORKSPACE_ID }).invoices;
+  const payments = paymentService.listPayments({ workspaceId: SALES_QUOTES_WORKSPACE_ID, includeArchived: false }).payments;
+  const openTasks = tasks.filter((task) => !["completed", "cancelled"].includes(task.status));
+  const upcomingMeetings = meetings.filter((meeting) => ["planned", "confirmed"].includes(meeting.status));
+  const primaryContacts = contacts.filter((contact) => contact.isPrimaryContact);
+  const decisionMakers = contacts.filter((contact) => contact.isDecisionMaker);
+  const recentSignals = buildRecentSignals({ meetings, notes, tasks });
 
-const openTasks = tasks.filter((task) => !["completed", "cancelled"].includes(task.status));
-const openOpportunities = opportunities.filter((opportunity) => opportunity.status === "open");
-const upcomingMeetings = meetings.filter((meeting) => ["planned", "confirmed"].includes(meeting.status));
-const primaryContacts = contacts.filter((contact) => contact.isPrimaryContact);
-const decisionMakers = contacts.filter((contact) => contact.isDecisionMaker);
+  return {
+    companies,
+    contacts,
+    decisionMakers,
+    invoices,
+    meetings,
+    notes,
+    openTasks,
+    payments,
+    primaryContacts,
+    quotes,
+    recentSignals,
+    tasks,
+    upcomingMeetings
+  };
+}
+
+type CrmHomeSnapshot = ReturnType<typeof readCrmHomeSnapshot>;
+
+function useCrmHomeSnapshot() {
+  const [snapshot, setSnapshot] = useState(readCrmHomeSnapshot);
+
+  useEffect(() => {
+    const refresh = () => setSnapshot(readCrmHomeSnapshot());
+    const unsubscribers = [
+      subscribeToCrmCompanyStore(refresh),
+      subscribeToCrmContactStore(refresh),
+      subscribeToCrmMeetingStore(refresh),
+      subscribeToCrmTaskStore(refresh),
+      subscribeToCrmNoteStore(refresh),
+      subscribeToQuoteStore(refresh),
+      subscribeToInvoiceStore(refresh),
+      subscribeToPaymentStore(refresh)
+    ];
+
+    refresh();
+    return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
+  }, []);
+
+  return snapshot;
+}
+
+function buildRecentSignals({
+  meetings,
+  notes,
+  tasks
+}: Pick<CrmHomeSnapshot, "meetings" | "notes" | "tasks">): readonly RecentSignal[] {
+  return [
+    ...meetings.map((meeting) => ({
+      id: `meeting-${meeting.id}`,
+      title: meeting.title,
+      description: meeting.description || meeting.location || "Réunion CRM",
+      date: meeting.updatedAt || meeting.startAt,
+      badge: "Réunion"
+    })),
+    ...tasks.map((task) => ({
+      id: `task-${task.id}`,
+      title: task.title,
+      description: task.description || "Action CRM à suivre",
+      date: task.updatedAt || task.dueDate,
+      badge: "Tâche"
+    })),
+    ...notes.map((note) => ({
+      id: `note-${note.id}`,
+      title: note.title,
+      description: note.content,
+      date: note.updatedAt || note.createdAt,
+      badge: "Note"
+    }))
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
 
 export function CrmHomePage() {
+  const data = useCrmHomeSnapshot();
+  const { companies, contacts, invoices, meetings, notes, openTasks, payments, primaryContacts, quotes, recentSignals, upcomingMeetings, decisionMakers } = data;
+
   return (
     <EntityPageLayout>
-      <CrmHero />
-      <CrmCommandStrip />
+      <CrmHero data={data} />
+      <CrmCommandStrip data={data} />
 
       <section className="rounded-[1.4rem] border border-slate-200/80 bg-white/80 p-4 shadow-[0_16px_45px_rgba(10,30,63,0.07)] backdrop-blur dark:border-hicotech-dark-border dark:bg-hicotech-dark-card/80 dark:shadow-none">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -90,18 +162,19 @@ export function CrmHomePage() {
           <QuickAction href="/crm/contacts" icon={ContactRound} label="Nouveau contact" helper="Ouvrir le workspace Contacts" />
           <QuickAction href="/crm/meetings" icon={CalendarCheck} label="Planifier une réunion" helper="Ouvrir le workspace Réunions" />
           <QuickAction href="/crm/tasks" icon={CheckCircle2} label="Nouvelle tâche" helper="Ouvrir le workspace Tâches" />
-          <QuickAction href="/crm/opportunities" icon={HandCoins} label="Pipeline commercial" helper="Dans Ventes" />
+          <QuickAction href="/sales/quotes" icon={FileText} label="Créer un devis" helper="Ouvrir le workspace Devis" />
         </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7" aria-label="Indicateurs CRM">
         <MetricCard icon={Building2} label="Sociétés" value={String(companies.length)} helper="Comptes CRM suivis" />
         <MetricCard icon={ContactRound} label="Contacts" value={String(contacts.length)} helper="Reliés aux sociétés" />
-        <MetricCard icon={HandCoins} label="Pipeline commercial" value={String(openOpportunities.length)} helper={formatOpportunityValue(totalPipelineValue(openOpportunities))} />
+        <MetricCard icon={FileText} label="Devis" value={String(quotes.length)} helper="Propositions commerciales" />
+        <MetricCard icon={Receipt} label="Factures" value={String(invoices.length)} helper="Documents générés" />
+        <MetricCard icon={HandCoins} label="Paiements" value={String(payments.length)} helper="Encaissements suivis" />
         <MetricCard icon={CalendarCheck} label="Réunions" value={String(meetings.length)} helper={`${upcomingMeetings.length} à venir`} />
         <MetricCard icon={ClipboardList} label="Tâches ouvertes" value={String(openTasks.length)} helper="À traiter depuis les contacts" />
         <MetricCard icon={NotebookPen} label="Notes" value={String(notes.length)} helper="Base de connaissance CRM" />
-        <MetricCard icon={Activity} label="Activités" value={String(activities.length)} helper="Historique commercial" />
       </section>
 
       <div className="grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
@@ -109,18 +182,21 @@ export function CrmHomePage() {
           <SectionTitle
             icon={Activity}
             title="Activité récente"
-            description="Les derniers signaux commerciaux enregistrés dans le CRM."
+            description="Les derniers signaux issus des réunions, tâches et notes réelles."
           />
           <div className="mt-5 space-y-3">
-            {activities.slice(0, 4).map((item) => (
+            {recentSignals.slice(0, 4).map((item) => (
               <TimelineRow
                 key={item.id}
                 title={item.title}
                 description={item.description}
-                meta={formatDate(item.performedAt)}
-                badge={activityLabel(item.type)}
+                meta={formatDate(item.date)}
+                badge={item.badge}
               />
             ))}
+            {recentSignals.length === 0 && (
+              <PurposeEmptyState title="Aucune activité récente" description="Les réunions, tâches et notes apparaîtront ici dès leur création." />
+            )}
           </div>
         </SectionCard>
 
@@ -147,28 +223,7 @@ export function CrmHomePage() {
         </SectionCard>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-5">
-        <SectionCard className="p-4">
-          <SectionTitle icon={HandCoins} title="Pipeline commercial" description="Suivez les opportunités par étape, valeur et probabilité." />
-          <div className="mt-5 space-y-3">
-            {openOpportunities.slice(0, 4).map((opportunity) => (
-              <CompactItem
-                key={opportunity.id}
-                title={opportunity.title}
-                description={`${formatOpportunityValue(opportunity.estimatedValue)} • ${opportunity.probability}%`}
-                badge={opportunityStageLabel(opportunity.stage)}
-              />
-            ))}
-          </div>
-          <Link
-            href="/crm/opportunities"
-            className="mt-5 inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-hicotech-blue transition hover:border-hicotech-blue/40 hover:bg-hicotech-sky focus:outline-none focus:ring-2 focus:ring-hicotech-blue/50 dark:border-hicotech-dark-border dark:hover:bg-hicotech-blue/10"
-          >
-            Ouvrir le pipeline
-            <ArrowRight size={14} />
-          </Link>
-        </SectionCard>
-
+      <div className="grid gap-4 xl:grid-cols-4">
         <SectionCard className="p-4">
           <SectionTitle icon={ClipboardList} title="Tâches ouvertes" description="Les prochaines actions CRM à suivre." />
           <div className="mt-5 space-y-3">
@@ -252,7 +307,7 @@ export function CrmHomePage() {
             <NavigationHint title="Sociétés" description="Comptes, détails et relations commerciales." href="/crm/companies" />
             <NavigationHint title="Contacts" description="Répertoire CRM indépendant avec liens société." href="/crm/contacts" />
             <NavigationHint title="Réunions, tâches et notes" description="Workspaces dédiés pour suivre le contexte relationnel." href="/crm/meetings" />
-            <NavigationHint title="Pipeline commercial" description="Ouvrez Ventes pour suivre toutes les opportunités." href="/crm/opportunities" />
+            <NavigationHint title="Devis et factures" description="Les documents commerciaux restent reliés aux sociétés." href="/sales/quotes" />
           </div>
         </SectionCard>
       </div>
@@ -285,7 +340,9 @@ export function CrmHomePage() {
   );
 }
 
-function CrmHero() {
+function CrmHero({ data }: { data: CrmHomeSnapshot }) {
+  const { companies, contacts, openTasks, quotes, upcomingMeetings } = data;
+
   return (
     <section className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-hicotech-navy text-white shadow-[0_20px_58px_rgba(10,30,63,0.24)] dark:border-hicotech-dark-border dark:bg-hicotech-dark-card dark:shadow-none">
       <div className="grid gap-0 xl:grid-cols-[minmax(0,1.18fr)_minmax(320px,0.82fr)]">
@@ -313,17 +370,17 @@ function CrmHero() {
               <ArrowRight size={16} />
             </Link>
             <Link
-              href="/crm/opportunities"
+              href="/crm/contacts"
               className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-white/15 focus:outline-none focus:ring-4 focus:ring-white/20"
             >
-              Voir le pipeline
-              <TrendingUp size={16} />
+              Voir les contacts
+              <ContactRound size={16} />
             </Link>
           </div>
 
           <div className="mt-5 grid gap-2.5 sm:grid-cols-3">
             <HeroSignal label="Sociétés suivies" value={String(companies.length)} helper="comptes actifs" />
-            <HeroSignal label="Pipeline ouvert" value={formatOpportunityValue(totalPipelineValue(openOpportunities))} helper={`${openOpportunities.length} opportunités`} />
+            <HeroSignal label="Contacts actifs" value={String(contacts.length)} helper="interlocuteurs clés" />
             <HeroSignal label="Priorités" value={String(openTasks.length + upcomingMeetings.length)} helper="actions à suivre" />
           </div>
         </div>
@@ -347,7 +404,7 @@ function CrmHero() {
             <div className="mt-4 rounded-xl bg-hicotech-sky p-3.5">
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-hicotech-blue">Signal relationnel</p>
               <p className="mt-2 text-sm font-bold leading-6 text-hicotech-navy">
-                {openOpportunities.length} opportunité(s) ouvertes pour {formatOpportunityValue(totalPipelineValue(openOpportunities))}.
+                {companies.length} société(s), {contacts.length} contact(s) et {quotes.length} devis à suivre depuis les workspaces CRM et Ventes.
               </p>
             </div>
           </div>
@@ -357,17 +414,19 @@ function CrmHero() {
   );
 }
 
-function CrmCommandStrip() {
+function CrmCommandStrip({ data }: { data: CrmHomeSnapshot }) {
+  const { contacts, invoices, openTasks } = data;
+
   return (
     <section className="grid gap-4 xl:grid-cols-[1fr_1fr_1fr_1.15fr]" aria-label="Lecture rapide CRM">
       <CommandTile icon={Sparkles} label="Focus du jour" value={`${openTasks.length} actions`} description="Les tâches et réunions restent visibles avant les listes." />
       <CommandTile icon={Layers3} label="Relation client" value={`${contacts.length} contacts`} description="Les personnes clés restent attachées aux sociétés." />
-      <CommandTile icon={TrendingUp} label="Revenu à défendre" value={formatOpportunityValue(totalPipelineValue(openOpportunities))} description={`${openOpportunities.length} opportunités ouvertes.`} />
+      <CommandTile icon={Receipt} label="Facturation liée" value={`${invoices.length} factures`} description="Les documents commerciaux restent reliés aux sociétés." />
       <article className="rounded-[1.5rem] border border-hicotech-blue/20 bg-hicotech-sky p-5 shadow-[0_18px_55px_rgba(13,110,253,0.14)]">
         <p className="text-xs font-bold uppercase tracking-[0.14em] text-hicotech-blue">Prochaine meilleure lecture</p>
         <h2 className="mt-3 font-display text-xl font-bold text-hicotech-navy">Commencer par les sociétés actives.</h2>
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          Les contacts, réunions, notes et opportunités gardent leur contexte sans disperser la navigation.
+          Les contacts, réunions, notes et documents de vente gardent leur contexte sans disperser la navigation.
         </p>
       </article>
     </section>
@@ -549,17 +608,6 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-function activityLabel(type: string) {
-  const labels: Record<string, string> = {
-    call: "Appel",
-    email: "Email",
-    meeting: "Réunion",
-    note: "Note",
-    task: "Tâche"
-  };
-  return labels[type] ?? "Activité";
-}
-
 function taskPriorityLabel(priority: string) {
   const labels: Record<string, string> = {
     urgent: "Urgent",
@@ -577,23 +625,4 @@ function noteVisibilityLabel(visibility: string) {
     company: "Société"
   };
   return labels[visibility] ?? "Note";
-}
-
-function opportunityStageLabel(stage: string) {
-  const labels: Record<string, string> = {
-    lead: "Lead",
-    qualified: "Qualifiée",
-    proposal: "Proposition",
-    negotiation: "Négociation",
-    won: "Gagnée",
-    lost: "Perdue"
-  };
-  return labels[stage] ?? "Pipeline";
-}
-
-function totalPipelineValue(items: typeof openOpportunities) {
-  return {
-    amount: items.reduce((total, item) => total + item.estimatedValue.amount, 0),
-    currency: "MAD" as const
-  };
 }

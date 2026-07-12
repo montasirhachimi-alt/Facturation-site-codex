@@ -53,7 +53,7 @@ export function ContactsTable({
   subtitle = "Contacts liés uniquement à cette société.",
   title = "Contacts",
   emptyTitle = "Aucun contact pour cette société",
-  emptyDescription = "Ajoutez les personnes clés pour préparer les échanges, réunions et opportunités."
+  emptyDescription = "Ajoutez les personnes clés pour préparer les échanges, réunions et documents commerciaux."
 }: {
   canCreate: boolean;
   canWrite: boolean;

@@ -59,13 +59,21 @@ Focus:
 
 ## Milestone 6 — Marketplace
 
-Status: Planned.
+Status: Planned, with Module Registry foundation started in SPR-401.
 
 Focus:
 
 - Plugin architecture.
 - Extension registry.
 - Marketplace-ready module contracts.
+- Modular Editions Platform foundations.
+- Module activation metadata.
+- Edition definitions from one codebase.
+
+Foundation completed:
+
+- SPR-401 adds a platform-owned Module Registry describing Alpha-ready, hidden and planned modules through declarative metadata.
+- Registration is metadata only and does not activate hidden modules.
 
 ## Milestone 7 — Cloud Platform
 

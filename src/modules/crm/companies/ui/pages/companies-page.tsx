@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, Globe2, HandCoins, Layers3, MapPinned } from "lucide-react";
+import { Building2, FileText, Globe2, Layers3, MapPinned } from "lucide-react";
 import { useWorkspaceCreateShortcut } from "@/platform/keyboard";
 import { EntityErrorState, EntityHeader, EntityPageLayout, EntityPagination, EntityStatsCards, InfoCard } from "@/ui";
 import { CompanyDialog } from "../dialogs/company-dialog";
@@ -23,7 +23,7 @@ export function CompaniesPage() {
       <EntityHeader
         breadcrumb={["CRM", "Sociétés"]}
         title="Sociétés"
-        description="Le centre de gravité CRM pour connecter contacts, opportunités, devis, commandes, projets et factures."
+        description="Le centre de gravité CRM pour connecter contacts, devis, factures, paiements et suivi commercial."
         meta={<InfoCard>Espace actif : HicoPilot CRM</InfoCard>}
       />
 
@@ -33,7 +33,7 @@ export function CompaniesPage() {
           { icon: Layers3, label: "Actives", value: String(state.stats.active), helper: "Sociétés opérationnelles" },
           { icon: Globe2, label: "Industries", value: String(state.stats.industries), helper: "Segments couverts" },
           { icon: MapPinned, label: "Pays", value: String(state.stats.countries), helper: "Présence commerciale" },
-          { icon: HandCoins, label: "Pipeline", value: state.stats.futureRevenue, helper: "Prévision commerciale" }
+          { icon: FileText, label: "Documents", value: "Ventes", helper: "Devis et factures liés" }
         ]}
       />
 

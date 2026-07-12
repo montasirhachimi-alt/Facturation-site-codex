@@ -9,7 +9,6 @@ import {
   ReceiptText,
   RefreshCw,
   ShieldCheck,
-  Sparkles,
   UserPlus
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -86,8 +85,7 @@ const tasks: TaskItem[] = [
 const systemStatuses: SystemStatusItem[] = [
   { icon: ShieldCheck, label: "Sauvegarde OK" },
   { icon: RefreshCw, label: "Synchronisation active" },
-  { icon: Database, label: "Base de données connectée" },
-  { icon: Sparkles, label: "Assistant IA disponible" }
+  { icon: Database, label: "Base de données connectée" }
 ];
 
 const activityToneClasses: Record<ActivityItem["tone"], string> = {

@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, Clock3, FileText, Mail, Phone, Receipt, Sparkles, Tags, TrendingUp, UsersRound, X } from "lucide-react";
+import { Building2, Clock3, FileText, Mail, Phone, Receipt, Sparkles, Tags, UsersRound, X } from "lucide-react";
 import { useEffect } from "react";
 import { ContextualActionStrip, useContextualActions } from "@/platform/contextual-actions";
 import { useWorkspaceCreateShortcut } from "@/platform/keyboard";
@@ -50,15 +50,6 @@ export function CustomersPage() {
       icon: Receipt,
       priority: 30,
       href: "/sales/invoices"
-    },
-    {
-      id: "customer.open-opportunities",
-      entityType: "customer",
-      label: "Opportunités",
-      description: "Voir le pipeline commercial associé.",
-      icon: TrendingUp,
-      priority: 40,
-      href: "/crm/opportunities"
     }
   ]);
 

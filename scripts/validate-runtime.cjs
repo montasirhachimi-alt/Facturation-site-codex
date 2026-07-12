@@ -235,6 +235,87 @@ test("Platform Search separation keeps Core Search framework-agnostic", () => {
   assert(platformSource.includes("@/core/search"), "Platform Search should consume Core Search.");
 });
 
+test("Platform Module Registry describes Alpha-ready modules without changing activation", () => {
+  const {
+    ModuleRegistry,
+    bosiacoModuleDescriptors,
+    validateModuleDescriptors
+  } = load("src/platform/modules");
+  const registry = new ModuleRegistry(bosiacoModuleDescriptors);
+  const validation = registry.validate();
+  const expectedVisibleIds = [
+    "core.dashboard",
+    "core.settings",
+    "crm.overview",
+    "crm.companies",
+    "crm.contacts",
+    "crm.meetings",
+    "crm.tasks",
+    "crm.notes",
+    "sales.quotes",
+    "sales.invoices",
+    "sales.payments"
+  ];
+  const visibleIds = registry.listVisible().map((descriptor) => descriptor.id);
+  const alphaReadyIds = registry.listAlphaReady().map((descriptor) => descriptor.id);
+
+  assert(validation.valid, `Platform Module Registry should validate: ${validation.issues.map((issue) => issue.message).join("; ")}`);
+  assert(expectedVisibleIds.every((id) => visibleIds.includes(id)), "Visible module list should contain every Alpha-ready product workspace.");
+  assert(!visibleIds.includes("crm.opportunities"), "Hidden opportunities module should not be visible.");
+  assert(!visibleIds.includes("inventory.stock"), "Hidden inventory module should not be visible.");
+  assert(alphaReadyIds.includes("platform.command-center"), "Command Center should be represented as an Alpha-ready platform foundation.");
+  assert(registry.listByCategory("crm").some((descriptor) => descriptor.id === "crm.companies"), "Registry should list modules by category.");
+
+  assert(
+    validateModuleDescriptors([
+      {
+        ...bosiacoModuleDescriptors[0],
+        dependencies: ["missing.module"]
+      }
+    ]).issues.some((issue) => issue.code === "unknown-dependency"),
+    "Registry validation should report unknown dependencies."
+  );
+});
+
+test("Platform Module Registry rejects duplicates and circular dependencies", () => {
+  const { ModuleRegistry, bosiacoModuleDescriptors, validateModuleDescriptors } = load("src/platform/modules");
+  const registry = new ModuleRegistry([bosiacoModuleDescriptors[0]]);
+
+  let duplicateRejected = false;
+  try {
+    registry.register(bosiacoModuleDescriptors[0]);
+  } catch {
+    duplicateRejected = true;
+  }
+
+  const circularValidation = validateModuleDescriptors([
+    {
+      ...bosiacoModuleDescriptors[0],
+      id: "test.alpha",
+      dependencies: ["test.beta"]
+    },
+    {
+      ...bosiacoModuleDescriptors[1],
+      id: "test.beta",
+      route: "/test-beta",
+      dependencies: ["test.alpha"]
+    }
+  ]);
+
+  const hiddenDefaultValidation = validateModuleDescriptors([
+    {
+      ...bosiacoModuleDescriptors[0],
+      id: "test.hidden",
+      hidden: true,
+      defaultEnabled: true
+    }
+  ]);
+
+  assert(duplicateRejected, "Registering the same module twice should throw.");
+  assert(circularValidation.issues.some((issue) => issue.code === "circular-dependency"), "Registry validation should detect circular dependencies.");
+  assert(hiddenDefaultValidation.issues.some((issue) => issue.code === "hidden-default-enabled"), "Hidden modules should not be enabled by default.");
+});
+
 test("Notification Event Subscriber registers once and creates notifications from supported events", () => {
   const { PlatformEventRuntime } = load("src/runtime/platform-events");
   const { NotificationEventSubscriber } = load("src/runtime/notifications");
@@ -1184,14 +1265,14 @@ test("CRM Module Foundation exposes manifest capabilities permissions navigation
   assert(crmModule.routes.every((route) => route.lazy), "CRM routes should be lazy-load-ready placeholders.");
 });
 
-test("Sales Navigation exposes commercial pipeline without changing the route", () => {
+test("Sales Navigation exposes only Alpha-ready commercial workspaces", () => {
   const { salesModule } = load("src/modules/sales");
   const salesNavigationIds = salesModule.navigation.children.map((item) => item.id);
-  const pipelineItem = salesModule.navigation.children.find((item) => item.id === "sales.pipeline");
 
-  assert(salesNavigationIds[0] === "sales.pipeline", "Sales navigation should expose Pipeline commercial before quotes and invoices.");
-  assert(pipelineItem?.label === "Pipeline commercial", "Sales pipeline navigation should use French commercial wording.");
-  assert(pipelineItem?.route === "/crm/opportunities", "Sales pipeline navigation should preserve the existing opportunities route.");
+  assert(!salesNavigationIds.includes("sales.pipeline"), "Sales navigation should hide Pipeline until opportunities are persisted.");
+  assert(salesNavigationIds[0] === "sales.quotes", "Sales navigation should start with Quotes for Alpha.");
+  assert(salesNavigationIds.includes("sales.invoices"), "Sales navigation should expose Invoices.");
+  assert(salesNavigationIds.includes("sales.payments"), "Sales navigation should expose Payments.");
 });
 
 test("CRM Module Foundation remains platform-consumer only", () => {

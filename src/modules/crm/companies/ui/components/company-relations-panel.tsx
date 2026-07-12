@@ -1,11 +1,11 @@
-import { BriefcaseBusiness, FileText, HandCoins, ReceiptText, ShoppingCart, UsersRound } from "lucide-react";
+import { BriefcaseBusiness, FileText, ReceiptText, ShoppingCart, UsersRound, WalletCards } from "lucide-react";
 import { SectionCard } from "@/ui";
 
 const relations = [
   { label: "Contacts", icon: UsersRound, value: "Connecté" },
   { label: "Projets", icon: BriefcaseBusiness, value: "Masqué" },
   { label: "Factures", icon: ReceiptText, value: "Connecté" },
-  { label: "Opportunités", icon: HandCoins, value: "Connecté" },
+  { label: "Paiements", icon: WalletCards, value: "Connecté" },
   { label: "Devis", icon: FileText, value: "Connecté" },
   { label: "Commandes", icon: ShoppingCart, value: "Masqué" }
 ];

@@ -1,6 +1,4 @@
 import {
-  BarChart3,
-  Boxes,
   Building2,
   CalendarCheck,
   ClipboardList,
@@ -11,7 +9,6 @@ import {
   Receipt,
   ScrollText,
   Settings,
-  UserRound,
   Users,
   WalletCards
 } from "lucide-react";
@@ -39,8 +36,6 @@ type CommandNavigationItem = Readonly<{
 }>;
 
 const iconByName: Record<string, LucideIcon> = {
-  BarChart3,
-  Boxes,
   Building2,
   CalendarCheck,
   ClipboardList,
@@ -52,7 +47,6 @@ const iconByName: Record<string, LucideIcon> = {
   Receipt,
   ScrollText,
   Settings,
-  UserRound,
   Users,
   WalletCards
 };
@@ -60,7 +54,7 @@ const iconByName: Record<string, LucideIcon> = {
 const seedCommands: readonly CommandCenterCommand[] = [
   {
     id: "command.dashboard",
-    title: "Dashboard",
+    title: "Tableau de bord",
     description: "Ouvrir le cockpit exécutif.",
     href: "/dashboard",
     icon: LayoutDashboard,
@@ -69,48 +63,25 @@ const seedCommands: readonly CommandCenterCommand[] = [
   },
   {
     id: "command.sales",
-    title: "Sales",
+    title: "Ventes",
     description: "Accéder à l'espace ventes.",
     href: "/sales/quotes",
     icon: WalletCards,
     group: "Navigation",
     keywords: ["ventes", "commercial", "revenue", "devis", "factures", "paiements"]
-  },
-  {
-    id: "command.hr",
-    title: "HR",
-    description: "Ouvrir l'espace équipe et ressources humaines.",
-    href: "/rh",
-    icon: ContactRound,
-    group: "Navigation",
-    keywords: ["rh", "équipe", "equipe", "people", "employés", "employees"]
-  },
-  {
-    id: "command.reports",
-    title: "Reports",
-    description: "Consulter les analyses et rapports.",
-    href: "/statistiques",
-    icon: BarChart3,
-    group: "Navigation",
-    keywords: ["rapports", "reports", "analytics", "analyse", "statistiques", "bi"]
   }
 ];
 
-const coreCommandIds = new Set(["products", "settings"]);
+const coreCommandIds = new Set(["settings"]);
 
 const coreCommandOverrides: Partial<Record<string, Partial<CommandCenterCommand>>> = {
   dashboard: {
-    title: "Dashboard",
+    title: "Tableau de bord",
     description: "Ouvrir le cockpit exécutif.",
     keywords: ["accueil", "home", "tableau de bord", "pilot", "command center"]
   },
-  products: {
-    title: "Produits",
-    description: "Ouvrir le catalogue produits et stock.",
-    keywords: ["produits", "products", "stock", "inventory"]
-  },
   settings: {
-    title: "Settings",
+    title: "Paramètres",
     description: "Ouvrir les paramètres.",
     keywords: ["settings", "paramètres", "parametres", "configuration"]
   }
@@ -124,12 +95,9 @@ const commandAliases: Record<string, readonly string[]> = {
   "/crm/meetings": ["réunions", "reunions", "meetings", "agenda"],
   "/crm/tasks": ["tâches", "taches", "tasks", "todo"],
   "/crm/notes": ["notes", "note"],
-  "/crm/opportunities": ["pipeline", "opportunités", "opportunites", "opportunities", "deals"],
   "/sales/quotes": ["quotes", "devis", "quote", "quo", "propositions"],
   "/sales/invoices": ["invoices", "factures", "fact", "billing"],
   "/sales/payments": ["payments", "paiements", "pay", "encaissements"],
-  "/paiements": ["payments", "paiements", "pay", "suivi paiements"],
-  "/stock": ["produits", "products", "stock", "inventory"],
   "/parametres": ["settings", "paramètres", "parametres", "configuration"]
 };
 
@@ -216,8 +184,9 @@ function registerBusinessNavigation(
 ) {
   const iconName = typeof item.metadata?.icon === "string" ? item.metadata.icon : item.id === "sales" ? "WalletCards" : "FileText";
   const href = item.id === "sales" ? "/sales/quotes" : item.route;
+  const hiddenRoutes = new Set(["/crm/activities", "/crm/opportunities", "/sales"]);
 
-  if (item.id !== "sales") {
+  if (item.id !== "sales" && !hiddenRoutes.has(href)) {
     registry.register({
       id: `business.${item.id}`,
       title: item.label,

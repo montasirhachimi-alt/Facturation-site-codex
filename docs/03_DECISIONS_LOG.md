@@ -1,5 +1,41 @@
 # HicoPilot Architecture Decision Records
 
+## ADR-020 — Platform Module Registry Foundation
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-07-12 |
+
+### Decision
+
+SPR-401 introduces a platform-owned Module Registry under `src/platform/modules/`.
+
+The registry describes modules through lightweight metadata: stable IDs, category, lifecycle status, visibility, default enablement, dependencies, feature keys, navigation metadata, Command Center metadata and dashboard contribution metadata.
+
+Registration does not equal activation.
+
+### Motivation
+
+BOSIACO is entering the Modular Editions Platform phase. Future editions such as Basic, CRM, Sales, Inventory, Purchasing, HR, Enterprise and Custom must come from one codebase through configuration and activation, not separate applications or Git branches.
+
+The product needs a deterministic module description layer before implementing activation, licensing, Edition definitions or dynamic product surfaces.
+
+### Alternatives
+
+- Continue using only the historical Core Registry.
+- Encode Edition behavior directly in the Sidebar or Command Center.
+- Introduce database-backed module activation immediately.
+- Auto-scan filesystem routes to discover modules.
+
+### Consequences
+
+The registry is client-safe and does not import React UI, Prisma, server persistence, page modules or browser globals.
+
+Current Sidebar, Command Center, Dashboard and persistence behavior remain unchanged.
+
+Hidden and planned modules can be registered for planning without becoming visible. Future sprints may consume the registry for Edition definitions, activation rules, navigation filtering, Command Center filtering, dashboard contributions and licensing.
+
 ## ADR-019 — Durable CRM/Sales Persistence Bridge
 
 | Field | Value |

@@ -1,5 +1,5 @@
-import { OpportunitiesWorkspace } from "@/modules/crm/opportunities/ui";
+import { redirect } from "next/navigation";
 
 export default function CrmOpportunitiesPage() {
-  return <OpportunitiesWorkspace />;
+  redirect("/sales/quotes");
 }

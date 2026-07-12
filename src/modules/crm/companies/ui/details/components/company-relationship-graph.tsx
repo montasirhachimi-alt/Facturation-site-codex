@@ -1,12 +1,12 @@
-import { BriefcaseBusiness, Building2, ReceiptText, UsersRound } from "lucide-react";
+import { Building2, ReceiptText, UsersRound, WalletCards } from "lucide-react";
 import { SectionCard } from "@/ui";
 
 const nodes = [
   { icon: Building2, label: "Société", active: true },
   { icon: UsersRound, label: "Contacts" },
-  { icon: BriefcaseBusiness, label: "Opportunités" },
   { icon: ReceiptText, label: "Devis" },
-  { icon: ReceiptText, label: "Factures" }
+  { icon: ReceiptText, label: "Factures" },
+  { icon: WalletCards, label: "Paiements" }
 ];
 
 export function CompanyRelationshipGraph() {

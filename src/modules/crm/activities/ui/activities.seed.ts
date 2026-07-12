@@ -14,7 +14,7 @@ export const crmActivitySeed = Object.freeze([
     contactId: "contact-sara-amrani" as ContactId,
     type: "meeting",
     title: "Revue du compte",
-    description: "Discussion autour des prochaines opportunités et besoins IT.",
+    description: "Discussion autour des prochains besoins IT et échanges commerciaux.",
     performedBy: CRM_ACTIVITIES_USER_ID,
     performedAt: "2026-07-02T09:30:00.000Z",
     status: "completed",

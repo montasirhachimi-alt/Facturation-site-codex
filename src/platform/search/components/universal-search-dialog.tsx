@@ -110,7 +110,7 @@ export function UniversalSearchDialog() {
               aria-controls="command-center-results"
             />
             <p id="command-center-description" className="mt-0.5 text-xs font-medium text-slate-400 dark:text-slate-300">
-              Navigation locale instantanée. Aucune requête serveur.
+              Navigation, création rapide et recherche métier, sans requête serveur.
             </p>
           </div>
           <button
@@ -169,7 +169,7 @@ export function UniversalSearchDialog() {
             <ShortcutKey label="↑ ↓" />
             naviguer
             <ShortcutKey label="Enter" />
-            ouvrir
+            sélectionner
             <ShortcutKey label="ESC" />
             fermer
           </span>

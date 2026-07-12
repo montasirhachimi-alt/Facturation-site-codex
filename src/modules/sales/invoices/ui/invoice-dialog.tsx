@@ -56,6 +56,7 @@ export function InvoiceDialog({
     items: [createEmptySalesLineItem("invoice-line")]
   }));
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [pickerVersion, setPickerVersion] = useState(0);
   const quotePickerItems = useMemo(() => getQuotePickerItems(), []);
   const companyPickerItems = useMemo(() => {
@@ -103,6 +104,7 @@ export function InvoiceDialog({
   }
 
   async function submitInvoice() {
+    if (saving) return;
     const lineValidation = validateSalesLineItems(form.items);
     const companyId = resolveCompanyId(form.companyId, form.companyName);
     const accountName = form.companyName.trim();
@@ -118,6 +120,7 @@ export function InvoiceDialog({
     }
 
     const snapshot = invoiceService.listInvoices({ workspaceId: SALES_QUOTES_WORKSPACE_ID, includeArchived: true }).invoices;
+    setSaving(true);
     const invoice = invoiceService.createInvoice({
       workspaceId: SALES_QUOTES_WORKSPACE_ID,
       customerName: accountName,
@@ -143,10 +146,12 @@ export function InvoiceDialog({
     } catch {
       invoiceService.replaceInvoices(snapshot);
       setError("La facture n'a pas pu être enregistrée dans la base. Vérifiez la connexion puis réessayez.");
+      setSaving(false);
       return;
     }
 
     notifyInvoiceStoreUpdated();
+    setSaving(false);
     onSubmit(invoice);
   }
 
@@ -160,7 +165,7 @@ export function InvoiceDialog({
       onSubmit={submitInvoice}
       size="xl"
       error={error}
-      footer={<FormActions onCancel={onClose} submitLabel="Créer une facture" />}
+      footer={<FormActions onCancel={onClose} submitBusy={saving} submitLabel="Créer une facture" busyLabel="Création de la facture..." />}
     >
       <div className="mt-5 space-y-3">
         <FormSection title="Contexte facture" description="La facture est rattachée à une société et peut être préparée depuis un devis existant.">

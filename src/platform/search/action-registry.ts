@@ -1,14 +1,9 @@
 import {
   BriefcaseBusiness,
   Building2,
-  CalendarCheck,
   ContactRound,
-  FileText,
   Plus,
-  Receipt,
-  ScrollText,
-  TrendingUp,
-  WalletCards
+  Receipt
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { UniversalSearchItem, UniversalSearchSection } from "./universal-search.types";
@@ -16,13 +11,8 @@ import type { UniversalSearchItem, UniversalSearchSection } from "./universal-se
 export type QuickCreateActionId =
   | "quick-create.company"
   | "quick-create.contact"
-  | "quick-create.meeting"
-  | "quick-create.task"
-  | "quick-create.note"
-  | "quick-create.opportunity"
   | "quick-create.quote"
-  | "quick-create.invoice"
-  | "quick-create.payment";
+  | "quick-create.invoice";
 
 export type QuickCreateAction = Readonly<{
   id: QuickCreateActionId;
@@ -35,78 +25,38 @@ export type QuickCreateAction = Readonly<{
 const quickCreateActionIds = new Set<string>([
   "quick-create.company",
   "quick-create.contact",
-  "quick-create.meeting",
-  "quick-create.task",
-  "quick-create.note",
-  "quick-create.opportunity",
   "quick-create.quote",
-  "quick-create.invoice",
-  "quick-create.payment"
+  "quick-create.invoice"
 ]);
 
 const seedQuickCreateActions: readonly QuickCreateAction[] = [
   {
     id: "quick-create.company",
-    title: "New Company",
+    title: "Nouvelle société",
     description: "Créer une société depuis le centre de commandes.",
     icon: Building2,
     keywords: ["new", "create", "nouveau", "nouvelle", "société", "societe", "company", "entreprise", "compte"]
   },
   {
     id: "quick-create.contact",
-    title: "New Contact",
+    title: "Nouveau contact",
     description: "Ajouter une personne clé sans ouvrir d'abord le CRM.",
     icon: ContactRound,
     keywords: ["new", "create", "nouveau", "contact", "personne", "interlocuteur", "cont"]
   },
   {
-    id: "quick-create.meeting",
-    title: "New Meeting",
-    description: "Ouvrir le workspace Réunions pour créer un rendez-vous CRM.",
-    icon: CalendarCheck,
-    keywords: ["new", "create", "nouveau", "réunion", "reunion", "meeting", "rendez-vous", "agenda"]
-  },
-  {
-    id: "quick-create.task",
-    title: "New Task",
-    description: "Ouvrir le workspace Tâches pour créer une action de suivi.",
-    icon: ScrollText,
-    keywords: ["new", "create", "nouveau", "tâche", "tache", "task", "todo", "suivi"]
-  },
-  {
-    id: "quick-create.note",
-    title: "New Note",
-    description: "Ouvrir le workspace Notes pour ajouter du contexte CRM.",
-    icon: FileText,
-    keywords: ["new", "create", "nouveau", "note", "notes", "contexte"]
-  },
-  {
-    id: "quick-create.opportunity",
-    title: "New Opportunity",
-    description: "Préparer une opportunité commerciale rapidement.",
-    icon: TrendingUp,
-    keywords: ["new", "create", "nouveau", "opportunité", "opportunite", "opportunity", "deal", "pipeline"]
-  },
-  {
     id: "quick-create.quote",
-    title: "New Quote",
+    title: "Nouveau devis",
     description: "Ouvrir le flux de création d'un devis.",
     icon: BriefcaseBusiness,
     keywords: ["new", "create", "nouveau", "devis", "quote", "quo", "proposition"]
   },
   {
     id: "quick-create.invoice",
-    title: "New Invoice",
+    title: "Nouvelle facture",
     description: "Préparer une facture depuis le centre de commandes.",
     icon: Receipt,
     keywords: ["new", "create", "nouveau", "facture", "invoice", "inv", "billing", "fact"]
-  },
-  {
-    id: "quick-create.payment",
-    title: "New Payment",
-    description: "Préparer un paiement sans changer d'espace.",
-    icon: WalletCards,
-    keywords: ["new", "create", "nouveau", "paiement", "payment", "pay", "encaissement"]
   }
 ];
 
@@ -153,10 +103,10 @@ export function getQuickCreateSection(query: string): UniversalSearchSection {
 
   return {
     id: "quick-create",
-    title: "Quick Create",
+    title: "Créer",
     description: query ? "Créer immédiatement depuis le centre de commandes." : "Actions de création prêtes à lancer.",
     emptyTitle: "Aucune action de création",
-    emptyDescription: "Essayez new, nouveau, quote, invoice, contact ou paiement.",
+    emptyDescription: "Essayez nouveau, société, contact, devis ou facture.",
     items
   };
 }
@@ -171,8 +121,8 @@ function actionToSearchItem(action: QuickCreateAction): UniversalSearchItem {
     title: action.title,
     description: action.description,
     actionId: action.id,
-    badge: "Quick Create",
-    eyebrow: "Action",
+    badge: "Création rapide",
+    eyebrow: "Créer",
     icon: action.icon ?? Plus,
     keywords: action.keywords,
     tone: "create"

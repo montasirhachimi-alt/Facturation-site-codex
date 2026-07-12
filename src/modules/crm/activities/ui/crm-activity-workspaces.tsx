@@ -22,6 +22,11 @@ type ActivityScope = Readonly<{
   embedded?: boolean;
 }>;
 
+type ActivityFeedback = Readonly<{
+  tone: "success" | "error";
+  message: string;
+}>;
+
 const workspaceId = CRM_COMPANIES_WORKSPACE_ID;
 const currentUserId = CRM_COMPANIES_USER_ID as UserId;
 
@@ -96,6 +101,8 @@ export function CrmMeetingsWorkspace(props: ActivityScope = {}) {
   const [editing, setEditing] = useState<Meeting | null>(null);
   const [form, setForm] = useState<MeetingForm>({ ...emptyMeetingForm, companyId: props.companyId ?? "" });
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState<ActivityFeedback | null>(null);
 
   const meetings = useMemo(() => state.meetings.filter((meeting) => {
     if (props.companyId && meeting.companyId !== props.companyId) return false;
@@ -108,6 +115,7 @@ export function CrmMeetingsWorkspace(props: ActivityScope = {}) {
   const openCreate = () => {
     setEditing(null);
     setError(null);
+    setFeedback(null);
     setForm({ ...emptyMeetingForm, companyId: props.companyId ?? "", contactId: props.contactId ?? "" });
     setDialogOpen(true);
   };
@@ -115,6 +123,7 @@ export function CrmMeetingsWorkspace(props: ActivityScope = {}) {
   const openEdit = (meeting: Meeting) => {
     setEditing(meeting);
     setError(null);
+    setFeedback(null);
     setForm({
       companyId: meeting.companyId,
       contactId: meeting.contactIds[0] ?? "",
@@ -130,6 +139,7 @@ export function CrmMeetingsWorkspace(props: ActivityScope = {}) {
   };
 
   const save = async () => {
+    if (saving) return false;
     if (!form.companyId) {
       setError("Sélectionnez une société.");
       return false;
@@ -157,15 +167,19 @@ export function CrmMeetingsWorkspace(props: ActivityScope = {}) {
       setError(result.validation.issues[0]?.message ?? "Impossible d'enregistrer la réunion.");
       return false;
     }
+    setSaving(true);
     try {
       await persistCrmSalesRecord("meeting", result.meeting);
     } catch {
       crmMeetingLocalService.replaceMeetings(snapshot);
-      setError("La réunion n'a pas pu être enregistrée dans la base.");
+      setError("La réunion n'a pas pu être enregistrée dans la base. Vérifiez la connexion puis réessayez.");
+      setSaving(false);
       return false;
     }
     notifyCrmMeetingStoreUpdated();
     setDialogOpen(false);
+    setFeedback({ tone: "success", message: editing ? "Réunion enregistrée." : "Réunion créée." });
+    setSaving(false);
     return true;
   };
 
@@ -176,9 +190,11 @@ export function CrmMeetingsWorkspace(props: ActivityScope = {}) {
     try {
       await persistCrmSalesRecord("meeting", result.meeting);
       notifyCrmMeetingStoreUpdated();
+      setFeedback({ tone: "success", message: "Réunion annulée." });
     } catch {
       crmMeetingLocalService.replaceMeetings(snapshot);
       notifyCrmMeetingStoreUpdated();
+      setFeedback({ tone: "error", message: "La réunion n'a pas pu être annulée. Réessayez." });
     }
   };
 
@@ -193,6 +209,7 @@ export function CrmMeetingsWorkspace(props: ActivityScope = {}) {
       query={query}
       setQuery={setQuery}
       onCreate={openCreate}
+      feedback={feedback}
     >
       <div className="grid gap-3">
         {meetings.length > 0 ? meetings.map((meeting) => (
@@ -218,6 +235,7 @@ export function CrmMeetingsWorkspace(props: ActivityScope = {}) {
         onClose={() => setDialogOpen(false)}
         onSubmit={save}
         open={dialogOpen}
+        saving={saving}
         title={editing ? "Modifier la réunion" : "Nouvelle réunion"}
       />
     </ActivityShell>
@@ -231,6 +249,8 @@ export function CrmTasksWorkspace(props: ActivityScope = {}) {
   const [editing, setEditing] = useState<Task | null>(null);
   const [form, setForm] = useState<TaskForm>({ ...emptyTaskForm, companyId: props.companyId ?? "" });
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState<ActivityFeedback | null>(null);
 
   const tasks = useMemo(() => state.tasks.filter((task) => {
     if (props.companyId && task.companyId !== props.companyId) return false;
@@ -243,6 +263,7 @@ export function CrmTasksWorkspace(props: ActivityScope = {}) {
   const openCreate = () => {
     setEditing(null);
     setError(null);
+    setFeedback(null);
     setForm({ ...emptyTaskForm, companyId: props.companyId ?? "", contactId: props.contactId ?? "" });
     setDialogOpen(true);
   };
@@ -250,6 +271,7 @@ export function CrmTasksWorkspace(props: ActivityScope = {}) {
   const openEdit = (task: Task) => {
     setEditing(task);
     setError(null);
+    setFeedback(null);
     setForm({
       companyId: task.companyId,
       contactId: task.contactId ?? "",
@@ -264,6 +286,7 @@ export function CrmTasksWorkspace(props: ActivityScope = {}) {
   };
 
   const save = async () => {
+    if (saving) return false;
     if (!form.companyId) {
       setError("Sélectionnez une société.");
       return false;
@@ -289,15 +312,19 @@ export function CrmTasksWorkspace(props: ActivityScope = {}) {
       setError(result.validation.issues[0]?.message ?? "Impossible d'enregistrer la tâche.");
       return false;
     }
+    setSaving(true);
     try {
       await persistCrmSalesRecord("task", result.task);
     } catch {
       crmTaskLocalService.replaceTasks(snapshot);
-      setError("La tâche n'a pas pu être enregistrée dans la base.");
+      setError("La tâche n'a pas pu être enregistrée dans la base. Vérifiez la connexion puis réessayez.");
+      setSaving(false);
       return false;
     }
     notifyCrmTaskStoreUpdated();
     setDialogOpen(false);
+    setFeedback({ tone: "success", message: editing ? "Tâche enregistrée." : "Tâche créée." });
+    setSaving(false);
     return true;
   };
 
@@ -308,9 +335,11 @@ export function CrmTasksWorkspace(props: ActivityScope = {}) {
     try {
       await persistCrmSalesRecord("task", result.task);
       notifyCrmTaskStoreUpdated();
+      setFeedback({ tone: "success", message: "Tâche terminée." });
     } catch {
       crmTaskLocalService.replaceTasks(snapshot);
       notifyCrmTaskStoreUpdated();
+      setFeedback({ tone: "error", message: "La tâche n'a pas pu être terminée. Réessayez." });
     }
   };
 
@@ -325,6 +354,7 @@ export function CrmTasksWorkspace(props: ActivityScope = {}) {
       query={query}
       setQuery={setQuery}
       onCreate={openCreate}
+      feedback={feedback}
     >
       <div className="grid gap-3">
         {tasks.length > 0 ? tasks.map((task) => (
@@ -350,6 +380,7 @@ export function CrmTasksWorkspace(props: ActivityScope = {}) {
         onClose={() => setDialogOpen(false)}
         onSubmit={save}
         open={dialogOpen}
+        saving={saving}
         title={editing ? "Modifier la tâche" : "Nouvelle tâche"}
       />
     </ActivityShell>
@@ -363,6 +394,8 @@ export function CrmNotesWorkspace(props: ActivityScope = {}) {
   const [editing, setEditing] = useState<Note | null>(null);
   const [form, setForm] = useState<NoteForm>({ ...emptyNoteForm, companyId: props.companyId ?? "", contactId: props.contactId ?? "" });
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState<ActivityFeedback | null>(null);
 
   const notes = useMemo(() => state.notes.filter((note) => {
     if (props.companyId && note.companyId !== props.companyId) return false;
@@ -375,6 +408,7 @@ export function CrmNotesWorkspace(props: ActivityScope = {}) {
   const openCreate = () => {
     setEditing(null);
     setError(null);
+    setFeedback(null);
     setForm({ ...emptyNoteForm, companyId: props.companyId ?? "", contactId: props.contactId ?? "" });
     setDialogOpen(true);
   };
@@ -382,6 +416,7 @@ export function CrmNotesWorkspace(props: ActivityScope = {}) {
   const openEdit = (note: Note) => {
     setEditing(note);
     setError(null);
+    setFeedback(null);
     setForm({
       companyId: note.companyId,
       contactId: note.contactId ?? "",
@@ -393,6 +428,7 @@ export function CrmNotesWorkspace(props: ActivityScope = {}) {
   };
 
   const save = async () => {
+    if (saving) return false;
     if (!form.companyId) {
       setError("Sélectionnez une société.");
       return false;
@@ -416,15 +452,19 @@ export function CrmNotesWorkspace(props: ActivityScope = {}) {
       setError(result.validation.issues[0]?.message ?? "Impossible d'enregistrer la note.");
       return false;
     }
+    setSaving(true);
     try {
       await persistCrmSalesRecord("note", result.note);
     } catch {
       crmNoteLocalService.replaceNotes(snapshot);
-      setError("La note n'a pas pu être enregistrée dans la base.");
+      setError("La note n'a pas pu être enregistrée dans la base. Vérifiez la connexion puis réessayez.");
+      setSaving(false);
       return false;
     }
     notifyCrmNoteStoreUpdated();
     setDialogOpen(false);
+    setFeedback({ tone: "success", message: "Note enregistrée." });
+    setSaving(false);
     return true;
   };
 
@@ -435,9 +475,11 @@ export function CrmNotesWorkspace(props: ActivityScope = {}) {
     try {
       await persistCrmSalesRecord("note", result.note);
       notifyCrmNoteStoreUpdated();
+      setFeedback({ tone: "success", message: "Note archivée." });
     } catch {
       crmNoteLocalService.replaceNotes(snapshot);
       notifyCrmNoteStoreUpdated();
+      setFeedback({ tone: "error", message: "La note n'a pas pu être archivée. Réessayez." });
     }
   };
 
@@ -452,6 +494,7 @@ export function CrmNotesWorkspace(props: ActivityScope = {}) {
       query={query}
       setQuery={setQuery}
       onCreate={openCreate}
+      feedback={feedback}
     >
       <div className="grid gap-3">
         {notes.length > 0 ? notes.map((note) => (
@@ -477,6 +520,7 @@ export function CrmNotesWorkspace(props: ActivityScope = {}) {
         onClose={() => setDialogOpen(false)}
         onSubmit={save}
         open={dialogOpen}
+        saving={saving}
         title={editing ? "Modifier la note" : "Ajouter une note"}
       />
     </ActivityShell>
@@ -518,6 +562,7 @@ function ActivityShell({
   description,
   embedded,
   eyebrow,
+  feedback,
   icon: Icon,
   onCreate,
   query,
@@ -529,6 +574,7 @@ function ActivityShell({
   description: string;
   embedded?: boolean;
   eyebrow: string;
+  feedback?: ActivityFeedback | null;
   icon: React.ComponentType<{ size?: number; className?: string }>;
   onCreate: () => void;
   query: string;
@@ -557,6 +603,18 @@ function ActivityShell({
         <Search size={16} className="text-slate-400" />
         <input value={query} onChange={(event) => setQuery(event.target.value)} className="w-full bg-transparent font-semibold outline-none dark:text-white" placeholder="Rechercher..." />
       </label>
+      {feedback && (
+        <p
+          role={feedback.tone === "error" ? "alert" : "status"}
+          className={`mt-3 rounded-xl border px-3 py-2 text-sm font-semibold ${
+            feedback.tone === "error"
+              ? "border-red-200 bg-red-50 text-red-700 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-200"
+              : "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200"
+          }`}
+        >
+          {feedback.message}
+        </p>
+      )}
       <div className="mt-4">{children}</div>
     </SectionCard>
   );
@@ -622,11 +680,12 @@ function MeetingDialog(props: {
   onClose: () => void;
   onSubmit: () => Promise<boolean>;
   open: boolean;
+  saving: boolean;
   title: string;
 }) {
   const contacts = props.contacts.filter((contact) => !props.form.companyId || contact.companyId === props.form.companyId);
   return (
-    <EntityDialog eyebrow="Réunion CRM" title={props.title} description="Planifiez un échange rattaché à une société." error={props.error} open={props.open} onClose={props.onClose} onSubmit={props.onSubmit} size="lg" footer={<FormActions onCancel={props.onClose} submitLabel="Enregistrer" />}>
+    <EntityDialog eyebrow="Réunion CRM" title={props.title} description="Planifiez un échange rattaché à une société." error={props.error} open={props.open} onClose={props.onClose} onSubmit={props.onSubmit} size="lg" footer={<FormActions onCancel={props.onClose} submitBusy={props.saving} submitLabel="Enregistrer" busyLabel="Enregistrement..." />}>
       <FormSection title="Informations réunion">
         <FormField label="Société" required><CompanySelect disabled={Boolean(props.embeddedCompanyId)} value={props.form.companyId} companies={props.companies} onChange={(companyId) => props.onChange({ ...props.form, companyId, contactId: "" })} /></FormField>
         <FormField label="Contact"><ContactSelect value={props.form.contactId} contacts={contacts} onChange={(contactId) => props.onChange({ ...props.form, contactId })} /></FormField>
@@ -652,11 +711,12 @@ function TaskDialog(props: {
   onClose: () => void;
   onSubmit: () => Promise<boolean>;
   open: boolean;
+  saving: boolean;
   title: string;
 }) {
   const contacts = props.contacts.filter((contact) => !props.form.companyId || contact.companyId === props.form.companyId);
   return (
-    <EntityDialog eyebrow="Tâche CRM" title={props.title} description="Créez une action de suivi liée à une société." error={props.error} open={props.open} onClose={props.onClose} onSubmit={props.onSubmit} size="lg" footer={<FormActions onCancel={props.onClose} submitLabel="Enregistrer" />}>
+    <EntityDialog eyebrow="Tâche CRM" title={props.title} description="Créez une action de suivi liée à une société." error={props.error} open={props.open} onClose={props.onClose} onSubmit={props.onSubmit} size="lg" footer={<FormActions onCancel={props.onClose} submitBusy={props.saving} submitLabel="Enregistrer" busyLabel="Enregistrement..." />}>
       <FormSection title="Action à réaliser">
         <FormField label="Société" required><CompanySelect disabled={Boolean(props.embeddedCompanyId)} value={props.form.companyId} companies={props.companies} onChange={(companyId) => props.onChange({ ...props.form, companyId, contactId: "" })} /></FormField>
         <FormField label="Contact"><ContactSelect value={props.form.contactId} contacts={contacts} onChange={(contactId) => props.onChange({ ...props.form, contactId })} /></FormField>
@@ -681,11 +741,12 @@ function NoteDialog(props: {
   onClose: () => void;
   onSubmit: () => Promise<boolean>;
   open: boolean;
+  saving: boolean;
   title: string;
 }) {
   const contacts = props.contacts.filter((contact) => !props.form.companyId || contact.companyId === props.form.companyId);
   return (
-    <EntityDialog eyebrow="Note CRM" title={props.title} description="Ajoutez un contexte utile sur une société ou un contact." error={props.error} open={props.open} onClose={props.onClose} onSubmit={props.onSubmit} size="md" footer={<FormActions onCancel={props.onClose} submitLabel="Enregistrer" />}>
+    <EntityDialog eyebrow="Note CRM" title={props.title} description="Ajoutez un contexte utile sur une société ou un contact." error={props.error} open={props.open} onClose={props.onClose} onSubmit={props.onSubmit} size="md" footer={<FormActions onCancel={props.onClose} submitBusy={props.saving} submitLabel="Enregistrer" busyLabel="Enregistrement..." />}>
       <FormSection title="Contenu">
         <FormField label="Société" required><CompanySelect disabled={Boolean(props.embeddedCompanyId)} value={props.form.companyId} companies={props.companies} onChange={(companyId) => props.onChange({ ...props.form, companyId, contactId: "" })} /></FormField>
         <FormField label="Contact"><ContactSelect value={props.form.contactId} contacts={contacts} onChange={(contactId) => props.onChange({ ...props.form, contactId })} /></FormField>

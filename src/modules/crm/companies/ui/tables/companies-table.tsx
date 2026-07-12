@@ -85,7 +85,7 @@ export function CompaniesTable({
       )}
       selectedIds={selectedIds}
       sort={sort}
-      subtitle="Sociétés centrales reliées aux contacts, opportunités, devis et factures."
+      subtitle="Sociétés centrales reliées aux contacts, devis, factures et paiements."
       title="Sociétés"
     />
   );

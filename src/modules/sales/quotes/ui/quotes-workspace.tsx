@@ -6,8 +6,6 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, CalendarClock, CircleDollarSign, FileText, Filter, Plus, Sparkles, UserRound } from "lucide-react";
 import { CRM_COMPANIES_WORKSPACE_ID } from "@/modules/crm/companies/ui/companies.seed";
 import { crmCompanyLocalService, subscribeToCrmCompanyStore } from "@/modules/crm/companies/ui/company-local-store";
-import { OpportunityService } from "@/modules/crm/opportunities";
-import { CRM_OPPORTUNITIES_WORKSPACE_ID, crmOpportunitySeed } from "@/modules/crm/opportunities/ui/opportunities.seed";
 import { getPlatformModifierLabel, useTableKeyboardNavigation, useWorkspaceCreateShortcut } from "@/platform/keyboard";
 import { EntityPageLayout, EntitySearchBar, MetricCard, ProductHero, ProductSectionHeader, SectionCard, entityInputClassName, workspacePrimaryActionClassName, workspaceTableActionClassName } from "@/ui";
 import { QUOTE_STATUS_LABELS } from "../quote.constants";
@@ -17,15 +15,10 @@ import { notifyQuoteStoreUpdated, quoteService, subscribeToQuoteStore } from "..
 import { SALES_QUOTES_WORKSPACE_ID } from "../quotes.seed";
 import { QuoteDialog } from "./quote-dialog";
 
-const opportunityService = new OpportunityService({ seed: crmOpportunitySeed });
-const opportunities = opportunityService.listOpportunities({ workspaceId: CRM_OPPORTUNITIES_WORKSPACE_ID }).opportunities;
-const opportunityById = new Map(opportunities.map((opportunity) => [opportunity.id, opportunity]));
-
 type QuoteFilters = Readonly<{
   query: string;
   status: QuoteStatus | "all";
   companyId: string;
-  opportunityId: string;
 }>;
 
 export function QuotesWorkspace() {
@@ -36,7 +29,7 @@ export function QuotesWorkspace() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(8);
   const [sort, setSort] = useState<QuoteSort>({ field: "issueDate", direction: "desc" });
-  const [filters, setFilters] = useState<QuoteFilters>({ query: "", status: "all", companyId: "all", opportunityId: "all" });
+  const [filters, setFilters] = useState<QuoteFilters>({ query: "", status: "all", companyId: "all" });
 
   useEffect(() => {
     const unsubscribeQuotes = subscribeToQuoteStore(() => setQuotesVersion((value) => value + 1));
@@ -51,8 +44,7 @@ export function QuotesWorkspace() {
       workspaceId: SALES_QUOTES_WORKSPACE_ID,
       query: filters.query,
       status: filters.status,
-      companyId: filters.companyId === "all" ? "all" : filters.companyId as never,
-      opportunityId: filters.opportunityId === "all" ? "all" : filters.opportunityId as never
+      companyId: filters.companyId === "all" ? "all" : filters.companyId as never
     }, sort).quotes;
 
   const stats = useMemo(() => buildQuoteStats(quotes), [quotes]);
@@ -80,7 +72,7 @@ export function QuotesWorkspace() {
         icon={Sparkles}
         personality="sales"
         title="Transformer l'élan commercial en revenu signé."
-        subtitle="Chaque devis raconte où le revenu peut avancer : société, opportunité, montant, échéance et prochaine décision."
+        subtitle="Chaque devis raconte où le revenu peut avancer : société, contact, montant, échéance et prochaine décision."
         actions={[
           { href: "/crm/companies", icon: UserRound, label: "Choisir une société" },
           { href: "/sales/invoices", icon: ArrowRight, label: "Voir les factures", tone: "secondary" }
@@ -103,7 +95,7 @@ export function QuotesWorkspace() {
 
       <SectionCard className="p-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <ProductSectionHeader icon={Filter} title="Qualification des propositions" description="Filtrez le portefeuille par société, opportunité ou statut." />
+          <ProductSectionHeader icon={Filter} title="Qualification des propositions" description="Filtrez le portefeuille par société ou statut." />
           <button
             type="button"
             onClick={() => setDialogOpen(true)}
@@ -115,7 +107,7 @@ export function QuotesWorkspace() {
             <span className="hidden rounded-md bg-white/15 px-1.5 py-0.5 text-[10px] font-black sm:inline-flex">{createShortcutLabel}</span>
           </button>
         </div>
-        <div className="mt-4 grid gap-2 lg:grid-cols-2 xl:grid-cols-5">
+        <div className="mt-4 grid gap-2 lg:grid-cols-2 xl:grid-cols-4">
           <div className="xl:col-span-2">
             <EntitySearchBar value={filters.query} onChange={(value) => setFilters({ ...filters, query: value })} placeholder="Rechercher un devis..." />
           </div>
@@ -126,10 +118,6 @@ export function QuotesWorkspace() {
           <select value={filters.companyId} onChange={(event) => setFilters({ ...filters, companyId: event.target.value })} className={entityInputClassName}>
             <option value="all">Toutes sociétés</option>
             {companies.map((company) => <option key={company.id} value={company.id}>{company.displayName}</option>)}
-          </select>
-          <select value={filters.opportunityId} onChange={(event) => setFilters({ ...filters, opportunityId: event.target.value })} className={entityInputClassName}>
-            <option value="all">Toutes opportunités</option>
-            {opportunities.map((opportunity) => <option key={opportunity.id} value={opportunity.id}>{opportunity.title}</option>)}
           </select>
         </div>
       </SectionCard>
@@ -203,7 +191,6 @@ function QuotesTable({ companyById, onCreate, onSort, quotes, sort }: { companyB
                 ["number", "Numéro"],
                 ["company", "Société"],
                 ["contact", "Attention"],
-                ["opportunity", "Opportunité"],
                 ["status", "Statut"],
                 ["issueDate", "Émission"],
                 ["expirationDate", "Expiration"],
@@ -211,7 +198,7 @@ function QuotesTable({ companyById, onCreate, onSort, quotes, sort }: { companyB
                 ["ownerId", "Responsable"]
               ].map(([field, label]) => (
                 <th key={field} className="px-4 py-2 font-display text-[10px] font-bold uppercase tracking-[0.11em] text-slate-500 dark:text-slate-300">
-                  {["company", "contact", "opportunity"].includes(field) ? label : (
+                  {["company", "contact"].includes(field) ? label : (
                     <button type="button" onClick={() => onSort(field as QuoteSort["field"])} className="rounded-md focus:outline-none focus:ring-2 focus:ring-hicotech-blue/30">
                       {label}{sort.field === field ? sort.direction === "asc" ? " ↑" : " ↓" : ""}
                     </button>
@@ -233,7 +220,6 @@ function QuotesTable({ companyById, onCreate, onSort, quotes, sort }: { companyB
                   <td className="px-4 py-3 font-bold text-hicotech-navy dark:text-white">{quote.number}</td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{companyById.get(quote.companyId)?.displayName ?? quote.companyName ?? "Non définie"}</td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{quote.contactName ?? "-"}</td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{quote.opportunityId ? opportunityById.get(quote.opportunityId)?.title ?? quote.opportunityName ?? "Opportunité" : quote.opportunityName ?? "-"}</td>
                   <td className="px-4 py-3"><QuoteStatusBadge status={quote.status} /></td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{formatDate(quote.issueDate)}</td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{formatDate(quote.expirationDate)}</td>

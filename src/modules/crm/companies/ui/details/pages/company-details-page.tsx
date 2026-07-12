@@ -1,10 +1,9 @@
 "use client";
 
 import { EntityEmptyState, EntityErrorState, EntityPageLayout } from "@/ui";
-import { Building2, ContactRound, Receipt, TrendingUp, WalletCards } from "lucide-react";
+import { Building2, ContactRound, Receipt, WalletCards } from "lucide-react";
 import { CompanyContactsWorkspace } from "@/modules/crm/contacts";
 import { CrmMeetingsWorkspace, CrmNotesWorkspace, CrmTasksWorkspace } from "@/modules/crm/activities/ui/crm-activity-workspaces";
-import { CompanyOpportunitiesPanel } from "@/modules/crm/opportunities/ui/company-opportunities-panel";
 import { CompanyQuotesPanel } from "@/modules/sales/quotes/ui";
 import { CompanyInvoicesPanel } from "@/modules/sales/invoices/ui";
 import { CompanyPaymentsPanel } from "@/modules/sales/payments/ui";
@@ -31,16 +30,6 @@ export function CompanyDetailsPage({ companyId }: { companyId: string }) {
       priority: 10,
       tone: "primary",
       onSelect: () => state.setActiveTab("contacts"),
-      available: Boolean(state.company)
-    },
-    {
-      id: "company.show-opportunities",
-      entityType: "company",
-      label: "Opportunités",
-      description: "Voir les affaires commerciales liées.",
-      icon: TrendingUp,
-      priority: 20,
-      onSelect: () => state.setActiveTab("opportunities"),
       available: Boolean(state.company)
     },
     {
@@ -118,8 +107,6 @@ export function CompanyDetailsPage({ companyId }: { companyId: string }) {
             <CrmTasksWorkspace companyId={company.id} embedded />
           ) : state.activeTab === "notes" ? (
             <CrmNotesWorkspace companyId={company.id} embedded />
-          ) : state.activeTab === "opportunities" ? (
-            <CompanyOpportunitiesPanel companyId={company.id} />
           ) : state.activeTab === "quotes" ? (
             <CompanyQuotesPanel companyId={company.id} />
           ) : state.activeTab === "invoices" ? (

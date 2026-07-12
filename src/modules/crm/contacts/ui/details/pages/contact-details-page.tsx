@@ -1,10 +1,9 @@
 "use client";
 
 import { EntityEmptyState, EntityErrorState, EntityPageLayout } from "@/ui";
-import { Building2, CalendarClock, FileText, NotebookPen, TrendingUp, UserRound } from "lucide-react";
+import { Building2, CalendarClock, FileText, NotebookPen, UserRound } from "lucide-react";
 import { ContactActivitiesPanel } from "../widgets/contact-activities-panel";
 import { CrmMeetingsWorkspace, CrmNotesWorkspace, CrmTasksWorkspace } from "@/modules/crm/activities/ui/crm-activity-workspaces";
-import { ContactOpportunitiesPanel } from "@/modules/crm/opportunities/ui/contact-opportunities-panel";
 import { ContactQuotesPanel } from "@/modules/sales/quotes/ui";
 import { ContactInvoicesPanel } from "@/modules/sales/invoices/ui";
 import { ContextualActionStrip, useContextualActions } from "@/platform/contextual-actions";
@@ -31,16 +30,6 @@ export function ContactDetailsPage({ contactId }: { contactId: string }) {
       href: state.company ? `/crm/companies/${state.company.id}` : undefined,
       disabled: !state.company,
       disabledReason: "Aucune société liée à ce contact.",
-      available: Boolean(state.contact)
-    },
-    {
-      id: "contact.show-opportunities",
-      entityType: "contact",
-      label: "Opportunités",
-      description: "Voir les affaires liées à ce contact.",
-      icon: TrendingUp,
-      priority: 20,
-      onSelect: () => state.setActiveTab("opportunities"),
       available: Boolean(state.contact)
     },
     {
@@ -108,13 +97,10 @@ export function ContactDetailsPage({ contactId }: { contactId: string }) {
           {state.activeTab === "overview" ? (
             <>
               <ContactOverview company={state.company} contact={contact} />
-              <ContactOpportunitiesPanel contactId={contact.id} />
               <ContactQuotesPanel contactId={contact.id} />
               <ContactInvoicesPanel contactId={contact.id} />
               <ContactActivitiesPanel activities={state.activities} filters={state.activityFilters} onFiltersChange={state.setActivityFilters} />
             </>
-          ) : state.activeTab === "opportunities" ? (
-            <ContactOpportunitiesPanel contactId={contact.id} />
           ) : state.activeTab === "quotes" ? (
             <ContactQuotesPanel contactId={contact.id} />
           ) : state.activeTab === "invoices" ? (
