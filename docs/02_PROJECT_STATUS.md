@@ -7,10 +7,10 @@
 | Product | HicoPilot |
 | Version | v0.9.0-alpha |
 | Current Milestone | Modular Editions Platform |
-| Current Phase | Module Activation Foundation |
-| Current Sprint | SPR-402 — Module Activation Engine |
+| Current Phase | Edition Profiles Foundation |
+| Current Sprint | SPR-403 — Edition Profiles Foundation |
 | Next Sprint | To define |
-| Repository Health | Builds successfully with one known existing image optimization warning; Alpha-visible navigation is restricted to stable Dashboard, CRM, Sales and Settings surfaces through a metadata registry plus activation engine foundation. |
+| Repository Health | Builds successfully with one known existing image optimization warning; Alpha-visible navigation is restricted to stable Dashboard, CRM, Sales and Settings surfaces through a metadata registry, activation engine and current Alpha Edition profile. |
 
 ## Completed Core Engines
 
@@ -50,6 +50,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | Runtime Validation | `scripts/validate-runtime.cjs` | Implemented as lightweight architecture regression validation. |
 | Platform Module Registry | `src/platform/modules/` | Implemented as a client-safe declarative descriptor registry for future Editions and activation work. |
 | Module Activation Engine | `src/platform/modules/` | Implemented as deterministic activation resolver with Alpha profile, dependency resolution and safe selectors. |
+| Edition Profile Registry | `src/platform/editions/` | Implemented as metadata-only Edition profile registry feeding the Module Activation Engine. |
 
 ## Completed Integrations
 
@@ -108,6 +109,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | Runtime validation checks Platform Events, event subscribers, Permission Enforcement, Permission Runtime Integration, Capability Registry, Manifest System, Module Loader, Plugin Runtime, CRM Module Foundation, CRM Customers Foundation, Preferences Runtime, Widget Runtime, Workspace Context and Platform Search separation. | Completed |
 | Platform Module Registry describes Alpha-ready, hidden and planned modules with lifecycle, dependency, navigation, Command Center and dashboard metadata without changing visible product behavior. | Completed |
 | Module Activation Engine resolves active modules from the Alpha profile, auto-enables required dependencies, reports conflicts and filters low-risk Sidebar and Command Center navigation metadata without changing visible behavior. | Completed |
+| Edition Profiles Foundation defines Alpha, Basic, CRM, Sales, Inventory, Purchasing, HR, Enterprise and Custom Edition profiles as metadata and uses the current Alpha Edition as the activation input source without changing visible behavior. | Completed |
 
 ## Known Technical Debt
 
@@ -212,14 +214,15 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - ZF-R7B High Priority Product Cleanup restricts Quick Create to stable dialog-backed actions, cleans Command Center labels/results, standardizes CRM activity save feedback and redirects legacy demo routes away from unfinished screens.
 - SPR-401 Module Registry Foundation adds a platform-owned declarative module descriptor registry for future Editions, module activation, dependency management and dynamic product surfaces. Registration is metadata only and does not activate or expose hidden modules.
 - SPR-402 Module Activation Engine adds the first authoritative active-module resolver, current Alpha activation profile, dependency resolution, route/feature query helpers and low-risk Sidebar/Command Center activation filtering without changing visible product behavior.
+- SPR-403 Edition Profiles Foundation adds a platform-owned Edition profile registry, current Alpha Edition source, future commercial Edition metadata and Edition-to-Activation adapter so one codebase can support future Editions without changing the Alpha UI.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passed during SPR-401. |
-| `npm run build` | Yes | Passed during SPR-401; the known PDF preview image warning remains. |
-| `npm run validate:runtime` | Yes for platform work | Passed during SPR-402 with Module Registry and Module Activation checks. |
+| `npm run typecheck` | Yes | Passed during SPR-403. |
+| `npm run build` | Yes | Passed during SPR-403; the known PDF preview image warning remains. |
+| `npm run validate:runtime` | Yes for platform work | Passed during SPR-403 with Module Registry, Module Activation and Edition Profile checks. |
 | Prisma schema validation | Yes for persistence work | Passed during ZF-R6. |
 | Prisma migration replay | Yes for persistence work | Passed during ZF-R6 on a fresh local replay database. |
 

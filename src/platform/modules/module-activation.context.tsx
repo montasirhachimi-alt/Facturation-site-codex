@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useMemo } from "react";
-import { alphaActivationProfile } from "./module-activation.defaults";
+import { getCurrentEditionActivationRequest } from "../editions/edition.current";
 import { resolveModuleActivation } from "./module-activation.current";
 import type { ModuleActivationRequest, ModuleActivationResult } from "./module-activation.types";
 import type { ModuleId } from "./module.types";
@@ -10,7 +10,7 @@ const ModuleActivationContext = createContext<ModuleActivationResult | null>(nul
 
 export function ModuleActivationProvider({
   children,
-  request = alphaActivationProfile
+  request = getCurrentEditionActivationRequest()
 }: {
   children: React.ReactNode;
   request?: ModuleActivationRequest;
@@ -25,7 +25,7 @@ export function ModuleActivationProvider({
 }
 
 export function useModuleActivation() {
-  return useContext(ModuleActivationContext) ?? resolveModuleActivation(alphaActivationProfile);
+  return useContext(ModuleActivationContext) ?? resolveModuleActivation(getCurrentEditionActivationRequest());
 }
 
 export function useActiveModules() {

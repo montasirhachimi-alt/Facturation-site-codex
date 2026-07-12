@@ -348,7 +348,103 @@ test("Platform Module Activation resolves the current Alpha profile deterministi
   assert(!visibleIds.includes("inventory.stock"), "Hidden inventory module should not become visible.");
   assert(first.activeModuleIds.includes("platform.persistence"), "Required hidden platform dependencies may activate as non-visible foundations.");
   assert(first.automaticallyEnabledModuleIds.includes("platform.persistence"), "Required dependencies should auto-enable deterministically.");
-  assert(getCurrentAlphaActivation().profileKey === "alpha.current", "Current Alpha activation should expose the alpha profile key.");
+  assert(getCurrentAlphaActivation().profileKey === "alpha.crm-sales", "Current Alpha activation should expose the current Edition profile key.");
+});
+
+test("Edition Profiles validate the default Alpha Edition and future metadata", () => {
+  const {
+    bosiacoEditionProfileRegistry,
+    getCurrentEditionActivationResult,
+    getCurrentEditionProfile
+  } = load("src/platform/editions");
+  const validation = bosiacoEditionProfileRegistry.validate();
+  const defaultEdition = bosiacoEditionProfileRegistry.getDefaultEdition();
+  const alphaActivation = getCurrentEditionActivationResult();
+  const commercialEditionIds = bosiacoEditionProfileRegistry.listCommercial().map((profile) => profile.id);
+
+  assert(validation.valid, `Edition profiles should validate: ${validation.issues.map((issue) => issue.message).join("; ")}`);
+  assert(defaultEdition?.id === "alpha.crm-sales", "The current runtime default Edition should be Alpha CRM & Sales.");
+  assert(getCurrentEditionProfile().id === "alpha.crm-sales", "Current Edition helper should return Alpha CRM & Sales.");
+  assert(alphaActivation.errors.length === 0, "Current Edition activation should resolve without errors.");
+  assert(alphaActivation.activeModuleIds.includes("sales.payments"), "Current Edition should activate stable Sales payments.");
+  assert(!alphaActivation.activeModuleIds.includes("inventory.stock"), "Current Edition should not activate planned Inventory.");
+  assert(commercialEditionIds.includes("basic"), "Basic should exist as commercial metadata.");
+  assert(commercialEditionIds.includes("crm"), "CRM should exist as commercial metadata.");
+  assert(commercialEditionIds.includes("sales"), "Sales should exist as commercial metadata.");
+  assert(commercialEditionIds.includes("enterprise"), "Enterprise should exist as commercial metadata.");
+  assert(bosiacoEditionProfileRegistry.listByStatus("planned").some((profile) => profile.id === "inventory"), "Inventory should remain planned metadata.");
+  assert(bosiacoEditionProfileRegistry.listByStatus("planned").some((profile) => profile.id === "purchasing"), "Purchasing should remain planned metadata.");
+  assert(bosiacoEditionProfileRegistry.listByStatus("planned").some((profile) => profile.id === "hr"), "HR should remain planned metadata.");
+});
+
+test("Edition adapter and validation report invalid profile combinations", () => {
+  const {
+    bosiacoEditionModuleRegistry,
+    bosiacoEditionProfiles,
+    createCustomEditionProfile,
+    editionToActivationRequest,
+    validateEditionProfiles
+  } = load("src/platform/editions");
+  const alphaProfile = bosiacoEditionProfiles.find((profile) => profile.id === "alpha.crm-sales");
+  const firstRequest = editionToActivationRequest(alphaProfile);
+  const secondRequest = editionToActivationRequest(alphaProfile);
+  const duplicateValidation = validateEditionProfiles([
+    alphaProfile,
+    { ...alphaProfile }
+  ], bosiacoEditionModuleRegistry);
+  const unknownValidation = validateEditionProfiles([
+    {
+      ...alphaProfile,
+      id: "test.unknown",
+      defaultForEnvironment: false,
+      enabledModuleIds: ["missing.module"]
+    }
+  ], bosiacoEditionModuleRegistry);
+  const conflictValidation = validateEditionProfiles([
+    {
+      ...alphaProfile,
+      id: "test.conflict",
+      defaultForEnvironment: false,
+      enabledModuleIds: ["sales.invoices"],
+      disabledModuleIds: ["sales.invoices"]
+    }
+  ], bosiacoEditionModuleRegistry);
+  const dependencyValidation = validateEditionProfiles([
+    {
+      ...alphaProfile,
+      id: "test.disabled-dependency",
+      defaultForEnvironment: false,
+      enabledModuleIds: ["sales.invoices"],
+      disabledModuleIds: ["sales.quotes"]
+    }
+  ], bosiacoEditionModuleRegistry);
+  const customProfile = createCustomEditionProfile({
+    id: "custom.test",
+    name: "Custom Test",
+    enabledModuleIds: ["core.dashboard", "crm.companies"],
+    allowHiddenModules: true
+  });
+  const customValidation = validateEditionProfiles([customProfile], bosiacoEditionModuleRegistry);
+
+  assert(JSON.stringify(firstRequest) === JSON.stringify(secondRequest), "Edition adapter should produce deterministic activation requests.");
+  assert(firstRequest.profileKey === "alpha.crm-sales", "Edition adapter should use the stable Edition ID as activation profile key.");
+  assert(duplicateValidation.issues.some((issue) => issue.code === "duplicate-edition-id"), "Duplicate Edition IDs should be rejected.");
+  assert(unknownValidation.issues.some((issue) => issue.code === "unknown-module"), "Unknown module IDs should be reported.");
+  assert(conflictValidation.issues.some((issue) => issue.code === "conflicting-module-selection"), "Contradictory module selection should be reported.");
+  assert(dependencyValidation.issues.some((issue) => issue.code === "blocked-required-dependency"), "Disabled required dependencies should be reported through activation validation.");
+  assert(customValidation.valid, `Custom Edition helper should produce valid metadata: ${customValidation.issues.map((issue) => issue.message).join("; ")}`);
+});
+
+test("Current Edition activation remains compatible with SPR-402 Sidebar and Command Center consumers", () => {
+  const { getCurrentEditionActivationResult } = load("src/platform/editions");
+  const { getCurrentAlphaActivation } = load("src/platform/modules");
+  const editionActivation = getCurrentEditionActivationResult();
+  const currentActivation = getCurrentAlphaActivation();
+
+  assert(JSON.stringify(editionActivation.activeModuleIds) === JSON.stringify(currentActivation.activeModuleIds), "Current module activation should be driven by the current Edition profile.");
+  assert(editionActivation.activeModuleIds.includes("platform.persistence"), "Edition-driven activation should preserve auto-enabled platform persistence.");
+  assert(!editionActivation.activeModuleIds.includes("crm.opportunities"), "Edition-driven activation should keep hidden opportunities inactive.");
+  assert(!editionActivation.activeModuleIds.includes("ai.assistant"), "Edition-driven activation should keep AI inactive.");
 });
 
 test("Platform Module Activation reports unknown, hidden and disabled dependency conflicts", () => {

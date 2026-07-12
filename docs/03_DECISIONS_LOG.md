@@ -1,5 +1,43 @@
 # HicoPilot Architecture Decision Records
 
+## ADR-022 — Edition Profiles Foundation
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-07-12 |
+
+### Decision
+
+SPR-403 introduces a metadata-only Edition Profile Registry under `src/platform/editions/`.
+
+Edition profiles describe commercial product configurations such as Alpha CRM & Sales, Basic, CRM, Sales, Inventory, Purchasing, HR, Enterprise and Custom.
+
+Edition profiles do not activate modules directly. They are converted into `ModuleActivationRequest` objects and resolved through the Module Activation Engine.
+
+### Motivation
+
+BOSIACO needs one codebase that can support multiple future commercial Editions without duplicating applications, branches, sidebar logic or Command Center logic.
+
+The platform already knows what modules exist through SPR-401 and which modules are active through SPR-402. It now needs a safe way to describe Edition intent before licensing, tenant assignment or dynamic route gating are added.
+
+### Alternatives
+
+- Hardcode Edition behavior inside Sidebar or Command Center.
+- Add a user-facing Edition selector immediately.
+- Build licensing and billing before Edition metadata is stable.
+- Keep the Alpha activation input as a standalone module list separate from commercial Edition definitions.
+
+### Consequences
+
+The current Alpha product remains unchanged.
+
+The current runtime default is `alpha.crm-sales`, and it drives the existing Module Activation Engine.
+
+Future Editions exist as serializable metadata only. Planned modules such as Inventory, Purchasing, HR and AI remain inactive and hidden.
+
+Consumers must continue to depend on activation state, not Edition IDs.
+
 ## ADR-021 — Module Activation Engine
 
 | Field | Value |

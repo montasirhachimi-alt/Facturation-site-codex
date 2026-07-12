@@ -1,25 +1,7 @@
 import type { ModuleActivationRequest } from "./module-activation.types";
+import { alphaCrmSalesEditionProfile } from "../editions/edition.profiles";
+import { editionToActivationRequest } from "../editions/edition.utils";
 
-export const alphaActivationProfile = Object.freeze({
-  profileKey: "alpha.current",
-  includeDefaults: false,
-  strictDependencies: true,
-  allowHidden: true,
-  allowPreview: false,
-  allowPlanned: false,
-  allowDeprecated: false,
-  enabledModuleIds: Object.freeze([
-    "core.dashboard",
-    "core.settings",
-    "crm.overview",
-    "crm.companies",
-    "crm.contacts",
-    "crm.meetings",
-    "crm.tasks",
-    "crm.notes",
-    "sales.quotes",
-    "sales.invoices",
-    "sales.payments"
-  ]),
-  disabledModuleIds: Object.freeze([])
-} satisfies ModuleActivationRequest);
+export const alphaActivationProfile = Object.freeze(
+  editionToActivationRequest(alphaCrmSalesEditionProfile)
+) satisfies ModuleActivationRequest;
