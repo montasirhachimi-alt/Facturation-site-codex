@@ -316,6 +316,87 @@ test("Platform Module Registry rejects duplicates and circular dependencies", ()
   assert(hiddenDefaultValidation.issues.some((issue) => issue.code === "hidden-default-enabled"), "Hidden modules should not be enabled by default.");
 });
 
+test("Platform Module Activation resolves the current Alpha profile deterministically", () => {
+  const {
+    alphaActivationProfile,
+    bosiacoModuleRegistry,
+    getCurrentAlphaActivation,
+    ModuleActivationEngine
+  } = load("src/platform/modules");
+  const engine = new ModuleActivationEngine(bosiacoModuleRegistry);
+  const first = engine.resolve(alphaActivationProfile);
+  const second = engine.resolve(alphaActivationProfile);
+  const visibleIds = first.activeModules.filter((descriptor) => !descriptor.hidden).map((descriptor) => descriptor.id);
+  const expectedVisibleIds = [
+    "core.dashboard",
+    "core.settings",
+    "crm.overview",
+    "crm.companies",
+    "crm.contacts",
+    "crm.meetings",
+    "crm.tasks",
+    "crm.notes",
+    "sales.quotes",
+    "sales.invoices",
+    "sales.payments"
+  ];
+
+  assert(first.errors.length === 0, `Alpha activation should resolve without errors: ${first.errors.map((issue) => issue.message).join("; ")}`);
+  assert(JSON.stringify(first.activationOrder) === JSON.stringify(second.activationOrder), "Activation order should be deterministic.");
+  assert(expectedVisibleIds.every((id) => visibleIds.includes(id)), "Alpha activation should include every visible Alpha module.");
+  assert(!visibleIds.includes("crm.opportunities"), "Hidden opportunities module should not become visible.");
+  assert(!visibleIds.includes("inventory.stock"), "Hidden inventory module should not become visible.");
+  assert(first.activeModuleIds.includes("platform.persistence"), "Required hidden platform dependencies may activate as non-visible foundations.");
+  assert(first.automaticallyEnabledModuleIds.includes("platform.persistence"), "Required dependencies should auto-enable deterministically.");
+  assert(getCurrentAlphaActivation().profileKey === "alpha.current", "Current Alpha activation should expose the alpha profile key.");
+});
+
+test("Platform Module Activation reports unknown, hidden and disabled dependency conflicts", () => {
+  const {
+    ModuleActivationEngine,
+    bosiacoModuleRegistry,
+    alphaActivationProfile
+  } = load("src/platform/modules");
+  const engine = new ModuleActivationEngine(bosiacoModuleRegistry);
+
+  const unknown = engine.resolve({
+    includeDefaults: false,
+    enabledModuleIds: ["missing.module"]
+  });
+  const planned = engine.resolve({
+    includeDefaults: false,
+    enabledModuleIds: ["inventory.stock"]
+  });
+  const disabledDependency = engine.resolve({
+    ...alphaActivationProfile,
+    enabledModuleIds: ["sales.invoices"],
+    disabledModuleIds: ["sales.quotes"]
+  });
+
+  assert(unknown.errors.some((issue) => issue.code === "unknown-module"), "Unknown module ids should be reported.");
+  assert(planned.errors.some((issue) => issue.code === "planned-module-requested"), "Planned modules should not activate in the normal profile.");
+  assert(disabledDependency.errors.some((issue) => issue.code === "disabled-dependency"), "Explicitly disabled required dependencies should block dependents.");
+  assert(!disabledDependency.activeModuleIds.includes("sales.invoices"), "Dependent module should not activate when a required dependency is disabled.");
+});
+
+test("Sidebar and Command Center consume activation without exposing hidden modules", () => {
+  const { getSidebarGroups } = load("src/services/navigation/sidebar-adapter.ts");
+  const { createNavigationCommandRegistry } = load("src/platform/search/command-registry.ts");
+  const sidebarHrefs = getSidebarGroups().flatMap((group) => group.items.map((item) => item.href));
+  const commandHrefs = createNavigationCommandRegistry().getAll().map((command) => command.href);
+
+  assert(sidebarHrefs.includes("/dashboard"), "Sidebar should keep Dashboard visible.");
+  assert(sidebarHrefs.includes("/crm/companies"), "Sidebar should keep Companies visible.");
+  assert(sidebarHrefs.includes("/sales/quotes"), "Sidebar should keep Quotes visible.");
+  assert(sidebarHrefs.includes("/parametres"), "Sidebar should keep Settings visible.");
+  assert(!sidebarHrefs.includes("/crm/opportunities"), "Sidebar should not expose hidden Opportunities.");
+  assert(!sidebarHrefs.includes("/stock"), "Sidebar should not expose hidden Inventory.");
+  assert(commandHrefs.includes("/crm/contacts"), "Command Center should keep active CRM navigation.");
+  assert(commandHrefs.includes("/sales/invoices"), "Command Center should keep active Sales navigation.");
+  assert(!commandHrefs.includes("/crm/opportunities"), "Command Center should not expose hidden Opportunities.");
+  assert(!commandHrefs.includes("/stock"), "Command Center should not expose hidden Inventory.");
+});
+
 test("Notification Event Subscriber registers once and creates notifications from supported events", () => {
   const { PlatformEventRuntime } = load("src/runtime/platform-events");
   const { NotificationEventSubscriber } = load("src/runtime/notifications");

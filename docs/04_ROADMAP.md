@@ -74,6 +74,8 @@ Foundation completed:
 
 - SPR-401 adds a platform-owned Module Registry describing Alpha-ready, hidden and planned modules through declarative metadata.
 - Registration is metadata only and does not activate hidden modules.
+- SPR-402 adds the Module Activation Engine, current Alpha activation profile and low-risk Sidebar/Command Center activation filtering.
+- Activation determines availability and prepares Edition profiles, route gating, feature flags and licensing-aware module access.
 
 ## Milestone 7 — Cloud Platform
 

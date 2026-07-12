@@ -15,6 +15,8 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { coreModuleDefinitions } from "@/core/config/modules";
 import { getBusinessModules } from "@/modules/business-modules";
+import { getCurrentAlphaActivation } from "@/platform/modules/module-activation.current";
+import type { ModuleId } from "@/platform/modules/module.types";
 import type { UniversalSearchItem, UniversalSearchSection } from "./universal-search.types";
 
 export type CommandCenterCommand = Readonly<{
@@ -71,6 +73,21 @@ const seedCommands: readonly CommandCenterCommand[] = [
     keywords: ["ventes", "commercial", "revenue", "devis", "factures", "paiements"]
   }
 ];
+
+const commandActivationIds: Record<string, ModuleId> = {
+  "command.dashboard": "core.dashboard",
+  "command.sales": "sales.quotes",
+  "core.settings": "core.settings",
+  "business.crm": "crm.overview",
+  "business.crm.companies": "crm.companies",
+  "business.crm.contacts": "crm.contacts",
+  "business.crm.meetings": "crm.meetings",
+  "business.crm.tasks": "crm.tasks",
+  "business.crm.notes": "crm.notes",
+  "business.sales.quotes": "sales.quotes",
+  "business.sales.invoices": "sales.invoices",
+  "business.sales.payments": "sales.payments"
+};
 
 const coreCommandIds = new Set(["settings"]);
 
@@ -136,10 +153,13 @@ export class CommandCenterRegistry {
 }
 
 export function createNavigationCommandRegistry() {
-  const registry = new CommandCenterRegistry().registerMany(seedCommands);
+  const activation = getCurrentAlphaActivation();
+  const registry = new CommandCenterRegistry().registerMany(
+    seedCommands.filter((command) => isNavigationCommandActive(command.id, activation.activeModuleIdSet))
+  );
 
   getBusinessModules().forEach((moduleDefinition) => {
-    registerBusinessNavigation(registry, moduleDefinition.navigation, moduleDefinition.navigation.label);
+    registerBusinessNavigation(registry, moduleDefinition.navigation, moduleDefinition.navigation.label, activation.activeModuleIdSet);
   });
 
   coreModuleDefinitions
@@ -147,8 +167,11 @@ export function createNavigationCommandRegistry() {
     .forEach((moduleDefinition) => {
       const overrides = coreCommandOverrides[moduleDefinition.id] ?? {};
 
+      const commandId = `core.${moduleDefinition.id}`;
+      if (!isNavigationCommandActive(commandId, activation.activeModuleIdSet)) return;
+
       registry.register({
-        id: `core.${moduleDefinition.id}`,
+        id: commandId,
         title: overrides.title ?? moduleDefinition.name,
         description: overrides.description ?? `Ouvrir ${moduleDefinition.name}.`,
         href: overrides.href ?? moduleDefinition.route,
@@ -180,15 +203,18 @@ export function getCommandCenterSections(query: string): readonly UniversalSearc
 function registerBusinessNavigation(
   registry: CommandCenterRegistry,
   item: CommandNavigationItem,
-  group: string
+  group: string,
+  activeModuleIdSet: ReadonlySet<ModuleId>
 ) {
   const iconName = typeof item.metadata?.icon === "string" ? item.metadata.icon : item.id === "sales" ? "WalletCards" : "FileText";
   const href = item.id === "sales" ? "/sales/quotes" : item.route;
   const hiddenRoutes = new Set(["/crm/activities", "/crm/opportunities", "/sales"]);
 
-  if (item.id !== "sales" && !hiddenRoutes.has(href)) {
+  const commandId = `business.${item.id}`;
+
+  if (item.id !== "sales" && !hiddenRoutes.has(href) && isNavigationCommandActive(commandId, activeModuleIdSet)) {
     registry.register({
-      id: `business.${item.id}`,
+      id: commandId,
       title: item.label,
       description: `Ouvrir ${item.label}.`,
       href,
@@ -198,7 +224,12 @@ function registerBusinessNavigation(
     });
   }
 
-  item.children?.forEach((child) => registerBusinessNavigation(registry, child, group));
+  item.children?.forEach((child) => registerBusinessNavigation(registry, child, group, activeModuleIdSet));
+}
+
+function isNavigationCommandActive(commandId: string, activeModuleIdSet: ReadonlySet<ModuleId>) {
+  const moduleId = commandActivationIds[commandId];
+  return Boolean(moduleId && activeModuleIdSet.has(moduleId));
 }
 
 function commandToSearchItem(command: CommandCenterCommand): UniversalSearchItem {

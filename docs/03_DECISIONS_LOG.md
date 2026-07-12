@@ -1,5 +1,39 @@
 # HicoPilot Architecture Decision Records
 
+## ADR-021 — Module Activation Engine
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-07-12 |
+
+### Decision
+
+SPR-402 introduces a deterministic Module Activation Engine under `src/platform/modules/`.
+
+The engine resolves active modules from declarative activation input, required dependencies, explicit disables, hidden/planned lifecycle rules and the current Alpha profile.
+
+Registration describes existence. Activation determines availability.
+
+### Motivation
+
+SPR-401 made module metadata explicit, but BOSIACO still needed one authoritative answer for which modules are available in a given profile. This is required before Edition profiles, licensing, dynamic navigation, route gating or tenant module configuration can be implemented safely.
+
+### Alternatives
+
+- Keep hardcoded active module arrays in Sidebar, Command Center and Dashboard.
+- Treat all registered modules as active.
+- Implement licensing and Edition profiles immediately.
+- Persist activation state before the activation rules are stable.
+
+### Consequences
+
+The current visible Alpha product remains unchanged.
+
+Sidebar and Command Center navigation now consume activation metadata in low-risk filtering paths. Hidden and planned modules remain inactive and absent.
+
+The engine prepares future route gating, feature queries and Edition profiles without touching Prisma, authentication, permissions, persistence or business workflows.
+
 ## ADR-020 — Platform Module Registry Foundation
 
 | Field | Value |

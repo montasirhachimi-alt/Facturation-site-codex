@@ -1,6 +1,8 @@
 import type { CoreModuleCategory } from "@/core/constants";
 import type { CoreModuleId } from "@/core/registry";
 import { getBusinessModules } from "@/modules/business-modules";
+import { getCurrentAlphaActivation } from "@/platform/modules/module-activation.current";
+import type { ModuleId } from "@/platform/modules/module.types";
 import { NavigationService } from "./NavigationService";
 
 type SidebarCategory = CoreModuleCategory | "stock";
@@ -69,6 +71,28 @@ const legacySidebarLabels: Partial<Record<CoreModuleId, string>> = {
   settings: "Paramètres"
 };
 
+const coreModuleActivationIds: Partial<Record<CoreModuleId, ModuleId>> = {
+  dashboard: "core.dashboard",
+  settings: "core.settings"
+};
+
+const businessNavigationActivationIds: Record<string, ModuleId> = {
+  crm: "crm.overview",
+  "crm.companies": "crm.companies",
+  "crm.contacts": "crm.contacts",
+  "crm.meetings": "crm.meetings",
+  "crm.tasks": "crm.tasks",
+  "crm.notes": "crm.notes",
+  "sales.quotes": "sales.quotes",
+  "sales.invoices": "sales.invoices",
+  "sales.payments": "sales.payments"
+};
+
+function isActiveModule(moduleId: ModuleId | undefined) {
+  if (!moduleId) return false;
+  return getCurrentAlphaActivation().activeModuleIdSet.has(moduleId);
+}
+
 function getPermissionModule(item: ReturnType<NavigationService["getNavigationItems"]>[number]) {
   return item.permissions.find((permission) => permission.action === "view")?.module ?? item.id;
 }
@@ -121,7 +145,9 @@ function getBusinessModuleItems(moduleNavigation: ModuleNavigationItem) {
   const includeRoot = moduleNavigation.metadata?.sidebarRoot === true;
   const items = includeRoot ? [moduleNavigation, ...(moduleNavigation.children ?? [])] : moduleNavigation.children ?? [];
 
-  return items.map(mapBusinessNavigationItem);
+  return items
+    .filter((item) => isActiveModule(businessNavigationActivationIds[item.id]))
+    .map(mapBusinessNavigationItem);
 }
 
 function getBusinessModuleSidebarGroups(): SidebarNavigationGroup[] {
@@ -142,6 +168,7 @@ export function getSidebarGroups(navigationService = new NavigationService()): S
       const items = legacyGroup.modules
         .map((moduleId) => navigationItems.find((item) => item.id === moduleId))
         .filter((item): item is NonNullable<typeof item> => Boolean(item))
+        .filter((item) => isActiveModule(coreModuleActivationIds[item.id]))
         .map((item) => ({
           id: item.id,
           href: item.route,
