@@ -1,5 +1,6 @@
 import {
   Building2,
+  Boxes,
   CalendarCheck,
   ContactRound,
   FileText,
@@ -30,6 +31,7 @@ export type CommandCenterCommand = Readonly<{
 
 const iconByName: Record<string, LucideIcon> = {
   Building2,
+  Boxes,
   CalendarCheck,
   ContactRound,
   FileText,
@@ -54,6 +56,8 @@ const commandAliases: Record<string, readonly string[]> = {
   "/sales/quotes": ["quotes", "devis", "quote", "quo", "propositions"],
   "/sales/invoices": ["invoices", "factures", "fact", "billing"],
   "/sales/payments": ["payments", "paiements", "pay", "encaissements"],
+  "/sales/products": ["produits", "catalogue", "sku", "articles"],
+  "/inventory": ["stock", "inventaire", "entrepôts", "entrepots", "mouvements"],
   "/parametres": ["settings", "paramètres", "parametres", "configuration"]
 };
 
@@ -91,8 +95,7 @@ export class CommandCenterRegistry {
   }
 }
 
-export function createNavigationCommandRegistry() {
-  const activation = getCurrentAlphaActivation();
+export function createNavigationCommandRegistry(activation = getCurrentAlphaActivation()) {
   const registry = new CommandCenterRegistry();
   const navigationItems = getActiveModuleNavigationItems(activation).filter((item) =>
     isRouteAvailable(item.href, activation)
@@ -116,8 +119,8 @@ export function createNavigationCommandRegistry() {
   return registry;
 }
 
-export function getCommandCenterSections(query: string): readonly UniversalSearchSection[] {
-  const commands = createNavigationCommandRegistry().search(query);
+export function getCommandCenterSections(query: string, activation = getCurrentAlphaActivation()): readonly UniversalSearchSection[] {
+  const commands = createNavigationCommandRegistry(activation).search(query);
   const items = commands.map(commandToSearchItem);
 
   return [
@@ -166,7 +169,7 @@ function commandToSearchItem(command: CommandCenterCommand): UniversalSearchItem
 function commandIconKey(href: string) {
   if (href.includes("dashboard")) return "dashboard";
   if (href.includes("sales") || href.includes("ventes")) return "sales";
-  if (href.includes("stock")) return "product";
+  if (href.includes("stock") || href.includes("inventory")) return "product";
   if (href.includes("statistiques")) return "analytics";
   if (href.includes("param")) return "settings";
   if (href.includes("crm")) return "company";

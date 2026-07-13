@@ -1,14 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import { BadgePercent, Coins, PackageCheck, Tags } from "lucide-react";
 import { EntityHeader, EntityPageLayout, EntityPagination, EntityStatsCards, InfoCard } from "@/ui";
 import { ProductDialog } from "../dialogs/product-dialog";
+import { ProductImportDialog } from "../dialogs/product-import-dialog";
+import { downloadProductImportTemplate, downloadProductsExport } from "../product-file-io";
 import { useProductsPage } from "../hooks/use-products-page";
 import { ProductsTable } from "../tables/products-table";
 import { ProductsToolbar } from "../toolbar/products-toolbar";
 
 export function ProductsPage() {
   const state = useProductsPage();
+  const [importOpen, setImportOpen] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   return (
     <EntityPageLayout>
@@ -32,7 +37,15 @@ export function ProductsPage() {
         categories={state.categories}
         categoryId={state.categoryId}
         onCreate={state.openCreateDialog}
+        onExportAll={() => void downloadProductsExport(state.baseProducts.filter((product) => product.status !== "archived"), "xlsx", "produits-actifs")}
+        onExportCsv={() => void downloadProductsExport(state.filteredProducts, "csv", "produits-filtres")}
+        onExportFiltered={() => void downloadProductsExport(state.filteredProducts, "xlsx", "produits-filtres")}
+        onExportSelected={() => void downloadProductsExport(state.selectedProducts, "xlsx", "produits-selection")}
+        onImport={() => setImportOpen(true)}
+        onTemplateCsv={() => void downloadProductImportTemplate("csv")}
+        onTemplateXlsx={() => void downloadProductImportTemplate("xlsx")}
         query={state.query}
+        selectedCount={state.selectedIds.length}
         setCategoryId={(value) => {
           state.setCategoryId(value);
           state.resetPage();
@@ -52,6 +65,12 @@ export function ProductsPage() {
         status={state.status}
         unit={state.unit}
       />
+
+      {notice && (
+        <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200">
+          {notice}
+        </p>
+      )}
 
       <ProductsTable
         products={state.paginatedProducts.items}
@@ -84,6 +103,17 @@ export function ProductsPage() {
         onClose={state.closeDialog}
         onSubmit={state.saveProduct}
         open={state.dialogOpen}
+      />
+
+      <ProductImportDialog
+        categories={state.categories}
+        existingProducts={state.baseProducts}
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={(message) => {
+          setNotice(message);
+          setImportOpen(false);
+        }}
       />
     </EntityPageLayout>
   );

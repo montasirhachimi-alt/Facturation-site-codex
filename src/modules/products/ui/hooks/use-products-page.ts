@@ -214,6 +214,7 @@ export function useProductsPage() {
 
   return {
     archiveProduct,
+    baseProducts,
     categories,
     categoryId,
     closeDialog,
@@ -232,6 +233,7 @@ export function useProductsPage() {
     restoreProduct,
     saveProduct,
     selectedIds,
+    selectedProducts: baseProducts.filter((product) => selectedIds.includes(product.id)),
     setCategoryId,
     setForm,
     setPage,

@@ -811,3 +811,57 @@ Manual review showed that Meetings, Tasks, Notes and Timeline looked like functi
 ### Consequences
 
 `CrmMeeting`, `CrmTask` and `CrmNote` are tenant-scoped Prisma models. Their UI workspaces reuse module-owned local services hydrated by persistence. Timeline is not exposed in navigation, and `/crm/activities` redirects to Companies for route compatibility.
+
+## ADR-023 — Inventory Workspace Activation Boundary
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+
+### Decision
+
+The Inventory workspace is implemented as an activable business workspace over the Inventory posting engine, but it remains inactive in the current `alpha.crm-sales` runtime.
+
+### Motivation
+
+SPR-407 created the durable inventory domain but no user-facing stock workspace. SPR-408 needs a real operational surface for balances, warehouses and manual stock movements while preserving the Alpha rule that planned modules must not appear as production-ready product surfaces.
+
+### Consequences
+
+`inventory.stock` owns `/inventory` and exposes navigation/Command Center metadata for controlled activation profiles. Current Alpha route availability redirects `/inventory` to the safe fallback. The workspace uses Product Catalog records and the Inventory posting engine, never direct balance mutation. Dashboard Inventory contributions are registered as prepared metadata but not visible by default.
+
+## ADR-024 — Product Catalog Import Boundary
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+
+### Decision
+
+Product Catalog import/export is limited to canonical Product fields and must not import Inventory balances, Warehouses or Stock movements.
+
+### Motivation
+
+Businesses need Excel/CSV onboarding for Products before Inventory adoption, but mixing product master data with stock quantities would bypass the Inventory posting engine and create unaudited balances.
+
+### Consequences
+
+Templates, imports and exports include Product master data only. Confirmed imports are revalidated server-side and applied through the Product Catalog persistence boundary. Stock quantities must enter the system later through Inventory posting workflows.
+
+## ADR-025 — Shared Import / Export Platform
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+
+### Decision
+
+BOSIACO import/export mechanics are platform-owned under `src/platform/import-export/`. Business modules provide `ImporterDefinition` and `ExporterDefinition` metadata plus module-specific parsing, validation, identity resolution and persistence callbacks.
+
+### Motivation
+
+SPR-408B made Product Catalog import/export production-ready, but future modules need the same capabilities without duplicating CSV/XLSX parsing, column mapping, preview statistics, duplicate policies, template generation or error reports.
+
+### Consequences
+
+Product Catalog becomes the first consumer of the shared framework while preserving its visible behavior. Future modules must reuse the platform helpers and keep business rules inside their own module boundaries. The platform must remain entity-agnostic and must not import Product, CRM, Inventory, Purchasing, Prisma repositories or UI workflows directly.

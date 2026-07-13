@@ -40,6 +40,7 @@ export type InventoryBalance = Readonly<{
   quantityOnHand: number;
   quantityReserved: number;
   quantityAvailable: number;
+  reorderPoint: number;
   lastMovementDate?: string;
   createdAt: string;
   updatedAt: string;
@@ -68,6 +69,16 @@ export type CreateWarehouseInput = Readonly<{
   code: string;
   name: string;
   description?: string;
+  isDefault?: boolean;
+}>;
+
+export type UpdateWarehouseInput = Readonly<{
+  companyId: InventoryCompanyId;
+  warehouseId: InventoryWarehouseId;
+  code?: string;
+  name?: string;
+  description?: string;
+  active?: boolean;
   isDefault?: boolean;
 }>;
 

@@ -612,6 +612,7 @@ model InventoryBalance {
   quantityOnHand    Decimal            @default(0)
   quantityReserved  Decimal            @default(0)
   quantityAvailable Decimal            @default(0)
+  reorderPoint      Decimal            @default(0)
   lastMovementDate  DateTime?
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt

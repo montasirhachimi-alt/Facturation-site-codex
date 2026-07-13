@@ -51,10 +51,14 @@ Focus:
 Foundation in progress:
 
 - SPR-406 creates the canonical Product Catalog foundation over one Product model, one Product service and one Product repository.
-- Product remains planned/hidden in Alpha until a later activation sprint.
+- Product remains planned/inactive in Alpha until a later activation sprint.
+- SPR-408B adds Product Catalog XLSX/CSV template download, import preview/validation, duplicate policies and exports for all active, filtered or selected Products.
+- SPR-408C extracts Product import/export mechanics into a shared Import/Export Framework so future modules can reuse definitions, mapping, preview, templates, CSV/XLSX helpers, duplicate policies and error reports.
 - SPR-407 creates the Inventory Domain Foundation with warehouses, balances, stock movements, reservations and transaction-safe posting.
-- Inventory remains planned/hidden in Alpha until a later UI and activation sprint.
-- Inventory UI, Purchasing, variants, warehouse management screens and stock movement screens remain future work.
+- Inventory remains planned/inactive in Alpha until a later runtime activation sprint.
+- SPR-408 creates a controlled Inventory workspace for balances, warehouses, movement history and manual receipt/issue/transfer/adjustment posting.
+- Inventory remains inactive in the current Alpha runtime; `/inventory` is available only through an activation result that includes `inventory.stock`.
+- Purchasing, variants, barcode scanning, reservation workflow UI, valuation, sales allocation and stock movement cancellation remain future work.
 
 ## Milestone 5 — Enterprise AI
 

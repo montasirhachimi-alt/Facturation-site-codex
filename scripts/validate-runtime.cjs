@@ -345,7 +345,7 @@ test("Platform Module Activation resolves the current Alpha profile deterministi
   assert(JSON.stringify(first.activationOrder) === JSON.stringify(second.activationOrder), "Activation order should be deterministic.");
   assert(expectedVisibleIds.every((id) => visibleIds.includes(id)), "Alpha activation should include every visible Alpha module.");
   assert(!visibleIds.includes("crm.opportunities"), "Hidden opportunities module should not become visible.");
-  assert(!visibleIds.includes("inventory.stock"), "Hidden inventory module should not become visible.");
+  assert(!visibleIds.includes("inventory.stock"), "Planned inventory module should not become visible in Alpha.");
   assert(first.activeModuleIds.includes("platform.persistence"), "Required hidden platform dependencies may activate as non-visible foundations.");
   assert(first.automaticallyEnabledModuleIds.includes("platform.persistence"), "Required dependencies should auto-enable deterministically.");
   assert(getCurrentAlphaActivation().profileKey === "alpha.crm-sales", "Current Alpha activation should expose the current Edition profile key.");
@@ -486,11 +486,11 @@ test("Sidebar and Command Center consume activation without exposing hidden modu
   assert(sidebarHrefs.includes("/sales/quotes"), "Sidebar should keep Quotes visible.");
   assert(sidebarHrefs.includes("/parametres"), "Sidebar should keep Settings visible.");
   assert(!sidebarHrefs.includes("/crm/opportunities"), "Sidebar should not expose hidden Opportunities.");
-  assert(!sidebarHrefs.includes("/stock"), "Sidebar should not expose hidden Inventory.");
+  assert(!sidebarHrefs.includes("/inventory"), "Sidebar should not expose inactive Inventory.");
   assert(commandHrefs.includes("/crm/contacts"), "Command Center should keep active CRM navigation.");
   assert(commandHrefs.includes("/sales/invoices"), "Command Center should keep active Sales navigation.");
   assert(!commandHrefs.includes("/crm/opportunities"), "Command Center should not expose hidden Opportunities.");
-  assert(!commandHrefs.includes("/stock"), "Command Center should not expose hidden Inventory.");
+  assert(!commandHrefs.includes("/inventory"), "Command Center should not expose inactive Inventory.");
 });
 
 test("Dynamic Navigation preserves exact current Alpha Sidebar parity", () => {
@@ -538,6 +538,26 @@ test("Dynamic Navigation supports Basic and Sales-style activation without chang
   assert(salesHrefs.includes("/sales/payments"), "Sales-style navigation should include Payments.");
 });
 
+test("Inventory Edition metadata activates Stock navigation only in controlled profile", () => {
+  const { ModuleActivationEngine, bosiacoModuleRegistry } = load("src/platform/modules");
+  const { inventoryEditionProfile, editionToActivationRequest } = load("src/platform/editions");
+  const { getActiveModuleNavigationItems } = load("src/platform/modules/module-navigation.ts");
+  const { isRouteAvailable } = load("src/platform/modules/module-route-availability.ts");
+  const { createNavigationCommandRegistry } = load("src/platform/search/command-registry.ts");
+  const engine = new ModuleActivationEngine(bosiacoModuleRegistry);
+  const activation = engine.resolve(editionToActivationRequest(inventoryEditionProfile));
+  const hrefs = getActiveModuleNavigationItems(activation).map((item) => item.href);
+  const commandHrefs = createNavigationCommandRegistry(activation).getAll().map((command) => command.href);
+
+  assert(activation.errors.length === 0, `Inventory profile should resolve cleanly: ${activation.errors.map((issue) => issue.message).join("; ")}`);
+  assert(activation.activeModuleIdSet.has("sales.products"), "Inventory profile should activate the Product Catalog dependency.");
+  assert(activation.activeModuleIdSet.has("inventory.stock"), "Inventory profile should activate the Stock module.");
+  assert(hrefs.includes("/sales/products"), "Inventory profile should expose Products navigation.");
+  assert(hrefs.includes("/inventory"), "Inventory profile should expose Stock navigation.");
+  assert(isRouteAvailable("/inventory", activation), "Inventory route should be available under the Inventory profile.");
+  assert(commandHrefs.includes("/inventory"), "Command Center should expose Stock only under the Inventory profile.");
+});
+
 test("Route availability handles matching, fallback and legacy compatibility redirects", () => {
   const {
     getFallbackRouteForUnavailableModule,
@@ -553,10 +573,11 @@ test("Route availability handles matching, fallback and legacy compatibility red
   assert(normalizeRoutePath("/sales/quotes?status=open#top") === "/sales/quotes", "Route normalization should remove query strings and hashes.");
   assert(getRouteOwner("/sales/quotes/quote-demo")?.moduleId === "sales.quotes", "Most specific route ownership should match nested quote details.");
   assert(isRouteAvailable("/sales/quotes"), "Active route should be available.");
-  assert(!isRouteAvailable("/inventory/stock") || getRouteAvailabilityDecision("/stock").redirectTo === "/dashboard", "Inactive module routes should not render unavailable workspaces.");
+  assert(!isRouteAvailable("/inventory"), "Inventory route should be unavailable in Alpha.");
   assert(getRouteAvailabilityDecision("/devis").redirectTo === "/sales/quotes", "Legacy Devis route should redirect to active Quotes.");
   assert(getRouteAvailabilityDecision("/clients").redirectTo === "/crm/companies", "Legacy Clients route should redirect to active Companies.");
-  assert(getRouteAvailabilityDecision("/stock").redirectTo === "/dashboard", "Inactive Stock route should redirect to fallback.");
+  assert(getRouteAvailabilityDecision("/stock").redirectTo === "/dashboard", "Legacy inactive Stock route should redirect to fallback.");
+  assert(getRouteAvailabilityDecision("/inventory").redirectTo === "/dashboard", "Inactive Inventory route should redirect to fallback.");
   assert(getFallbackRouteForUnavailableModule() === "/dashboard", "Fallback route should prefer Dashboard when active.");
 });
 
@@ -2838,8 +2859,170 @@ test("Product Catalog Foundation remains registered but inactive in the current 
 
   assert(descriptor, "Product module descriptor should exist.");
   assert(descriptor.status === "planned", "Product module should remain planned until a later activation sprint.");
-  assert(descriptor.hidden === true, "Product module should remain hidden from Alpha navigation.");
+  assert(descriptor.hidden === false, "Product module may expose navigation metadata for controlled profiles.");
   assert(!activation.activeModuleIdSet.has("sales.products"), "Product module should not be active in the current Alpha profile.");
+});
+
+test("Shared Import Export Platform maps, previews, validates and exports generic records", () => {
+  const {
+    buildExportRows,
+    buildImportErrorReportRows,
+    buildImportPreview,
+    createCsvContent,
+    createDefaultImportMapping,
+    createImportIssue,
+    parseCsvContent
+  } = load("src/platform/import-export");
+  const columns = [
+    { field: "code", label: "Code", aliases: ["code", "référence"], required: true },
+    { field: "name", label: "Nom", aliases: ["name", "nom"], required: true }
+  ];
+  const existing = [{ id: "existing-1", code: "A-001", name: "Existing" }];
+  const definition = {
+    identifier: "runtime.import",
+    entityLabel: "Ligne",
+    supportedFormats: ["xlsx", "csv"],
+    columns,
+    duplicatePolicySupport: ["stop", "ignore", "update"],
+    identityField: "code",
+    maxRows: 10,
+    maxFileSize: 1024,
+    sampleRow: { Code: "A-002", Nom: "Nouveau" },
+    parseRow: (row, mapping) => ({
+      code: String(row[mapping.code] ?? "").trim().toUpperCase(),
+      name: String(row[mapping.name] ?? "").trim()
+    }),
+    validateRow: (values, rowNumber) => {
+      const issues = [];
+      if (!values.code) issues.push(createImportIssue(rowNumber, "code", "", "Code obligatoire."));
+      if (!values.name) issues.push(createImportIssue(rowNumber, "name", "", "Nom obligatoire."));
+      return issues;
+    },
+    resolveExisting: (values) => existing.find((record) => record.code === values.code),
+    getExistingId: (record) => record.id,
+    duplicateChecks: [{
+      field: "code",
+      getValue: (values) => values.code,
+      withinFileMessage: (firstRowNumber) => `Code déjà présent à la ligne ${firstRowNumber}.`,
+      suggestion: "Conservez une seule ligne par code."
+    }]
+  };
+  const mapping = createDefaultImportMapping(columns, ["Référence", "Nom"]);
+  const createPreview = buildImportPreview(definition, [{ Référence: "A-002", Nom: "Nouveau" }], mapping, {}, "stop");
+  const updatePreview = buildImportPreview(definition, [{ Référence: "A-001", Nom: "Mis à jour" }], mapping, {}, "update");
+  const ignorePreview = buildImportPreview(definition, [{ Référence: "A-001", Nom: "Ignoré" }], mapping, {}, "ignore");
+  const invalidPreview = buildImportPreview(definition, [
+    { Référence: "A-003", Nom: "Premier" },
+    { Référence: "A-003", Nom: "Second" }
+  ], mapping, {}, "stop");
+  const exportRows = buildExportRows({
+    identifier: "runtime.export",
+    entityLabel: "Ligne",
+    supportedFormats: ["csv", "xlsx"],
+    filename: () => "runtime.csv",
+    columns: [
+      { field: "code", label: "Code", formatter: (record) => record.code },
+      { field: "name", label: "Nom", formatter: (record) => record.name }
+    ]
+  }, existing);
+  const csv = createCsvContent(exportRows);
+  const parsedCsv = parseCsvContent("Code;Nom\nA-004;\"Nom; composé\"");
+  const errorRows = buildImportErrorReportRows(invalidPreview.issues);
+
+  assert(mapping.code === "Référence" && mapping.name === "Nom", "Generic import mapping should match aliases.");
+  assert(createPreview.newRecords === 1 && createPreview.validRows === 1, "Generic import preview should classify new rows.");
+  assert(updatePreview.recordsToUpdate === 1, "Generic import preview should classify update rows.");
+  assert(ignorePreview.ignoredRows === 1, "Generic import preview should classify ignored duplicates.");
+  assert(invalidPreview.invalidRows === 1 && invalidPreview.issues.some((issue) => issue.message.includes("déjà présent")), "Generic import preview should report within-file duplicates.");
+  assert(exportRows[0].Code === "A-001" && csv.startsWith("\uFEFFCode;Nom"), "Generic export should produce French CSV rows.");
+  assert(parsedCsv.rows[0].Nom === "Nom; composé", "Generic CSV parser should support semicolons and quoted values.");
+  assert(errorRows.length === invalidPreview.issues.length && errorRows[0].Erreur, "Generic error report rows should expose issue messages.");
+});
+
+test("Product Catalog Import validates mapping, duplicate policies and export rows", () => {
+  const {
+    PRODUCTS_WORKSPACE_ID,
+    createDefaultProductImportMapping,
+    productToExportRow,
+    validateProductImportRows
+  } = load("src/modules/products");
+  const existingProduct = {
+    id: "prod-existing",
+    workspaceId: PRODUCTS_WORKSPACE_ID,
+    sku: "SKU-001",
+    barcode: "BAR-001",
+    name: "Produit existant",
+    unit: "piece",
+    purchasePrice: 10,
+    sellingPrice: 20,
+    vatRate: 20,
+    currency: "MAD",
+    active: true,
+    status: "active",
+    flags: { trackInventory: false, allowNegativeStock: false, hasVariants: false, serialTracked: false, batchTracked: false },
+    createdAt: "2026-07-13T00:00:00.000Z",
+    updatedAt: "2026-07-13T00:00:00.000Z"
+  };
+  const categories = [{
+    id: "cat-1",
+    workspaceId: PRODUCTS_WORKSPACE_ID,
+    name: "Accessoires",
+    order: 1,
+    active: true,
+    createdAt: "2026-07-13T00:00:00.000Z",
+    updatedAt: "2026-07-13T00:00:00.000Z"
+  }];
+  const headers = ["Référence", "Nom", "Code-barres", "Prix de vente", "TVA", "Unité", "Catégorie"];
+  const mapping = createDefaultProductImportMapping(headers);
+  const validRows = [
+    { Référence: "SKU-002", Nom: "Nouveau produit", "Code-barres": "BAR-002", "Prix de vente": "120,50", TVA: "20", "Unité": "piece", "Catégorie": "Accessoires" }
+  ];
+  const validPreview = validateProductImportRows(validRows, mapping, {
+    existingProducts: [existingProduct],
+    categories,
+    duplicatePolicy: "stop"
+  });
+  const duplicateStopPreview = validateProductImportRows([
+    { Référence: "SKU-001", Nom: "Doublon", "Code-barres": "", "Prix de vente": "120", TVA: "20", "Unité": "piece", "Catégorie": "Accessoires" }
+  ], mapping, {
+    existingProducts: [existingProduct],
+    categories,
+    duplicatePolicy: "stop"
+  });
+  const duplicateIgnorePreview = validateProductImportRows([
+    { Référence: "SKU-001", Nom: "Doublon", "Code-barres": "", "Prix de vente": "120", TVA: "20", "Unité": "piece", "Catégorie": "Accessoires" }
+  ], mapping, {
+    existingProducts: [existingProduct],
+    categories,
+    duplicatePolicy: "ignore"
+  });
+  const duplicateUpdatePreview = validateProductImportRows([
+    { Référence: "SKU-001", Nom: "Produit mis à jour", "Code-barres": "BAR-001", "Prix de vente": "130", TVA: "20", "Unité": "piece", "Catégorie": "Accessoires" }
+  ], mapping, {
+    existingProducts: [existingProduct],
+    categories,
+    duplicatePolicy: "update"
+  });
+  const invalidPreview = validateProductImportRows([
+    { Référence: "SKU-003", Nom: "", "Code-barres": "BAR-001", "Prix de vente": "-1", TVA: "150", "Unité": "palette", "Catégorie": "Accessoires" },
+    { Référence: "SKU-003", Nom: "Deuxième doublon", "Code-barres": "BAR-003", "Prix de vente": "10", TVA: "20", "Unité": "piece", "Catégorie": "Accessoires" }
+  ], mapping, {
+    existingProducts: [existingProduct],
+    categories,
+    duplicatePolicy: "stop"
+  });
+  const exportRow = productToExportRow(existingProduct);
+
+  assert(mapping.sku === "Référence" && mapping.name === "Nom", "Product import should auto-map common French headers.");
+  assert(validPreview.newProducts === 1 && validPreview.invalidRows === 0, "Valid import rows should be classified as new products.");
+  assert(duplicateStopPreview.invalidRows === 1, "Stop-on-duplicate policy should reject an existing SKU.");
+  assert(duplicateIgnorePreview.ignoredRows === 1 && duplicateIgnorePreview.invalidRows === 0, "Ignore duplicate policy should skip existing SKU without error.");
+  assert(duplicateUpdatePreview.productsToUpdate === 1 && duplicateUpdatePreview.invalidRows === 0, "Update-by-SKU policy should classify matching SKU as update.");
+  assert(invalidPreview.issues.some((issue) => issue.column === "unit"), "Invalid unit should be reported.");
+  assert(invalidPreview.issues.some((issue) => issue.column === "vatRate"), "Invalid VAT should be reported.");
+  assert(invalidPreview.issues.some((issue) => issue.column === "barcode"), "Barcode conflict should be reported.");
+  assert(invalidPreview.issues.some((issue) => issue.message.includes("déjà présent")), "Duplicate SKU within file should be reported.");
+  assert(exportRow.SKU === "SKU-001" && exportRow.Nom === "Produit existant", "Product export should use canonical French headers.");
 });
 
 test("Inventory Domain Foundation posts movements and calculates availability", () => {
@@ -2868,7 +3051,9 @@ test("Inventory Domain Foundation posts movements and calculates availability", 
   assert(main.data?.code === "MAIN", "Warehouse code should be normalized.");
   assert(secondary.data, "Second warehouse should be created.");
   assert(!service.createWarehouse({ companyId, code: "main", name: "Duplicate" }).validation.valid, "Duplicate warehouse codes should be rejected.");
-  assert(!service.createWarehouse({ companyId, code: "third", name: "Third", isDefault: true }).validation.valid, "Only one default warehouse should be allowed.");
+  const defaultUpdate = service.updateWarehouse({ companyId, warehouseId: secondaryWarehouseId, isDefault: true });
+  assert(defaultUpdate.data?.isDefault === true, "Warehouse update should support marking a new default.");
+  assert(service.getSnapshot(companyId).warehouses.filter((warehouse) => warehouse.isDefault).length === 1, "Only one default warehouse should remain active after reassignment.");
 
   const receipt = service.postReceipt({ companyId, productId, toWarehouseId: mainWarehouseId, quantity: 10 });
   assert(receipt.data?.status === "POSTED", "Receipt should post.");
@@ -2920,7 +3105,7 @@ test("Inventory Domain Foundation rolls back failed postings and rejects duplica
   assert(service.getAvailability(companyId, productId, warehouseId) === 5, "Failed issue should preserve the previous balance.");
 });
 
-test("Inventory Domain Foundation remains hidden and inactive in Alpha", () => {
+test("Inventory Domain Foundation remains inactive in Alpha", () => {
   const {
     bosiacoModuleRegistry,
     getCurrentAlphaActivation
@@ -2930,7 +3115,7 @@ test("Inventory Domain Foundation remains hidden and inactive in Alpha", () => {
 
   assert(descriptor, "Inventory module descriptor should exist.");
   assert(descriptor.status === "planned", "Inventory module should remain planned.");
-  assert(descriptor.hidden === true, "Inventory module should remain hidden.");
+  assert(descriptor.hidden === false, "Inventory module may expose navigation metadata for controlled profiles.");
   assert(!activation.activeModuleIdSet.has("inventory.stock"), "Inventory module should not be active in Alpha.");
 });
 

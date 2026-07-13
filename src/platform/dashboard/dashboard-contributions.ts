@@ -90,5 +90,50 @@ export const bosiacoDashboardContributions = Object.freeze([
     alphaReady: true,
     renderKey: "dashboard.quick-actions",
     metadata: { section: "quick-actions" }
+  },
+  {
+    id: "inventory.stock.low-stock",
+    moduleId: "inventory.stock",
+    widgetId: "dashboard.inventory.low-stock",
+    title: "Stock faible",
+    priority: 70,
+    order: 70,
+    zone: "secondary",
+    size: "md",
+    status: "planned",
+    defaultVisible: false,
+    alphaReady: false,
+    renderKey: "dashboard.inventory.low-stock",
+    metadata: { section: "inventory-low-stock" }
+  },
+  {
+    id: "inventory.stock.available",
+    moduleId: "inventory.stock",
+    widgetId: "dashboard.inventory.available",
+    title: "Stock disponible",
+    priority: 71,
+    order: 71,
+    zone: "secondary",
+    size: "md",
+    status: "planned",
+    defaultVisible: false,
+    alphaReady: false,
+    renderKey: "dashboard.inventory.available",
+    metadata: { section: "inventory-available" }
+  },
+  {
+    id: "inventory.stock.movements",
+    moduleId: "inventory.stock",
+    widgetId: "dashboard.inventory.movements",
+    title: "Mouvements récents",
+    priority: 72,
+    order: 72,
+    zone: "footer",
+    size: "lg",
+    status: "planned",
+    defaultVisible: false,
+    alphaReady: false,
+    renderKey: "dashboard.inventory.movements",
+    metadata: { section: "inventory-movements" }
   }
 ] satisfies readonly DashboardContribution[]);

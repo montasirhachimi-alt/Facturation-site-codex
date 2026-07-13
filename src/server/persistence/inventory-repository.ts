@@ -70,6 +70,52 @@ export async function archiveInventoryWarehouse(scope: PersistenceTenantScope, w
   return mapDbWarehouse(warehouse);
 }
 
+export async function updateInventoryWarehouse(scope: PersistenceTenantScope, warehouseId: string, input: {
+  code?: string;
+  name?: string;
+  description?: string;
+  active?: boolean;
+  isDefault?: boolean;
+}) {
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.inventoryWarehouse.findUnique({ where: { id: warehouseId } });
+    if (!existing || existing.companyId !== scope.companyId) throw new Error("Entrepôt introuvable pour cette entreprise.");
+
+    const code = input.code === undefined ? existing.code : normalizeWarehouseCode(input.code);
+    if (!code) throw new Error("Le code entrepôt est obligatoire.");
+    if (input.name !== undefined && !input.name.trim()) throw new Error("Le nom entrepôt est obligatoire.");
+
+    if (code !== existing.code) {
+      const duplicate = await tx.inventoryWarehouse.findUnique({
+        where: { companyId_code: { companyId: scope.companyId, code } },
+        select: { id: true }
+      });
+      if (duplicate) throw new Error("Ce code entrepôt existe déjà.");
+    }
+
+    const active = input.active ?? existing.active;
+    const isDefault = active ? input.isDefault ?? existing.isDefault : false;
+    if (isDefault) {
+      await tx.inventoryWarehouse.updateMany({
+        where: { companyId: scope.companyId, id: { not: warehouseId } },
+        data: { isDefault: false }
+      });
+    }
+
+    const warehouse = await tx.inventoryWarehouse.update({
+      where: { id: warehouseId },
+      data: {
+        code,
+        name: input.name?.trim() ?? existing.name,
+        description: input.description === undefined ? existing.description : input.description.trim() || null,
+        active,
+        isDefault
+      }
+    });
+    return mapDbWarehouse(warehouse);
+  });
+}
+
 export async function postInventoryMovement(scope: PersistenceTenantScope, input: PostMovementInput) {
   return prisma.$transaction(async (tx) => {
     await assertProductTenant(scope, input.productId, tx);
@@ -144,7 +190,8 @@ async function getOrCreateBalance(tx: InventoryTx, scope: PersistenceTenantScope
       warehouseId,
       quantityOnHand: 0,
       quantityReserved: 0,
-      quantityAvailable: 0
+      quantityAvailable: 0,
+      reorderPoint: 0
     }
   });
 }
@@ -213,6 +260,7 @@ function mapDbBalance(row: DbBalance): InventoryBalance {
     quantityOnHand: decimalToNumber(row.quantityOnHand),
     quantityReserved: decimalToNumber(row.quantityReserved),
     quantityAvailable: decimalToNumber(row.quantityAvailable),
+    reorderPoint: decimalToNumber(row.reorderPoint),
     lastMovementDate: row.lastMovementDate?.toISOString(),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString()

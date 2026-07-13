@@ -1,10 +1,19 @@
-import type { CreateWarehouseInput, InventoryValidationIssue, InventoryValidationResult, PostMovementInput } from "./inventory.types";
+import type { CreateWarehouseInput, InventoryValidationIssue, InventoryValidationResult, PostMovementInput, UpdateWarehouseInput } from "./inventory.types";
 
 export function validateCreateWarehouseInput(input: CreateWarehouseInput): InventoryValidationResult {
   const issues: InventoryValidationIssue[] = [];
   if (!input.companyId?.trim()) issues.push({ code: "missing_company", field: "companyId", message: "Company scope is required." });
   if (!input.code?.trim()) issues.push({ code: "missing_code", field: "code", message: "Warehouse code is required." });
   if (!input.name?.trim()) issues.push({ code: "missing_name", field: "name", message: "Warehouse name is required." });
+  return validationResult(issues);
+}
+
+export function validateUpdateWarehouseInput(input: UpdateWarehouseInput): InventoryValidationResult {
+  const issues: InventoryValidationIssue[] = [];
+  if (!input.companyId?.trim()) issues.push({ code: "missing_company", field: "companyId", message: "Company scope is required." });
+  if (!input.warehouseId?.trim()) issues.push({ code: "missing_warehouse", field: "warehouseId", message: "Warehouse is required." });
+  if (input.code !== undefined && !input.code.trim()) issues.push({ code: "missing_code", field: "code", message: "Warehouse code is required." });
+  if (input.name !== undefined && !input.name.trim()) issues.push({ code: "missing_name", field: "name", message: "Warehouse name is required." });
   return validationResult(issues);
 }
 

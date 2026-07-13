@@ -36,6 +36,7 @@ export function createEmptyBalance({
     quantityOnHand: 0,
     quantityReserved: 0,
     quantityAvailable: 0,
+    reorderPoint: 0,
     createdAt: now,
     updatedAt: now
   });
@@ -46,7 +47,8 @@ export function freezeBalance(balance: InventoryBalance): InventoryBalance {
     ...balance,
     quantityOnHand: roundQuantity(balance.quantityOnHand),
     quantityReserved: roundQuantity(balance.quantityReserved),
-    quantityAvailable: calculateQuantityAvailable(balance.quantityOnHand, balance.quantityReserved)
+    quantityAvailable: calculateQuantityAvailable(balance.quantityOnHand, balance.quantityReserved),
+    reorderPoint: roundQuantity(balance.reorderPoint)
   });
 }
 

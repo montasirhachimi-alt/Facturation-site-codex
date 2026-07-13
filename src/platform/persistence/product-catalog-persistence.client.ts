@@ -1,6 +1,7 @@
 "use client";
 
 import type { Product, ProductCategory } from "@/modules/products";
+import type { ProductImportRequest, ProductImportResult } from "@/modules/products";
 import { productLocalService, notifyProductStoreUpdated } from "@/modules/products/ui/product-local-store";
 
 export type ProductCatalogSnapshot = Readonly<{
@@ -43,6 +44,25 @@ export function persistProductCatalogRecord(resource: ProductCatalogPersistenceR
       throw new Error(body?.error ?? "La sauvegarde du catalogue a échoué.");
     }
     return response.json();
+  });
+}
+
+export function importProductCatalog(payload: ProductImportRequest) {
+  return fetch("/api/persistence/product-catalog", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ operation: "importProducts", payload })
+  }).then(async (response) => {
+    if (!response.ok) {
+      const body = await response.json().catch(() => undefined) as { error?: string } | undefined;
+      throw new Error(body?.error ?? "L'import produits a échoué.");
+    }
+    const body = await response.json() as { result: ProductImportResult; snapshot?: ProductCatalogSnapshot };
+    if (body.snapshot) applyProductCatalogSnapshot(body.snapshot);
+    return body.result;
   });
 }
 

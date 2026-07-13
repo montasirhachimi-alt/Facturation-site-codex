@@ -12,10 +12,11 @@ import type {
   InventoryWarehouseId,
   PostMovementInput,
   StockMovement,
+  UpdateWarehouseInput,
   Warehouse
 } from "./inventory.types";
 import { balanceKey, calculateQuantityAvailable, createEmptyBalance, freezeBalance, freezeMovement, normalizeWarehouseCode, roundQuantity } from "./inventory.utils";
-import { singleIssue, validateCreateWarehouseInput, validatePostMovementInput, validationResult } from "./inventory.validation";
+import { singleIssue, validateCreateWarehouseInput, validatePostMovementInput, validateUpdateWarehouseInput, validationResult } from "./inventory.validation";
 
 export type InventoryServiceOptions = Readonly<{
   warehouses?: readonly Warehouse[];
@@ -77,10 +78,6 @@ export class InventoryService {
       return { validation: singleIssue({ code: "duplicate_warehouse_code", field: "code", message: "Warehouse code already exists." }) };
     }
 
-    if (input.isDefault && this.hasDefaultWarehouse(input.companyId)) {
-      return { validation: singleIssue({ code: "duplicate_default_warehouse", field: "isDefault", message: "A default warehouse already exists." }) };
-    }
-
     const timestamp = this.now();
     const warehouse = freezeWarehouse({
       id: this.createWarehouseId(),
@@ -93,6 +90,35 @@ export class InventoryService {
       createdAt: timestamp,
       updatedAt: timestamp
     });
+    if (warehouse.isDefault) this.clearDefaultWarehouse(input.companyId);
+    this.warehouses.set(warehouse.id, warehouse);
+    return { data: warehouse, validation: validationResult([]) };
+  }
+
+  updateWarehouse(input: UpdateWarehouseInput): InventoryOperationResult<Warehouse> {
+    const validation = validateUpdateWarehouseInput(input);
+    if (!validation.valid) return { validation };
+
+    const existing = this.warehouses.get(input.warehouseId);
+    if (!existing || existing.companyId !== input.companyId) {
+      return { validation: singleIssue({ code: "missing_warehouse", field: "warehouseId", message: "Warehouse was not found." }) };
+    }
+
+    const code = input.code === undefined ? existing.code : normalizeWarehouseCode(input.code);
+    if (code !== existing.code && this.hasWarehouseCode(input.companyId, code, existing.id)) {
+      return { validation: singleIssue({ code: "duplicate_warehouse_code", field: "code", message: "Warehouse code already exists." }) };
+    }
+
+    const warehouse = freezeWarehouse({
+      ...existing,
+      code,
+      name: input.name === undefined ? existing.name : input.name.trim(),
+      description: input.description === undefined ? existing.description : optionalText(input.description),
+      active: input.active ?? existing.active,
+      isDefault: input.active === false ? false : input.isDefault ?? existing.isDefault,
+      updatedAt: this.now()
+    });
+    if (warehouse.isDefault) this.clearDefaultWarehouse(input.companyId, warehouse.id);
     this.warehouses.set(warehouse.id, warehouse);
     return { data: warehouse, validation: validationResult([]) };
   }
@@ -291,12 +317,19 @@ export class InventoryService {
     this.balances.set(balanceKey(frozen.companyId, frozen.productId, frozen.warehouseId), frozen);
   }
 
-  private hasWarehouseCode(companyId: InventoryCompanyId, code: string) {
-    return [...this.warehouses.values()].some((warehouse) => warehouse.companyId === companyId && warehouse.code === code);
+  private hasWarehouseCode(companyId: InventoryCompanyId, code: string, ignoredId?: InventoryWarehouseId) {
+    return [...this.warehouses.values()].some((warehouse) => warehouse.companyId === companyId && warehouse.code === code && warehouse.id !== ignoredId);
   }
 
   private hasDefaultWarehouse(companyId: InventoryCompanyId) {
     return [...this.warehouses.values()].some((warehouse) => warehouse.companyId === companyId && warehouse.isDefault && warehouse.active);
+  }
+
+  private clearDefaultWarehouse(companyId: InventoryCompanyId, ignoredId?: InventoryWarehouseId) {
+    [...this.warehouses.values()].forEach((warehouse) => {
+      if (warehouse.companyId !== companyId || warehouse.id === ignoredId || !warehouse.isDefault) return;
+      this.warehouses.set(warehouse.id, freezeWarehouse({ ...warehouse, isDefault: false, updatedAt: this.now() }));
+    });
   }
 }
 

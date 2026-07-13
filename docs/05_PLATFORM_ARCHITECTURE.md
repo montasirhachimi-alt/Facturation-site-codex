@@ -317,7 +317,43 @@ Rules:
 
 The Command Center must not check Edition IDs.
 
-## 9. Business Module Contract
+## 9. Import / Export Framework
+
+Import/export is a shared platform capability under `src/platform/import-export/`.
+
+The framework knows only:
+
+- `ImporterDefinition`
+- `ExporterDefinition`
+- column metadata
+- mapping rules
+- validation issues
+- preview statistics
+- duplicate policies
+- template generation
+- CSV/XLSX helpers
+- error report rows
+
+The framework must not know Product, Customer, Warehouse, Supplier, Employee, Accounting or Inventory internals.
+
+Business modules provide:
+
+- module-specific importer definitions
+- module-specific exporter definitions
+- parsing callbacks
+- domain validation callbacks
+- duplicate identity resolution
+- persistence callbacks through module-owned services or repositories
+
+Rules:
+
+- Product Catalog is the first consumer.
+- Future modules must not duplicate CSV/XLSX parsing, template generation, preview counting or error-report creation.
+- The platform must not call Prisma directly.
+- Generic import/export helpers must remain client/server safe and dependency-light.
+- Stock quantities must not be imported through Product master data; Inventory quantities must use Inventory posting workflows.
+
+## 10. Business Module Contract
 
 Every future business module must provide:
 
@@ -339,7 +375,7 @@ Every future business module must provide:
 
 Modules must integrate through the platform contracts rather than patching Sidebar, Dashboard, Command Center or middleware directly.
 
-## 10. Persistence Boundaries
+## 11. Persistence Boundaries
 
 UI must never call Prisma directly.
 
@@ -368,7 +404,7 @@ Persistence requirements:
 
 Generic UI components must not import CRM, Sales or future module persistence internals.
 
-## 11. Client / Server Import Safety
+## 12. Client / Server Import Safety
 
 Prohibited dependency directions:
 
@@ -389,7 +425,7 @@ Required practices:
 - keep server-safe helpers free of browser globals
 - keep client providers free of Prisma/server-only imports
 
-## 12. Module Lifecycle
+## 13. Module Lifecycle
 
 Supported module statuses:
 
@@ -411,7 +447,7 @@ Meaning:
 
 Hidden and planned modules must not appear as working product surfaces.
 
-## 13. New Module Development Checklist
+## 14. New Module Development Checklist
 
 Before building a future module:
 
@@ -436,7 +472,7 @@ Before building a future module:
 19. Test Dashboard contribution filtering.
 20. Document Edition availability.
 
-## 14. Prohibited Patterns
+## 15. Prohibited Patterns
 
 Do not:
 
@@ -455,7 +491,7 @@ Do not:
 - bypass route availability helpers
 - bypass Dashboard contribution registry
 
-## 15. Current Platform Status
+## 16. Current Platform Status
 
 Completed platform foundation sprints:
 
@@ -464,6 +500,7 @@ Completed platform foundation sprints:
 - SPR-403 — Edition Profiles Foundation
 - SPR-404 — Dynamic Navigation & Route Availability
 - SPR-405 — Dynamic Dashboard Contributions
+- SPR-408C — Shared Import / Export Framework
 
 Current known limitations:
 
@@ -475,8 +512,10 @@ Current known limitations:
 - no module admin UI
 - no paid Edition selector
 - no persisted platform activation state
+- no import/export definition registry
+- no generic server-side import executor
 
-## 16. Future Roadmap
+## 17. Future Roadmap
 
 Future work should proceed through the platform contracts.
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Archive, Plus, Search } from "lucide-react";
+import { Archive, Download, FileDown, FileSpreadsheet, Plus, Search, Upload } from "lucide-react";
 import { EntityToolbar, entityInputClassName } from "@/ui";
 import { PRODUCT_UNITS } from "../../product.constants";
 import type { ProductCategory, ProductCategoryId, ProductStatus, ProductUnit } from "../../product.types";
@@ -9,7 +9,15 @@ export function ProductsToolbar({
   categories,
   categoryId,
   onCreate,
+  onExportAll,
+  onExportCsv,
+  onExportFiltered,
+  onExportSelected,
+  onImport,
+  onTemplateCsv,
+  onTemplateXlsx,
   query,
+  selectedCount,
   setCategoryId,
   setQuery,
   setStatus,
@@ -20,7 +28,15 @@ export function ProductsToolbar({
   categories: readonly ProductCategory[];
   categoryId: ProductCategoryId | "all";
   onCreate: () => void;
+  onExportAll: () => void;
+  onExportCsv: () => void;
+  onExportFiltered: () => void;
+  onExportSelected: () => void;
+  onImport: () => void;
+  onTemplateCsv: () => void;
+  onTemplateXlsx: () => void;
   query: string;
+  selectedCount: number;
   setCategoryId: (value: ProductCategoryId | "all") => void;
   setQuery: (value: string) => void;
   setStatus: (value: ProductStatus | "all") => void;
@@ -31,10 +47,37 @@ export function ProductsToolbar({
   return (
     <EntityToolbar
       actions={
-        <button type="button" onClick={onCreate} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-hicotech-blue px-4 py-2 text-sm font-bold text-white shadow-sm shadow-blue-200/60 transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/15">
-          <Plus size={16} />
-          Nouveau produit
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={onTemplateXlsx} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-hicotech-navy transition hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/10 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white">
+            <FileSpreadsheet size={16} />
+            Modèle XLSX
+          </button>
+          <button type="button" onClick={onTemplateCsv} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-hicotech-navy transition hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/10 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white">
+            <FileDown size={16} />
+            Modèle CSV
+          </button>
+          <button type="button" onClick={onImport} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-hicotech-navy transition hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/10 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white">
+            <Upload size={16} />
+            Importer
+          </button>
+          <button type="button" onClick={onExportFiltered} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-hicotech-navy transition hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/10 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white">
+            <Download size={16} />
+            Exporter XLSX
+          </button>
+          <button type="button" onClick={onExportAll} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-hicotech-navy transition hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/10 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white">
+            Tous actifs
+          </button>
+          <button type="button" onClick={onExportCsv} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-hicotech-navy transition hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/10 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white">
+            CSV
+          </button>
+          <button type="button" onClick={onExportSelected} disabled={selectedCount === 0} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-hicotech-navy transition hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/10 disabled:cursor-not-allowed disabled:opacity-50 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white">
+            Sélection ({selectedCount})
+          </button>
+          <button type="button" onClick={onCreate} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-hicotech-blue px-4 py-2 text-sm font-bold text-white shadow-sm shadow-blue-200/60 transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/15">
+            <Plus size={16} />
+            Nouveau produit
+          </button>
+        </div>
       }
     >
       <div className="grid flex-1 gap-2 md:grid-cols-[minmax(220px,1fr)_160px_160px_180px]">

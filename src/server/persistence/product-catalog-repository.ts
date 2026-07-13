@@ -2,7 +2,7 @@ import "server-only";
 
 import type { Prisma } from "@prisma/client";
 import type { Product, ProductCategory, ProductUnit } from "@/modules/products";
-import { PRODUCTS_WORKSPACE_ID } from "@/modules/products";
+import { PRODUCTS_WORKSPACE_ID, validateProductImportRows, type ProductImportRequest, type ProductImportResult, type ProductImportValues } from "@/modules/products";
 import { prisma } from "./prisma";
 import type { PersistenceTenantScope } from "./tenant-scope";
 
@@ -36,6 +36,58 @@ export async function persistProductCatalogRecord(scope: PersistenceTenantScope,
   if (resource === "product") return persistProduct(scope, record as Product);
   if (resource === "category") return persistProductCategory(scope, record as ProductCategory);
   throw new Error("Ressource catalogue inconnue.");
+}
+
+export async function applyProductCatalogImport(scope: PersistenceTenantScope, request: ProductImportRequest): Promise<ProductImportResult> {
+  const snapshot = await loadProductCatalogSnapshot(scope);
+  const preview = validateProductImportRows(request.rows, request.mapping, {
+    existingProducts: snapshot.products,
+    categories: snapshot.categories,
+    duplicatePolicy: request.duplicatePolicy
+  });
+
+  if (preview.invalidRows > 0) {
+    return {
+      importedCount: 0,
+      updatedCount: 0,
+      ignoredCount: preview.ignoredRows,
+      failedCount: preview.invalidRows,
+      preview,
+      products: snapshot.products
+    };
+  }
+
+  const categoryByName = new Map(snapshot.categories.map((category) => [category.name.toLowerCase(), category]));
+  const rowsToCreate = preview.rows.filter((row) => row.action === "create");
+  const rowsToUpdate = preview.rows.filter((row) => row.action === "update" && row.existingProductId);
+
+  await prisma.$transaction(async (tx) => {
+    for (const row of rowsToCreate) {
+      await tx.product.create({
+        data: {
+          companyId: scope.companyId,
+          ...importedProductWriteData(row.values, categoryByName)
+        }
+      });
+    }
+
+    for (const row of rowsToUpdate) {
+      await tx.product.update({
+        where: { id: row.existingProductId! },
+        data: importedProductWriteData(row.values, categoryByName)
+      });
+    }
+  });
+
+  const updatedSnapshot = await loadProductCatalogSnapshot(scope);
+  return {
+    importedCount: rowsToCreate.length,
+    updatedCount: rowsToUpdate.length,
+    ignoredCount: preview.ignoredRows,
+    failedCount: 0,
+    preview,
+    products: updatedSnapshot.products
+  };
 }
 
 async function persistProduct(scope: PersistenceTenantScope, product: Product) {
@@ -114,6 +166,32 @@ function productWriteData(product: Product) {
     batchTracked: product.flags.batchTracked,
     createdAt: parseDate(product.createdAt),
     updatedAt: parseDate(product.updatedAt)
+  };
+}
+
+function importedProductWriteData(values: ProductImportValues, categoryByName: ReadonlyMap<string, ProductCategory>) {
+  const category = values.categoryId ? undefined : values.category ? categoryByName.get(values.category.toLowerCase()) : undefined;
+  const productCategoryId = values.categoryId ?? category?.id ?? null;
+
+  return {
+    productCategoryId,
+    sku: values.sku,
+    barcode: values.barcode ?? null,
+    reference: values.sku,
+    name: values.name,
+    designation: values.name,
+    shortDescription: values.shortDescription ?? null,
+    description: values.description ?? null,
+    brand: values.brand ?? null,
+    unit: values.unit,
+    purchasePrice: values.purchasePrice,
+    sellingPrice: values.sellingPrice,
+    salePrice: values.sellingPrice,
+    vatRate: values.vatRate,
+    currency: values.currency,
+    active: values.active,
+    status: values.active ? "active" : "archived",
+    notes: values.notes ?? null
   };
 }
 

@@ -22,7 +22,13 @@ export function hydrateInventoryPersistence() {
   return hydrationPromise;
 }
 
+export function refreshInventoryPersistence() {
+  hydrationPromise = null;
+  return hydrateInventoryPersistence();
+}
+
 export function persistInventoryOperation(operation: "createWarehouse", payload: { code: string; name: string; description?: string; isDefault?: boolean }): Promise<unknown>;
+export function persistInventoryOperation(operation: "updateWarehouse", payload: { warehouseId: string; code?: string; name?: string; description?: string; active?: boolean; isDefault?: boolean }): Promise<unknown>;
 export function persistInventoryOperation(operation: "archiveWarehouse", payload: { warehouseId: string }): Promise<unknown>;
 export function persistInventoryOperation(operation: "postMovement", payload: PostMovementInput): Promise<unknown>;
 export function persistInventoryOperation(operation: string, payload: unknown) {
@@ -38,6 +44,8 @@ export function persistInventoryOperation(operation: string, payload: unknown) {
       const body = await response.json().catch(() => undefined) as { error?: string } | undefined;
       throw new Error(body?.error ?? "La sauvegarde inventaire a échoué.");
     }
-    return response.json();
+    const body = await response.json() as { snapshot?: InventorySnapshot };
+    if (body.snapshot) applyInventorySnapshot(body.snapshot);
+    return body;
   });
 }

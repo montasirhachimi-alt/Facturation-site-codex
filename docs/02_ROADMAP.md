@@ -15,7 +15,10 @@ Track the planned evolution of HicoPilot from ERP foundation to commercial produ
 - Platform Architecture Constitution: consolidate module, activation, Edition, navigation, route, Command Center, Dashboard and persistence rules before future business modules.
 - Business Platform: begin concrete business-module expansion after the platform foundation.
 - Product Catalog Foundation: establish one canonical Product Catalog before Inventory, Purchasing or advanced Sales integrations.
+- Product Catalog Import/Export: support controlled XLSX/CSV onboarding for Product master data only.
+- Shared Import/Export Framework: extract Product import/export mechanics into a reusable platform capability for future business modules.
 - Inventory Domain Foundation: establish warehouse, balance, movement and availability foundations before visible Inventory workflows.
+- Inventory Workspace: expose the first controlled stock workspace over the posting engine while keeping Inventory inactive in the current Alpha runtime.
 
 ## Milestones
 
@@ -31,6 +34,8 @@ Track the planned evolution of HicoPilot from ERP foundation to commercial produ
 - Keep Dashboard composition dependent on contribution metadata, not direct module knowledge.
 - Use `docs/05_PLATFORM_ARCHITECTURE.md` as the mandatory reference before building new business modules.
 - Keep Product as one canonical business entity; future Inventory, Purchasing, Sales and Reporting modules must consume the Product Catalog instead of defining their own product model.
+- Keep Product import/export restricted to Product master data; stock quantities must go through Inventory posting workflows.
+- Keep import/export engines generic: future modules should provide definitions and callbacks, not duplicate CSV/XLSX, mapping, preview, template or error-report logic.
 - Keep Inventory as a domain foundation first; visible stock workflows must consume the posting engine instead of mutating balances directly.
 
 ## Risks
@@ -42,8 +47,9 @@ Track the planned evolution of HicoPilot from ERP foundation to commercial produ
 - Legacy compatibility redirects must point only to active canonical routes or a safe fallback.
 - Dashboard contribution descriptors must not import React components or module UI.
 - Future business modules must not bypass the architecture constitution.
-- Product Catalog must remain planned/hidden until a future sprint explicitly activates it in an Edition profile.
-- Inventory must remain planned/hidden until a future sprint explicitly activates a stable UI and Edition profile.
+- Product Catalog must remain planned/inactive until a future sprint explicitly activates it in an Edition profile.
+- Inventory must remain planned/inactive in Alpha until a future sprint explicitly activates it for a runtime Edition profile.
+- Shared import/export must remain entity-agnostic and must not import module UI, Prisma repositories or Inventory/Sales business workflows directly.
 
 ## Open Questions
 
@@ -53,4 +59,4 @@ Track the planned evolution of HicoPilot from ERP foundation to commercial produ
 - Which route availability policy should be user-facing once paid Editions and upgrade flows exist?
 - Which business module should contribute the next stable Dashboard widget after Product Catalog matures?
 - When should Product Catalog become active in Alpha navigation: after Sales line-item integration, Inventory foundation or Purchasing foundation?
-- Which visible Inventory workflow should activate first: warehouse setup, stock overview, manual adjustments or Sales availability?
+- Which Inventory workflow should mature after the workspace: reservations, replenishment policies, Sales availability, barcode scanning or Purchasing receipts?

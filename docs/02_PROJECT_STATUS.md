@@ -10,7 +10,7 @@
 | Current Phase | Inventory Domain Foundation |
 | Current Sprint | SPR-407 — Inventory Domain Foundation |
 | Next Sprint | Product Catalog / Inventory activation planning |
-| Repository Health | Builds successfully with one known existing image optimization warning; Alpha-visible navigation, route availability and Dashboard contributions remain activation-driven, Product Catalog remains planned/hidden, and the Inventory domain now exists as a planned/hidden backend foundation without visible Alpha behavior. |
+| Repository Health | Builds successfully with one known existing image optimization warning; Alpha-visible navigation, route availability and Dashboard contributions remain activation-driven, Product Catalog remains planned/inactive, and Inventory now has an activable workspace without visible Alpha behavior. |
 
 ## Completed Core Engines
 
@@ -228,17 +228,20 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - SPR-404 Dynamic Navigation & Route Availability makes active modules the source of truth for Sidebar and Command Center navigation, centralizes route ownership and enforces inactive-module redirects through middleware while preserving current Alpha parity.
 - SPR-405 Dynamic Dashboard Contributions adds a platform-owned contribution registry and resolver so active modules can contribute Dashboard sections through metadata while the current Dashboard remains visually unchanged.
 - PLATFORM-ARCH-001 creates `docs/05_PLATFORM_ARCHITECTURE.md` as the mandatory architecture constitution before Product Catalog Foundation begins.
-- SPR-406 Product Catalog Foundation creates the canonical product catalogue while keeping Product planned/hidden in Alpha, so no Product navigation or Sales workflow changes are visible yet.
-- SPR-407 Inventory Domain Foundation creates the inventory business engine for warehouses, balances, movements, reservations and availability while keeping Inventory planned/hidden in Alpha.
+- SPR-406 Product Catalog Foundation creates the canonical product catalogue while keeping Product planned/inactive in Alpha, so no Product navigation or Sales workflow changes are visible yet.
+- SPR-407 Inventory Domain Foundation creates the inventory business engine for warehouses, balances, movements, reservations and availability while keeping Inventory planned/inactive in Alpha.
+- SPR-408 Inventory Workspace creates the first functional stock workspace over the Inventory posting engine, including balances, warehouses, movement history and manual receipt/issue/transfer/adjustment dialogs, while keeping Inventory inactive and unavailable in the current Alpha runtime.
+- SPR-408B Product Catalog Import & Export adds XLSX/CSV templates, import parsing, column mapping, row-level validation, duplicate policies, server-confirmed Product import and all/filtered/selected Product exports without importing Inventory quantities or movements.
+- SPR-408C Shared Import / Export Framework extracts Product import/export mechanics into `src/platform/import-export/` with reusable importer/exporter definitions, mapping, validation, preview, templates, CSV/XLSX helpers, duplicate policies and error reports while preserving Product behavior and Alpha visibility.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passed during SPR-406. |
-| `npm run build` | Yes | Passed during SPR-407; the known PDF preview image warning remains. |
-| `npm run validate:runtime` | Yes for platform work | Passed during SPR-407 with Inventory Domain Foundation checks added. |
-| Prisma schema validation | Yes for persistence work | Passed during SPR-407. |
+| `npm run typecheck` | Yes | Passed during SPR-408C. |
+| `npm run build` | Yes | Passed during SPR-408C; the known PDF preview image warning remains. |
+| `npm run validate:runtime` | Yes for platform work | Passed during SPR-408C with 100/100 checks, including shared import/export framework coverage. |
+| Prisma schema validation | Yes for persistence work | Passed during SPR-408. |
 | Prisma migration replay | Yes for persistence work | Passed during ZF-R6 on a fresh local replay database. |
 
 ## Repository Health

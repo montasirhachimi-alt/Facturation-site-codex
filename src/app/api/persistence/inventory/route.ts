@@ -3,13 +3,15 @@ import {
   archiveInventoryWarehouse,
   createInventoryWarehouse,
   loadInventorySnapshot,
-  postInventoryMovement
+  postInventoryMovement,
+  updateInventoryWarehouse
 } from "@/server/persistence/inventory-repository";
 import { requirePersistenceTenantScope } from "@/server/persistence/tenant-scope";
 import type { PostMovementInput } from "@/modules/inventory";
 
 type InventoryRequest =
   | { operation: "createWarehouse"; payload: Parameters<typeof createInventoryWarehouse>[1] }
+  | { operation: "updateWarehouse"; payload: { warehouseId: string } & Parameters<typeof updateInventoryWarehouse>[2] }
   | { operation: "archiveWarehouse"; payload: { warehouseId: string } }
   | { operation: "postMovement"; payload: PostMovementInput };
 
@@ -30,17 +32,22 @@ export async function POST(request: Request) {
 
     if (body.operation === "createWarehouse") {
       const record = await createInventoryWarehouse(scope, body.payload);
-      return NextResponse.json({ record });
+      return NextResponse.json({ record, snapshot: await loadInventorySnapshot(scope) });
+    }
+
+    if (body.operation === "updateWarehouse") {
+      const record = await updateInventoryWarehouse(scope, body.payload.warehouseId, body.payload);
+      return NextResponse.json({ record, snapshot: await loadInventorySnapshot(scope) });
     }
 
     if (body.operation === "archiveWarehouse") {
       const record = await archiveInventoryWarehouse(scope, body.payload.warehouseId);
-      return NextResponse.json({ record });
+      return NextResponse.json({ record, snapshot: await loadInventorySnapshot(scope) });
     }
 
     if (body.operation === "postMovement") {
       const record = await postInventoryMovement(scope, body.payload);
-      return NextResponse.json({ record });
+      return NextResponse.json({ record, snapshot: await loadInventorySnapshot(scope) });
     }
 
     return NextResponse.json({ error: "Opération inventaire invalide." }, { status: 400 });

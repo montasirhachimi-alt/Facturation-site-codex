@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import {
+  applyProductCatalogImport,
   loadProductCatalogSnapshot,
   persistProductCatalogRecord,
   type ProductCatalogPersistenceResource
 } from "@/server/persistence/product-catalog-repository";
 import { requirePersistenceTenantScope } from "@/server/persistence/tenant-scope";
+import type { ProductImportRequest } from "@/modules/products";
 
 const resources = new Set<ProductCatalogPersistenceResource>(["product", "category"]);
 
@@ -21,7 +23,13 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const scope = await requirePersistenceTenantScope();
-    const body = await request.json() as { resource?: ProductCatalogPersistenceResource; record?: unknown };
+    const body = await request.json() as { operation?: "importProducts"; payload?: ProductImportRequest; resource?: ProductCatalogPersistenceResource; record?: unknown };
+    if (body.operation === "importProducts" && body.payload) {
+      const result = await applyProductCatalogImport(scope, body.payload);
+      const snapshot = await loadProductCatalogSnapshot(scope);
+      return NextResponse.json({ result, snapshot });
+    }
+
     if (!body.resource || !resources.has(body.resource) || !body.record) {
       return NextResponse.json({ error: "Payload catalogue invalide." }, { status: 400 });
     }

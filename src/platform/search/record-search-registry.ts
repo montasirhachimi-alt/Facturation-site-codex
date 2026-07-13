@@ -3,6 +3,7 @@ import {
   Building2,
   ContactRound,
   CalendarCheck,
+  Boxes,
   PackageCheck,
   Receipt,
   ScrollText,
@@ -29,6 +30,8 @@ import { PAYMENT_STATUS_LABELS } from "@/modules/sales/payments/payment.constant
 import { getCurrentAlphaActivation } from "@/platform/modules/module-activation.current";
 import { PRODUCTS_WORKSPACE_ID } from "@/modules/products";
 import { productLocalService } from "@/modules/products/ui/product-local-store";
+import { inventoryLocalService } from "@/modules/inventory/inventory-local-store";
+import type { ModuleActivationResult } from "@/platform/modules/module-activation.types";
 import type { UniversalSearchItem, UniversalSearchSection } from "./universal-search.types";
 
 export type RecordSearchResult = Readonly<{
@@ -72,7 +75,7 @@ export class RecordSearchRegistry {
   }
 }
 
-export function createRecordSearchRegistry() {
+export function createRecordSearchRegistry(activation: ModuleActivationResult = getCurrentAlphaActivation()) {
   const registry = new RecordSearchRegistry()
     .registerMany(buildCompanyRecords())
     .registerMany(buildContactRecords())
@@ -82,15 +85,18 @@ export function createRecordSearchRegistry() {
     .registerMany(buildInvoiceRecords())
     .registerMany(buildPaymentRecords());
 
-  if (getCurrentAlphaActivation().activeModuleIdSet.has("sales.products")) {
+  if (activation.activeModuleIdSet.has("sales.products")) {
     registry.registerMany(buildProductRecords());
+  }
+  if (activation.activeModuleIdSet.has("inventory.stock")) {
+    registry.registerMany(buildWarehouseRecords());
   }
 
   return registry;
 }
 
-export function getRecordSearchSection(query: string): UniversalSearchSection {
-  const items = createRecordSearchRegistry().search(query).map(recordToSearchItem);
+export function getRecordSearchSection(query: string, activation: ModuleActivationResult = getCurrentAlphaActivation()): UniversalSearchSection {
+  const items = createRecordSearchRegistry(activation).search(query).map(recordToSearchItem);
 
   return {
     id: "records",
@@ -278,6 +284,18 @@ function buildProductRecords(): readonly RecordSearchResult[] {
   }));
 }
 
+function buildWarehouseRecords(): readonly RecordSearchResult[] {
+  return inventoryLocalService.getSnapshot().warehouses.map((warehouse) => ({
+    id: `record.inventory-warehouse.${warehouse.id}`,
+    title: warehouse.name,
+    type: "Entrepôt",
+    description: `${warehouse.code} · ${warehouse.active ? "Actif" : "Archivé"}${warehouse.isDefault ? " · Par défaut" : ""}`,
+    href: "/inventory",
+    icon: Boxes,
+    keywords: [warehouse.name, warehouse.code, warehouse.description, warehouse.active ? "actif" : "archivé", warehouse.isDefault ? "par défaut" : undefined].filter(Boolean) as string[]
+  }));
+}
+
 function formatProductMoney(amount: number, currency: string) {
   return new Intl.NumberFormat("fr-MA", {
     style: "currency",
@@ -313,6 +331,7 @@ function iconKeyForRecordType(type: string) {
   if (normalizedType.includes("devis")) return "quote";
   if (normalizedType.includes("facture")) return "invoice";
   if (normalizedType.includes("paiement")) return "payment";
+  if (normalizedType.includes("entrepôt") || normalizedType.includes("entrepot")) return "warehouse";
   return "default";
 }
 
