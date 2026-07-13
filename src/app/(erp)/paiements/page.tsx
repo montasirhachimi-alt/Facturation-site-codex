@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
+import { getAvailableRedirectDestination } from "@/platform/modules/module-route-availability";
 
 export default function PaymentsPage() {
-  redirect("/sales/payments");
+  redirect(getAvailableRedirectDestination("/sales/payments"));
 }

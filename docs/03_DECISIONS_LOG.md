@@ -1,5 +1,73 @@
 # HicoPilot Architecture Decision Records
 
+## ADR-024 — Dynamic Dashboard Contributions
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-07-13 |
+
+### Decision
+
+SPR-405 introduces a metadata-only Dashboard Contribution Registry under `src/platform/dashboard/`.
+
+Active modules may contribute Dashboard widgets through `DashboardContribution` descriptors. Contributions are resolved through the current `ModuleActivationResult` before the Dashboard renders.
+
+Dashboard metadata stores render keys, not React components.
+
+### Motivation
+
+The platform can now describe modules, activate modules, define Editions and derive navigation/routes from active modules. The Dashboard must become another platform consumer so future modules can contribute widgets without making the Dashboard aware of CRM, Sales, Inventory, HR, Finance or AI directly.
+
+### Alternatives
+
+- Keep manually assembling Dashboard widgets in the Dashboard page.
+- Store React components in module descriptors.
+- Introduce dashboard editing, analytics or widget customization immediately.
+- Let future modules patch the Dashboard page directly.
+
+### Consequences
+
+The current Dashboard visual result remains unchanged.
+
+The Dashboard page maps platform render keys to existing UI components locally, preserving import safety.
+
+Future modules can add metadata contributions without changing navigation, activation or route availability foundations.
+
+## ADR-023 — Dynamic Navigation and Route Availability
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-07-13 |
+
+### Decision
+
+SPR-404 makes active modules the source of truth for module-backed navigation and route availability.
+
+Sidebar and Command Center destinations are composed from `ModuleDescriptor.navigation` metadata filtered through the current `ModuleActivationResult`.
+
+Module route availability is centralized in `module-route-availability.ts` and enforced in middleware after authentication and before RBAC.
+
+### Motivation
+
+SPR-401 described modules, SPR-402 activated them and SPR-403 introduced Edition profiles. BOSIACO now needs route and navigation behavior that follows activation so future Editions can safely hide unavailable modules without duplicating sidebars, route maps or product code.
+
+### Alternatives
+
+- Keep hardcoded Sidebar and Command Center mappings.
+- Let each page decide whether its module is available.
+- Check Edition IDs directly inside UI consumers.
+- Add a paywall or upgrade screen before licensing exists.
+
+### Consequences
+
+The current Alpha UI remains unchanged.
+
+Legacy compatibility routes redirect through a central mapping. Inactive module routes redirect to a safe fallback, usually `/dashboard`. Unknown routes preserve normal Next.js not-found behavior.
+
+Consumers depend on activation state, never directly on Edition IDs.
+
 ## ADR-022 — Edition Profiles Foundation
 
 | Field | Value |

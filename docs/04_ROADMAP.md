@@ -59,7 +59,7 @@ Focus:
 
 ## Milestone 6 — Marketplace
 
-Status: Planned, with Module Registry, Module Activation and Edition Profile foundations started in SPR-401 through SPR-403.
+Status: Planned, with Module Registry, Module Activation, Edition Profile, Dynamic Navigation and Dashboard Contribution foundations completed in SPR-401 through SPR-405.
 
 Focus:
 
@@ -70,6 +70,8 @@ Focus:
 - Module activation metadata.
 - Edition definitions from one codebase.
 - Edition profile registry and future commercial profile metadata.
+- Activation-driven navigation and route availability.
+- Activation-driven dashboard contributions.
 
 Foundation completed:
 
@@ -79,6 +81,10 @@ Foundation completed:
 - Activation determines availability and prepares Edition profiles, route gating, feature flags and licensing-aware module access.
 - SPR-403 adds the Edition Profiles Foundation, current Alpha Edition source and future Basic, CRM, Sales, Inventory, Purchasing, HR, Enterprise and Custom metadata.
 - Edition profiles provide activation input; consumers continue to depend on activation state, not Edition IDs.
+- SPR-404 adds dynamic navigation composition, centralized route ownership, inactive-module fallbacks and legacy compatibility redirects driven by active modules.
+- Routes and navigation now depend on active modules, never directly on Edition IDs.
+- SPR-405 adds the Dynamic Dashboard Contribution System so active modules can contribute dashboard sections through metadata.
+- The Platform Foundation is ready for the Business Platform phase and Product Catalog Foundation.
 
 ## Milestone 7 — Cloud Platform
 

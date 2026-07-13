@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
+import { getAvailableRedirectDestination } from "@/platform/modules/module-route-availability";
 
 export default function PdfPage() {
-  redirect("/sales/invoices");
+  redirect(getAvailableRedirectDestination("/sales/invoices"));
 }

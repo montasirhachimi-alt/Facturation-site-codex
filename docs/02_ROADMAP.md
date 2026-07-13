@@ -10,6 +10,9 @@ Track the planned evolution of HicoPilot from ERP foundation to commercial produ
 - Modular Editions Platform: describe every functional area as a module from one codebase, then add activation and Edition definitions in later sprints.
 - Module Activation Foundation: resolve available modules from a profile before adding licensing, tenant configuration or dynamic route gating.
 - Edition Profiles Foundation: define reusable commercial Edition profiles that feed activation without changing the current Alpha product.
+- Dynamic Navigation & Route Availability: derive navigation and module route access from active modules before tenant Edition assignment.
+- Dynamic Dashboard Contributions: make Dashboard sections resolve from active module contribution metadata.
+- Business Platform: begin concrete business-module expansion after the platform foundation.
 
 ## Milestones
 
@@ -21,6 +24,8 @@ Track the planned evolution of HicoPilot from ERP foundation to commercial produ
 - Preserve the rule that registration does not equal activation.
 - Use the Module Activation Engine as the source of truth for availability before wiring broader dynamic navigation or dashboard behavior.
 - Keep Sidebar, Command Center and future dashboard consumers dependent on activation state, not Edition IDs.
+- Keep route availability centralized so inactive modules cannot render their workspaces.
+- Keep Dashboard composition dependent on contribution metadata, not direct module knowledge.
 
 ## Risks
 
@@ -28,9 +33,13 @@ Track the planned evolution of HicoPilot from ERP foundation to commercial produ
 - Licensing, billing, tenant Edition assignment and dynamic navigation are future work and must not be inferred from Edition metadata alone.
 - Hidden/planned descriptors must remain inactive unless a future profile explicitly allows them.
 - Future planned Edition profiles must not become runtime defaults.
+- Legacy compatibility redirects must point only to active canonical routes or a safe fallback.
+- Dashboard contribution descriptors must not import React components or module UI.
 
 ## Open Questions
 
 - Which Edition will become the first paid runtime option after Alpha: Basic, CRM, Sales, Enterprise or Custom?
 - Which hidden modules should be upgraded after CRM/Sales: Inventory, Purchasing, HR, Finance or AI?
 - What governance rules should decide when a preview/planned Edition becomes selectable?
+- Which route availability policy should be user-facing once paid Editions and upgrade flows exist?
+- Which business module should contribute the next stable Dashboard widget after Product Catalog matures?

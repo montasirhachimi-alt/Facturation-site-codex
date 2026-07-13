@@ -493,6 +493,180 @@ test("Sidebar and Command Center consume activation without exposing hidden modu
   assert(!commandHrefs.includes("/stock"), "Command Center should not expose hidden Inventory.");
 });
 
+test("Dynamic Navigation preserves exact current Alpha Sidebar parity", () => {
+  const { getSidebarGroups } = load("src/services/navigation/sidebar-adapter.ts");
+  const { getActiveModuleNavigationItems } = load("src/platform/modules/module-navigation.ts");
+  const expectedHrefs = [
+    "/dashboard",
+    "/crm",
+    "/crm/companies",
+    "/crm/contacts",
+    "/crm/meetings",
+    "/crm/tasks",
+    "/crm/notes",
+    "/sales/quotes",
+    "/sales/invoices",
+    "/sales/payments",
+    "/parametres"
+  ];
+  const sidebarHrefs = getSidebarGroups().flatMap((group) => group.items.map((item) => item.href));
+  const navigationHrefs = getActiveModuleNavigationItems().map((item) => item.href);
+
+  assert(JSON.stringify(sidebarHrefs) === JSON.stringify(expectedHrefs), `Sidebar hrefs should match Alpha parity. Received: ${sidebarHrefs.join(", ")}`);
+  assert(JSON.stringify(navigationHrefs) === JSON.stringify(expectedHrefs), "Module navigation composition should match Alpha parity.");
+});
+
+test("Dynamic Navigation supports Basic and Sales-style activation without changing runtime Edition", () => {
+  const { ModuleActivationEngine, bosiacoModuleRegistry } = load("src/platform/modules");
+  const { basicEditionProfile, salesEditionProfile, editionToActivationRequest } = load("src/platform/editions");
+  const { getActiveModuleNavigationItems } = load("src/platform/modules/module-navigation.ts");
+  const { isRouteAvailable } = load("src/platform/modules/module-route-availability.ts");
+  const engine = new ModuleActivationEngine(bosiacoModuleRegistry);
+  const basicActivation = engine.resolve(editionToActivationRequest(basicEditionProfile));
+  const salesActivation = engine.resolve(editionToActivationRequest(salesEditionProfile));
+  const basicHrefs = getActiveModuleNavigationItems(basicActivation).map((item) => item.href);
+  const salesHrefs = getActiveModuleNavigationItems(salesActivation).map((item) => item.href);
+
+  assert(basicHrefs.includes("/dashboard"), "Basic-style navigation should include Dashboard.");
+  assert(basicHrefs.includes("/crm/companies"), "Basic-style navigation should include Companies.");
+  assert(basicHrefs.includes("/crm/contacts"), "Basic-style navigation should include Contacts.");
+  assert(!basicHrefs.includes("/sales/quotes"), "Basic-style navigation should exclude Sales Quotes.");
+  assert(!isRouteAvailable("/sales/quotes", basicActivation), "Sales Quotes route should be unavailable under Basic-style activation.");
+  assert(salesHrefs.includes("/crm/companies"), "Sales-style navigation should include CRM company dependency.");
+  assert(salesHrefs.includes("/sales/quotes"), "Sales-style navigation should include Quotes.");
+  assert(salesHrefs.includes("/sales/invoices"), "Sales-style navigation should include Invoices.");
+  assert(salesHrefs.includes("/sales/payments"), "Sales-style navigation should include Payments.");
+});
+
+test("Route availability handles matching, fallback and legacy compatibility redirects", () => {
+  const {
+    getFallbackRouteForUnavailableModule,
+    getRouteAvailabilityDecision,
+    getRouteOwner,
+    isRouteAvailable,
+    normalizeRoutePath,
+    validateRouteAvailabilityConfiguration
+  } = load("src/platform/modules/module-route-availability.ts");
+  const validation = validateRouteAvailabilityConfiguration();
+
+  assert(validation.valid, `Route availability config should validate: ${validation.errors.join("; ")}`);
+  assert(normalizeRoutePath("/sales/quotes?status=open#top") === "/sales/quotes", "Route normalization should remove query strings and hashes.");
+  assert(getRouteOwner("/sales/quotes/quote-demo")?.moduleId === "sales.quotes", "Most specific route ownership should match nested quote details.");
+  assert(isRouteAvailable("/sales/quotes"), "Active route should be available.");
+  assert(!isRouteAvailable("/inventory/stock") || getRouteAvailabilityDecision("/stock").redirectTo === "/dashboard", "Inactive module routes should not render unavailable workspaces.");
+  assert(getRouteAvailabilityDecision("/devis").redirectTo === "/sales/quotes", "Legacy Devis route should redirect to active Quotes.");
+  assert(getRouteAvailabilityDecision("/clients").redirectTo === "/crm/companies", "Legacy Clients route should redirect to active Companies.");
+  assert(getRouteAvailabilityDecision("/stock").redirectTo === "/dashboard", "Inactive Stock route should redirect to fallback.");
+  assert(getFallbackRouteForUnavailableModule() === "/dashboard", "Fallback route should prefer Dashboard when active.");
+});
+
+test("Favorites and Recent hide inactive-module destinations without deleting stored history", () => {
+  const { buildHistorySection } = load("src/platform/search/command-center-history.utils.ts");
+  const section = buildHistorySection({
+    id: "recent",
+    title: "Récents",
+    description: "Navigation récente.",
+    emptyTitle: "Aucun récent",
+    emptyDescription: "Les destinations récentes apparaîtront ici.",
+    items: [
+      {
+        id: "nav:/sales/quotes",
+        kind: "navigation",
+        entityType: "navigation",
+        title: "Devis",
+        subtitle: "Ouvrir les devis",
+        route: "/sales/quotes",
+        iconKey: "quote",
+        searchValue: "devis",
+        timestamp: 1,
+        source: "command-center"
+      },
+      {
+        id: "nav:/stock",
+        kind: "navigation",
+        entityType: "navigation",
+        title: "Stock",
+        subtitle: "Ouvrir le stock",
+        route: "/stock",
+        iconKey: "product",
+        searchValue: "stock",
+        timestamp: 2,
+        source: "command-center"
+      }
+    ]
+  });
+
+  const hrefs = section.items.map((item) => item.href);
+  assert(hrefs.includes("/sales/quotes"), "History should keep active routes visible.");
+  assert(!hrefs.includes("/stock"), "History should hide inactive routes from visible results.");
+});
+
+test("Dashboard Contribution Registry validates Alpha dashboard metadata", () => {
+  const {
+    bosiacoDashboardContributionRegistry,
+    bosiacoDashboardContributions,
+    validateDashboardContributions
+  } = load("src/platform/dashboard");
+  const validation = bosiacoDashboardContributionRegistry.validate();
+  const duplicateWidgetValidation = validateDashboardContributions([
+    bosiacoDashboardContributions[0],
+    {
+      ...bosiacoDashboardContributions[1],
+      id: "test.duplicate-widget",
+      widgetId: bosiacoDashboardContributions[0].widgetId
+    }
+  ]);
+  const duplicateRenderKeyValidation = validateDashboardContributions([
+    bosiacoDashboardContributions[0],
+    {
+      ...bosiacoDashboardContributions[1],
+      id: "test.duplicate-render-key",
+      renderKey: bosiacoDashboardContributions[0].renderKey
+    }
+  ]);
+  const unknownModuleValidation = validateDashboardContributions([
+    {
+      ...bosiacoDashboardContributions[0],
+      id: "test.unknown-module",
+      widgetId: "test.unknown-module",
+      renderKey: "test.unknown-module",
+      moduleId: "missing.module"
+    }
+  ]);
+
+  assert(validation.valid, `Dashboard contributions should validate: ${validation.issues.map((issue) => issue.message).join("; ")}`);
+  assert(duplicateWidgetValidation.issues.some((issue) => issue.code === "duplicate-widget-id"), "Dashboard validation should reject duplicate widget IDs.");
+  assert(duplicateRenderKeyValidation.issues.some((issue) => issue.code === "duplicate-render-key"), "Dashboard validation should reject duplicate render keys.");
+  assert(unknownModuleValidation.issues.some((issue) => issue.code === "unknown-module"), "Dashboard validation should reject unknown module IDs.");
+});
+
+test("Dashboard Contribution Resolver preserves Alpha layout and filters inactive modules", () => {
+  const { ModuleActivationEngine, bosiacoModuleRegistry } = load("src/platform/modules");
+  const { basicEditionProfile, editionToActivationRequest } = load("src/platform/editions");
+  const { resolveDashboardContributions } = load("src/platform/dashboard");
+  const engine = new ModuleActivationEngine(bosiacoModuleRegistry);
+  const alphaLayout = resolveDashboardContributions();
+  const basicLayout = resolveDashboardContributions({
+    activation: engine.resolve(editionToActivationRequest(basicEditionProfile))
+  });
+  const expectedRenderKeys = [
+    "dashboard.hero",
+    "dashboard.business-health",
+    "dashboard.priority-center",
+    "dashboard.performance",
+    "dashboard.recent-activity",
+    "dashboard.quick-actions"
+  ];
+  const alphaRenderKeys = alphaLayout.contributions.map((contribution) => contribution.renderKey);
+  const basicRenderKeys = basicLayout.contributions.map((contribution) => contribution.renderKey);
+
+  assert(JSON.stringify(alphaRenderKeys) === JSON.stringify(expectedRenderKeys), `Alpha dashboard render keys should remain deterministic. Received: ${alphaRenderKeys.join(", ")}`);
+  assert(alphaLayout.zones.hero.length === 1, "Alpha dashboard should resolve one hero contribution.");
+  assert(alphaLayout.zones.secondary.length === 2, "Alpha dashboard should resolve the existing two-column secondary area.");
+  assert(!basicRenderKeys.includes("dashboard.performance"), "Basic-style activation should filter Sales-owned dashboard contribution.");
+  assert(basicRenderKeys.includes("dashboard.hero"), "Basic-style activation should keep Core dashboard contribution.");
+});
+
 test("Notification Event Subscriber registers once and creates notifications from supported events", () => {
   const { PlatformEventRuntime } = load("src/runtime/platform-events");
   const { NotificationEventSubscriber } = load("src/runtime/notifications");

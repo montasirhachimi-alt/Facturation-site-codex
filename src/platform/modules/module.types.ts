@@ -40,8 +40,12 @@ export type ModuleNavigationDescriptor = Readonly<{
   iconKey: string;
   group: string;
   order?: number;
+  exactMatch?: boolean;
   hidden?: boolean;
   badgeKey?: string;
+  parentModuleId?: ModuleId;
+  mobileLabel?: string;
+  searchKeywords?: readonly string[];
 }>;
 
 export type ModuleCommandCenterDescriptor = Readonly<{

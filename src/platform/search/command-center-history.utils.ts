@@ -18,6 +18,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import type { CommandCenterHistoryItem, CommandCenterHistoryKind } from "./command-center-history.types";
 import type { UniversalSearchItem, UniversalSearchSection } from "./universal-search.types";
+import { isRouteAvailable } from "@/platform/modules/module-route-availability";
 
 const iconByKey: Record<string, LucideIcon> = {
   analytics: BarChart3,
@@ -101,7 +102,9 @@ export function buildHistorySection({
     description,
     emptyTitle,
     emptyDescription,
-    items: items.map((item) => historyItemToSearchItem(item, id))
+    items: items
+      .filter((item) => isRouteAvailable(item.route))
+      .map((item) => historyItemToSearchItem(item, id))
   };
 }
 

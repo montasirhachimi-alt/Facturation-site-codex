@@ -18,6 +18,8 @@ import { DashboardWorkspaceBridge } from "@/components/dashboard-workspace-bridg
 import { dashboardStats } from "@/lib/demo-data";
 import { formatCurrency } from "@/lib/format";
 import { getCurrentUser } from "@/lib/auth";
+import { resolveDashboardContributions } from "@/platform/dashboard";
+import type { DashboardContribution } from "@/platform/dashboard";
 import { MetricCard, ProductHero, ProductSectionHeader, SectionCard } from "@/ui";
 
 const quickActions: QuickActionCardProps[] = [
@@ -108,99 +110,154 @@ const priorityLead = priorities[0];
 export default async function DashboardPage() {
   const user = await getCurrentUser();
   const userFirstName = user?.name.split(" ")[0] ?? "Administrateur";
+  const dashboardLayout = resolveDashboardContributions();
+  const renderContext = { userFirstName };
 
   return (
     <DashboardWorkspaceBridge>
       <div className="space-y-4 2xl:space-y-5">
-        <ProductHero
-          eyebrow="Tableau de bord"
-          icon={Sparkles}
-          personality="dashboard"
-          title={`Bonjour ${userFirstName}, trois éléments méritent votre attention.`}
-          subtitle={`${dashboardStats.overdueInvoices} facture(s) sont à suivre, ${formatCurrency(dashboardStats.outstanding)} restent à encaisser et les sociétés actives concentrent les priorités du jour.`}
-          actions={[
-            { href: priorityLead.href, icon: priorityLead.icon, label: "Traiter la priorité" },
-            { href: "/crm/companies", icon: ContactRound, label: "Voir les sociétés", tone: "secondary" }
-          ]}
-          insight={
-            <div className="rounded-[1.25rem] border border-white/10 bg-white p-4 text-hicotech-navy shadow-xl shadow-black/15">
-              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-hicotech-blue">À faire en premier</p>
-              <h2 className="mt-1.5 font-display text-xl font-bold">{priorityLead.title}</h2>
-              <p className="mt-2 text-sm leading-5 text-slate-600">
-                {priorityLead.helper}. Cette action protège directement le cash et clarifie la journée.
-              </p>
-              <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
-                <HeroInsight label={priorityLead.title} value={priorityLead.value} />
-                <HeroInsight label="Reste à encaisser" value={formatCurrency(dashboardStats.outstanding)} />
-              </div>
-            </div>
-          }
-        />
-
-        <section className="space-y-2.5">
-          <ProductSectionHeader icon={BadgeDollarSign} title="Santé business" description="Le battement du jour : revenu, cash, marge et sociétés." />
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <MetricCard icon={BadgeDollarSign} label="Chiffre d'affaires" value={formatCurrency(dashboardStats.revenue)} helper="+12,5% ce mois" />
-            <MetricCard icon={WalletCards} label="Reste à encaisser" value={formatCurrency(dashboardStats.outstanding)} helper="Factures ouvertes" />
-            <MetricCard icon={HandCoins} label="Marge brute" value={formatCurrency(dashboardStats.grossMargin)} helper="61,5% du CA" />
-            <MetricCard icon={ClipboardList} label="Sociétés actives" value="CRM" helper="À suivre cette semaine" />
+        {dashboardLayout.zones.hero.map((contribution) => renderDashboardContribution(contribution, renderContext))}
+        {dashboardLayout.zones.summary.map((contribution) => renderDashboardContribution(contribution, renderContext))}
+        {dashboardLayout.zones.primary.map((contribution) => renderDashboardContribution(contribution, renderContext))}
+        {dashboardLayout.zones.secondary.length > 0 && (
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(340px,0.95fr)]">
+            {dashboardLayout.zones.secondary.map((contribution) => renderDashboardContribution(contribution, renderContext))}
           </div>
-        </section>
-
-        <SectionCard className="overflow-hidden">
-          <div className="grid gap-0 xl:grid-cols-[minmax(300px,0.42fr)_minmax(0,0.58fr)]">
-            <div className="bg-hicotech-navy p-5 text-white">
-              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-cyan-50/65">Centre de priorité</p>
-              <h2 className="mt-2 font-display text-2xl font-bold leading-tight">Ce qui doit être traité aujourd&apos;hui.</h2>
-              <p className="mt-2 text-sm leading-5 text-cyan-50/72">
-                Le Dashboard commence par les décisions qui protègent le cash, les propositions et les échanges client.
-              </p>
-              <Link
-                href={priorityLead.href}
-                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-hicotech-navy shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-cyan-50 focus:outline-none focus:ring-4 focus:ring-white/25"
-              >
-                Commencer par ici
-                <ArrowRight size={16} />
-              </Link>
-            </div>
-            <div className="divide-y divide-slate-100 dark:divide-hicotech-dark-border">
-              {priorities.map((priority, index) => (
-                <PriorityRow key={priority.title} rank={index + 1} {...priority} />
-              ))}
-            </div>
-          </div>
-        </SectionCard>
-
-        <section className="space-y-3">
-          <ProductSectionHeader icon={BarChart3} title="Performance" description="La lecture business après les urgences : progression, encaissement et documents commerciaux." />
-          <div className="grid gap-4 lg:grid-cols-3">
-            <PerformanceCard icon={BadgeDollarSign} label="Progression commerciale" value="+12,5%" helper="Le chiffre d'affaires progresse ce mois-ci." />
-            <PerformanceCard icon={WalletCards} label="Cash à sécuriser" value={formatCurrency(dashboardStats.outstanding)} helper="Montant ouvert à transformer en encaissement." />
-            <PerformanceCard icon={FileText} label="Documents actifs" value="Devis & factures" helper="Le suivi commercial reste concentré sur les documents réels." />
-          </div>
-        </section>
-
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(340px,0.95fr)]">
-          <SectionCard className="p-4">
-            <ProductSectionHeader icon={CheckCircle2} title="Changements récents" description="Les derniers mouvements business, dans l'ordre de lecture." />
-            <div className="mt-5 space-y-4">
-              {recentActivity.map((activity, index) => (
-                <TimelineItem key={activity.title} last={index === recentActivity.length - 1} {...activity} />
-              ))}
-            </div>
-          </SectionCard>
-
-          <SectionCard className="p-4">
-            <ProductSectionHeader icon={Sparkles} title="Actions rapides" description="Les raccourcis utiles, placés après la lecture executive." />
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              {quickActions.map((action) => (
-                <CompactAction key={action.label} {...action} />
-              ))}
-            </div>
-          </SectionCard>
-        </div>
+        )}
       </div>
     </DashboardWorkspaceBridge>
+  );
+}
+
+function renderDashboardContribution(
+  contribution: DashboardContribution,
+  context: { userFirstName: string }
+) {
+  switch (contribution.renderKey) {
+    case "dashboard.hero":
+      return <DashboardHero key={contribution.id} userFirstName={context.userFirstName} />;
+    case "dashboard.business-health":
+      return <DashboardBusinessHealth key={contribution.id} />;
+    case "dashboard.priority-center":
+      return <DashboardPriorityCenter key={contribution.id} />;
+    case "dashboard.performance":
+      return <DashboardPerformance key={contribution.id} />;
+    case "dashboard.recent-activity":
+      return <DashboardRecentActivity key={contribution.id} />;
+    case "dashboard.quick-actions":
+      return <DashboardQuickActions key={contribution.id} />;
+    default:
+      return null;
+  }
+}
+
+function DashboardHero({ userFirstName }: { userFirstName: string }) {
+  return (
+    <ProductHero
+      eyebrow="Tableau de bord"
+      icon={Sparkles}
+      personality="dashboard"
+      title={`Bonjour ${userFirstName}, trois éléments méritent votre attention.`}
+      subtitle={`${dashboardStats.overdueInvoices} facture(s) sont à suivre, ${formatCurrency(dashboardStats.outstanding)} restent à encaisser et les sociétés actives concentrent les priorités du jour.`}
+      actions={[
+        { href: priorityLead.href, icon: priorityLead.icon, label: "Traiter la priorité" },
+        { href: "/crm/companies", icon: ContactRound, label: "Voir les sociétés", tone: "secondary" }
+      ]}
+      insight={
+        <div className="rounded-[1.25rem] border border-white/10 bg-white p-4 text-hicotech-navy shadow-xl shadow-black/15">
+          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-hicotech-blue">À faire en premier</p>
+          <h2 className="mt-1.5 font-display text-xl font-bold">{priorityLead.title}</h2>
+          <p className="mt-2 text-sm leading-5 text-slate-600">
+            {priorityLead.helper}. Cette action protège directement le cash et clarifie la journée.
+          </p>
+          <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
+            <HeroInsight label={priorityLead.title} value={priorityLead.value} />
+            <HeroInsight label="Reste à encaisser" value={formatCurrency(dashboardStats.outstanding)} />
+          </div>
+        </div>
+      }
+    />
+  );
+}
+
+function DashboardBusinessHealth() {
+  return (
+    <section className="space-y-2.5">
+      <ProductSectionHeader icon={BadgeDollarSign} title="Santé business" description="Le battement du jour : revenu, cash, marge et sociétés." />
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard icon={BadgeDollarSign} label="Chiffre d'affaires" value={formatCurrency(dashboardStats.revenue)} helper="+12,5% ce mois" />
+        <MetricCard icon={WalletCards} label="Reste à encaisser" value={formatCurrency(dashboardStats.outstanding)} helper="Factures ouvertes" />
+        <MetricCard icon={HandCoins} label="Marge brute" value={formatCurrency(dashboardStats.grossMargin)} helper="61,5% du CA" />
+        <MetricCard icon={ClipboardList} label="Sociétés actives" value="CRM" helper="À suivre cette semaine" />
+      </div>
+    </section>
+  );
+}
+
+function DashboardPriorityCenter() {
+  return (
+    <SectionCard className="overflow-hidden">
+      <div className="grid gap-0 xl:grid-cols-[minmax(300px,0.42fr)_minmax(0,0.58fr)]">
+        <div className="bg-hicotech-navy p-5 text-white">
+          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-cyan-50/65">Centre de priorité</p>
+          <h2 className="mt-2 font-display text-2xl font-bold leading-tight">Ce qui doit être traité aujourd&apos;hui.</h2>
+          <p className="mt-2 text-sm leading-5 text-cyan-50/72">
+            Le Dashboard commence par les décisions qui protègent le cash, les propositions et les échanges client.
+          </p>
+          <Link
+            href={priorityLead.href}
+            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-hicotech-navy shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-cyan-50 focus:outline-none focus:ring-4 focus:ring-white/25"
+          >
+            Commencer par ici
+            <ArrowRight size={16} />
+          </Link>
+        </div>
+        <div className="divide-y divide-slate-100 dark:divide-hicotech-dark-border">
+          {priorities.map((priority, index) => (
+            <PriorityRow key={priority.title} rank={index + 1} {...priority} />
+          ))}
+        </div>
+      </div>
+    </SectionCard>
+  );
+}
+
+function DashboardPerformance() {
+  return (
+    <section className="space-y-3">
+      <ProductSectionHeader icon={BarChart3} title="Performance" description="La lecture business après les urgences : progression, encaissement et documents commerciaux." />
+      <div className="grid gap-4 lg:grid-cols-3">
+        <PerformanceCard icon={BadgeDollarSign} label="Progression commerciale" value="+12,5%" helper="Le chiffre d'affaires progresse ce mois-ci." />
+        <PerformanceCard icon={WalletCards} label="Cash à sécuriser" value={formatCurrency(dashboardStats.outstanding)} helper="Montant ouvert à transformer en encaissement." />
+        <PerformanceCard icon={FileText} label="Documents actifs" value="Devis & factures" helper="Le suivi commercial reste concentré sur les documents réels." />
+      </div>
+    </section>
+  );
+}
+
+function DashboardRecentActivity() {
+  return (
+    <SectionCard className="p-4">
+      <ProductSectionHeader icon={CheckCircle2} title="Changements récents" description="Les derniers mouvements business, dans l'ordre de lecture." />
+      <div className="mt-5 space-y-4">
+        {recentActivity.map((activity, index) => (
+          <TimelineItem key={activity.title} last={index === recentActivity.length - 1} {...activity} />
+        ))}
+      </div>
+    </SectionCard>
+  );
+}
+
+function DashboardQuickActions() {
+  return (
+    <SectionCard className="p-4">
+      <ProductSectionHeader icon={Sparkles} title="Actions rapides" description="Les raccourcis utiles, placés après la lecture executive." />
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        {quickActions.map((action) => (
+          <CompactAction key={action.label} {...action} />
+        ))}
+      </div>
+    </SectionCard>
   );
 }
 

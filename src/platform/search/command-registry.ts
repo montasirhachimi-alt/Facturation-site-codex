@@ -1,7 +1,6 @@
 import {
   Building2,
   CalendarCheck,
-  ClipboardList,
   ContactRound,
   FileText,
   LayoutDashboard,
@@ -13,10 +12,10 @@ import {
   WalletCards
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { coreModuleDefinitions } from "@/core/config/modules";
-import { getBusinessModules } from "@/modules/business-modules";
 import { getCurrentAlphaActivation } from "@/platform/modules/module-activation.current";
-import type { ModuleId } from "@/platform/modules/module.types";
+import { getActiveModuleNavigationItems } from "@/platform/modules/module-navigation";
+import { isRouteAvailable } from "@/platform/modules/module-route-availability";
+import type { ActiveModuleNavigationItem } from "@/platform/modules/module-navigation";
 import type { UniversalSearchItem, UniversalSearchSection } from "./universal-search.types";
 
 export type CommandCenterCommand = Readonly<{
@@ -29,18 +28,9 @@ export type CommandCenterCommand = Readonly<{
   keywords?: readonly string[];
 }>;
 
-type CommandNavigationItem = Readonly<{
-  id: string;
-  label: string;
-  route: string;
-  children?: readonly CommandNavigationItem[];
-  metadata?: Record<string, string | number | boolean | null | undefined>;
-}>;
-
 const iconByName: Record<string, LucideIcon> = {
   Building2,
   CalendarCheck,
-  ClipboardList,
   ContactRound,
   FileText,
   HandCoins: WalletCards,
@@ -51,57 +41,6 @@ const iconByName: Record<string, LucideIcon> = {
   Settings,
   Users,
   WalletCards
-};
-
-const seedCommands: readonly CommandCenterCommand[] = [
-  {
-    id: "command.dashboard",
-    title: "Tableau de bord",
-    description: "Ouvrir le cockpit exécutif.",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-    group: "Navigation",
-    keywords: ["accueil", "home", "tableau de bord", "pilot", "command center"]
-  },
-  {
-    id: "command.sales",
-    title: "Ventes",
-    description: "Accéder à l'espace ventes.",
-    href: "/sales/quotes",
-    icon: WalletCards,
-    group: "Navigation",
-    keywords: ["ventes", "commercial", "revenue", "devis", "factures", "paiements"]
-  }
-];
-
-const commandActivationIds: Record<string, ModuleId> = {
-  "command.dashboard": "core.dashboard",
-  "command.sales": "sales.quotes",
-  "core.settings": "core.settings",
-  "business.crm": "crm.overview",
-  "business.crm.companies": "crm.companies",
-  "business.crm.contacts": "crm.contacts",
-  "business.crm.meetings": "crm.meetings",
-  "business.crm.tasks": "crm.tasks",
-  "business.crm.notes": "crm.notes",
-  "business.sales.quotes": "sales.quotes",
-  "business.sales.invoices": "sales.invoices",
-  "business.sales.payments": "sales.payments"
-};
-
-const coreCommandIds = new Set(["settings"]);
-
-const coreCommandOverrides: Partial<Record<string, Partial<CommandCenterCommand>>> = {
-  dashboard: {
-    title: "Tableau de bord",
-    description: "Ouvrir le cockpit exécutif.",
-    keywords: ["accueil", "home", "tableau de bord", "pilot", "command center"]
-  },
-  settings: {
-    title: "Paramètres",
-    description: "Ouvrir les paramètres.",
-    keywords: ["settings", "paramètres", "parametres", "configuration"]
-  }
 };
 
 const commandAliases: Record<string, readonly string[]> = {
@@ -154,32 +93,25 @@ export class CommandCenterRegistry {
 
 export function createNavigationCommandRegistry() {
   const activation = getCurrentAlphaActivation();
-  const registry = new CommandCenterRegistry().registerMany(
-    seedCommands.filter((command) => isNavigationCommandActive(command.id, activation.activeModuleIdSet))
+  const registry = new CommandCenterRegistry();
+  const navigationItems = getActiveModuleNavigationItems(activation).filter((item) =>
+    isRouteAvailable(item.href, activation)
   );
 
-  getBusinessModules().forEach((moduleDefinition) => {
-    registerBusinessNavigation(registry, moduleDefinition.navigation, moduleDefinition.navigation.label, activation.activeModuleIdSet);
-  });
+  navigationItems.forEach((item) => registry.register(navigationItemToCommand(item)));
 
-  coreModuleDefinitions
-    .filter((moduleDefinition) => coreCommandIds.has(moduleDefinition.id))
-    .forEach((moduleDefinition) => {
-      const overrides = coreCommandOverrides[moduleDefinition.id] ?? {};
-
-      const commandId = `core.${moduleDefinition.id}`;
-      if (!isNavigationCommandActive(commandId, activation.activeModuleIdSet)) return;
-
-      registry.register({
-        id: commandId,
-        title: overrides.title ?? moduleDefinition.name,
-        description: overrides.description ?? `Ouvrir ${moduleDefinition.name}.`,
-        href: overrides.href ?? moduleDefinition.route,
-        icon: overrides.icon ?? iconByName[moduleDefinition.icon] ?? FileText,
-        group: overrides.group ?? "Navigation",
-        keywords: overrides.keywords ?? commandAliases[moduleDefinition.route] ?? moduleDefinition.aliases
-      });
+  const firstSalesItem = navigationItems.find((item) => item.group === "Ventes");
+  if (firstSalesItem) {
+    registry.register({
+      id: "module.sales",
+      title: "Ventes",
+      description: "Accéder à l'espace ventes.",
+      href: firstSalesItem.href,
+      icon: WalletCards,
+      group: "Navigation",
+      keywords: ["ventes", "commercial", "revenue", "devis", "factures", "paiements"]
     });
+  }
 
   return registry;
 }
@@ -200,36 +132,22 @@ export function getCommandCenterSections(query: string): readonly UniversalSearc
   ];
 }
 
-function registerBusinessNavigation(
-  registry: CommandCenterRegistry,
-  item: CommandNavigationItem,
-  group: string,
-  activeModuleIdSet: ReadonlySet<ModuleId>
-) {
-  const iconName = typeof item.metadata?.icon === "string" ? item.metadata.icon : item.id === "sales" ? "WalletCards" : "FileText";
-  const href = item.id === "sales" ? "/sales/quotes" : item.route;
-  const hiddenRoutes = new Set(["/crm/activities", "/crm/opportunities", "/sales"]);
-
-  const commandId = `business.${item.id}`;
-
-  if (item.id !== "sales" && !hiddenRoutes.has(href) && isNavigationCommandActive(commandId, activeModuleIdSet)) {
-    registry.register({
-      id: commandId,
-      title: item.label,
-      description: `Ouvrir ${item.label}.`,
-      href,
-      icon: iconByName[iconName] ?? FileText,
-      group,
-      keywords: commandAliases[href] ?? commandAliases[item.route] ?? []
-    });
-  }
-
-  item.children?.forEach((child) => registerBusinessNavigation(registry, child, group, activeModuleIdSet));
+function navigationItemToCommand(item: ActiveModuleNavigationItem): CommandCenterCommand {
+  return {
+    id: `module.${item.moduleId}`,
+    title: item.label,
+    description: commandDescription(item),
+    href: item.href,
+    icon: iconByName[item.iconKey] ?? FileText,
+    group: "Navigation",
+    keywords: [...(commandAliases[item.href] ?? []), ...(item.searchKeywords ?? [])]
+  };
 }
 
-function isNavigationCommandActive(commandId: string, activeModuleIdSet: ReadonlySet<ModuleId>) {
-  const moduleId = commandActivationIds[commandId];
-  return Boolean(moduleId && activeModuleIdSet.has(moduleId));
+function commandDescription(item: ActiveModuleNavigationItem) {
+  if (item.href === "/dashboard") return "Ouvrir le cockpit exécutif.";
+  if (item.href === "/parametres") return "Ouvrir les paramètres.";
+  return `Ouvrir ${item.label}.`;
 }
 
 function commandToSearchItem(command: CommandCenterCommand): UniversalSearchItem {

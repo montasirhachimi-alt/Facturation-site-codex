@@ -7,10 +7,10 @@
 | Product | HicoPilot |
 | Version | v0.9.0-alpha |
 | Current Milestone | Modular Editions Platform |
-| Current Phase | Edition Profiles Foundation |
-| Current Sprint | SPR-403 — Edition Profiles Foundation |
-| Next Sprint | To define |
-| Repository Health | Builds successfully with one known existing image optimization warning; Alpha-visible navigation is restricted to stable Dashboard, CRM, Sales and Settings surfaces through a metadata registry, activation engine and current Alpha Edition profile. |
+| Current Phase | Dynamic Dashboard Contributions |
+| Current Sprint | SPR-405 — Dynamic Dashboard Contributions |
+| Next Sprint | SPR-406 — Product Catalog Foundation |
+| Repository Health | Builds successfully with one known existing image optimization warning; Alpha-visible navigation, module route availability and Dashboard contributions are derived from the active module set produced by the current Alpha Edition profile. |
 
 ## Completed Core Engines
 
@@ -51,6 +51,8 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | Platform Module Registry | `src/platform/modules/` | Implemented as a client-safe declarative descriptor registry for future Editions and activation work. |
 | Module Activation Engine | `src/platform/modules/` | Implemented as deterministic activation resolver with Alpha profile, dependency resolution and safe selectors. |
 | Edition Profile Registry | `src/platform/editions/` | Implemented as metadata-only Edition profile registry feeding the Module Activation Engine. |
+| Dynamic Navigation & Route Availability | `src/platform/modules/` | Implemented as active-module navigation composition, centralized route ownership and inactive-route redirect policy. |
+| Dashboard Contribution Registry | `src/platform/dashboard/` | Implemented as metadata-only dashboard contribution registry and resolver driven by active modules. |
 
 ## Completed Integrations
 
@@ -110,6 +112,8 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | Platform Module Registry describes Alpha-ready, hidden and planned modules with lifecycle, dependency, navigation, Command Center and dashboard metadata without changing visible product behavior. | Completed |
 | Module Activation Engine resolves active modules from the Alpha profile, auto-enables required dependencies, reports conflicts and filters low-risk Sidebar and Command Center navigation metadata without changing visible behavior. | Completed |
 | Edition Profiles Foundation defines Alpha, Basic, CRM, Sales, Inventory, Purchasing, HR, Enterprise and Custom Edition profiles as metadata and uses the current Alpha Edition as the activation input source without changing visible behavior. | Completed |
+| Dynamic Navigation & Route Availability composes Sidebar and Command Center destinations from active module navigation metadata and centralizes route ownership, legacy redirects, inactive-module fallbacks and Favorites/Recent route filtering. | Completed |
+| Dynamic Dashboard Contributions make the Dashboard consume active module contribution metadata through a registry and resolver while preserving the existing visual layout. | Completed |
 
 ## Known Technical Debt
 
@@ -215,6 +219,8 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - SPR-401 Module Registry Foundation adds a platform-owned declarative module descriptor registry for future Editions, module activation, dependency management and dynamic product surfaces. Registration is metadata only and does not activate or expose hidden modules.
 - SPR-402 Module Activation Engine adds the first authoritative active-module resolver, current Alpha activation profile, dependency resolution, route/feature query helpers and low-risk Sidebar/Command Center activation filtering without changing visible product behavior.
 - SPR-403 Edition Profiles Foundation adds a platform-owned Edition profile registry, current Alpha Edition source, future commercial Edition metadata and Edition-to-Activation adapter so one codebase can support future Editions without changing the Alpha UI.
+- SPR-404 Dynamic Navigation & Route Availability makes active modules the source of truth for Sidebar and Command Center navigation, centralizes route ownership and enforces inactive-module redirects through middleware while preserving current Alpha parity.
+- SPR-405 Dynamic Dashboard Contributions adds a platform-owned contribution registry and resolver so active modules can contribute Dashboard sections through metadata while the current Dashboard remains visually unchanged.
 
 ## Validation Status
 
@@ -222,7 +228,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | --- | --- | --- |
 | `npm run typecheck` | Yes | Passed during SPR-403. |
 | `npm run build` | Yes | Passed during SPR-403; the known PDF preview image warning remains. |
-| `npm run validate:runtime` | Yes for platform work | Passed during SPR-403 with Module Registry, Module Activation and Edition Profile checks. |
+| `npm run validate:runtime` | Yes for platform work | Passed during SPR-405 with Module Registry, Module Activation, Edition Profile, Dynamic Navigation, Route Availability and Dashboard Contribution checks. |
 | Prisma schema validation | Yes for persistence work | Passed during ZF-R6. |
 | Prisma migration replay | Yes for persistence work | Passed during ZF-R6 on a fresh local replay database. |
 
