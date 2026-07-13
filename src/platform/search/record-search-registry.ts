@@ -3,6 +3,7 @@ import {
   Building2,
   ContactRound,
   CalendarCheck,
+  PackageCheck,
   Receipt,
   ScrollText,
   WalletCards
@@ -25,6 +26,9 @@ import { INVOICE_STATUS_LABELS } from "@/modules/sales/invoices/invoice.constant
 import { getInvoiceTotals } from "@/modules/sales/invoices/invoice.utils";
 import { paymentService } from "@/modules/sales/payments/payment.store";
 import { PAYMENT_STATUS_LABELS } from "@/modules/sales/payments/payment.constants";
+import { getCurrentAlphaActivation } from "@/platform/modules/module-activation.current";
+import { PRODUCTS_WORKSPACE_ID } from "@/modules/products";
+import { productLocalService } from "@/modules/products/ui/product-local-store";
 import type { UniversalSearchItem, UniversalSearchSection } from "./universal-search.types";
 
 export type RecordSearchResult = Readonly<{
@@ -69,7 +73,7 @@ export class RecordSearchRegistry {
 }
 
 export function createRecordSearchRegistry() {
-  return new RecordSearchRegistry()
+  const registry = new RecordSearchRegistry()
     .registerMany(buildCompanyRecords())
     .registerMany(buildContactRecords())
     .registerMany(buildMeetingRecords())
@@ -77,6 +81,12 @@ export function createRecordSearchRegistry() {
     .registerMany(buildQuoteRecords())
     .registerMany(buildInvoiceRecords())
     .registerMany(buildPaymentRecords());
+
+  if (getCurrentAlphaActivation().activeModuleIdSet.has("sales.products")) {
+    registry.registerMany(buildProductRecords());
+  }
+
+  return registry;
 }
 
 export function getRecordSearchSection(query: string): UniversalSearchSection {
@@ -244,6 +254,36 @@ function buildPaymentRecords(): readonly RecordSearchResult[] {
       keywords: [payment.number, payment.invoiceNumber, companyName, payment.customerName, payment.status, payment.method, payment.reference, payment.companyId].filter(Boolean) as string[]
     };
   });
+}
+
+function buildProductRecords(): readonly RecordSearchResult[] {
+  return productLocalService.listProducts({ workspaceId: PRODUCTS_WORKSPACE_ID, includeArchived: false }).products.map((product) => ({
+    id: `record.product.${product.id}`,
+    title: product.name,
+    type: "Produit",
+    description: `${product.sku} · ${product.categoryName ?? "Non classé"} · ${formatProductMoney(product.sellingPrice, product.currency)} HT`,
+    href: "/sales/products",
+    icon: PackageCheck,
+    keywords: [
+      product.sku,
+      product.barcode,
+      product.name,
+      product.description,
+      product.shortDescription,
+      product.brand,
+      product.categoryName,
+      product.unit,
+      product.currency
+    ].filter(Boolean) as string[]
+  }));
+}
+
+function formatProductMoney(amount: number, currency: string) {
+  return new Intl.NumberFormat("fr-MA", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0
+  }).format(amount);
 }
 
 function getCompanyMap() {

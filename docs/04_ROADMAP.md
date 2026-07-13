@@ -39,13 +39,22 @@ Focus:
 
 ## Milestone 4 — Business Applications
 
-Status: Planned.
+Status: In progress.
 
 Focus:
 
 - Stabilize commercial modules.
 - Strengthen clients, suppliers, products, stock, purchases and cash.
 - Connect business modules to durable services and persistence.
+- Establish Product Catalog as the first canonical shared business entity before Inventory and Purchasing.
+
+Foundation in progress:
+
+- SPR-406 creates the canonical Product Catalog foundation over one Product model, one Product service and one Product repository.
+- Product remains planned/hidden in Alpha until a later activation sprint.
+- SPR-407 creates the Inventory Domain Foundation with warehouses, balances, stock movements, reservations and transaction-safe posting.
+- Inventory remains planned/hidden in Alpha until a later UI and activation sprint.
+- Inventory UI, Purchasing, variants, warehouse management screens and stock movement screens remain future work.
 
 ## Milestone 5 — Enterprise AI
 

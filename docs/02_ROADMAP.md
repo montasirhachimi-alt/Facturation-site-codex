@@ -14,6 +14,8 @@ Track the planned evolution of HicoPilot from ERP foundation to commercial produ
 - Dynamic Dashboard Contributions: make Dashboard sections resolve from active module contribution metadata.
 - Platform Architecture Constitution: consolidate module, activation, Edition, navigation, route, Command Center, Dashboard and persistence rules before future business modules.
 - Business Platform: begin concrete business-module expansion after the platform foundation.
+- Product Catalog Foundation: establish one canonical Product Catalog before Inventory, Purchasing or advanced Sales integrations.
+- Inventory Domain Foundation: establish warehouse, balance, movement and availability foundations before visible Inventory workflows.
 
 ## Milestones
 
@@ -28,6 +30,8 @@ Track the planned evolution of HicoPilot from ERP foundation to commercial produ
 - Keep route availability centralized so inactive modules cannot render their workspaces.
 - Keep Dashboard composition dependent on contribution metadata, not direct module knowledge.
 - Use `docs/05_PLATFORM_ARCHITECTURE.md` as the mandatory reference before building new business modules.
+- Keep Product as one canonical business entity; future Inventory, Purchasing, Sales and Reporting modules must consume the Product Catalog instead of defining their own product model.
+- Keep Inventory as a domain foundation first; visible stock workflows must consume the posting engine instead of mutating balances directly.
 
 ## Risks
 
@@ -38,6 +42,8 @@ Track the planned evolution of HicoPilot from ERP foundation to commercial produ
 - Legacy compatibility redirects must point only to active canonical routes or a safe fallback.
 - Dashboard contribution descriptors must not import React components or module UI.
 - Future business modules must not bypass the architecture constitution.
+- Product Catalog must remain planned/hidden until a future sprint explicitly activates it in an Edition profile.
+- Inventory must remain planned/hidden until a future sprint explicitly activates a stable UI and Edition profile.
 
 ## Open Questions
 
@@ -46,3 +52,5 @@ Track the planned evolution of HicoPilot from ERP foundation to commercial produ
 - What governance rules should decide when a preview/planned Edition becomes selectable?
 - Which route availability policy should be user-facing once paid Editions and upgrade flows exist?
 - Which business module should contribute the next stable Dashboard widget after Product Catalog matures?
+- When should Product Catalog become active in Alpha navigation: after Sales line-item integration, Inventory foundation or Purchasing foundation?
+- Which visible Inventory workflow should activate first: warehouse setup, stock overview, manual adjustments or Sales availability?

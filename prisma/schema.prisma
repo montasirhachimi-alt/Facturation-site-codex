@@ -56,48 +56,68 @@ enum StockMovementType {
   ADJUSTMENT
 }
 
+enum InventoryMovementType {
+  RECEIPT
+  ISSUE
+  TRANSFER
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+  RESERVATION
+  RELEASE
+}
+
+enum InventoryMovementStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+}
+
 model Company {
-  id                String             @id @default(cuid())
-  name              String
-  ice               String?
-  taxId             String?
-  rc                String?
-  phone             String?
-  email             String?
-  address           String?
-  city              String?
-  logoUrl           String?
-  stampUrl          String?
-  signUrl           String?
-  users             User[]
-  clients           Client[]
-  suppliers         Supplier[]
-  products          Product[]
-  documents         Document[]
-  deliveryNotes     DeliveryNote[]
-  purchases         PurchaseInvoice[]
-  cashEntries       CashEntry[]
-  employees         Employee[]
-  employeeContracts EmployeeContract[]
-  attendances       Attendance[]
-  hrLeaves          HrLeave[]
-  salarySlips       SalarySlip[]
-  salaryAdvances    SalaryAdvance[]
-  hrDocuments       HrDocument[]
-  expenses          Expense[]
-  categories        Category[]
-  movements         StockMovement[]
-  crmCompanies      CrmCompany[]
-  crmCustomers      CrmCustomer[]
-  crmContacts       CrmContact[]
-  crmMeetings       CrmMeeting[]
-  crmTasks          CrmTask[]
-  crmNotes          CrmNote[]
-  salesQuotes       SalesQuote[]
-  salesInvoices     SalesInvoice[]
-  salesPayments     SalesPayment[]
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  id                  String                   @id @default(cuid())
+  name                String
+  ice                 String?
+  taxId               String?
+  rc                  String?
+  phone               String?
+  email               String?
+  address             String?
+  city                String?
+  logoUrl             String?
+  stampUrl            String?
+  signUrl             String?
+  users               User[]
+  clients             Client[]
+  suppliers           Supplier[]
+  products            Product[]
+  productCategories   ProductCategory[]
+  documents           Document[]
+  deliveryNotes       DeliveryNote[]
+  purchases           PurchaseInvoice[]
+  cashEntries         CashEntry[]
+  employees           Employee[]
+  employeeContracts   EmployeeContract[]
+  attendances         Attendance[]
+  hrLeaves            HrLeave[]
+  salarySlips         SalarySlip[]
+  salaryAdvances      SalaryAdvance[]
+  hrDocuments         HrDocument[]
+  expenses            Expense[]
+  categories          Category[]
+  movements           StockMovement[]
+  crmCompanies        CrmCompany[]
+  crmCustomers        CrmCustomer[]
+  crmContacts         CrmContact[]
+  crmMeetings         CrmMeeting[]
+  crmTasks            CrmTask[]
+  crmNotes            CrmNote[]
+  salesQuotes         SalesQuote[]
+  salesInvoices       SalesInvoice[]
+  salesPayments       SalesPayment[]
+  inventoryWarehouses InventoryWarehouse[]
+  inventoryBalances   InventoryBalance[]
+  inventoryMovements  InventoryStockMovement[]
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
 }
 
 model User {
@@ -174,30 +194,76 @@ model Category {
   @@index([companyId])
 }
 
-model Product {
-  id            String                @id @default(cuid())
-  companyId     String
-  company       Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  categoryId    String?
-  category      Category?             @relation(fields: [categoryId], references: [id])
-  reference     String
-  designation   String
-  description   String?
-  imageUrl      String?
-  purchasePrice Decimal               @default(0)
-  salePrice     Decimal
-  vatRate       Decimal               @default(20)
-  stock         Int                   @default(0)
-  minStock      Int                   @default(0)
-  lines         DocumentLine[]
-  deliveryLines DeliveryNoteLine[]
-  purchaseLines PurchaseInvoiceLine[]
-  movements     StockMovement[]
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
+model ProductCategory {
+  id          String            @id @default(cuid())
+  companyId   String
+  company     Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  parentId    String?
+  parent      ProductCategory?  @relation("ProductCategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children    ProductCategory[] @relation("ProductCategoryTree")
+  description String?
+  order       Int               @default(0)
+  active      Boolean           @default(true)
+  products    Product[]         @relation("ProductCatalogCategory")
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
+  @@unique([companyId, name])
+  @@index([companyId])
+  @@index([companyId, active])
+  @@index([parentId])
+}
+
+model Product {
+  id                 String                   @id @default(cuid())
+  companyId          String
+  company            Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  categoryId         String?
+  category           Category?                @relation(fields: [categoryId], references: [id])
+  productCategoryId  String?
+  productCategory    ProductCategory?         @relation("ProductCatalogCategory", fields: [productCategoryId], references: [id], onDelete: SetNull)
+  sku                String
+  barcode            String?
+  reference          String
+  name               String
+  designation        String
+  shortDescription   String?
+  description        String?
+  brand              String?
+  unit               String                   @default("piece")
+  imageUrl           String?
+  purchasePrice      Decimal                  @default(0)
+  sellingPrice       Decimal
+  salePrice          Decimal
+  vatRate            Decimal                  @default(20)
+  currency           String                   @default("MAD")
+  active             Boolean                  @default(true)
+  status             String                   @default("active")
+  notes              String?
+  trackInventory     Boolean                  @default(false)
+  allowNegativeStock Boolean                  @default(false)
+  hasVariants        Boolean                  @default(false)
+  serialTracked      Boolean                  @default(false)
+  batchTracked       Boolean                  @default(false)
+  stock              Int                      @default(0)
+  minStock           Int                      @default(0)
+  lines              DocumentLine[]
+  deliveryLines      DeliveryNoteLine[]
+  purchaseLines      PurchaseInvoiceLine[]
+  movements          StockMovement[]
+  inventoryBalances  InventoryBalance[]
+  inventoryMovements InventoryStockMovement[]
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+
+  @@unique([companyId, sku])
+  @@unique([companyId, barcode])
   @@unique([companyId, reference])
   @@index([companyId])
+  @@index([companyId, active])
+  @@index([companyId, status])
+  @@index([productCategoryId])
 }
 
 model Document {
@@ -511,6 +577,76 @@ model StockMovement {
 
   @@index([companyId, productId])
   @@index([companyId, type])
+  @@index([companyId, createdAt])
+}
+
+model InventoryWarehouse {
+  id            String                   @id @default(cuid())
+  companyId     String
+  company       Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code          String
+  name          String
+  description   String?
+  active        Boolean                  @default(true)
+  isDefault     Boolean                  @default(false)
+  balances      InventoryBalance[]
+  movementsFrom InventoryStockMovement[] @relation("InventoryMovementFromWarehouse")
+  movementsTo   InventoryStockMovement[] @relation("InventoryMovementToWarehouse")
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([companyId, active])
+  @@index([companyId, isDefault])
+}
+
+model InventoryBalance {
+  id                String             @id @default(cuid())
+  companyId         String
+  company           Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  productId         String
+  product           Product            @relation(fields: [productId], references: [id], onDelete: Restrict)
+  warehouseId       String
+  warehouse         InventoryWarehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  quantityOnHand    Decimal            @default(0)
+  quantityReserved  Decimal            @default(0)
+  quantityAvailable Decimal            @default(0)
+  lastMovementDate  DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@unique([companyId, productId, warehouseId])
+  @@index([companyId])
+  @@index([companyId, productId])
+  @@index([companyId, warehouseId])
+}
+
+model InventoryStockMovement {
+  id              String                  @id @default(cuid())
+  companyId       String
+  company         Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  productId       String
+  product         Product                 @relation(fields: [productId], references: [id], onDelete: Restrict)
+  fromWarehouseId String?
+  fromWarehouse   InventoryWarehouse?     @relation("InventoryMovementFromWarehouse", fields: [fromWarehouseId], references: [id], onDelete: Restrict)
+  toWarehouseId   String?
+  toWarehouse     InventoryWarehouse?     @relation("InventoryMovementToWarehouse", fields: [toWarehouseId], references: [id], onDelete: Restrict)
+  type            InventoryMovementType
+  status          InventoryMovementStatus @default(DRAFT)
+  quantity        Decimal
+  reference       String?
+  reason          String?
+  postedAt        DateTime?
+  cancelledAt     DateTime?
+  createdBy       String?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  @@index([companyId])
+  @@index([companyId, productId])
+  @@index([companyId, type])
+  @@index([companyId, status])
   @@index([companyId, createdAt])
 }
 

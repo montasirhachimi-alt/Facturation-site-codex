@@ -2767,6 +2767,173 @@ test("CRM Opportunities Foundation supports update archive search filtering and 
   assert(visibleAfterArchive.opportunities.every((opportunity) => opportunity.status !== "archived"), "Archived opportunities should be hidden by default.");
 });
 
+test("Product Catalog Foundation creates, validates, archives and restores canonical products", () => {
+  const {
+    ProductService,
+    PRODUCTS_WORKSPACE_ID,
+    PRODUCTS_USER_ID
+  } = load("src/modules/products");
+  const service = new ProductService({
+    now: () => "2026-07-13T12:00:00.000Z",
+    createProductId: () => "product-runtime-1",
+    createCategoryId: () => "category-runtime-1"
+  });
+
+  const categoryResult = service.createCategory({
+    workspaceId: PRODUCTS_WORKSPACE_ID,
+    name: "Services"
+  });
+
+  assert(categoryResult.category, "Product category should be created.");
+
+  const productResult = service.createProduct({
+    workspaceId: PRODUCTS_WORKSPACE_ID,
+    sku: " srv 001 ",
+    barcode: "BC-001",
+    name: "Audit Premium",
+    categoryId: categoryResult.category.id,
+    purchasePrice: 100,
+    sellingPrice: 250,
+    vatRate: 20,
+    currency: "mad",
+    createdBy: PRODUCTS_USER_ID
+  });
+
+  assert(productResult.product, "Product should be created.");
+  assert(productResult.product.sku === "SRV-001", "SKU should be normalized.");
+  assert(productResult.product.currency === "MAD", "Currency should be normalized.");
+  assert(productResult.product.categoryName === "Services", "Category relation should be reflected in product view model.");
+
+  const duplicateSku = service.createProduct({
+    workspaceId: PRODUCTS_WORKSPACE_ID,
+    sku: "srv-001",
+    name: "Duplicate",
+    sellingPrice: 300
+  });
+  assert(!duplicateSku.validation.valid, "Duplicate SKU should be rejected.");
+
+  const duplicateBarcode = service.createProduct({
+    workspaceId: PRODUCTS_WORKSPACE_ID,
+    sku: "SRV-002",
+    barcode: "BC-001",
+    name: "Duplicate barcode",
+    sellingPrice: 300
+  });
+  assert(!duplicateBarcode.validation.valid, "Duplicate barcode should be rejected.");
+
+  const archived = service.archiveProduct(productResult.product.id, PRODUCTS_WORKSPACE_ID, PRODUCTS_USER_ID);
+  assert(archived.product?.status === "archived" && archived.product.active === false, "Archive should update product lifecycle.");
+
+  const restored = service.restoreProduct(productResult.product.id, PRODUCTS_WORKSPACE_ID, PRODUCTS_USER_ID);
+  assert(restored.product?.status === "active" && restored.product.active === true, "Restore should reactivate product.");
+});
+
+test("Product Catalog Foundation remains registered but inactive in the current Alpha profile", () => {
+  const {
+    bosiacoModuleRegistry,
+    getCurrentAlphaActivation
+  } = load("src/platform/modules");
+  const descriptor = bosiacoModuleRegistry.get("sales.products");
+  const activation = getCurrentAlphaActivation();
+
+  assert(descriptor, "Product module descriptor should exist.");
+  assert(descriptor.status === "planned", "Product module should remain planned until a later activation sprint.");
+  assert(descriptor.hidden === true, "Product module should remain hidden from Alpha navigation.");
+  assert(!activation.activeModuleIdSet.has("sales.products"), "Product module should not be active in the current Alpha profile.");
+});
+
+test("Inventory Domain Foundation posts movements and calculates availability", () => {
+  const { InventoryService } = load("src/modules/inventory");
+  const companyId = "company-runtime";
+  const productId = "product-runtime-1";
+  const mainWarehouseId = "warehouse-main";
+  const secondaryWarehouseId = "warehouse-secondary";
+  const service = new InventoryService({
+    now: () => "2026-07-13T13:00:00.000Z",
+    createWarehouseId: (() => {
+      const ids = [mainWarehouseId, secondaryWarehouseId];
+      let index = 0;
+      return () => ids[index++];
+    })(),
+    createMovementId: (() => {
+      let index = 0;
+      return () => `movement-runtime-${index++}`;
+    })(),
+    productExists: (candidateProductId, candidateCompanyId) => candidateProductId === productId && candidateCompanyId === companyId
+  });
+
+  const main = service.createWarehouse({ companyId, code: " main ", name: "Principal", isDefault: true });
+  const secondary = service.createWarehouse({ companyId, code: "secondary", name: "Secondaire" });
+
+  assert(main.data?.code === "MAIN", "Warehouse code should be normalized.");
+  assert(secondary.data, "Second warehouse should be created.");
+  assert(!service.createWarehouse({ companyId, code: "main", name: "Duplicate" }).validation.valid, "Duplicate warehouse codes should be rejected.");
+  assert(!service.createWarehouse({ companyId, code: "third", name: "Third", isDefault: true }).validation.valid, "Only one default warehouse should be allowed.");
+
+  const receipt = service.postReceipt({ companyId, productId, toWarehouseId: mainWarehouseId, quantity: 10 });
+  assert(receipt.data?.status === "POSTED", "Receipt should post.");
+  assert(service.getAvailability(companyId, productId, mainWarehouseId) === 10, "Receipt should increase availability.");
+
+  const reservation = service.reserve({ companyId, productId, toWarehouseId: mainWarehouseId, quantity: 3 });
+  assert(reservation.data?.status === "POSTED", "Reservation should post.");
+  assert(service.getAvailability(companyId, productId, mainWarehouseId) === 7, "Reservation should reduce availability.");
+
+  const release = service.release({ companyId, productId, fromWarehouseId: mainWarehouseId, quantity: 1 });
+  assert(release.data?.status === "POSTED", "Release should post.");
+  assert(service.getAvailability(companyId, productId, mainWarehouseId) === 8, "Release should increase availability.");
+
+  const issue = service.postIssue({ companyId, productId, fromWarehouseId: mainWarehouseId, quantity: 2 });
+  assert(issue.data?.status === "POSTED", "Issue should post.");
+  assert(service.getAvailability(companyId, productId, mainWarehouseId) === 6, "Issue should reduce available on hand.");
+
+  const transfer = service.postTransfer({ companyId, productId, fromWarehouseId: mainWarehouseId, toWarehouseId: secondaryWarehouseId, quantity: 2 });
+  assert(transfer.data?.status === "POSTED", "Transfer should post.");
+  assert(service.getAvailability(companyId, productId, mainWarehouseId) === 4, "Transfer should reduce source availability.");
+  assert(service.getAvailability(companyId, productId, secondaryWarehouseId) === 2, "Transfer should increase destination availability.");
+
+  const adjustment = service.postAdjustment({ companyId, productId, fromWarehouseId: secondaryWarehouseId, quantity: 1, direction: "out" });
+  assert(adjustment.data?.status === "POSTED", "Adjustment should post.");
+  assert(service.getAvailability(companyId, productId, secondaryWarehouseId) === 1, "Adjustment out should reduce availability.");
+});
+
+test("Inventory Domain Foundation rolls back failed postings and rejects duplicate posting", () => {
+  const { InventoryService } = load("src/modules/inventory");
+  const companyId = "company-runtime";
+  const productId = "product-runtime-1";
+  const warehouseId = "warehouse-main";
+  const service = new InventoryService({
+    now: () => "2026-07-13T13:00:00.000Z",
+    createWarehouseId: () => warehouseId,
+    createMovementId: () => "movement-auto",
+    productExists: () => true
+  });
+
+  service.createWarehouse({ companyId, code: "main", name: "Principal" });
+  service.postReceipt({ id: "movement-receipt", companyId, productId, toWarehouseId: warehouseId, quantity: 5 });
+
+  const duplicate = service.postReceipt({ id: "movement-receipt", companyId, productId, toWarehouseId: warehouseId, quantity: 5 });
+  assert(!duplicate.validation.valid, "Posting the same movement id twice should fail.");
+  assert(service.getAvailability(companyId, productId, warehouseId) === 5, "Duplicate posting should not mutate availability.");
+
+  const failedIssue = service.postIssue({ companyId, productId, fromWarehouseId: warehouseId, quantity: 50 });
+  assert(!failedIssue.validation.valid, "Insufficient stock issue should fail.");
+  assert(service.getAvailability(companyId, productId, warehouseId) === 5, "Failed issue should preserve the previous balance.");
+});
+
+test("Inventory Domain Foundation remains hidden and inactive in Alpha", () => {
+  const {
+    bosiacoModuleRegistry,
+    getCurrentAlphaActivation
+  } = load("src/platform/modules");
+  const descriptor = bosiacoModuleRegistry.get("inventory.stock");
+  const activation = getCurrentAlphaActivation();
+
+  assert(descriptor, "Inventory module descriptor should exist.");
+  assert(descriptor.status === "planned", "Inventory module should remain planned.");
+  assert(descriptor.hidden === true, "Inventory module should remain hidden.");
+  assert(!activation.activeModuleIdSet.has("inventory.stock"), "Inventory module should not be active in Alpha.");
+});
+
 test("CRM Opportunities Foundation has no Prisma API or platform runtime dependency", () => {
   const opportunityFiles = listFiles("src/modules/crm/opportunities").filter((file) => !file.includes("/ui/"));
   const forbiddenPatterns = [

@@ -6,11 +6,11 @@
 | --- | --- |
 | Product | HicoPilot |
 | Version | v0.9.0-alpha |
-| Current Milestone | Modular Editions Platform |
-| Current Phase | Platform Architecture Constitution |
-| Current Sprint | PLATFORM-ARCH-001 — BOSIACO Platform Architecture Constitution |
-| Next Sprint | SPR-406 — Product Catalog Foundation |
-| Repository Health | Builds successfully with one known existing image optimization warning; Alpha-visible navigation, module route availability and Dashboard contributions are derived from the active module set produced by the current Alpha Edition profile, and the platform architecture is consolidated in `docs/05_PLATFORM_ARCHITECTURE.md`. |
+| Current Milestone | Business Platform |
+| Current Phase | Inventory Domain Foundation |
+| Current Sprint | SPR-407 — Inventory Domain Foundation |
+| Next Sprint | Product Catalog / Inventory activation planning |
+| Repository Health | Builds successfully with one known existing image optimization warning; Alpha-visible navigation, route availability and Dashboard contributions remain activation-driven, Product Catalog remains planned/hidden, and the Inventory domain now exists as a planned/hidden backend foundation without visible Alpha behavior. |
 
 ## Completed Core Engines
 
@@ -54,6 +54,8 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | Dynamic Navigation & Route Availability | `src/platform/modules/` | Implemented as active-module navigation composition, centralized route ownership and inactive-route redirect policy. |
 | Dashboard Contribution Registry | `src/platform/dashboard/` | Implemented as metadata-only dashboard contribution registry and resolver driven by active modules. |
 | Platform Architecture Constitution | `docs/05_PLATFORM_ARCHITECTURE.md` | Implemented as the mandatory architecture reference for future platform and business-module sprints. |
+| Product Catalog Foundation | `src/modules/products/` | Implemented as the canonical Product service, local cache, persistence bridge and prepared hidden workspace for future business modules. |
+| Inventory Domain Foundation | `src/modules/inventory/` | Implemented as warehouse, balance, stock movement, posting and reservation domain foundation with transaction-oriented persistence. |
 
 ## Completed Integrations
 
@@ -116,6 +118,8 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | Dynamic Navigation & Route Availability composes Sidebar and Command Center destinations from active module navigation metadata and centralizes route ownership, legacy redirects, inactive-module fallbacks and Favorites/Recent route filtering. | Completed |
 | Dynamic Dashboard Contributions make the Dashboard consume active module contribution metadata through a registry and resolver while preserving the existing visual layout. | Completed |
 | Platform Architecture Constitution documents the authoritative module, activation, Edition, navigation, route, Command Center, Dashboard, persistence and import-safety rules for all future modules. | Completed |
+| Product Catalog Foundation extends the existing Product model into the canonical tenant-scoped catalogue, adds ProductCategory, ProductService, repository persistence, activation-gated search and a prepared hidden Product workspace. | Completed |
+| Inventory Domain Foundation adds tenant-scoped warehouse, balance and stock movement models plus a service-level posting engine and transaction-oriented repository without exposing Inventory UI. | Completed |
 
 ## Known Technical Debt
 
@@ -224,15 +228,17 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - SPR-404 Dynamic Navigation & Route Availability makes active modules the source of truth for Sidebar and Command Center navigation, centralizes route ownership and enforces inactive-module redirects through middleware while preserving current Alpha parity.
 - SPR-405 Dynamic Dashboard Contributions adds a platform-owned contribution registry and resolver so active modules can contribute Dashboard sections through metadata while the current Dashboard remains visually unchanged.
 - PLATFORM-ARCH-001 creates `docs/05_PLATFORM_ARCHITECTURE.md` as the mandatory architecture constitution before Product Catalog Foundation begins.
+- SPR-406 Product Catalog Foundation creates the canonical product catalogue while keeping Product planned/hidden in Alpha, so no Product navigation or Sales workflow changes are visible yet.
+- SPR-407 Inventory Domain Foundation creates the inventory business engine for warehouses, balances, movements, reservations and availability while keeping Inventory planned/hidden in Alpha.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passed during SPR-403. |
-| `npm run build` | Yes | Passed during SPR-403; the known PDF preview image warning remains. |
-| `npm run validate:runtime` | Yes for platform work | Passed during SPR-405 with Module Registry, Module Activation, Edition Profile, Dynamic Navigation, Route Availability and Dashboard Contribution checks. |
-| Prisma schema validation | Yes for persistence work | Passed during ZF-R6. |
+| `npm run typecheck` | Yes | Passed during SPR-406. |
+| `npm run build` | Yes | Passed during SPR-407; the known PDF preview image warning remains. |
+| `npm run validate:runtime` | Yes for platform work | Passed during SPR-407 with Inventory Domain Foundation checks added. |
+| Prisma schema validation | Yes for persistence work | Passed during SPR-407. |
 | Prisma migration replay | Yes for persistence work | Passed during ZF-R6 on a fresh local replay database. |
 
 ## Repository Health

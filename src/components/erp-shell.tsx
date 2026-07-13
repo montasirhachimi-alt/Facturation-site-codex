@@ -5,7 +5,7 @@ import { Sidebar } from "@/components/sidebar";
 import { Topbar } from "@/components/topbar";
 import { KeyboardShortcutProvider } from "@/platform/keyboard";
 import { ModuleActivationProvider } from "@/platform/modules/module-activation.context";
-import { CrmSalesPersistenceProvider } from "@/platform/persistence";
+import { CrmSalesPersistenceProvider, InventoryPersistenceProvider, ProductCatalogPersistenceProvider } from "@/platform/persistence";
 import { UniversalSearchProvider } from "@/platform/search/providers/universal-search-provider";
 import type { AuthSession } from "@/lib/types";
 import { WorkspaceProvider } from "@/providers";
@@ -20,6 +20,8 @@ export function ErpShell({ children, user }: { children: React.ReactNode; user: 
         <UniversalSearchProvider>
           <KeyboardShortcutProvider>
             <CrmSalesPersistenceProvider>
+              <ProductCatalogPersistenceProvider>
+                <InventoryPersistenceProvider>
               <div className="min-h-screen bg-[linear-gradient(180deg,#F8FBFF_0%,#F5F7FA_42%,#EEF4FF_100%)] text-hicotech-ink dark:bg-hicotech-dark-page dark:text-white">
                 <Sidebar
                   collapsed={collapsed}
@@ -33,6 +35,8 @@ export function ErpShell({ children, user }: { children: React.ReactNode; user: 
                   <main className="px-4 pb-10 pt-5 sm:px-6 lg:px-8">{children}</main>
                 </div>
               </div>
+                </InventoryPersistenceProvider>
+              </ProductCatalogPersistenceProvider>
             </CrmSalesPersistenceProvider>
           </KeyboardShortcutProvider>
         </UniversalSearchProvider>

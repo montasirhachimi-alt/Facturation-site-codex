@@ -1,5 +1,63 @@
 # HicoPilot Architecture Decision Records
 
+## ADR-027 — Inventory Domain Foundation
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-07-13 |
+
+### Decision
+
+SPR-407 introduces Inventory as a domain foundation, not a visible module.
+
+Inventory references the canonical Product Catalog and owns warehouse, balance and stock movement concepts.
+
+`inventory.stock` remains planned and hidden in the current Alpha activation profile.
+
+### Motivation
+
+Product describes what the company sells. Inventory must describe where products are, how much exists and how much is available.
+
+This separation is required before future Inventory UI, Purchasing, Delivery or Sales stock behavior can be implemented safely.
+
+### Consequences
+
+Inventory has tenant-scoped Prisma tables and a transaction-oriented repository.
+
+Posting movements updates balances atomically.
+
+No Sidebar entry, Dashboard widget, Command Center entry, Purchasing workflow or Sales integration is introduced by this decision.
+
+## ADR-026 — Canonical Product Catalog Foundation
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-07-13 |
+
+### Decision
+
+SPR-406 establishes the Product Catalog as the canonical product foundation for future Sales, Inventory, Purchasing, Delivery, Production and Reporting modules.
+
+The existing Prisma `Product` model is extended rather than replaced, preserving one Product model and avoiding a duplicated catalogue.
+
+`sales.products` remains planned and hidden in the current Alpha activation profile.
+
+### Motivation
+
+BOSIACO needs a single Product Catalog before adding Inventory, Purchasing or advanced Sales document behavior. Without one canonical model and service, future modules would create duplicate product concepts and inconsistent SKU, VAT and pricing behavior.
+
+### Consequences
+
+Product data is tenant-scoped and persists through a dedicated Product Catalog repository.
+
+The repository mirrors canonical product fields into legacy fields for compatibility.
+
+Search integration is prepared but activation-gated, so Product records do not appear in Alpha unless the Product module is activated later.
+
+Inventory, Purchasing, barcode scanning, variants and price lists remain future work.
+
 ## ADR-025 — Platform Architecture Constitution
 
 | Field | Value |
