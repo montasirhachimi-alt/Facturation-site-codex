@@ -1,5 +1,30 @@
 # HicoPilot Architecture Decision Records
 
+## ADR-025 — Platform Architecture Constitution
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-07-13 |
+
+### Decision
+
+PLATFORM-ARCH-001 creates `docs/05_PLATFORM_ARCHITECTURE.md` as the mandatory architecture constitution for future BOSIACO platform and business-module work.
+
+The constitution consolidates the rules from SPR-401 through SPR-405: Module Registry, Activation Engine, Edition Profiles, Dynamic Navigation, Route Availability, Command Center integration and Dashboard Contributions.
+
+### Motivation
+
+Before Product Catalog, Inventory, Purchasing, HR and future modules begin, BOSIACO needs one authoritative document so future development does not re-decide dependency direction, module lifecycle, route ownership, persistence boundaries or prohibited patterns.
+
+### Consequences
+
+Future platform and business-module sprints must read `docs/05_PLATFORM_ARCHITECTURE.md`.
+
+New modules must use the platform contracts instead of hardcoding navigation, checking Edition IDs directly or bypassing activation and route availability.
+
+This decision changes documentation only. No application code, Runtime, Prisma, persistence, authentication, permissions or UI behavior changed.
+
 ## ADR-024 — Dynamic Dashboard Contributions
 
 | Field | Value |

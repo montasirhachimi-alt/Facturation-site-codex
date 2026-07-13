@@ -7,10 +7,10 @@
 | Product | HicoPilot |
 | Version | v0.9.0-alpha |
 | Current Milestone | Modular Editions Platform |
-| Current Phase | Dynamic Dashboard Contributions |
-| Current Sprint | SPR-405 — Dynamic Dashboard Contributions |
+| Current Phase | Platform Architecture Constitution |
+| Current Sprint | PLATFORM-ARCH-001 — BOSIACO Platform Architecture Constitution |
 | Next Sprint | SPR-406 — Product Catalog Foundation |
-| Repository Health | Builds successfully with one known existing image optimization warning; Alpha-visible navigation, module route availability and Dashboard contributions are derived from the active module set produced by the current Alpha Edition profile. |
+| Repository Health | Builds successfully with one known existing image optimization warning; Alpha-visible navigation, module route availability and Dashboard contributions are derived from the active module set produced by the current Alpha Edition profile, and the platform architecture is consolidated in `docs/05_PLATFORM_ARCHITECTURE.md`. |
 
 ## Completed Core Engines
 
@@ -53,6 +53,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | Edition Profile Registry | `src/platform/editions/` | Implemented as metadata-only Edition profile registry feeding the Module Activation Engine. |
 | Dynamic Navigation & Route Availability | `src/platform/modules/` | Implemented as active-module navigation composition, centralized route ownership and inactive-route redirect policy. |
 | Dashboard Contribution Registry | `src/platform/dashboard/` | Implemented as metadata-only dashboard contribution registry and resolver driven by active modules. |
+| Platform Architecture Constitution | `docs/05_PLATFORM_ARCHITECTURE.md` | Implemented as the mandatory architecture reference for future platform and business-module sprints. |
 
 ## Completed Integrations
 
@@ -114,6 +115,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | Edition Profiles Foundation defines Alpha, Basic, CRM, Sales, Inventory, Purchasing, HR, Enterprise and Custom Edition profiles as metadata and uses the current Alpha Edition as the activation input source without changing visible behavior. | Completed |
 | Dynamic Navigation & Route Availability composes Sidebar and Command Center destinations from active module navigation metadata and centralizes route ownership, legacy redirects, inactive-module fallbacks and Favorites/Recent route filtering. | Completed |
 | Dynamic Dashboard Contributions make the Dashboard consume active module contribution metadata through a registry and resolver while preserving the existing visual layout. | Completed |
+| Platform Architecture Constitution documents the authoritative module, activation, Edition, navigation, route, Command Center, Dashboard, persistence and import-safety rules for all future modules. | Completed |
 
 ## Known Technical Debt
 
@@ -221,6 +223,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - SPR-403 Edition Profiles Foundation adds a platform-owned Edition profile registry, current Alpha Edition source, future commercial Edition metadata and Edition-to-Activation adapter so one codebase can support future Editions without changing the Alpha UI.
 - SPR-404 Dynamic Navigation & Route Availability makes active modules the source of truth for Sidebar and Command Center navigation, centralizes route ownership and enforces inactive-module redirects through middleware while preserving current Alpha parity.
 - SPR-405 Dynamic Dashboard Contributions adds a platform-owned contribution registry and resolver so active modules can contribute Dashboard sections through metadata while the current Dashboard remains visually unchanged.
+- PLATFORM-ARCH-001 creates `docs/05_PLATFORM_ARCHITECTURE.md` as the mandatory architecture constitution before Product Catalog Foundation begins.
 
 ## Validation Status
 

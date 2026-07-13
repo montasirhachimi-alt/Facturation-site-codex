@@ -63,6 +63,10 @@ Services coordinate Core Engines. UI should not call multiple engines directly w
 
 Read `docs/02_PROJECT_STATUS.md` before starting. It describes the active sprint, current risks and validation health.
 
+## Platform Architecture
+
+Read `docs/05_PLATFORM_ARCHITECTURE.md` before starting any platform sprint or business-module sprint. It is the authoritative architecture constitution for module registration, activation, Editions, navigation, routes, Command Center, Dashboard contributions, persistence boundaries and import safety.
+
 ## Completed Sprints
 
 Recent completed platform sprints:

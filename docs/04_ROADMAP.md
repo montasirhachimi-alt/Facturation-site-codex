@@ -59,7 +59,7 @@ Focus:
 
 ## Milestone 6 — Marketplace
 
-Status: Planned, with Module Registry, Module Activation, Edition Profile, Dynamic Navigation and Dashboard Contribution foundations completed in SPR-401 through SPR-405.
+Status: Planned, with Module Registry, Module Activation, Edition Profile, Dynamic Navigation and Dashboard Contribution foundations completed in SPR-401 through SPR-405 and consolidated by `docs/05_PLATFORM_ARCHITECTURE.md`.
 
 Focus:
 
@@ -72,6 +72,7 @@ Focus:
 - Edition profile registry and future commercial profile metadata.
 - Activation-driven navigation and route availability.
 - Activation-driven dashboard contributions.
+- Platform architecture constitution for future modules.
 
 Foundation completed:
 
@@ -85,6 +86,7 @@ Foundation completed:
 - Routes and navigation now depend on active modules, never directly on Edition IDs.
 - SPR-405 adds the Dynamic Dashboard Contribution System so active modules can contribute dashboard sections through metadata.
 - The Platform Foundation is ready for the Business Platform phase and Product Catalog Foundation.
+- PLATFORM-ARCH-001 consolidates the completed platform rules into `docs/05_PLATFORM_ARCHITECTURE.md`, the mandatory reference for future platform and business-module sprints.
 
 ## Milestone 7 — Cloud Platform
 
