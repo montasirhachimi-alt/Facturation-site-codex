@@ -15,9 +15,22 @@ export type InventoryMovementType =
   | "RELEASE";
 
 export type InventoryMovementStatus = "DRAFT" | "POSTED" | "CANCELLED";
+export type InventoryMovementReferenceType = "MANUAL" | "QUOTE" | "SALES_ORDER" | "DELIVERY" | "ADJUSTMENT";
 
 export type InventoryPolicy = Readonly<{
   allowNegativeStock: boolean;
+}>;
+
+export type InventoryAvailability = Readonly<{
+  companyId: InventoryCompanyId;
+  productId: ProductId;
+  warehouseId: InventoryWarehouseId;
+  quantityOnHand: number;
+  quantityReserved: number;
+  quantityAvailable: number;
+  quantityIncoming: number;
+  quantityOutgoing: number;
+  quantityProjected: number;
 }>;
 
 export type Warehouse = Readonly<{
@@ -56,6 +69,8 @@ export type StockMovement = Readonly<{
   status: InventoryMovementStatus;
   quantity: number;
   reference?: string;
+  referenceType?: InventoryMovementReferenceType;
+  referenceId?: string;
   reason?: string;
   postedAt?: string;
   cancelledAt?: string;
@@ -96,6 +111,8 @@ export type PostMovementInput = Readonly<{
   type: InventoryMovementType;
   quantity: number;
   reference?: string;
+  referenceType?: InventoryMovementReferenceType;
+  referenceId?: string;
   reason?: string;
   createdBy?: InventoryUserId;
   policy?: Partial<InventoryPolicy>;
@@ -134,4 +151,16 @@ export type InventoryValidationResult = Readonly<{
 export type InventoryOperationResult<T> = Readonly<{
   data?: T;
   validation: InventoryValidationResult;
+}>;
+
+export type ReservationRequest = Readonly<{
+  companyId: InventoryCompanyId;
+  productId: ProductId;
+  warehouseId: InventoryWarehouseId;
+  quantity: number;
+  reference?: string;
+  referenceType?: InventoryMovementReferenceType;
+  referenceId?: string;
+  reason?: string;
+  createdBy?: InventoryUserId;
 }>;

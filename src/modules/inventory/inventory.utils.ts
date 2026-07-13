@@ -1,4 +1,4 @@
-import type { InventoryBalance, InventoryCompanyId, InventoryWarehouseId, StockMovement } from "./inventory.types";
+import type { InventoryAvailability, InventoryBalance, InventoryCompanyId, InventoryWarehouseId, StockMovement } from "./inventory.types";
 import type { ProductId } from "@/modules/products";
 
 export function normalizeWarehouseCode(value: string) {
@@ -39,6 +39,20 @@ export function createEmptyBalance({
     reorderPoint: 0,
     createdAt: now,
     updatedAt: now
+  });
+}
+
+export function createAvailabilityFromBalance(balance: InventoryBalance): InventoryAvailability {
+  return Object.freeze({
+    companyId: balance.companyId,
+    productId: balance.productId,
+    warehouseId: balance.warehouseId,
+    quantityOnHand: roundQuantity(balance.quantityOnHand),
+    quantityReserved: roundQuantity(balance.quantityReserved),
+    quantityAvailable: calculateQuantityAvailable(balance.quantityOnHand, balance.quantityReserved),
+    quantityIncoming: 0,
+    quantityOutgoing: 0,
+    quantityProjected: calculateQuantityAvailable(balance.quantityOnHand, balance.quantityReserved)
   });
 }
 

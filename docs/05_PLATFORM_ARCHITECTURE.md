@@ -353,6 +353,44 @@ Rules:
 - Generic import/export helpers must remain client/server safe and dependency-light.
 - Stock quantities must not be imported through Product master data; Inventory quantities must use Inventory posting workflows.
 
+## 9.2 Commercial Documents Foundation
+
+Commercial documents are shared platform primitives under `src/platform/commercial-documents/`.
+
+The foundation defines:
+
+- shared document headers
+- shared document lines
+- shared totals calculation
+- shared discount and tax helpers
+- shared status metadata
+- shared lifecycle transitions
+- shared numbering metadata
+- shared validation
+- shared document definitions and registry
+
+Current Alpha consumers:
+
+- Quotes
+- Invoices
+
+Prepared metadata only:
+
+- Sales Orders
+- Delivery Notes
+- Purchase Orders
+- Goods Receipts
+- Supplier Invoices
+
+Rules:
+
+- Commercial document primitives must not import React, Next.js, Prisma, Inventory, CRM or Sales UI.
+- Business modules adapt their own public types to the platform document primitives.
+- Persistence remains module-owned and tenant-scoped.
+- Rendering remains module-owned until a later unified document rendering engine exists.
+- Future Sales Orders, Delivery Notes, Purchasing and Goods Receipt workflows must consume this foundation instead of creating independent document models.
+- Inventory Reservation and Availability must remain separate; document references may link to Inventory later, but documents must not mutate stock directly.
+
 ## 10. Business Module Contract
 
 Every future business module must provide:
@@ -401,6 +439,7 @@ Persistence requirements:
 - failed writes preserve user-entered form data
 - client caches hydrate from the authoritative source
 - module-owned persistence adapters avoid duplicate stores
+- inventory availability and reservations must be owned by the Inventory engine, not recalculated by UI consumers
 
 Generic UI components must not import CRM, Sales or future module persistence internals.
 
@@ -501,6 +540,7 @@ Completed platform foundation sprints:
 - SPR-404 — Dynamic Navigation & Route Availability
 - SPR-405 — Dynamic Dashboard Contributions
 - SPR-408C — Shared Import / Export Framework
+- SPR-410 — Commercial Documents Foundation
 
 Current known limitations:
 
@@ -514,6 +554,8 @@ Current known limitations:
 - no persisted platform activation state
 - no import/export definition registry
 - no generic server-side import executor
+- no tenant-configurable commercial document numbering
+- no Sales Order, Delivery Note, Purchase Order, Goods Receipt or Supplier Invoice workflow
 
 ## 17. Future Roadmap
 

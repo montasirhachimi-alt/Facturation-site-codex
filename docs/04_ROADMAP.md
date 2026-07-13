@@ -58,6 +58,9 @@ Foundation in progress:
 - Inventory remains planned/inactive in Alpha until a later runtime activation sprint.
 - SPR-408 creates a controlled Inventory workspace for balances, warehouses, movement history and manual receipt/issue/transfer/adjustment posting.
 - Inventory remains inactive in the current Alpha runtime; `/inventory` is available only through an activation result that includes `inventory.stock`.
+- SPR-409 adds the Reservation & Availability Engine so available stock, reserved stock and future fulfillment checks have one canonical Inventory authority.
+- SPR-409A adds a controlled `Réservations` QA tab inside Inventory for manual reserve/release verification without exposing a commercial reservation lifecycle.
+- SPR-410 adds the Commercial Documents Foundation so Quotes and Invoices consume shared document primitives while Sales Orders, Delivery Notes and Purchasing documents remain future metadata only.
 - Purchasing, variants, barcode scanning, reservation workflow UI, valuation, sales allocation and stock movement cancellation remain future work.
 
 ## Milestone 5 — Enterprise AI

@@ -156,6 +156,8 @@ export async function postInventoryMovement(scope: PersistenceTenantScope, input
         status: "POSTED",
         quantity: input.quantity,
         reference: input.reference?.trim() || null,
+        referenceType: input.referenceType ?? null,
+        referenceId: input.referenceId?.trim() || null,
         reason: input.reason?.trim() || null,
         postedAt: now,
         createdBy: input.createdBy ?? scope.userId
@@ -278,6 +280,8 @@ function mapDbMovement(row: DbMovement): StockMovement {
     status: row.status,
     quantity: decimalToNumber(row.quantity),
     reference: row.reference ?? undefined,
+    referenceType: row.referenceType ?? undefined,
+    referenceId: row.referenceId ?? undefined,
     reason: row.reason ?? undefined,
     postedAt: row.postedAt?.toISOString(),
     cancelledAt: row.cancelledAt?.toISOString(),

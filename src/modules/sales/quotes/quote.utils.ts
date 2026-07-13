@@ -1,16 +1,24 @@
+import { calculateDocumentTotals } from "@/platform/commercial-documents";
 import type { Quote, QuoteCurrency, QuoteItem, QuoteSort, QuoteTotals } from "./quote.types";
 
 export function calculateQuoteTotals(items: readonly QuoteItem[], discountRate = 0, currency: QuoteCurrency): QuoteTotals {
-  const subtotal = items.reduce((total, item) => total + item.quantity * item.unitPrice, 0);
-  const discount = subtotal * (discountRate / 100);
-  const taxable = subtotal - discount;
-  const tax = items.reduce((total, item) => total + item.quantity * item.unitPrice * (1 - discountRate / 100) * (item.taxRate / 100), 0);
+  const totals = calculateDocumentTotals(
+    items.map((item) => ({
+      id: item.id,
+      description: item.description,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      tax: { rate: item.taxRate }
+    })),
+    currency,
+    { rate: discountRate }
+  );
 
   return Object.freeze({
-    subtotal,
-    discount,
-    tax,
-    total: taxable + tax,
+    subtotal: totals.subtotal,
+    discount: totals.discount,
+    tax: totals.tax,
+    total: totals.total,
     currency
   });
 }

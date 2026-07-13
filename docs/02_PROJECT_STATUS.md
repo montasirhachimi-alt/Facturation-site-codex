@@ -233,15 +233,18 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - SPR-408 Inventory Workspace creates the first functional stock workspace over the Inventory posting engine, including balances, warehouses, movement history and manual receipt/issue/transfer/adjustment dialogs, while keeping Inventory inactive and unavailable in the current Alpha runtime.
 - SPR-408B Product Catalog Import & Export adds XLSX/CSV templates, import parsing, column mapping, row-level validation, duplicate policies, server-confirmed Product import and all/filtered/selected Product exports without importing Inventory quantities or movements.
 - SPR-408C Shared Import / Export Framework extracts Product import/export mechanics into `src/platform/import-export/` with reusable importer/exporter definitions, mapping, validation, preview, templates, CSV/XLSX helpers, duplicate policies and error reports while preserving Product behavior and Alpha visibility.
+- SPR-409 Reservation & Availability Engine makes availability the canonical Inventory authority, adds `ReservationService`, structured movement references, reservation/release persistence through the existing Inventory API and reservation history display while keeping Inventory inactive in Alpha.
+- SPR-409A Reservation QA Workspace adds a controlled Inventory-only `Réservations` tab with manual reservation and release dialogs so the Reservation Engine can be authenticated and persistence-tested before Sales Orders, Delivery Notes or Purchasing exist.
+- SPR-410 Commercial Documents Foundation adds platform-owned document primitives, definitions, calculations, validation, status and lifecycle helpers, then routes Quote and Invoice totals through the shared foundation while preserving current Alpha behavior.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passed during SPR-408C. |
-| `npm run build` | Yes | Passed during SPR-408C; the known PDF preview image warning remains. |
-| `npm run validate:runtime` | Yes for platform work | Passed during SPR-408C with 100/100 checks, including shared import/export framework coverage. |
-| Prisma schema validation | Yes for persistence work | Passed during SPR-408. |
+| `npm run typecheck` | Yes | Passed during SPR-410. |
+| `npm run build` | Yes | Passed during SPR-410; the known PDF preview image warning remains. |
+| `npm run validate:runtime` | Yes for platform work | Passed during SPR-410 with 105/105 checks, including Commercial Documents coverage. |
+| Prisma schema validation | Yes for persistence work | Passed during SPR-409. |
 | Prisma migration replay | Yes for persistence work | Passed during ZF-R6 on a fresh local replay database. |
 
 ## Repository Health

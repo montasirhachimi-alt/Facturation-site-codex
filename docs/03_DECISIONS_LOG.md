@@ -1,5 +1,30 @@
 # HicoPilot Architecture Decision Records
 
+## ADR-028 — Commercial Documents Foundation
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-07-13 |
+
+### Decision
+
+SPR-410 introduces `src/platform/commercial-documents/` as the canonical foundation for commercial document primitives.
+
+Quotes and Invoices consume the shared calculation, validation, status and lifecycle foundation through existing Sales wrappers. Future Sales Orders, Delivery Notes, Purchase Orders, Goods Receipts and Supplier Invoices are registered as planned metadata only.
+
+### Motivation
+
+BOSIACO now has Product Catalog, Inventory, Reservation and Sales foundations. Before adding advanced commercial workflows, document structure must be standardized so future modules do not create incompatible line, total, tax, discount, numbering or lifecycle rules.
+
+### Consequences
+
+The current Alpha UI and workflows remain unchanged.
+
+Commercial document platform code is dependency-light and does not import React, Prisma, CRM/Sales UI, Inventory or repositories.
+
+Persistence remains module-owned and tenant-scoped. Inventory Reservation remains a separate authority and future document references must not mutate stock directly.
+
 ## ADR-027 — Inventory Domain Foundation
 
 | Field | Value |
@@ -865,3 +890,45 @@ SPR-408B made Product Catalog import/export production-ready, but future modules
 ### Consequences
 
 Product Catalog becomes the first consumer of the shared framework while preserving its visible behavior. Future modules must reuse the platform helpers and keep business rules inside their own module boundaries. The platform must remain entity-agnostic and must not import Product, CRM, Inventory, Purchasing, Prisma repositories or UI workflows directly.
+
+## ADR-026 — Inventory Reservation Availability Authority
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+
+### Decision
+
+Inventory availability is the single business authority for future allocation and fulfillment decisions.
+
+```text
+quantityAvailable = quantityOnHand - quantityReserved
+```
+
+Reservations and releases must go through the Inventory posting engine and persist as `RESERVATION` / `RELEASE` stock movements. Reservation state is stored in `InventoryBalance.quantityReserved`; no separate reservation quantity store is introduced.
+
+### Motivation
+
+Future modules such as Sales Orders, Delivery Notes, POS and Manufacturing need one safe source for allocation and fulfillment validation. Allowing UI screens or future modules to calculate availability independently would create inconsistent stock decisions.
+
+### Consequences
+
+`ReservationService` is the public business layer for `reserve`, `release`, `canReserve`, `canFulfill`, `getAvailability` and `recalculateAvailability`. Structured movement references (`referenceType`, `referenceId`) prepare future document linking without making Inventory depend on those modules. Low-stock logic uses available stock, not on-hand stock.
+
+## ADR-027 — Reservation QA Workspace Boundary
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+
+### Decision
+
+The Reservation QA workflow lives inside the controlled Inventory workspace as a `Réservations` tab. It is not a standalone module, not a top-level navigation group and not a commercial Sales Order reservation lifecycle.
+
+### Motivation
+
+The Reservation & Availability Engine needs authenticated manual QA before Sales Orders, Delivery Notes, Purchasing or POS integrations are built. Without a thin QA surface, testers cannot reliably create and release reservations through the same persistence path future modules will use.
+
+### Consequences
+
+The tab uses existing Inventory persistence operations (`reserve`, `release`) and movement-backed history. No duplicate reservation store, Reservation table, Command Center Quick Create or `/inventory/reservations` route is introduced. Alpha remains unchanged because Inventory remains inactive unless the controlled Inventory profile is active.

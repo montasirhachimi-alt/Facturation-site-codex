@@ -3105,6 +3105,79 @@ test("Inventory Domain Foundation rolls back failed postings and rejects duplica
   assert(service.getAvailability(companyId, productId, warehouseId) === 5, "Failed issue should preserve the previous balance.");
 });
 
+test("Reservation Availability Engine reserves releases and exposes canonical availability", () => {
+  const { InventoryService, ReservationService } = load("src/modules/inventory");
+  const companyId = "company-runtime";
+  const otherCompanyId = "company-other";
+  const productId = "product-runtime-1";
+  const warehouseId = "warehouse-main";
+  const service = new InventoryService({
+    now: () => "2026-07-13T15:00:00.000Z",
+    createWarehouseId: () => warehouseId,
+    createMovementId: (() => {
+      let index = 0;
+      return () => `reservation-runtime-${index++}`;
+    })(),
+    productExists: (candidateProductId, candidateCompanyId) => candidateProductId === productId && candidateCompanyId === companyId
+  });
+  const reservations = new ReservationService({ inventoryService: service });
+
+  service.createWarehouse({ companyId, code: "main", name: "Principal" });
+  service.postReceipt({ companyId, productId, toWarehouseId: warehouseId, quantity: 12 });
+
+  assert(reservations.canReserve({ companyId, productId, warehouseId, quantity: 5 }), "Reservation engine should approve available quantity.");
+  assert(reservations.canFulfill({ companyId, productId, warehouseId, quantity: 12 }), "Fulfillment should use available quantity before reservation.");
+
+  const firstReservation = reservations.reserve({ companyId, productId, warehouseId, quantity: 5, referenceType: "QUOTE", referenceId: "quote-1", reference: "DEV-001" });
+  assert(firstReservation.data?.type === "RESERVATION", "Reservation should post as a stock movement.");
+  assert(firstReservation.data?.referenceType === "QUOTE" && firstReservation.data?.referenceId === "quote-1", "Reservation should preserve future reference metadata.");
+
+  const secondReservation = reservations.reserve({ companyId, productId, warehouseId, quantity: 4, referenceType: "SALES_ORDER", referenceId: "order-1" });
+  assert(secondReservation.data?.status === "POSTED", "Multiple reservations should be allowed while stock is available.");
+
+  const availability = reservations.getAvailability({ companyId, productId, warehouseId });
+  assert(availability.quantityOnHand === 12, "Availability should expose on-hand quantity.");
+  assert(availability.quantityReserved === 9, "Availability should expose reserved quantity.");
+  assert(availability.quantityAvailable === 3, "Availability should expose available quantity.");
+  assert(availability.quantityIncoming === 0 && availability.quantityOutgoing === 0 && availability.quantityProjected === 3, "Future availability fields should remain deterministic placeholders.");
+  assert(!reservations.canReserve({ companyId, productId, warehouseId, quantity: 4 }), "Reservation engine should reject over-reservation.");
+
+  const overReservation = reservations.reserve({ companyId, productId, warehouseId, quantity: 4 });
+  assert(!overReservation.validation.valid, "Over-reservation should fail.");
+  assert(reservations.getAvailability({ companyId, productId, warehouseId }).quantityAvailable === 3, "Failed reservation should not mutate availability.");
+
+  const release = reservations.release({ companyId, productId, warehouseId, quantity: 2, referenceType: "QUOTE", referenceId: "quote-1" });
+  assert(release.data?.type === "RELEASE", "Release should post as a stock movement.");
+  assert(reservations.getAvailability({ companyId, productId, warehouseId }).quantityReserved === 7, "Release should decrease reserved quantity.");
+
+  const overRelease = reservations.release({ companyId, productId, warehouseId, quantity: 8 });
+  assert(!overRelease.validation.valid, "Release must not create negative reservation.");
+
+  const tenantMismatch = reservations.reserve({ companyId: otherCompanyId, productId, warehouseId, quantity: 1 });
+  assert(!tenantMismatch.validation.valid, "Reservation must remain tenant-scoped.");
+
+  const history = service.getSnapshot(companyId).movements.filter((movement) => movement.type === "RESERVATION" || movement.type === "RELEASE");
+  assert(history.length === 3, "Reservation and release should remain visible in movement history.");
+});
+
+test("Reservation QA Workspace stays inside Inventory and uses existing persistence operations", () => {
+  const workspaceSource = read("src/modules/inventory/ui/pages/inventory-workspace.tsx");
+  const dialogSource = read("src/modules/inventory/ui/dialogs/reservation-dialog.tsx");
+  const apiSource = read("src/app/api/persistence/inventory/route.ts");
+  const { ModuleActivationEngine, bosiacoModuleRegistry } = load("src/platform/modules");
+  const { inventoryEditionProfile, editionToActivationRequest } = load("src/platform/editions");
+  const { isRouteAvailable } = load("src/platform/modules/module-route-availability.ts");
+  const engine = new ModuleActivationEngine(bosiacoModuleRegistry);
+  const inventoryActivation = engine.resolve(editionToActivationRequest(inventoryEditionProfile));
+
+  assert(workspaceSource.includes('{ id: "reservations", label: "Réservations" }'), "Inventory workspace should expose the Reservations QA tab.");
+  assert(workspaceSource.includes("<ReservationDialog"), "Inventory workspace should render the reservation dialog.");
+  assert(dialogSource.includes('persistInventoryOperation(mode === "reserve" ? "reserve" : "release"'), "Reservation dialog should use existing Inventory persistence operations.");
+  assert(apiSource.includes('operation: "reserve"') && apiSource.includes('operation: "release"'), "Inventory API should expose reservation operations without a separate route.");
+  assert(!isRouteAvailable("/inventory"), "Inventory route should remain unavailable in Alpha.");
+  assert(isRouteAvailable("/inventory", inventoryActivation), "Inventory route should remain available under controlled Inventory activation.");
+});
+
 test("Inventory Domain Foundation remains inactive in Alpha", () => {
   const {
     bosiacoModuleRegistry,
@@ -3142,6 +3215,94 @@ test("CRM Opportunities Foundation has no Prisma API or platform runtime depende
       assert(!pattern.test(source), `CRM Opportunities foundation should not import forbidden dependency in ${file}.`);
     }
   }
+});
+
+test("Commercial Documents Foundation registers Alpha documents and planned future documents", () => {
+  const {
+    commercialDocumentRegistry,
+    COMMERCIAL_DOCUMENT_DEFINITIONS,
+    getDocumentNumberPrefix
+  } = load("src/platform/commercial-documents");
+  const validation = commercialDocumentRegistry.validate();
+  const quote = commercialDocumentRegistry.get("quote");
+  const invoice = commercialDocumentRegistry.get("invoice");
+  const planned = COMMERCIAL_DOCUMENT_DEFINITIONS.filter((definition) => definition.status === "planned");
+
+  assert(validation.valid, `Commercial Document Registry should validate: ${validation.errors.join("; ")}`);
+  assert(quote?.alphaReady === true && quote.prefix === "DEV", "Quote should be the Alpha-ready DEV document definition.");
+  assert(invoice?.alphaReady === true && invoice.prefix === "FAC", "Invoice should be the Alpha-ready FAC document definition.");
+  assert(planned.some((definition) => definition.type === "sales-order"), "Sales Orders should remain planned metadata only.");
+  assert(planned.some((definition) => definition.type === "delivery-note"), "Delivery Notes should remain planned metadata only.");
+  assert(getDocumentNumberPrefix("invoice") === "FAC", "Invoice numbering prefix should be shared by the platform.");
+});
+
+test("Commercial Documents Foundation calculates validates and protects document lifecycle", () => {
+  const {
+    buildCommercialDocument,
+    calculateDocumentTotals,
+    canTransitionDocument,
+    validateCommercialDocument
+  } = load("src/platform/commercial-documents");
+  const lines = [
+    { id: "line-1", description: "Service", quantity: 2, unitPrice: 100, tax: { rate: 20 } },
+    { id: "line-2", description: "Support", quantity: 1, unitPrice: 50, tax: { rate: 20 } }
+  ];
+  const totals = calculateDocumentTotals(lines, "MAD", { rate: 10 });
+  const document = {
+    header: {
+      type: "quote",
+      number: "DEV-2026-001",
+      issueDate: "2026-07-13T00:00:00.000Z",
+      currency: "MAD",
+      status: "draft",
+      primaryParty: { role: "company", name: "Atlas Medical" }
+    },
+    lines,
+    documentDiscount: { rate: 10 }
+  };
+  const result = buildCommercialDocument(document);
+
+  assert(totals.subtotal === 250, "Commercial document subtotal should sum line bases.");
+  assert(totals.discount === 25, "Commercial document discount should support document-level rates.");
+  assert(totals.tax === 45, "Commercial document tax should follow the discounted taxable base.");
+  assert(totals.total === 270, "Commercial document total should be taxable plus tax.");
+  assert(validateCommercialDocument(document).valid, "Commercial document validation should accept a complete document.");
+  assert(result.totals.total === totals.total, "Document engine should compose calculation and validation.");
+  assert(canTransitionDocument("quote", "draft", "sent"), "Quote lifecycle should allow draft to sent.");
+  assert(!canTransitionDocument("quote", "draft", "paid"), "Quote lifecycle should reject unrelated Invoice status transitions.");
+});
+
+test("Sales Quote and Invoice totals consume the Commercial Documents calculation engine", () => {
+  const { calculateQuoteTotals } = load("src/modules/sales/quotes/quote.utils.ts");
+  const { getInvoiceTotals } = load("src/modules/sales/invoices/invoice.utils.ts");
+  const items = [
+    { id: "line-1", description: "Service", quantity: 2, unitPrice: 100, taxRate: 20 },
+    { id: "line-2", description: "Support", quantity: 1, unitPrice: 50, taxRate: 20 }
+  ];
+  const quoteTotals = calculateQuoteTotals(items, 10, "MAD");
+  const invoiceTotals = getInvoiceTotals({
+    id: "invoice-1",
+    workspaceId: "workspace-main",
+    number: "FAC-2026-001",
+    customerName: "Atlas Medical",
+    companyId: "company-1",
+    status: "issued",
+    issueDate: "2026-07-13T00:00:00.000Z",
+    dueDate: "2026-08-13T00:00:00.000Z",
+    currency: "MAD",
+    items,
+    discountRate: 10,
+    ownerId: "user-1",
+    paidAmount: 70,
+    createdAt: "2026-07-13T00:00:00.000Z",
+    updatedAt: "2026-07-13T00:00:00.000Z"
+  });
+
+  assert(quoteTotals.subtotal === 250, "Quote totals should preserve existing subtotal semantics.");
+  assert(quoteTotals.discount === 25, "Quote totals should preserve existing discount semantics.");
+  assert(quoteTotals.tax === 45, "Quote totals should preserve existing tax semantics.");
+  assert(quoteTotals.total === 270, "Quote totals should preserve existing grand total semantics.");
+  assert(invoiceTotals.total === 270 && invoiceTotals.remaining === 200, "Invoice totals should reuse Quote calculation and keep payment balance.");
 });
 
 const failures = results.filter((result) => result.status === "fail");

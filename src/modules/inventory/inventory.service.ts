@@ -4,6 +4,7 @@ import type {
   ArchiveWarehouseInput,
   CreateWarehouseInput,
   InventoryBalance,
+  InventoryAvailability,
   InventoryCompanyId,
   InventoryMovementId,
   InventoryOperationResult,
@@ -15,7 +16,7 @@ import type {
   UpdateWarehouseInput,
   Warehouse
 } from "./inventory.types";
-import { balanceKey, calculateQuantityAvailable, createEmptyBalance, freezeBalance, freezeMovement, normalizeWarehouseCode, roundQuantity } from "./inventory.utils";
+import { balanceKey, calculateQuantityAvailable, createAvailabilityFromBalance, createEmptyBalance, freezeBalance, freezeMovement, normalizeWarehouseCode, roundQuantity } from "./inventory.utils";
 import { singleIssue, validateCreateWarehouseInput, validatePostMovementInput, validateUpdateWarehouseInput, validationResult } from "./inventory.validation";
 
 export type InventoryServiceOptions = Readonly<{
@@ -147,6 +148,26 @@ export class InventoryService {
     return this.getBalance(companyId, productId, warehouseId)?.quantityAvailable ?? 0;
   }
 
+  getAvailabilitySnapshot(companyId: InventoryCompanyId, productId: ProductId, warehouseId: InventoryWarehouseId): InventoryAvailability {
+    const balance = this.getBalance(companyId, productId, warehouseId) ?? createEmptyBalance({ companyId, productId, warehouseId, now: this.now() });
+    return createAvailabilityFromBalance(balance);
+  }
+
+  recalculateAvailability(companyId?: InventoryCompanyId) {
+    const balances = [...this.balances.values()].filter((balance) => !companyId || balance.companyId === companyId);
+    balances.forEach((balance) => this.setBalance(balance));
+    return this.getSnapshot(companyId);
+  }
+
+  canReserve(input: { companyId: InventoryCompanyId; productId: ProductId; warehouseId: InventoryWarehouseId; quantity: number }) {
+    if (!Number.isFinite(input.quantity) || input.quantity <= 0) return false;
+    return this.getAvailability(input.companyId, input.productId, input.warehouseId) >= input.quantity;
+  }
+
+  canFulfill(input: { companyId: InventoryCompanyId; productId: ProductId; warehouseId: InventoryWarehouseId; quantity: number }) {
+    return this.canReserve(input);
+  }
+
   postReceipt(input: Omit<PostMovementInput, "type" | "fromWarehouseId">) {
     return this.postMovement({ ...input, type: "RECEIPT" });
   }
@@ -275,6 +296,8 @@ export class InventoryService {
       status: "POSTED",
       quantity: roundQuantity(input.quantity),
       reference: optionalText(input.reference),
+      referenceType: input.referenceType,
+      referenceId: optionalText(input.referenceId),
       reason: optionalText(input.reason),
       postedAt: timestamp,
       createdBy: input.createdBy,

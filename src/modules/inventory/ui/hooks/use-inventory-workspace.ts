@@ -8,7 +8,7 @@ import { productLocalService, subscribeToProductStore } from "@/modules/products
 import { inventoryLocalService, subscribeToInventoryStore } from "../../inventory-local-store";
 import type { InventoryBalance, InventoryMovementType, StockMovement, Warehouse } from "../../inventory.types";
 
-export type InventoryTab = "overview" | "stock" | "warehouses" | "movements";
+export type InventoryTab = "overview" | "stock" | "warehouses" | "movements" | "reservations";
 export type InventoryOperationMode = "receipt" | "issue" | "transfer" | "adjustment";
 
 export const INVENTORY_COMPANY_ID = "company-bosiaco" as import("../../inventory.types").InventoryCompanyId;
@@ -37,6 +37,9 @@ export function useInventoryWorkspace() {
   const [movementQuery, setMovementQuery] = useState("");
   const [movementWarehouseId, setMovementWarehouseId] = useState("all");
   const [movementType, setMovementType] = useState<InventoryMovementType | "all">("all");
+  const [reservationQuery, setReservationQuery] = useState("");
+  const [reservationWarehouseId, setReservationWarehouseId] = useState("all");
+  const [reservationType, setReservationType] = useState<"all" | "RESERVATION" | "RELEASE">("all");
 
   useEffect(() => {
     const refresh = () => setVersion((current) => current + 1);
@@ -72,6 +75,8 @@ export function useInventoryWorkspace() {
       toWarehouse: movement.toWarehouseId ? warehouseById.get(movement.toWarehouseId) : undefined
     } satisfies MovementRow));
     const filteredMovementRows = movementRows.filter((row) => filterMovementRow(row, movementQuery, movementWarehouseId, movementType));
+    const reservationRows = movementRows.filter((row) => row.movement.type === "RESERVATION" || row.movement.type === "RELEASE");
+    const filteredReservationRows = reservationRows.filter((row) => filterReservationRow(row, reservationQuery, reservationWarehouseId, reservationType));
     const trackedProductIds = new Set(stockRows.map((row) => row.balance.productId));
     const productItems = products.map(productToPickerItem);
 
@@ -79,12 +84,16 @@ export function useInventoryWorkspace() {
       activeTab,
       activeWarehouses,
       filteredMovementRows,
+      filteredReservationRows,
       filteredStockRows,
       kpis: {
         trackedProducts: trackedProductIds.size,
         quantityOnHand: sum(stockRows, (row) => row.balance.quantityOnHand),
         quantityReserved: sum(stockRows, (row) => row.balance.quantityReserved),
         quantityAvailable: sum(stockRows, (row) => row.balance.quantityAvailable),
+        quantityIncoming: 0,
+        quantityOutgoing: 0,
+        quantityProjected: sum(stockRows, (row) => row.balance.quantityAvailable),
         lowStock: stockRows.filter((row) => row.status === "low" || row.status === "out").length,
         activeWarehouses: activeWarehouses.length,
         recentMovements: snapshot.movements.slice(0, 5).length
@@ -96,11 +105,18 @@ export function useInventoryWorkspace() {
       movements: snapshot.movements,
       productItems,
       products,
+      reservationRows,
+      reservationQuery,
+      reservationType,
+      reservationWarehouseId,
       setActiveTab,
       setLowOnly,
       setMovementQuery,
       setMovementType,
       setMovementWarehouseId,
+      setReservationQuery,
+      setReservationType,
+      setReservationWarehouseId,
       setStockQuery,
       setStockWarehouseId,
       stockQuery,
@@ -110,7 +126,7 @@ export function useInventoryWorkspace() {
       warehouses: snapshot.warehouses,
       warehouseById
     };
-  }, [activeTab, lowOnly, movementQuery, movementType, movementWarehouseId, stockQuery, stockWarehouseId, version]);
+  }, [activeTab, lowOnly, movementQuery, movementType, movementWarehouseId, reservationQuery, reservationType, reservationWarehouseId, stockQuery, stockWarehouseId, version]);
 }
 
 export function formatInventoryQuantity(value: number) {
@@ -152,6 +168,16 @@ function filterMovementRow(row: MovementRow, query: string, warehouseId: string,
   const normalized = normalizeSearch(query);
   if (!normalized) return true;
   return [row.product?.name, row.product?.sku, row.fromWarehouse?.name, row.toWarehouse?.name, row.movement.reference, row.movement.reason]
+    .filter(Boolean)
+    .some((value) => normalizeSearch(value).includes(normalized));
+}
+
+function filterReservationRow(row: MovementRow, query: string, warehouseId: string, type: "all" | "RESERVATION" | "RELEASE") {
+  if (type !== "all" && row.movement.type !== type) return false;
+  if (warehouseId !== "all" && row.movement.fromWarehouseId !== warehouseId && row.movement.toWarehouseId !== warehouseId) return false;
+  const normalized = normalizeSearch(query);
+  if (!normalized) return true;
+  return [row.product?.name, row.product?.sku, row.fromWarehouse?.name, row.toWarehouse?.name, row.movement.reference, row.movement.referenceType, row.movement.referenceId, row.movement.reason]
     .filter(Boolean)
     .some((value) => normalizeSearch(value).includes(normalized));
 }

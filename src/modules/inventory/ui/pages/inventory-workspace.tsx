@@ -6,6 +6,7 @@ import { clsx } from "clsx";
 import { refreshInventoryPersistence, persistInventoryOperation } from "@/platform/persistence/inventory-persistence.client";
 import { useInventoryWorkspace, formatInventoryQuantity, movementTypeLabel, type InventoryOperationMode, type InventoryTab, type MovementRow, type StockRow } from "../hooks/use-inventory-workspace";
 import { InventoryOperationDialog } from "../dialogs/inventory-operation-dialog";
+import { ReservationDialog } from "../dialogs/reservation-dialog";
 import { WarehouseDialog } from "../dialogs/warehouse-dialog";
 import type { InventoryMovementType, Warehouse } from "../../inventory.types";
 
@@ -13,7 +14,8 @@ const tabs = [
   { id: "overview", label: "Vue d'ensemble" },
   { id: "stock", label: "Stock" },
   { id: "warehouses", label: "Entrepôts" },
-  { id: "movements", label: "Mouvements" }
+  { id: "movements", label: "Mouvements" },
+  { id: "reservations", label: "Réservations" }
 ] satisfies readonly { id: InventoryTab; label: string }[];
 
 const movementTypes = [
@@ -31,6 +33,7 @@ export function InventoryWorkspace() {
   const [operationMode, setOperationMode] = useState<InventoryOperationMode | null>(null);
   const [warehouseDialogOpen, setWarehouseDialogOpen] = useState(false);
   const [editingWarehouse, setEditingWarehouse] = useState<Warehouse | null>(null);
+  const [reservationDialog, setReservationDialog] = useState<null | { mode: "reserve" | "release"; initialValues?: Record<string, string> }>(null);
   const [notice, setNotice] = useState<{ tone: "success" | "error"; message: string } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -109,6 +112,18 @@ export function InventoryWorkspace() {
         {workspace.activeTab === "stock" && <StockSection workspace={workspace} />}
         {workspace.activeTab === "warehouses" && <WarehouseSection workspace={workspace} onArchive={archiveWarehouse} onCreate={() => openWarehouseDialog()} onEdit={openWarehouseDialog} />}
         {workspace.activeTab === "movements" && <MovementsSection workspace={workspace} onOperation={setOperationMode} />}
+        {workspace.activeTab === "reservations" && <ReservationsSection workspace={workspace} onCreate={() => setReservationDialog({ mode: "reserve" })} onRelease={(row) => setReservationDialog({
+          mode: "release",
+          initialValues: {
+            productId: row.movement.productId,
+            productLabel: row.product?.name ?? "",
+            warehouseId: row.movement.toWarehouseId ?? row.movement.fromWarehouseId ?? "",
+            reference: row.movement.reference ?? "",
+            referenceId: row.movement.referenceId ?? "",
+            referenceType: row.movement.referenceType ?? "MANUAL",
+            reason: row.movement.reason ?? ""
+          }
+        })} />}
       </div>
 
       <WarehouseDialog
@@ -125,6 +140,16 @@ export function InventoryWorkspace() {
         onClose={() => setOperationMode(null)}
         onSaved={(message) => setNotice({ tone: "success", message })}
       />
+      <ReservationDialog
+        open={Boolean(reservationDialog)}
+        mode={reservationDialog?.mode ?? "reserve"}
+        initialValues={reservationDialog?.initialValues}
+        productItems={workspace.productItems}
+        warehouses={workspace.warehouses}
+        balances={workspace.stockRows.map((row) => row.balance)}
+        onClose={() => setReservationDialog(null)}
+        onSaved={(message) => setNotice({ tone: "success", message })}
+      />
     </main>
   );
 }
@@ -132,11 +157,12 @@ export function InventoryWorkspace() {
 function InventoryOverview({ onCreateWarehouse, onOperation, workspace }: { onCreateWarehouse: () => void; onOperation: (mode: InventoryOperationMode) => void; workspace: ReturnType<typeof useInventoryWorkspace> }) {
   const kpis = [
     { label: "Produits suivis", value: workspace.kpis.trackedProducts, icon: PackageCheck },
+    { label: "En main", value: formatInventoryQuantity(workspace.kpis.quantityOnHand), icon: PackageCheck },
     { label: "Disponible", value: formatInventoryQuantity(workspace.kpis.quantityAvailable), icon: Boxes },
     { label: "Réservé", value: formatInventoryQuantity(workspace.kpis.quantityReserved), icon: ClipboardList },
+    { label: "Projeté", value: formatInventoryQuantity(workspace.kpis.quantityProjected), icon: MoveRight },
     { label: "Stock faible", value: workspace.kpis.lowStock, icon: CircleAlert },
-    { label: "Entrepôts actifs", value: workspace.kpis.activeWarehouses, icon: WarehouseIcon },
-    { label: "Mouvements récents", value: workspace.kpis.recentMovements, icon: MoveRight }
+    { label: "Entrepôts actifs", value: workspace.kpis.activeWarehouses, icon: WarehouseIcon }
   ];
 
   return (
@@ -162,6 +188,32 @@ function InventoryOverview({ onCreateWarehouse, onOperation, workspace }: { onCr
           <ActionButton label="Transfert" onClick={() => onOperation("transfer")} />
           <ActionButton label="Ajustement" onClick={() => onOperation("adjustment")} />
           <ActionButton label="Nouvel entrepôt" onClick={onCreateWarehouse} secondary />
+        </div>
+      </section>
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-hicotech-dark-border dark:bg-hicotech-dark-card xl:col-span-2">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-display text-lg font-black">Réservations récentes</h2>
+            <p className="mt-0.5 text-sm font-medium text-slate-500 dark:text-slate-300">Réservations et libérations postées par le moteur d&apos;inventaire.</p>
+          </div>
+          <StatusBadge label={`${workspace.reservationRows.length} mouvements`} tone="muted" />
+        </div>
+        <div className="mt-4 grid gap-2">
+          {workspace.reservationRows.map((row) => (
+            <div key={row.movement.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/40">
+              <div>
+                <p className="text-sm font-black text-hicotech-navy dark:text-white">{row.product?.name ?? "Produit inconnu"}</p>
+                <p className="text-xs font-semibold text-slate-400">{formatMovementWarehouses(row)} · {formatDate(row.movement.postedAt ?? row.movement.createdAt)}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <StatusBadge label={movementTypeLabel(row.movement.type)} tone={row.movement.type === "RESERVATION" ? "warning" : "ok"} />
+                <span className="font-display text-sm font-black">{formatInventoryQuantity(row.movement.quantity)}</span>
+              </div>
+            </div>
+          ))}
+          {workspace.reservationRows.length === 0 && (
+            <p className="rounded-xl border border-dashed border-slate-200 px-3 py-4 text-sm font-semibold text-slate-500 dark:border-hicotech-dark-border dark:text-slate-300">Aucune réservation postée pour le moment.</p>
+          )}
         </div>
       </section>
     </div>
@@ -281,6 +333,53 @@ function MovementsSection({ onOperation, workspace }: { onOperation: (mode: Inve
   );
 }
 
+function ReservationsSection({ onCreate, onRelease, workspace }: { onCreate: () => void; onRelease: (row: MovementRow) => void; workspace: ReturnType<typeof useInventoryWorkspace> }) {
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
+      <SectionToolbar title="Réservations" description="Vue QA des réservations et libérations postées par le moteur d'inventaire.">
+        <SearchControl value={workspace.reservationQuery} onChange={workspace.setReservationQuery} placeholder="Produit, SKU, référence..." />
+        <WarehouseFilter value={workspace.reservationWarehouseId} onChange={workspace.setReservationWarehouseId} warehouses={workspace.warehouses} />
+        <select value={workspace.reservationType} onChange={(event) => workspace.setReservationType(event.target.value as "all" | "RESERVATION" | "RELEASE")} className="min-h-10 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-hicotech-navy outline-none focus:ring-4 focus:ring-hicotech-blue/10 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white">
+          <option value="all">Tous les types</option>
+          <option value="RESERVATION">Réservations</option>
+          <option value="RELEASE">Libérations</option>
+        </select>
+        <button type="button" onClick={onCreate} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-hicotech-blue px-4 py-2 text-sm font-bold text-white shadow-[0_10px_24px_rgba(13,110,253,0.18)]">
+          <Plus size={16} /> Nouvelle réservation
+        </button>
+      </SectionToolbar>
+
+      <div className="grid gap-3 border-b border-slate-200 p-4 dark:border-hicotech-dark-border md:grid-cols-4">
+        <MiniStat label="En main" value={formatInventoryQuantity(workspace.kpis.quantityOnHand)} />
+        <MiniStat label="Réservé" value={formatInventoryQuantity(workspace.kpis.quantityReserved)} />
+        <MiniStat label="Disponible" value={formatInventoryQuantity(workspace.kpis.quantityAvailable)} />
+        <MiniStat label="Projeté" value={formatInventoryQuantity(workspace.kpis.quantityProjected)} />
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-hicotech-dark-border">
+          <thead className="bg-slate-50 text-left text-[11px] font-black uppercase tracking-[0.12em] text-slate-400 dark:bg-hicotech-dark-page/40">
+            <tr>
+              <th className="px-4 py-3">Date</th>
+              <th className="px-4 py-3">Produit</th>
+              <th className="px-4 py-3">Entrepôt</th>
+              <th className="px-4 py-3">Type</th>
+              <th className="px-4 py-3 text-right">Quantité</th>
+              <th className="px-4 py-3">Référence</th>
+              <th className="px-4 py-3">Motif</th>
+              <th className="px-4 py-3 text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-hicotech-dark-border/70">
+            {workspace.filteredReservationRows.map((row) => <ReservationTableRow key={row.movement.id} row={row} onRelease={onRelease} />)}
+          </tbody>
+        </table>
+        {workspace.filteredReservationRows.length === 0 && <EmptyState title="Aucune réservation" description="Créez une réservation manuelle pour valider le moteur avant les futures intégrations commerciales." />}
+      </div>
+    </section>
+  );
+}
+
 function SectionToolbar({ children, description, title }: { children: React.ReactNode; description: string; title: string }) {
   return (
     <div className="flex flex-col gap-3 border-b border-slate-200 p-4 dark:border-hicotech-dark-border xl:flex-row xl:items-center xl:justify-between">
@@ -344,6 +443,33 @@ function MovementTableRow({ row }: { row: MovementRow }) {
   );
 }
 
+function ReservationTableRow({ onRelease, row }: { onRelease: (row: MovementRow) => void; row: MovementRow }) {
+  const warehouse = row.toWarehouse ?? row.fromWarehouse;
+  return (
+    <tr className="transition hover:bg-hicotech-cloud/60 dark:hover:bg-white/5">
+      <td className="px-4 py-3 font-semibold text-slate-500">{formatDate(row.movement.postedAt ?? row.movement.createdAt)}</td>
+      <td className="px-4 py-3">
+        <p className="font-bold text-hicotech-navy dark:text-white">{row.product?.name ?? "Produit inconnu"}</p>
+        <p className="text-xs font-semibold text-slate-400">{row.product?.sku ?? row.movement.productId}</p>
+      </td>
+      <td className="px-4 py-3 font-semibold text-slate-600 dark:text-slate-300">{warehouse?.name ?? "Entrepôt inconnu"}</td>
+      <td className="px-4 py-3"><StatusBadge label={movementTypeLabel(row.movement.type)} tone={row.movement.type === "RESERVATION" ? "warning" : "ok"} /></td>
+      <td className="px-4 py-3 text-right font-black">{formatInventoryQuantity(row.movement.quantity)}</td>
+      <td className="px-4 py-3 font-semibold text-slate-500">{formatReservationReference(row)}</td>
+      <td className="px-4 py-3 font-semibold text-slate-500">{row.movement.reason ?? "Sans motif"}</td>
+      <td className="px-4 py-3 text-right">
+        {row.movement.type === "RESERVATION" ? (
+          <button type="button" onClick={() => onRelease(row)} className="inline-flex min-h-9 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-hicotech-navy transition hover:bg-hicotech-cloud focus:outline-none focus:ring-4 focus:ring-hicotech-blue/10 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white">
+            Libérer
+          </button>
+        ) : (
+          <span className="text-xs font-bold text-slate-400">Traité</span>
+        )}
+      </td>
+    </tr>
+  );
+}
+
 function StatusBadge({ label, tone }: { label: string; tone: "ok" | "warning" | "danger" | "muted" }) {
   const className = {
     danger: "bg-red-50 text-red-700 dark:bg-red-400/10 dark:text-red-200",
@@ -387,6 +513,23 @@ function formatMovementWarehouses(row: MovementRow) {
   if (row.toWarehouse) return row.toWarehouse.name;
   if (row.fromWarehouse) return row.fromWarehouse.name;
   return "Non renseigné";
+}
+
+function formatReservationReference(row: MovementRow) {
+  const type = row.movement.referenceType ? referenceTypeLabel(row.movement.referenceType) : "Manuelle";
+  const reference = row.movement.reference ?? row.movement.referenceId;
+  return reference ? `${type} · ${reference}` : type;
+}
+
+function referenceTypeLabel(type: string) {
+  const labels: Record<string, string> = {
+    ADJUSTMENT: "Ajustement",
+    DELIVERY: "Livraison",
+    MANUAL: "Manuelle",
+    QUOTE: "Devis",
+    SALES_ORDER: "Commande client"
+  };
+  return labels[type] ?? "Référence";
 }
 
 function formatDate(value: string) {

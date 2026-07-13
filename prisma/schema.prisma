@@ -637,6 +637,8 @@ model InventoryStockMovement {
   status          InventoryMovementStatus @default(DRAFT)
   quantity        Decimal
   reference       String?
+  referenceType   String?
+  referenceId     String?
   reason          String?
   postedAt        DateTime?
   cancelledAt     DateTime?
@@ -647,6 +649,7 @@ model InventoryStockMovement {
   @@index([companyId])
   @@index([companyId, productId])
   @@index([companyId, type])
+  @@index([companyId, referenceType, referenceId])
   @@index([companyId, status])
   @@index([companyId, createdAt])
 }

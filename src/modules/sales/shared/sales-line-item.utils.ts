@@ -1,5 +1,6 @@
 import { PackageCheck } from "lucide-react";
 import type { StockProduct } from "@/lib/types";
+import { calculateDocumentLine, roundDocumentAmount, validateDocumentLine } from "@/platform/commercial-documents";
 import type { EntityPickerItem } from "@/ui/forms/entity-picker.types";
 import type { SalesLineItemDraft, SalesLineItemValidation } from "./sales-line-item.types";
 
@@ -24,15 +25,15 @@ export function createSalesLineItemFromProduct(product: StockProduct, prefix = "
 }
 
 export function getSalesLineSubtotal(line: SalesLineItemDraft) {
-  return roundMoney(line.quantity * line.unitPrice);
+  return calculateDocumentLine(toDocumentLine(line)).subtotal;
 }
 
 export function getSalesLineTax(line: SalesLineItemDraft) {
-  return roundMoney(getSalesLineSubtotal(line) * (line.taxRate / 100));
+  return calculateDocumentLine(toDocumentLine(line)).tax;
 }
 
 export function getSalesLineTotal(line: SalesLineItemDraft) {
-  return roundMoney(getSalesLineSubtotal(line) + getSalesLineTax(line));
+  return calculateDocumentLine(toDocumentLine(line)).total;
 }
 
 export function validateSalesLineItems(lines: readonly SalesLineItemDraft[]): SalesLineItemValidation {
@@ -45,10 +46,11 @@ export function validateSalesLineItems(lines: readonly SalesLineItemDraft[]): Sa
 
   lines.forEach((line, index) => {
     const label = `Ligne ${index + 1}`;
-    if (!line.description.trim()) errors.push(`${label} : description obligatoire.`);
-    if (line.quantity <= 0) errors.push(`${label} : quantité supérieure à zéro obligatoire.`);
-    if (line.unitPrice < 0) errors.push(`${label} : prix unitaire négatif impossible.`);
-    if (line.taxRate < 0) errors.push(`${label} : TVA négative impossible.`);
+    const lineIssues = validateDocumentLine(toDocumentLine(line), index);
+    if (lineIssues.some((issue) => issue.code === "line.description.required")) errors.push(`${label} : description obligatoire.`);
+    if (lineIssues.some((issue) => issue.code === "line.quantity.invalid")) errors.push(`${label} : quantité supérieure à zéro obligatoire.`);
+    if (lineIssues.some((issue) => issue.code === "line.unitPrice.invalid")) errors.push(`${label} : prix unitaire négatif impossible.`);
+    if (lineIssues.some((issue) => issue.code === "line.tax.invalid")) errors.push(`${label} : TVA négative impossible.`);
   });
 
   return Object.freeze({ valid: errors.length === 0, errors });
@@ -60,7 +62,7 @@ export function normalizeSalesLineItems(lines: readonly SalesLineItemDraft[]) {
       id: line.id,
       description: line.description.trim(),
       quantity: Number(line.quantity),
-      unitPrice: roundMoney(Number(line.unitPrice)),
+      unitPrice: roundDocumentAmount(Number(line.unitPrice)),
       taxRate: Number(line.taxRate)
     }))
     .filter((line) => line.description && line.quantity > 0 && line.unitPrice >= 0);
@@ -78,6 +80,12 @@ export function productToSalesPickerItem(product: StockProduct): EntityPickerIte
   };
 }
 
-function roundMoney(value: number) {
-  return Math.round(value * 100) / 100;
+function toDocumentLine(line: SalesLineItemDraft) {
+  return {
+    id: line.id,
+    description: line.description,
+    quantity: line.quantity,
+    unitPrice: line.unitPrice,
+    tax: { rate: line.taxRate }
+  };
 }

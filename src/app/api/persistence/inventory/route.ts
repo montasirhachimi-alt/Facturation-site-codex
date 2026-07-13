@@ -7,13 +7,15 @@ import {
   updateInventoryWarehouse
 } from "@/server/persistence/inventory-repository";
 import { requirePersistenceTenantScope } from "@/server/persistence/tenant-scope";
-import type { PostMovementInput } from "@/modules/inventory";
+import type { PostMovementInput, ReservationRequest } from "@/modules/inventory";
 
 type InventoryRequest =
   | { operation: "createWarehouse"; payload: Parameters<typeof createInventoryWarehouse>[1] }
   | { operation: "updateWarehouse"; payload: { warehouseId: string } & Parameters<typeof updateInventoryWarehouse>[2] }
   | { operation: "archiveWarehouse"; payload: { warehouseId: string } }
-  | { operation: "postMovement"; payload: PostMovementInput };
+  | { operation: "postMovement"; payload: PostMovementInput }
+  | { operation: "reserve"; payload: ReservationRequest }
+  | { operation: "release"; payload: ReservationRequest };
 
 export async function GET() {
   try {
@@ -47,6 +49,38 @@ export async function POST(request: Request) {
 
     if (body.operation === "postMovement") {
       const record = await postInventoryMovement(scope, body.payload);
+      return NextResponse.json({ record, snapshot: await loadInventorySnapshot(scope) });
+    }
+
+    if (body.operation === "reserve") {
+      const record = await postInventoryMovement(scope, {
+        companyId: body.payload.companyId,
+        productId: body.payload.productId,
+        toWarehouseId: body.payload.warehouseId,
+        type: "RESERVATION",
+        quantity: body.payload.quantity,
+        reference: body.payload.reference,
+        referenceType: body.payload.referenceType ?? "MANUAL",
+        referenceId: body.payload.referenceId,
+        reason: body.payload.reason,
+        createdBy: body.payload.createdBy
+      });
+      return NextResponse.json({ record, snapshot: await loadInventorySnapshot(scope) });
+    }
+
+    if (body.operation === "release") {
+      const record = await postInventoryMovement(scope, {
+        companyId: body.payload.companyId,
+        productId: body.payload.productId,
+        fromWarehouseId: body.payload.warehouseId,
+        type: "RELEASE",
+        quantity: body.payload.quantity,
+        reference: body.payload.reference,
+        referenceType: body.payload.referenceType ?? "MANUAL",
+        referenceId: body.payload.referenceId,
+        reason: body.payload.reason,
+        createdBy: body.payload.createdBy
+      });
       return NextResponse.json({ record, snapshot: await loadInventorySnapshot(scope) });
     }
 
