@@ -1,5 +1,30 @@
 # HicoPilot Architecture Decision Records
 
+## ADR-029 — Procurement Foundation
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-07-13 |
+
+### Decision
+
+SPR-411 introduces Procurement as a dedicated business module foundation with canonical Suppliers and Purchase Orders.
+
+Suppliers are not CRM Companies. Purchase Orders reuse the Commercial Documents Foundation and Product Catalog references.
+
+### Motivation
+
+Product Catalog, Inventory, Reservation and Commercial Documents foundations are now available. BOSIACO can introduce Procurement without duplicating product models, stock logic or document calculation rules.
+
+### Consequences
+
+Procurement remains inactive in `alpha.crm-sales`.
+
+The Purchasing profile can activate `procurement.overview`, `procurement.suppliers`, `procurement.purchase-orders` and the `sales.products` dependency.
+
+No Goods Receipt, Supplier Invoice, Accounting, Payments, Inventory posting, purchase approval, purchase requests or RFQ workflow was introduced.
+
 ## ADR-028 — Commercial Documents Foundation
 
 | Field | Value |
@@ -932,3 +957,23 @@ The Reservation & Availability Engine needs authenticated manual QA before Sales
 ### Consequences
 
 The tab uses existing Inventory persistence operations (`reserve`, `release`) and movement-backed history. No duplicate reservation store, Reservation table, Command Center Quick Create or `/inventory/reservations` route is introduced. Alpha remains unchanged because Inventory remains inactive unless the controlled Inventory profile is active.
+
+## ADR-028 — Goods Receipt Owns Procurement Stock Increases
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+
+### Decision
+
+Purchase Orders do not update Inventory. Supplier stock increases are created only by posting a Goods Receipt.
+
+Goods Receipt posting must call the Inventory posting engine inside a server transaction. UI screens and Procurement repositories must not mutate Inventory balances directly.
+
+### Motivation
+
+Purchase Orders represent intent to buy, not physical receipt. Posting stock from Purchase Orders would overstate inventory before goods arrive. Goods Receipt creates the operational control point for partial receipts, warehouse validation, duplicate posting prevention and future Supplier Invoice matching.
+
+### Consequences
+
+`procurement.goods-receipts` depends on `procurement.purchase-orders`, `inventory.stock`, `sales.products` and `platform.persistence`. Posted receipt lines create `RECEIPT` Inventory movements with `referenceType = GOODS_RECEIPT`. Purchase Orders become `partially_received` or `received` from posted receipt quantities. Returns, reversal and Supplier Invoice matching remain future work.

@@ -37,9 +37,12 @@ const emptyForm: ReservationForm = {
 const referenceTypeLabels: Record<InventoryMovementReferenceType, string> = {
   ADJUSTMENT: "Ajustement",
   DELIVERY: "Livraison",
+  GOODS_RECEIPT: "Réception fournisseur",
   MANUAL: "Manuelle",
+  PURCHASE_ORDER: "Commande fournisseur",
   QUOTE: "Devis",
-  SALES_ORDER: "Commande client"
+  SALES_ORDER: "Commande client",
+  SUPPLIER: "Fournisseur"
 };
 
 export function ReservationDialog({

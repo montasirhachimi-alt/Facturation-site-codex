@@ -3,6 +3,9 @@
 import type { InventorySnapshot, PostMovementInput, ReservationRequest } from "@/modules/inventory";
 import { applyInventorySnapshot } from "@/modules/inventory/inventory-local-store";
 
+export type { InventorySnapshot };
+export { applyInventorySnapshot };
+
 let hydrationPromise: Promise<void> | null = null;
 
 export function hydrateInventoryPersistence() {

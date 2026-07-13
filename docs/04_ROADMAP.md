@@ -61,7 +61,9 @@ Foundation in progress:
 - SPR-409 adds the Reservation & Availability Engine so available stock, reserved stock and future fulfillment checks have one canonical Inventory authority.
 - SPR-409A adds a controlled `Réservations` QA tab inside Inventory for manual reserve/release verification without exposing a commercial reservation lifecycle.
 - SPR-410 adds the Commercial Documents Foundation so Quotes and Invoices consume shared document primitives while Sales Orders, Delivery Notes and Purchasing documents remain future metadata only.
-- Purchasing, variants, barcode scanning, reservation workflow UI, valuation, sales allocation and stock movement cancellation remain future work.
+- SPR-411 adds the Procurement Foundation with Suppliers and Purchase Orders, activation-gated outside Alpha and without Goods Receipt, Supplier Invoice, Accounting, Payments or Inventory posting.
+- SPR-412 adds Goods Receipt and Inventory Posting so Purchase Orders can be received partially or fully into Inventory through persistent Goods Receipts and transaction-safe `RECEIPT` stock movements.
+- Supplier Invoice, Purchasing approvals, returns, variants, barcode scanning, valuation, sales allocation and stock movement cancellation remain future work.
 
 ## Milestone 5 — Enterprise AI
 

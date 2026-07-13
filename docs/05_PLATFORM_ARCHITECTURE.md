@@ -391,6 +391,29 @@ Rules:
 - Future Sales Orders, Delivery Notes, Purchasing and Goods Receipt workflows must consume this foundation instead of creating independent document models.
 - Inventory Reservation and Availability must remain separate; document references may link to Inventory later, but documents must not mutate stock directly.
 
+## 9.3 Procurement Foundation
+
+Procurement is a business module family for supplier-side workflows.
+
+Current Procurement foundation:
+
+- `procurement.overview`
+- `procurement.suppliers`
+- `procurement.purchase-orders`
+- `procurement.goods-receipts`
+
+Rules:
+
+- Suppliers are dedicated Procurement entities.
+- Suppliers must not reuse CRM Company as a shortcut.
+- Purchase Orders must consume the Commercial Documents Foundation for lines, totals, status, lifecycle and numbering.
+- Purchase Order lines may reference Product Catalog records.
+- Purchase Orders must not post stock or increase availability.
+- Goods Receipt owns inventory increases and must post through the Inventory engine.
+- Future Supplier Invoice owns supplier accounting context.
+- Procurement remains inactive in `alpha.crm-sales`.
+- Procurement routes, Command Center entries and Dashboard contributions are activation-gated.
+
 ## 10. Business Module Contract
 
 Every future business module must provide:
@@ -541,6 +564,8 @@ Completed platform foundation sprints:
 - SPR-405 — Dynamic Dashboard Contributions
 - SPR-408C — Shared Import / Export Framework
 - SPR-410 — Commercial Documents Foundation
+- SPR-411 — Procurement Foundation
+- SPR-412 — Goods Receipt & Inventory Posting
 
 Current known limitations:
 
@@ -555,7 +580,8 @@ Current known limitations:
 - no import/export definition registry
 - no generic server-side import executor
 - no tenant-configurable commercial document numbering
-- no Sales Order, Delivery Note, Purchase Order, Goods Receipt or Supplier Invoice workflow
+- no Sales Order, Delivery Note or Supplier Invoice workflow
+- no Procurement approval, RFQ or Purchase Request workflow
 
 ## 17. Future Roadmap
 

@@ -16,6 +16,15 @@ import { CRM_CONTACTS_USER_ID, CRM_CONTACTS_WORKSPACE_ID } from "@/modules/crm/c
 import { crmContactLocalService, notifyCrmContactStoreUpdated } from "@/modules/crm/contacts/ui/contact-local-store";
 import { QuoteDialog } from "@/modules/sales/quotes/ui/quote-dialog";
 import { InvoiceDialog } from "@/modules/sales/invoices/ui/invoice-dialog";
+import { PROCUREMENT_WORKSPACE_ID, procurementLocalService, notifyProcurementStoreUpdated } from "@/modules/procurement";
+import { hydrateInventoryPersistence, persistProcurementRecord, postProcurementGoodsReceipt, hydrateProductCatalogPersistence } from "@/platform/persistence";
+import { inventoryLocalService } from "@/modules/inventory/inventory-local-store";
+import { PRODUCTS_WORKSPACE_ID } from "@/modules/products";
+import { productLocalService } from "@/modules/products/ui/product-local-store";
+import { SupplierDialog, emptySupplierForm as emptyProcurementSupplierForm, type SupplierFormState } from "@/modules/procurement/ui/dialogs/supplier-dialog";
+import { GoodsReceiptDialog, type GoodsReceiptFormState, PurchaseOrderDialog, type PurchaseOrderFormState } from "@/modules/procurement/ui/dialogs";
+import { DEFAULT_PROCUREMENT_CURRENCY, PROCUREMENT_USER_ID } from "@/modules/procurement/procurement.constants";
+import { createEmptyPurchaseOrderLine } from "@/modules/procurement/procurement.utils";
 import { getCompanyPickerItems, subscribeToCrmPickerSources } from "@/ui/forms/entity-picker.crm-data";
 import type { QuickCreateActionId } from "../action-registry";
 
@@ -51,6 +60,34 @@ const emptyContactForm: ContactFormState = {
   tags: ""
 };
 
+const emptySupplierForm: SupplierFormState = {
+  ...emptyProcurementSupplierForm
+};
+
+function createEmptyPurchaseOrderForm(): PurchaseOrderFormState {
+  return {
+    supplierId: "",
+    issueDate: new Date().toISOString().slice(0, 10),
+    expectedDate: "",
+    currency: DEFAULT_PROCUREMENT_CURRENCY,
+    reference: "",
+    notes: "",
+    discountRate: 0,
+    lines: [createEmptyPurchaseOrderLine("quick-po")]
+  };
+}
+
+function createEmptyGoodsReceiptForm(): GoodsReceiptFormState {
+  return {
+    purchaseOrderId: "",
+    warehouseId: "",
+    receiptDate: new Date().toISOString().slice(0, 10),
+    reference: "",
+    notes: "",
+    lines: []
+  };
+}
+
 type QuickCreateDialogHostProps = {
   activeAction: QuickCreateActionId | null;
   onClose: () => void;
@@ -60,6 +97,9 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
   const router = useRouter();
   const [companyForm, setCompanyForm] = useState<CompanyFormState>(emptyCompanyForm);
   const [contactForm, setContactForm] = useState<ContactFormState>(emptyContactForm);
+  const [supplierForm, setSupplierForm] = useState<SupplierFormState>(emptySupplierForm);
+  const [purchaseOrderForm, setPurchaseOrderForm] = useState<PurchaseOrderFormState>(createEmptyPurchaseOrderForm);
+  const [goodsReceiptForm, setGoodsReceiptForm] = useState<GoodsReceiptFormState>(createEmptyGoodsReceiptForm);
   const [contactCompanyId, setContactCompanyId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -72,6 +112,9 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
     setCompanyForm(emptyCompanyForm);
     setContactForm(emptyContactForm);
     setContactCompanyId("");
+    setSupplierForm(emptySupplierForm);
+    setPurchaseOrderForm(createEmptyPurchaseOrderForm());
+    setGoodsReceiptForm(createEmptyGoodsReceiptForm());
     setError(null);
     onClose();
   }, [onClose]);
@@ -88,6 +131,9 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
     setCompanyForm(emptyCompanyForm);
     setContactForm(emptyContactForm);
     setContactCompanyId("");
+    setSupplierForm(emptySupplierForm);
+    setPurchaseOrderForm(createEmptyPurchaseOrderForm());
+    setGoodsReceiptForm(createEmptyGoodsReceiptForm());
     setError(null);
     setSuccessMessage(message);
     onClose();
@@ -169,6 +215,104 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
     finishWithSuccess("Contact enregistré.");
   }
 
+  async function submitSupplier() {
+    const snapshot = procurementLocalService.listSuppliers({ workspaceId: PROCUREMENT_WORKSPACE_ID, includeArchived: true }).suppliers;
+    const result = procurementLocalService.createSupplier({ workspaceId: PROCUREMENT_WORKSPACE_ID, ...supplierForm });
+    if (!result.supplier) {
+      setError(result.error ?? "Impossible de créer le fournisseur.");
+      return false;
+    }
+    try {
+      await persistProcurementRecord("supplier", result.supplier);
+    } catch {
+      procurementLocalService.replaceSuppliers(snapshot);
+      setError("Le fournisseur n'a pas pu être enregistré dans la base.");
+      return false;
+    }
+    notifyProcurementStoreUpdated();
+    finishWithSuccess("Fournisseur créé.");
+    return true;
+  }
+
+  async function submitPurchaseOrder() {
+    const supplier = procurementLocalService.getSupplier(purchaseOrderForm.supplierId as never, PROCUREMENT_WORKSPACE_ID);
+    if (!supplier) {
+      setError("Sélectionnez un fournisseur.");
+      return false;
+    }
+    const snapshot = procurementLocalService.listPurchaseOrders({ workspaceId: PROCUREMENT_WORKSPACE_ID, includeArchived: true }).purchaseOrders;
+    const result = procurementLocalService.createPurchaseOrder({
+      workspaceId: PROCUREMENT_WORKSPACE_ID,
+      supplierId: supplier.id,
+      supplierName: supplier.companyName,
+      issueDate: new Date(purchaseOrderForm.issueDate).toISOString(),
+      expectedDate: purchaseOrderForm.expectedDate ? new Date(purchaseOrderForm.expectedDate).toISOString() : undefined,
+      currency: purchaseOrderForm.currency,
+      reference: purchaseOrderForm.reference,
+      notes: purchaseOrderForm.notes,
+      discountRate: purchaseOrderForm.discountRate,
+      lines: purchaseOrderForm.lines,
+      ownerId: PROCUREMENT_USER_ID
+    });
+    if (!result.purchaseOrder) {
+      setError(result.error ?? "Impossible de créer la commande fournisseur.");
+      return false;
+    }
+    try {
+      await persistProcurementRecord("purchaseOrder", result.purchaseOrder);
+    } catch {
+      procurementLocalService.replacePurchaseOrders(snapshot);
+      setError("La commande fournisseur n'a pas pu être enregistrée dans la base.");
+      return false;
+    }
+    notifyProcurementStoreUpdated();
+    finishWithSuccess("Commande fournisseur créée.");
+    router.push("/procurement/purchase-orders");
+    return true;
+  }
+
+  async function submitGoodsReceipt() {
+    const order = procurementLocalService.getPurchaseOrder(goodsReceiptForm.purchaseOrderId as never, PROCUREMENT_WORKSPACE_ID);
+    if (!order) {
+      setError("Sélectionnez une commande fournisseur.");
+      return false;
+    }
+    const warehouse = inventoryLocalService.getSnapshot().warehouses.find((item) => item.id === goodsReceiptForm.warehouseId && item.active);
+    if (!warehouse) {
+      setError("Sélectionnez un entrepôt actif.");
+      return false;
+    }
+    const receiptSnapshot = procurementLocalService.listGoodsReceipts({ workspaceId: PROCUREMENT_WORKSPACE_ID, includeArchived: true }).goodsReceipts;
+    const result = procurementLocalService.createGoodsReceipt({
+      workspaceId: PROCUREMENT_WORKSPACE_ID,
+      supplierId: order.supplierId,
+      supplierName: order.supplierName,
+      purchaseOrderId: order.id,
+      purchaseOrderNumber: order.number,
+      warehouseId: warehouse.id,
+      warehouseName: warehouse.name,
+      receiptDate: new Date(goodsReceiptForm.receiptDate).toISOString(),
+      reference: goodsReceiptForm.reference,
+      notes: goodsReceiptForm.notes,
+      lines: goodsReceiptForm.lines,
+      ownerId: PROCUREMENT_USER_ID
+    });
+    if (!result.goodsReceipt) {
+      setError(result.error ?? "Impossible de créer la réception.");
+      return false;
+    }
+    try {
+      await postProcurementGoodsReceipt(result.goodsReceipt);
+    } catch (saveError) {
+      procurementLocalService.replaceGoodsReceipts(receiptSnapshot);
+      setError(saveError instanceof Error ? saveError.message : "La réception n'a pas pu être postée.");
+      return false;
+    }
+    finishWithSuccess("Réception postée.");
+    router.push("/procurement/goods-receipts");
+    return true;
+  }
+
   const toast = successMessage ? (
     <p
       role="status"
@@ -245,6 +389,67 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
         }}
         open
       />
+    );
+  }
+
+  if (activeAction === "quick-create.supplier") {
+    return (
+      <>
+        {toast}
+        <SupplierDialog
+          editing={false}
+          error={error}
+          form={supplierForm}
+          onChange={setSupplierForm}
+          onClose={closeAndReset}
+          onSubmit={submitSupplier}
+          open
+        />
+      </>
+    );
+  }
+
+  if (activeAction === "quick-create.purchase-order") {
+    void hydrateProductCatalogPersistence();
+    const suppliers = procurementLocalService.listSuppliers({ workspaceId: PROCUREMENT_WORKSPACE_ID, includeArchived: false }).suppliers;
+    const products = productLocalService.listProducts({ workspaceId: PRODUCTS_WORKSPACE_ID, status: "active" }).products;
+    return (
+      <>
+        {toast}
+        <PurchaseOrderDialog
+          error={error}
+          form={purchaseOrderForm}
+          onChange={setPurchaseOrderForm}
+          onClose={closeAndReset}
+          onSubmit={submitPurchaseOrder}
+          open
+          products={products}
+          suppliers={suppliers}
+        />
+      </>
+    );
+  }
+
+  if (activeAction === "quick-create.goods-receipt") {
+    void hydrateInventoryPersistence();
+    const purchaseOrders = procurementLocalService.listPurchaseOrders({ workspaceId: PROCUREMENT_WORKSPACE_ID, includeArchived: false }).purchaseOrders.filter((order) => order.status !== "received" && order.status !== "cancelled" && order.status !== "archived");
+    const postedReceipts = procurementLocalService.listGoodsReceipts({ workspaceId: PROCUREMENT_WORKSPACE_ID, status: "posted", includeArchived: false }).goodsReceipts;
+    const warehouses = inventoryLocalService.getSnapshot().warehouses.filter((warehouse) => warehouse.active);
+    return (
+      <>
+        {toast}
+        <GoodsReceiptDialog
+          error={error}
+          form={goodsReceiptForm}
+          onChange={setGoodsReceiptForm}
+          onClose={closeAndReset}
+          onSubmit={submitGoodsReceipt}
+          open
+          postedReceipts={postedReceipts}
+          purchaseOrders={purchaseOrders}
+          warehouses={warehouses}
+        />
+      </>
     );
   }
 

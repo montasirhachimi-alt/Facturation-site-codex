@@ -2,17 +2,24 @@ import {
   BriefcaseBusiness,
   Building2,
   ContactRound,
+  HandCoins,
+  PackageCheck,
   Plus,
   Receipt
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { bosiacoModuleRegistry, getCurrentAlphaActivation } from "@/platform/modules";
+import type { ModuleActivationResult } from "@/platform/modules";
 import type { UniversalSearchItem, UniversalSearchSection } from "./universal-search.types";
 
 export type QuickCreateActionId =
   | "quick-create.company"
   | "quick-create.contact"
   | "quick-create.quote"
-  | "quick-create.invoice";
+  | "quick-create.invoice"
+  | "quick-create.supplier"
+  | "quick-create.purchase-order"
+  | "quick-create.goods-receipt";
 
 export type QuickCreateAction = Readonly<{
   id: QuickCreateActionId;
@@ -26,7 +33,10 @@ const quickCreateActionIds = new Set<string>([
   "quick-create.company",
   "quick-create.contact",
   "quick-create.quote",
-  "quick-create.invoice"
+  "quick-create.invoice",
+  "quick-create.supplier",
+  "quick-create.purchase-order",
+  "quick-create.goods-receipt"
 ]);
 
 const seedQuickCreateActions: readonly QuickCreateAction[] = [
@@ -57,6 +67,27 @@ const seedQuickCreateActions: readonly QuickCreateAction[] = [
     description: "Préparer une facture depuis le centre de commandes.",
     icon: Receipt,
     keywords: ["new", "create", "nouveau", "facture", "invoice", "inv", "billing", "fact"]
+  },
+  {
+    id: "quick-create.supplier",
+    title: "Nouveau fournisseur",
+    description: "Créer un fournisseur dans Procurement.",
+    icon: Building2,
+    keywords: ["new", "create", "nouveau", "fournisseur", "supplier", "vendor"]
+  },
+  {
+    id: "quick-create.purchase-order",
+    title: "Nouvelle commande fournisseur",
+    description: "Créer une commande fournisseur.",
+    icon: HandCoins,
+    keywords: ["new", "create", "nouveau", "achat", "commande fournisseur", "purchase order", "po"]
+  },
+  {
+    id: "quick-create.goods-receipt",
+    title: "Nouvelle réception",
+    description: "Réceptionner une commande fournisseur vers le stock.",
+    icon: PackageCheck,
+    keywords: ["new", "create", "nouveau", "réception", "reception", "goods receipt", "bon de réception", "stock"]
   }
 ];
 
@@ -98,8 +129,9 @@ export function createActionRegistry() {
   return new ActionRegistry().registerMany(seedQuickCreateActions);
 }
 
-export function getQuickCreateSection(query: string): UniversalSearchSection {
-  const items = createActionRegistry().search(query).map(actionToSearchItem);
+export function getQuickCreateSection(query: string, activation: ModuleActivationResult = getCurrentAlphaActivation()): UniversalSearchSection {
+  const activeActionIds = getActiveQuickCreateActionIds(activation);
+  const items = createActionRegistry().search(query).filter((action) => activeActionIds.has(action.id)).map(actionToSearchItem);
 
   return {
     id: "quick-create",
@@ -156,4 +188,15 @@ function normalizeActionText(value: string) {
     .replace(/[^a-z0-9/ ]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function getActiveQuickCreateActionIds(activation: ModuleActivationResult) {
+  const ids = new Set<QuickCreateActionId>();
+  for (const descriptor of bosiacoModuleRegistry.list()) {
+    if (!activation.activeModuleIdSet.has(descriptor.id)) continue;
+    descriptor.commandCenter?.quickCreateKeys?.forEach((id) => {
+      if (isQuickCreateActionId(id)) ids.add(id);
+    });
+  }
+  return ids;
 }

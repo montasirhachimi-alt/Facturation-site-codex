@@ -7,7 +7,8 @@ import {
   PackageCheck,
   Receipt,
   ScrollText,
-  WalletCards
+  WalletCards,
+  HandCoins
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { CRM_COMPANIES_WORKSPACE_ID } from "@/modules/crm/companies/ui/companies.seed";
@@ -31,6 +32,8 @@ import { getCurrentAlphaActivation } from "@/platform/modules/module-activation.
 import { PRODUCTS_WORKSPACE_ID } from "@/modules/products";
 import { productLocalService } from "@/modules/products/ui/product-local-store";
 import { inventoryLocalService } from "@/modules/inventory/inventory-local-store";
+import { GOODS_RECEIPT_STATUS_LABELS, PROCUREMENT_WORKSPACE_ID, procurementLocalService, PURCHASE_ORDER_STATUS_LABELS } from "@/modules/procurement";
+import { calculatePurchaseOrderTotals, formatProcurementMoney } from "@/modules/procurement";
 import type { ModuleActivationResult } from "@/platform/modules/module-activation.types";
 import type { UniversalSearchItem, UniversalSearchSection } from "./universal-search.types";
 
@@ -91,8 +94,56 @@ export function createRecordSearchRegistry(activation: ModuleActivationResult = 
   if (activation.activeModuleIdSet.has("inventory.stock")) {
     registry.registerMany(buildWarehouseRecords());
   }
+  if (activation.activeModuleIdSet.has("procurement.suppliers")) {
+    registry.registerMany(buildSupplierRecords());
+  }
+  if (activation.activeModuleIdSet.has("procurement.purchase-orders")) {
+    registry.registerMany(buildPurchaseOrderRecords());
+  }
+  if (activation.activeModuleIdSet.has("procurement.goods-receipts")) {
+    registry.registerMany(buildGoodsReceiptRecords());
+  }
 
   return registry;
+}
+
+function buildGoodsReceiptRecords(): readonly RecordSearchResult[] {
+  return procurementLocalService.listGoodsReceipts({ workspaceId: PROCUREMENT_WORKSPACE_ID }).goodsReceipts.map((receipt) => ({
+    id: `record.goods-receipt.${receipt.id}`,
+    title: receipt.number,
+    type: "Réception fournisseur",
+    description: `${receipt.supplierName} · ${receipt.purchaseOrderNumber} · ${GOODS_RECEIPT_STATUS_LABELS[receipt.status]}`,
+    href: "/procurement/goods-receipts",
+    icon: PackageCheck,
+    keywords: [receipt.number, receipt.supplierName, receipt.purchaseOrderNumber, receipt.status, receipt.reference, receipt.notes, ...receipt.lines.flatMap((line) => [line.productSku, line.productName, line.description])].filter(Boolean) as string[]
+  }));
+}
+
+function buildSupplierRecords(): readonly RecordSearchResult[] {
+  return procurementLocalService.listSuppliers({ workspaceId: PROCUREMENT_WORKSPACE_ID, includeArchived: false }).suppliers.map((supplier) => ({
+    id: `record.supplier.${supplier.id}`,
+    title: supplier.companyName,
+    type: "Fournisseur",
+    description: `${supplier.country} · ${supplier.currency} · ${supplier.paymentTerms ?? "Conditions non renseignées"}`,
+    href: "/procurement/suppliers",
+    icon: Building2,
+    keywords: [supplier.companyName, supplier.tradeName, supplier.ice, supplier.taxId, supplier.rc, supplier.phone, supplier.email, supplier.country].filter(Boolean) as string[]
+  }));
+}
+
+function buildPurchaseOrderRecords(): readonly RecordSearchResult[] {
+  return procurementLocalService.listPurchaseOrders({ workspaceId: PROCUREMENT_WORKSPACE_ID }).purchaseOrders.map((order) => {
+    const totals = calculatePurchaseOrderTotals(order);
+    return {
+      id: `record.purchase-order.${order.id}`,
+      title: order.number,
+      type: "Commande fournisseur",
+      description: `${order.supplierName} · ${formatProcurementMoney(totals.total, order.currency)} · ${PURCHASE_ORDER_STATUS_LABELS[order.status]}`,
+      href: "/procurement/purchase-orders",
+      icon: HandCoins,
+      keywords: [order.number, order.supplierName, order.status, order.reference, order.notes, ...order.lines.flatMap((line) => [line.productSku, line.productName, line.description])].filter(Boolean) as string[]
+    };
+  });
 }
 
 export function getRecordSearchSection(query: string, activation: ModuleActivationResult = getCurrentAlphaActivation()): UniversalSearchSection {

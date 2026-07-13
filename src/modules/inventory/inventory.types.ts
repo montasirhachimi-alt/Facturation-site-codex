@@ -15,7 +15,15 @@ export type InventoryMovementType =
   | "RELEASE";
 
 export type InventoryMovementStatus = "DRAFT" | "POSTED" | "CANCELLED";
-export type InventoryMovementReferenceType = "MANUAL" | "QUOTE" | "SALES_ORDER" | "DELIVERY" | "ADJUSTMENT";
+export type InventoryMovementReferenceType =
+  | "MANUAL"
+  | "QUOTE"
+  | "SALES_ORDER"
+  | "DELIVERY"
+  | "ADJUSTMENT"
+  | "PURCHASE_ORDER"
+  | "GOODS_RECEIPT"
+  | "SUPPLIER";
 
 export type InventoryPolicy = Readonly<{
   allowNegativeStock: boolean;

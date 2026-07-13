@@ -3305,6 +3305,150 @@ test("Sales Quote and Invoice totals consume the Commercial Documents calculatio
   assert(invoiceTotals.total === 270 && invoiceTotals.remaining === 200, "Invoice totals should reuse Quote calculation and keep payment balance.");
 });
 
+test("Procurement Foundation stays inactive in Alpha and activates through Purchasing profile", () => {
+  const { ModuleActivationEngine, bosiacoModuleRegistry, getCurrentAlphaActivation } = load("src/platform/modules");
+  const { purchasingEditionProfile, editionToActivationRequest } = load("src/platform/editions");
+  const { isRouteAvailable } = load("src/platform/modules/module-route-availability.ts");
+  const engine = new ModuleActivationEngine(bosiacoModuleRegistry);
+  const alpha = getCurrentAlphaActivation();
+  const purchasing = engine.resolve(editionToActivationRequest(purchasingEditionProfile));
+
+  assert(!alpha.activeModuleIdSet.has("procurement.suppliers"), "Procurement Suppliers should remain inactive in Alpha.");
+  assert(!alpha.activeModuleIdSet.has("procurement.goods-receipts"), "Procurement Goods Receipts should remain inactive in Alpha.");
+  assert(!isRouteAvailable("/procurement", alpha), "Procurement overview route should be unavailable in Alpha.");
+  assert(!isRouteAvailable("/procurement/suppliers", alpha), "Procurement suppliers route should be unavailable in Alpha.");
+  assert(!isRouteAvailable("/procurement/goods-receipts", alpha), "Procurement goods receipt route should be unavailable in Alpha.");
+  assert(purchasing.activeModuleIdSet.has("procurement.suppliers"), "Purchasing profile should activate Suppliers.");
+  assert(purchasing.activeModuleIdSet.has("procurement.purchase-orders"), "Purchasing profile should activate Purchase Orders.");
+  assert(purchasing.activeModuleIdSet.has("procurement.goods-receipts"), "Purchasing profile should activate Goods Receipts.");
+  assert(purchasing.activeModuleIdSet.has("sales.products"), "Purchasing profile should activate Product Catalog dependency.");
+  assert(purchasing.activeModuleIdSet.has("inventory.stock"), "Purchasing profile should activate Inventory Stock for receipt posting.");
+  assert(isRouteAvailable("/procurement/purchase-orders", purchasing), "Purchase Orders should be available under Purchasing profile.");
+  assert(isRouteAvailable("/procurement/goods-receipts", purchasing), "Goods Receipts should be available under Purchasing profile.");
+});
+
+test("Procurement Foundation creates suppliers purchase orders and goods receipt states", () => {
+  const {
+    ProcurementService,
+    PROCUREMENT_WORKSPACE_ID,
+    calculatePurchaseOrderTotals,
+    createEmptyPurchaseOrderLine,
+    getPurchaseOrderReceiptState,
+    formatPurchaseOrderNumber
+  } = load("src/modules/procurement");
+  const service = new ProcurementService({ now: () => "2026-07-13T22:00:00.000Z" });
+  const supplierResult = service.createSupplier({
+    workspaceId: PROCUREMENT_WORKSPACE_ID,
+    companyName: "Atlas Distribution",
+    country: "Maroc",
+    currency: "MAD"
+  });
+  const supplier = supplierResult.supplier;
+  assert(supplier?.companyName === "Atlas Distribution", "Supplier should be created as a dedicated Procurement entity.");
+  assert(formatPurchaseOrderNumber(1) === "PO-2026-000001", "Purchase Order numbering should use the PO prefix.");
+
+  const line = { ...createEmptyPurchaseOrderLine("test"), id: "po-line-runtime-1", productId: "product-runtime-1", productSku: "SKU-001", productName: "Produit achat", description: "Produit achat", quantity: 100, unitPrice: 2, taxRate: 20 };
+  const orderResult = service.createPurchaseOrder({
+    workspaceId: PROCUREMENT_WORKSPACE_ID,
+    supplierId: supplier.id,
+    supplierName: supplier.companyName,
+    issueDate: "2026-07-13T00:00:00.000Z",
+    currency: "MAD",
+    lines: [line],
+    discountRate: 10
+  });
+  const order = orderResult.purchaseOrder;
+  const totals = calculatePurchaseOrderTotals(order);
+
+  assert(order?.number === "PO-2026-000001", "Purchase Order should be numbered by the shared numbering helper.");
+  assert(totals.subtotal === 200, "Purchase Order subtotal should use shared document line calculation.");
+  assert(totals.discount === 20, "Purchase Order discount should use shared document discount calculation.");
+  assert(totals.tax === 36, "Purchase Order tax should follow discounted taxable base.");
+  assert(totals.total === 216, "Purchase Order total should use Commercial Documents totals.");
+
+  const firstReceipt = service.createGoodsReceipt({
+    workspaceId: PROCUREMENT_WORKSPACE_ID,
+    supplierId: supplier.id,
+    supplierName: supplier.companyName,
+    purchaseOrderId: order.id,
+    purchaseOrderNumber: order.number,
+    warehouseId: "warehouse-main",
+    receiptDate: "2026-07-13T00:00:00.000Z",
+    lines: [{
+      id: "gr-line-runtime-1",
+      purchaseOrderLineId: line.id,
+      productId: line.productId,
+      productSku: line.productSku,
+      productName: line.productName,
+      description: line.description,
+      orderedQuantity: 100,
+      previouslyReceivedQuantity: 0,
+      receivedQuantity: 40,
+      unit: line.unit
+    }]
+  }).goodsReceipt;
+  service.markGoodsReceiptPosted(firstReceipt.id, PROCUREMENT_WORKSPACE_ID, "2026-07-13T01:00:00.000Z");
+  const partialState = service.getPurchaseOrderReceiptState(order.id, PROCUREMENT_WORKSPACE_ID);
+  assert(partialState.receivedQuantity === 40 && partialState.remainingQuantity === 60, "First Goods Receipt should leave a 60 unit remaining quantity.");
+  assert(service.getPurchaseOrder(order.id, PROCUREMENT_WORKSPACE_ID).status === "partially_received", "Purchase Order should become partially received after a partial posting.");
+
+  const secondReceipt = service.createGoodsReceipt({
+    workspaceId: PROCUREMENT_WORKSPACE_ID,
+    supplierId: supplier.id,
+    supplierName: supplier.companyName,
+    purchaseOrderId: order.id,
+    purchaseOrderNumber: order.number,
+    warehouseId: "warehouse-main",
+    receiptDate: "2026-07-13T02:00:00.000Z",
+    lines: [{
+      id: "gr-line-runtime-2",
+      purchaseOrderLineId: line.id,
+      productId: line.productId,
+      productSku: line.productSku,
+      productName: line.productName,
+      description: line.description,
+      orderedQuantity: 100,
+      previouslyReceivedQuantity: 40,
+      receivedQuantity: 60,
+      unit: line.unit
+    }]
+  }).goodsReceipt;
+  service.markGoodsReceiptPosted(secondReceipt.id, PROCUREMENT_WORKSPACE_ID, "2026-07-13T03:00:00.000Z");
+  const completedState = getPurchaseOrderReceiptState(service.getPurchaseOrder(order.id, PROCUREMENT_WORKSPACE_ID), service.listGoodsReceipts({ workspaceId: PROCUREMENT_WORKSPACE_ID }).goodsReceipts);
+  assert(completedState.receivedQuantity === 100 && completedState.remainingQuantity === 0, "Second Goods Receipt should complete the ordered quantity.");
+  assert(service.getPurchaseOrder(order.id, PROCUREMENT_WORKSPACE_ID).status === "received", "Purchase Order should become received after all quantities are posted.");
+});
+
+test("Procurement Supplier import export uses the shared Import Export framework", () => {
+  const {
+    createDefaultSupplierImportMapping,
+    createSupplierImportTemplateRows,
+    supplierToExportRow,
+    validateSupplierImportRows
+  } = load("src/modules/procurement");
+  const headers = ["Raison sociale", "ICE", "Devise", "Actif"];
+  const mapping = createDefaultSupplierImportMapping(headers);
+  const preview = validateSupplierImportRows([
+    { "Raison sociale": "Atlas Distribution", ICE: "001122334455667", Devise: "MAD", Actif: "Oui" }
+  ], mapping, { existingSuppliers: [], duplicatePolicy: "stop" });
+  const template = createSupplierImportTemplateRows();
+  const exported = supplierToExportRow({
+    id: "supplier-1",
+    workspaceId: "procurement-main",
+    companyName: "Atlas Distribution",
+    country: "Maroc",
+    currency: "MAD",
+    status: "active",
+    active: true,
+    createdAt: "2026-07-13T00:00:00.000Z",
+    updatedAt: "2026-07-13T00:00:00.000Z"
+  });
+
+  assert(preview.validRows === 1, "Supplier import preview should validate a minimal supplier row.");
+  assert(template.length > 0, "Supplier import should expose reusable template rows.");
+  assert(exported["Raison sociale"] === "Atlas Distribution", "Supplier export should use shared exporter definitions.");
+});
+
 const failures = results.filter((result) => result.status === "fail");
 
 for (const result of results) {

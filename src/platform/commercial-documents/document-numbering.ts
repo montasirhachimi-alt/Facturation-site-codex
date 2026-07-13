@@ -17,8 +17,8 @@ export function getDocumentNumberPrefix(type: string) {
     invoice: "FAC",
     "sales-order": "BC",
     "delivery-note": "BL",
-    "purchase-order": "BCA",
-    "goods-receipt": "BR",
+    "purchase-order": "PO",
+    "goods-receipt": "GR",
     "supplier-invoice": "FA"
   };
 

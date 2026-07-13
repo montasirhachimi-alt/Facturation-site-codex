@@ -42,7 +42,7 @@ export const COMMERCIAL_DOCUMENT_DEFINITIONS: readonly CommercialDocumentDefinit
     type: "purchase-order",
     label: "Commande fournisseur",
     pluralLabel: "Commandes fournisseur",
-    prefix: "BCA",
+    prefix: "PO",
     alphaReady: false,
     defaultStatus: "draft",
     status: "planned"

@@ -22,6 +22,8 @@ Track the planned evolution of HicoPilot from ERP foundation to commercial produ
 - Reservation & Availability Engine: make available stock and reservations the canonical authority before Sales Orders, Delivery Notes, POS or Purchasing allocation workflows.
 - Reservation QA Workspace: provide controlled manual verification of reservation and release flows before commercial reservation lifecycle work.
 - Commercial Documents Foundation: standardize document headers, lines, totals, status, lifecycle and definitions before Sales Orders, Delivery Notes, Purchasing documents or unified rendering.
+- Procurement Foundation: introduce Suppliers and Purchase Orders as activation-gated Procurement capabilities before Goods Receipt, Supplier Invoice or stock posting.
+- Goods Receipt & Inventory Posting: connect Purchase Orders to Inventory through persistent Goods Receipts and transaction-safe `RECEIPT` movements.
 
 ## Milestones
 
@@ -43,6 +45,7 @@ Track the planned evolution of HicoPilot from ERP foundation to commercial produ
 - Keep availability authoritative: future modules must call the Reservation & Availability engine instead of calculating available stock in UI or feature code.
 - Keep reservation QA inside Inventory until Sales Orders or Delivery Notes define the real commercial lifecycle.
 - Keep commercial documents canonical: future Sales Orders, Delivery Notes, Purchase Orders, Goods Receipts and Supplier Invoices must consume `src/platform/commercial-documents/` instead of defining independent line or total engines.
+- Keep Procurement separate from CRM: Suppliers must remain dedicated Procurement entities and must not reuse CRM Company as a shortcut.
 
 ## Risks
 
@@ -59,6 +62,8 @@ Track the planned evolution of HicoPilot from ERP foundation to commercial produ
 - Reservation references must remain module-neutral until Sales Orders, Delivery Notes, Purchasing or POS exist as stable modules.
 - Reservation QA controls must not appear in `alpha.crm-sales`.
 - Commercial document definitions for future document types must remain metadata only until their workflows, persistence and route availability are implemented.
+- Purchase Orders must not post stock. Goods Receipt will own future inventory increases.
+- Goods Receipts must post stock only through the Inventory posting engine; no Procurement UI may mutate Inventory balances directly.
 
 ## Open Questions
 

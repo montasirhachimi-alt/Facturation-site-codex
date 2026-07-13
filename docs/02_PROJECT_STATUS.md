@@ -236,15 +236,17 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - SPR-409 Reservation & Availability Engine makes availability the canonical Inventory authority, adds `ReservationService`, structured movement references, reservation/release persistence through the existing Inventory API and reservation history display while keeping Inventory inactive in Alpha.
 - SPR-409A Reservation QA Workspace adds a controlled Inventory-only `Réservations` tab with manual reservation and release dialogs so the Reservation Engine can be authenticated and persistence-tested before Sales Orders, Delivery Notes or Purchasing exist.
 - SPR-410 Commercial Documents Foundation adds platform-owned document primitives, definitions, calculations, validation, status and lifecycle helpers, then routes Quote and Invoice totals through the shared foundation while preserving current Alpha behavior.
+- SPR-411 Procurement Foundation adds canonical Suppliers, Purchase Orders, Purchase Order Lines, tenant-scoped persistence, Procurement routes, activation-gated Command Center metadata and Supplier import/export definitions while keeping Procurement inactive in Alpha.
+- SPR-412 Goods Receipt & Inventory Posting adds persistent Goods Receipts, receipt lines, the `/procurement/goods-receipts` workspace, Purchase Order `Recevoir` flow, Command Center metadata and transaction-safe Inventory `RECEIPT` posting while keeping Procurement/Inventory inactive in Alpha.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passed during SPR-410. |
-| `npm run build` | Yes | Passed during SPR-410; the known PDF preview image warning remains. |
-| `npm run validate:runtime` | Yes for platform work | Passed during SPR-410 with 105/105 checks, including Commercial Documents coverage. |
-| Prisma schema validation | Yes for persistence work | Passed during SPR-409. |
+| `npm run typecheck` | Yes | Passed during SPR-412. |
+| `npm run build` | Yes | Passed during SPR-412; the known PDF preview image warning remains. |
+| `npm run validate:runtime` | Yes for platform work | Passed during SPR-412 with 108/108 checks, including Goods Receipt coverage. |
+| Prisma schema validation | Yes for persistence work | Passed during SPR-412. |
 | Prisma migration replay | Yes for persistence work | Passed during ZF-R6 on a fresh local replay database. |
 
 ## Repository Health

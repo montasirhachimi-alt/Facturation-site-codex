@@ -7,7 +7,7 @@ import type { ModuleActivationResult } from "@/platform/modules/module-activatio
 
 export function getFoundationSearchSections(query = "", activation: ModuleActivationResult = getCurrentAlphaActivation()): readonly UniversalSearchSection[] {
   return [
-    getQuickCreateSection(query),
+    getQuickCreateSection(query, activation),
     ...getCommandCenterSections(query, activation),
     getRecordSearchSection(query, activation)
   ];
