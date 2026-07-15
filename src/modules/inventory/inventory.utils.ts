@@ -1,6 +1,9 @@
 import type { InventoryAvailability, InventoryBalance, InventoryCompanyId, InventoryWarehouseId, StockMovement } from "./inventory.types";
 import type { ProductId } from "@/modules/products";
 
+export const INVENTORY_QUANTITY_PRECISION = 6;
+export const INVENTORY_QUANTITY_STEP = 1;
+
 export function normalizeWarehouseCode(value: string) {
   return value.trim().replace(/\s+/g, "-").toUpperCase();
 }
@@ -10,7 +13,31 @@ export function calculateQuantityAvailable(quantityOnHand: number, quantityReser
 }
 
 export function roundQuantity(value: number) {
-  return Math.round(value * 1000000) / 1000000;
+  const factor = 10 ** INVENTORY_QUANTITY_PRECISION;
+  return Math.round((value + Number.EPSILON) * factor) / factor;
+}
+
+export function normalizeInventoryQuantity(value: number) {
+  if (!Number.isFinite(value)) return Number.NaN;
+  return roundQuantity(value);
+}
+
+export function parseInventoryQuantityInput(value: string) {
+  const normalized = value.trim().replace(/\s+/g, "").replace(",", ".");
+  if (!normalized) return Number.NaN;
+  return normalizeInventoryQuantity(Number(normalized));
+}
+
+export function formatInventoryQuantityInput(value: number) {
+  const normalized = normalizeInventoryQuantity(value);
+  if (!Number.isFinite(normalized)) return "";
+  return String(normalized);
+}
+
+export function adjustInventoryQuantityInput(value: string, direction: 1 | -1, step = INVENTORY_QUANTITY_STEP) {
+  const current = parseInventoryQuantityInput(value);
+  const base = Number.isFinite(current) ? current : 0;
+  return formatInventoryQuantityInput(Math.max(0, normalizeInventoryQuantity(base + direction * step)));
 }
 
 export function balanceKey(companyId: InventoryCompanyId, productId: ProductId, warehouseId: InventoryWarehouseId) {

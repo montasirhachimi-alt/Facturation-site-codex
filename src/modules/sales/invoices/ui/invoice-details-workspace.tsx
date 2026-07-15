@@ -204,7 +204,10 @@ export function InvoiceDetailsWorkspace({ invoiceId }: { invoiceId: string }) {
                 <tbody>
                   {invoice.items.map((item) => (
                     <tr key={item.id} className="border-t border-slate-100 dark:border-hicotech-dark-border">
-                      <td className="px-4 py-3 font-semibold text-hicotech-navy dark:text-white">{item.description}</td>
+                      <td className="px-4 py-3 font-semibold text-hicotech-navy dark:text-white">
+                        {item.description}
+                        {item.productSku && <p className="mt-1 text-xs font-bold text-slate-400">{item.productSku} · {item.productName ?? "Produit catalogue"}</p>}
+                      </td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{item.quantity}</td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{formatQuoteMoney(item.unitPrice, invoice.currency)}</td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{item.taxRate}%</td>

@@ -8,9 +8,9 @@
 | Version | v0.9.0-alpha |
 | Current Milestone | Business Platform |
 | Current Phase | Inventory Domain Foundation |
-| Current Sprint | SPR-407 — Inventory Domain Foundation |
-| Next Sprint | Product Catalog / Inventory activation planning |
-| Repository Health | Builds successfully with one known existing image optimization warning; Alpha-visible navigation, route availability and Dashboard contributions remain activation-driven, Product Catalog remains planned/inactive, and Inventory now has an activable workspace without visible Alpha behavior. |
+| Current Sprint | SPR-413F — Quote Conversion Sales Order Workspace Fix |
+| Next Sprint | SPR-414 — Delivery Note readiness planning |
+| Repository Health | Builds successfully with one known existing image optimization warning; Alpha-visible navigation, route availability and Dashboard contributions remain activation-driven, Product Catalog, Inventory and Sales Orders remain controlled-profile only, Quote-to-Sales-Order conversion preserves commercial quantities, Quote lifecycle transitions are server-validated, and converted Sales Orders now use the Sales Orders workspace. |
 
 ## Completed Core Engines
 
@@ -56,6 +56,9 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | Platform Architecture Constitution | `docs/05_PLATFORM_ARCHITECTURE.md` | Implemented as the mandatory architecture reference for future platform and business-module sprints. |
 | Product Catalog Foundation | `src/modules/products/` | Implemented as the canonical Product service, local cache, persistence bridge and prepared hidden workspace for future business modules. |
 | Inventory Domain Foundation | `src/modules/inventory/` | Implemented as warehouse, balance, stock movement, posting and reservation domain foundation with transaction-oriented persistence. |
+| Inventory Quantity Policy | `src/modules/inventory/inventory.utils.ts` | Implemented as a 6-decimal quantity normalization and parsing policy consumed by Inventory dialogs, services and persistence. |
+| Quote Lifecycle Actions | `src/modules/sales/quotes/` and `src/server/persistence/crm-sales-repository.ts` | Implemented as a minimal draft → sent → accepted/refused workflow with persistence validation and accepted-only Sales Order conversion readiness. |
+| Quote to Sales Order Workspace Mapping | `src/modules/sales/orders/order.service.ts` | Implemented so accepted Quote conversion creates Sales Orders in `sales-orders-main` and persistence rejects malformed Sales Order workspace IDs. |
 
 ## Completed Integrations
 
@@ -120,6 +123,8 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | Platform Architecture Constitution documents the authoritative module, activation, Edition, navigation, route, Command Center, Dashboard, persistence and import-safety rules for all future modules. | Completed |
 | Product Catalog Foundation extends the existing Product model into the canonical tenant-scoped catalogue, adds ProductCategory, ProductService, repository persistence, activation-gated search and a prepared hidden Product workspace. | Completed |
 | Inventory Domain Foundation adds tenant-scoped warehouse, balance and stock movement models plus a service-level posting engine and transaction-oriented repository without exposing Inventory UI. | Completed |
+| Warehouse Persistence & Inventory Quantity QA Fix aligns Inventory workspace tenant scope with authenticated persistence, makes Warehouses immediately visible after confirmed writes and normalizes Inventory quantities to prevent floating-point artifacts. | Completed |
+| Quote to Sales Order Quantity Conversion Fix normalizes persisted CRM/Sales numeric fields and explicitly preserves Quote quantities, Product snapshots, negotiated prices and VAT when creating Sales Order drafts. | Completed |
 
 ## Known Technical Debt
 
@@ -238,16 +243,19 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - SPR-410 Commercial Documents Foundation adds platform-owned document primitives, definitions, calculations, validation, status and lifecycle helpers, then routes Quote and Invoice totals through the shared foundation while preserving current Alpha behavior.
 - SPR-411 Procurement Foundation adds canonical Suppliers, Purchase Orders, Purchase Order Lines, tenant-scoped persistence, Procurement routes, activation-gated Command Center metadata and Supplier import/export definitions while keeping Procurement inactive in Alpha.
 - SPR-412 Goods Receipt & Inventory Posting adds persistent Goods Receipts, receipt lines, the `/procurement/goods-receipts` workspace, Purchase Order `Recevoir` flow, Command Center metadata and transaction-safe Inventory `RECEIPT` posting while keeping Procurement/Inventory inactive in Alpha.
+- SPR-413 Sales Orders Foundation adds persistent Sales Orders, Sales Order lines, `/sales/orders` routes, Quote-to-Order conversion, PDF export, activation-gated Command Center metadata and optional Inventory reservation/release flows while keeping Sales Orders inactive in Alpha.
+- SPR-413A Quote Product Identity & Sales Order QA preserves optional Product identity on Quote and Invoice lines, carries Product-backed lines into Sales Orders, keeps free-form lines non-inventory, adds Draft Sales Order edit and protects reservation retries from double-reserving already reserved quantities.
+- SPR-413B Inventory-Tracked Product QA Fix exposes the existing `Product.flags.trackInventory` contract in the Product create/edit dialog, defaults new Products to stockable, excludes services from manual Inventory movements and protects unsafe stockable-to-service transitions while keeping Alpha as the only default profile.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passed during SPR-412. |
-| `npm run build` | Yes | Passed during SPR-412; the known PDF preview image warning remains. |
-| `npm run validate:runtime` | Yes for platform work | Passed during SPR-412 with 108/108 checks, including Goods Receipt coverage. |
-| Prisma schema validation | Yes for persistence work | Passed during SPR-412. |
-| Prisma migration replay | Yes for persistence work | Passed during ZF-R6 on a fresh local replay database. |
+| `npm run typecheck` | Yes | Passed during SPR-413B. |
+| `npm run build` | Yes | Passed during SPR-413B; the known PDF preview image warning remains. |
+| `npm run validate:runtime` | Yes for platform work | Passed during SPR-413B with 118/118 checks, including Product tracking classification and Alpha default restoration coverage. |
+| Prisma schema validation | Yes for persistence work | Passed during SPR-413B; no migration required because `Product.trackInventory` already existed. |
+| Prisma migration replay | Yes for persistence work | SPR-413 migration applied locally; fresh replay remains part of final validation when required. |
 
 ## Repository Health
 

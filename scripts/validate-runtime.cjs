@@ -3081,6 +3081,23 @@ test("Inventory Domain Foundation posts movements and calculates availability", 
   assert(service.getAvailability(companyId, productId, secondaryWarehouseId) === 1, "Adjustment out should reduce availability.");
 });
 
+test("Inventory quantity policy normalizes decimal input without floating point artifacts", () => {
+  const {
+    adjustInventoryQuantityInput,
+    formatInventoryQuantityInput,
+    normalizeInventoryQuantity,
+    parseInventoryQuantityInput
+  } = load("src/modules/inventory");
+
+  assert(parseInventoryQuantityInput("20") === 20, "Quantity input 20 should parse exactly as 20.");
+  assert(parseInventoryQuantityInput("2,5") === 2.5, "Quantity input should accept comma decimal separators.");
+  assert(normalizeInventoryQuantity(0.1 + 0.2) === 0.3, "Quantity normalization should remove binary floating point artifacts.");
+  assert(formatInventoryQuantityInput(1.050001) === "1.050001", "Quantity input formatting should preserve canonical precision.");
+  assert(adjustInventoryQuantityInput("20", 1) === "21", "Arrow increment should be deterministic.");
+  assert(adjustInventoryQuantityInput("21", -1) === "20", "Arrow decrement should return exactly to the original integer.");
+  assert(adjustInventoryQuantityInput("0", -1) === "0", "Arrow decrement should not produce negative quantities.");
+});
+
 test("Inventory Domain Foundation rolls back failed postings and rejects duplicate posting", () => {
   const { InventoryService } = load("src/modules/inventory");
   const companyId = "company-runtime";
@@ -3103,6 +3120,27 @@ test("Inventory Domain Foundation rolls back failed postings and rejects duplica
   const failedIssue = service.postIssue({ companyId, productId, fromWarehouseId: warehouseId, quantity: 50 });
   assert(!failedIssue.validation.valid, "Insufficient stock issue should fail.");
   assert(service.getAvailability(companyId, productId, warehouseId) === 5, "Failed issue should preserve the previous balance.");
+});
+
+test("Inventory Domain Foundation stores normalized quantities exactly once", () => {
+  const { InventoryService } = load("src/modules/inventory");
+  const companyId = "company-runtime";
+  const productId = "product-runtime-quantity";
+  const warehouseId = "warehouse-quantity";
+  const service = new InventoryService({
+    now: () => "2026-07-14T19:00:00.000Z",
+    createWarehouseId: () => warehouseId,
+    createMovementId: () => "movement-quantity",
+    productExists: () => true
+  });
+
+  service.createWarehouse({ companyId, code: "quantity", name: "Quantité" });
+  const receipt = service.postReceipt({ companyId, productId, toWarehouseId: warehouseId, quantity: 0.1 + 0.2 });
+  const snapshot = service.getSnapshot(companyId);
+
+  assert(receipt.data?.quantity === 0.3, "Receipt movement should store normalized quantity.");
+  assert(snapshot.balances[0]?.quantityOnHand === 0.3, "Balance on-hand should match normalized receipt quantity.");
+  assert(snapshot.balances[0]?.quantityAvailable === 0.3, "Balance available should match normalized receipt quantity.");
 });
 
 test("Reservation Availability Engine reserves releases and exposes canonical availability", () => {
@@ -3269,7 +3307,46 @@ test("Commercial Documents Foundation calculates validates and protects document
   assert(validateCommercialDocument(document).valid, "Commercial document validation should accept a complete document.");
   assert(result.totals.total === totals.total, "Document engine should compose calculation and validation.");
   assert(canTransitionDocument("quote", "draft", "sent"), "Quote lifecycle should allow draft to sent.");
+  assert(canTransitionDocument("quote", "sent", "accepted"), "Quote lifecycle should allow sent to accepted.");
+  assert(canTransitionDocument("quote", "sent", "refused"), "Quote lifecycle should allow sent to refused.");
+  assert(!canTransitionDocument("quote", "draft", "accepted"), "Quote lifecycle should not allow direct draft to accepted conversion readiness.");
   assert(!canTransitionDocument("quote", "draft", "paid"), "Quote lifecycle should reject unrelated Invoice status transitions.");
+});
+
+test("Quote service transitions statuses through the canonical lifecycle", () => {
+  const { QuoteService } = load("src/modules/sales/quotes");
+  const service = new QuoteService({
+    seed: [
+      {
+        id: "quote-lifecycle-runtime",
+        workspaceId: "sales-quotes-main",
+        number: "DEV-2026-LIFE",
+        customerName: "Atlas Medical",
+        companyId: "company-runtime",
+        companyName: "Atlas Medical",
+        status: "draft",
+        issueDate: "2026-07-15T00:00:00.000Z",
+        expirationDate: "2026-08-15T00:00:00.000Z",
+        validityDays: 30,
+        currency: "MAD",
+        items: [{ id: "line-1", description: "Prestation", quantity: 1, unitPrice: 1000, taxRate: 20 }],
+        discountRate: 0,
+        ownerId: "user-runtime",
+        createdAt: "2026-07-15T00:00:00.000Z",
+        updatedAt: "2026-07-15T00:00:00.000Z"
+      }
+    ]
+  });
+
+  const blocked = service.transitionQuoteStatus("quote-lifecycle-runtime", "sales-quotes-main", "accepted");
+  const sent = service.transitionQuoteStatus("quote-lifecycle-runtime", "sales-quotes-main", "sent");
+  const accepted = service.transitionQuoteStatus("quote-lifecycle-runtime", "sales-quotes-main", "accepted");
+  const refusedAfterAccepted = service.transitionQuoteStatus("quote-lifecycle-runtime", "sales-quotes-main", "refused");
+
+  assert(!blocked.quote && blocked.error, "Quote service should reject direct draft to accepted.");
+  assert(sent.quote?.status === "sent", "Quote service should transition draft to sent.");
+  assert(accepted.quote?.status === "accepted", "Quote service should transition sent to accepted.");
+  assert(!refusedAfterAccepted.quote && refusedAfterAccepted.error, "Quote service should reject terminal accepted to refused.");
 });
 
 test("Sales Quote and Invoice totals consume the Commercial Documents calculation engine", () => {
@@ -3447,6 +3524,399 @@ test("Procurement Supplier import export uses the shared Import Export framework
   assert(preview.validRows === 1, "Supplier import preview should validate a minimal supplier row.");
   assert(template.length > 0, "Supplier import should expose reusable template rows.");
   assert(exported["Raison sociale"] === "Atlas Distribution", "Supplier export should use shared exporter definitions.");
+});
+
+test("Sales Orders stay inactive in Alpha and activate only through Sales Operations profile", () => {
+  const { ModuleActivationEngine, bosiacoModuleRegistry, getCurrentAlphaActivation } = load("src/platform/modules");
+  const { salesOperationsEditionProfile, editionToActivationRequest } = load("src/platform/editions");
+  const { getActiveModuleNavigationItems } = load("src/platform/modules/module-navigation.ts");
+  const { isRouteAvailable } = load("src/platform/modules/module-route-availability.ts");
+  const { createNavigationCommandRegistry } = load("src/platform/search/command-registry.ts");
+  const engine = new ModuleActivationEngine(bosiacoModuleRegistry);
+  const alpha = getCurrentAlphaActivation();
+  const salesOperations = engine.resolve(editionToActivationRequest(salesOperationsEditionProfile));
+  const alphaHrefs = getActiveModuleNavigationItems(alpha).map((item) => item.href);
+  const operationsHrefs = getActiveModuleNavigationItems(salesOperations).map((item) => item.href);
+  const operationsCommandHrefs = createNavigationCommandRegistry(salesOperations).getAll().map((command) => command.href);
+
+  assert(!alpha.activeModuleIdSet.has("sales.orders"), "Sales Orders should remain inactive in the current Alpha profile.");
+  assert(!alphaHrefs.includes("/sales/orders"), "Alpha navigation should not expose Sales Orders.");
+  assert(!isRouteAvailable("/sales/orders", alpha), "Sales Orders route should be unavailable in Alpha.");
+  assert(salesOperations.errors.length === 0, `Sales Operations profile should resolve cleanly: ${salesOperations.errors.map((issue) => issue.message).join("; ")}`);
+  assert(salesOperations.activeModuleIdSet.has("sales.orders"), "Sales Operations profile should activate Sales Orders.");
+  assert(salesOperations.activeModuleIdSet.has("sales.products"), "Sales Operations profile should activate Product Catalog for order lines.");
+  assert(salesOperations.activeModuleIdSet.has("inventory.stock"), "Sales Operations profile should activate Inventory for reservation checks.");
+  assert(operationsHrefs.includes("/sales/orders"), "Sales Operations navigation should expose Sales Orders.");
+  assert(isRouteAvailable("/sales/orders", salesOperations), "Sales Orders route should be available under Sales Operations profile.");
+  assert(operationsCommandHrefs.includes("/sales/orders"), "Command Center should expose Sales Orders only under Sales Operations profile.");
+});
+
+test("Sales Order service creates manual orders and prevents duplicate Quote conversion", () => {
+  const {
+    SalesOrderService,
+    SALES_ORDERS_WORKSPACE_ID,
+    calculateSalesOrderTotals,
+    createSalesOrderLinesFromQuote,
+    formatSalesOrderNumber,
+    getSalesOrderReservationStatus
+  } = load("src/modules/sales/orders");
+  const service = new SalesOrderService({ now: () => "2026-07-14T12:00:00.000Z" });
+  const manualResult = service.createOrder({
+    workspaceId: SALES_ORDERS_WORKSPACE_ID,
+    companyId: "company-runtime-1",
+    companyName: "Atlas Medical",
+    orderDate: "2026-07-14T00:00:00.000Z",
+    currency: "MAD",
+    lines: [{
+      id: "so-line-runtime-1",
+      productId: "product-runtime-1",
+      productSku: "SKU-001",
+      productName: "Produit runtime",
+      description: "Produit runtime",
+      quantityOrdered: 3,
+      quantityReserved: 0,
+      quantityDelivered: 0,
+      unit: "unité",
+      unitPrice: 100,
+      discountRate: 0,
+      taxRate: 20,
+      position: 1
+    }],
+    discountRate: 10,
+    ownerId: "user-runtime"
+  });
+  const manualOrder = manualResult.order;
+  const totals = calculateSalesOrderTotals(manualOrder);
+
+  assert(manualOrder.number === "SO-2026-000001", "Sales Order numbering should use the SO prefix.");
+  assert(formatSalesOrderNumber(2) === "SO-2026-000002", "Sales Order helper should format deterministic SO numbers.");
+  assert(totals.subtotal === 300, "Sales Order subtotal should use ordered quantities.");
+  assert(totals.discount === 30, "Sales Order discount should follow document discount rate.");
+  assert(totals.tax === 54, "Sales Order tax should be calculated on discounted taxable amount.");
+  assert(totals.total === 324, "Sales Order total should include tax.");
+  assert(getSalesOrderReservationStatus(manualOrder.lines) === "not_reserved", "New manual order should not reserve stock by default.");
+
+  const quote = {
+    id: "quote-runtime-1",
+    workspaceId: "sales-quotes-main",
+    number: "DEV-2026-000001",
+    customerName: "Atlas Medical",
+    companyId: "company-runtime-1",
+    companyName: "Atlas Medical",
+    contactId: "contact-runtime-1",
+    contactName: "Sara Amrani",
+    status: "accepted",
+    issueDate: "2026-07-14T00:00:00.000Z",
+    expirationDate: "2026-08-14T00:00:00.000Z",
+    currency: "MAD",
+    items: [{ id: "quote-line-runtime-1", description: "Service conseil", quantity: 2, unitPrice: 250, taxRate: 20 }],
+    discountRate: 0,
+    ownerId: "user-runtime",
+    createdAt: "2026-07-14T00:00:00.000Z",
+    updatedAt: "2026-07-14T00:00:00.000Z"
+  };
+  const convertedLines = createSalesOrderLinesFromQuote(quote);
+  const convertedResult = service.createFromQuote(quote, { ownerId: "user-runtime" });
+  const duplicateResult = service.createFromQuote(quote, { ownerId: "user-runtime" });
+
+  assert(convertedLines[0].quantityOrdered === 2, "Quote conversion should preserve ordered quantity.");
+  assert(convertedResult.order?.workspaceId === SALES_ORDERS_WORKSPACE_ID, "Quote conversion should create the Sales Order in the Sales Orders workspace.");
+  assert(convertedResult.order?.sourceQuoteId === quote.id, "Converted Sales Order should preserve source Quote ID.");
+  assert(convertedResult.order?.companyId === quote.companyId, "Converted Sales Order should preserve Company relationship.");
+  assert(convertedResult.order?.contactId === quote.contactId, "Converted Sales Order should preserve Contact relationship.");
+  assert(!duplicateResult.order && duplicateResult.error, "Quote conversion should block duplicate Sales Orders for the same Quote.");
+});
+
+test("Sales Order persistence protects Quote conversion workspace and duplicate source links", () => {
+  const serviceSource = read("src/modules/sales/orders/order.service.ts");
+  const repositorySource = read("src/server/persistence/crm-sales-repository.ts");
+
+  assert(serviceSource.includes("workspaceId: SALES_ORDERS_WORKSPACE_ID"), "Quote conversion should normalize legacy wrong-workspace Sales Orders to the Sales Orders workspace.");
+  assert(serviceSource.includes("this.getOrderByQuote(quote.id, SALES_ORDERS_WORKSPACE_ID)"), "Duplicate Quote conversion checks should search the Sales Orders workspace.");
+  assert(repositorySource.includes("La commande client doit appartenir à l'espace Commandes clients."), "Server should reject Sales Orders persisted under the Quote workspace.");
+  assert(repositorySource.includes("assertUniqueSalesOrderSourceQuote"), "Server should protect against duplicate Sales Orders for one source Quote.");
+  assert(repositorySource.includes("tenantCompanyId: scope.companyId") && repositorySource.includes("sourceQuoteId: order.sourceQuoteId"), "Duplicate source Quote protection should be tenant-scoped.");
+  assert(repositorySource.includes("NOT: { id: order.id }"), "Duplicate source Quote protection should allow updating the same Sales Order.");
+  assert(repositorySource.includes("Une commande client existe déjà pour ce devis"), "Duplicate source Quote protection should return a clear French business error.");
+});
+
+test("Sales Order persistence reserves and releases stock without physical issue movements", () => {
+  const repositorySource = read("src/server/persistence/crm-sales-repository.ts");
+
+  assert(repositorySource.includes('referenceType: "SALES_ORDER"'), "Sales Order persistence should tag reservation movements with SALES_ORDER.");
+  assert(repositorySource.includes('type: "RESERVATION"'), "Sales Order confirmation should use Inventory reservation movements.");
+  assert(repositorySource.includes('type: "RELEASE"'), "Sales Order cancellation should release active reservations.");
+  assert(!repositorySource.includes('type: "ISSUE"'), "Sales Orders must not physically issue stock; Delivery Notes will own stock decrement.");
+});
+
+test("Quote and Invoice lines preserve Product identity while free-form lines stay free-form", () => {
+  const {
+    createEmptySalesLineItem,
+    createSalesLineItemFromProduct,
+    normalizeSalesLineItems
+  } = load("src/modules/sales/shared");
+  const { createInvoiceInputFromQuote } = load("src/modules/sales/invoices");
+  const product = {
+    id: "prod-runtime-identity",
+    workspaceId: "products-catalog",
+    sku: "SKU-RUNTIME",
+    name: "Produit runtime",
+    unit: "piece",
+    sellingPrice: 120,
+    vatRate: 20,
+    purchasePrice: 80,
+    currency: "MAD",
+    active: true,
+    status: "active",
+    flags: { trackInventory: true, allowNegativeStock: false, hasVariants: false, serialTracked: false, batchTracked: false },
+    createdAt: "2026-07-14T00:00:00.000Z",
+    updatedAt: "2026-07-14T00:00:00.000Z"
+  };
+  const productLine = createSalesLineItemFromProduct(product, "quote-line");
+  const freeLine = { ...createEmptySalesLineItem("quote-line"), id: "free-form-line", description: "Service conseil", quantity: 1, unitPrice: 50 };
+  const normalized = normalizeSalesLineItems([productLine, freeLine]);
+  const quote = {
+    id: "quote-product-identity",
+    workspaceId: "sales-quotes-main",
+    number: "DEV-2026-IDENTITY",
+    customerName: "Atlas Medical",
+    companyId: "company-runtime-identity",
+    companyName: "Atlas Medical",
+    status: "accepted",
+    issueDate: "2026-07-14T00:00:00.000Z",
+    expirationDate: "2026-08-14T00:00:00.000Z",
+    currency: "MAD",
+    items: normalized,
+    discountRate: 0,
+    ownerId: "user-runtime",
+    createdAt: "2026-07-14T00:00:00.000Z",
+    updatedAt: "2026-07-14T00:00:00.000Z"
+  };
+  const invoiceInput = createInvoiceInputFromQuote(quote);
+
+  assert(normalized[0].productId === product.id, "Product-backed Quote line should keep Product ID.");
+  assert(normalized[0].productSku === product.sku, "Product-backed Quote line should keep Product SKU snapshot.");
+  assert(normalized[0].productName === product.name, "Product-backed Quote line should keep Product name snapshot.");
+  assert(!normalized[1].productId, "Free-form Quote line should not receive a Product ID.");
+  assert(invoiceInput.items[0].productId === product.id, "Quote to Invoice should preserve Product ID.");
+  assert(!invoiceInput.items[1].productId, "Quote to Invoice should preserve free-form lines.");
+});
+
+test("Quote to Sales Order conversion preserves Product identity and reservation eligibility", () => {
+  const {
+    calculateSalesOrderTotals,
+    createSalesOrderLinesFromQuote,
+    getSalesOrderReservationStatus
+  } = load("src/modules/sales/orders");
+  const quote = {
+    id: "quote-to-so-product",
+    workspaceId: "sales-quotes-main",
+    number: "DEV-2026-SO",
+    customerName: "Atlas Medical",
+    companyId: "company-runtime-identity",
+    companyName: "Atlas Medical",
+    status: "accepted",
+    issueDate: "2026-07-14T00:00:00.000Z",
+    expirationDate: "2026-08-14T00:00:00.000Z",
+    currency: "MAD",
+    items: [
+      { id: "product-line", productId: "prod-runtime-identity", productSku: "SKU-RUNTIME", productName: "Produit runtime", description: "Produit runtime", quantity: 8, unit: "piece", unitPrice: 120, taxRate: 20 },
+      { id: "free-line", description: "Service conseil", quantity: 1, unit: "service", unitPrice: 50, taxRate: 20 }
+    ],
+    discountRate: 0,
+    ownerId: "user-runtime",
+    createdAt: "2026-07-14T00:00:00.000Z",
+    updatedAt: "2026-07-14T00:00:00.000Z"
+  };
+  const lines = createSalesOrderLinesFromQuote(quote);
+  const totals = calculateSalesOrderTotals({ lines, currency: "MAD", discountRate: 0 });
+
+  assert(lines[0].productId === "prod-runtime-identity", "Sales Order line should preserve Product ID from Quote.");
+  assert(lines[0].productSku === "SKU-RUNTIME", "Sales Order line should preserve SKU snapshot.");
+  assert(lines[0].unit === "piece", "Sales Order line should preserve unit.");
+  assert(lines[0].quantityOrdered === 8, "Sales Order line should map Quote quantity to quantityOrdered.");
+  assert(lines[0].unitPrice === 120, "Sales Order line should preserve negotiated unit price.");
+  assert(lines[0].taxRate === 20, "Sales Order line should preserve tax rate.");
+  assert(!lines[1].productId, "Free-form Quote line should remain free-form in Sales Order.");
+  assert(getSalesOrderReservationStatus(lines) === "not_reserved", "Product-backed unreserved Sales Order line should be reservable but not reserved.");
+  assert(getSalesOrderReservationStatus([lines[1]]) === "not_applicable", "Free-form Sales Order line should not be reservation-applicable.");
+  assert(totals.subtotal === 1010 && totals.tax === 202 && totals.total === 1212, "Sales Order totals should recalculate from converted line values.");
+});
+
+test("Quote to Sales Order conversion keeps QA quantity and totals from persisted numeric values", () => {
+  const {
+    calculateSalesOrderTotals,
+    createSalesOrderLinesFromQuote
+  } = load("src/modules/sales/orders");
+  const decimalLike = (value) => ({ toNumber: () => value });
+  const quote = {
+    id: "quote-to-so-qa",
+    workspaceId: "sales-quotes-main",
+    number: "DEV-2026-QA",
+    customerName: "Atlas Medical",
+    companyId: "company-runtime-identity",
+    companyName: "Atlas Medical",
+    status: "accepted",
+    issueDate: "2026-07-14T00:00:00.000Z",
+    expirationDate: "2026-08-14T00:00:00.000Z",
+    currency: "MAD",
+    items: [
+      { id: "product-a", productId: "product-a", productSku: "P-121", productName: "Product A", description: "Product A", quantity: decimalLike(8), unit: "piece", unitPrice: decimalLike(5000), taxRate: decimalLike(20) },
+      { id: "free-a", description: "Service libre", quantity: "2", unit: "service", unitPrice: "1000", taxRate: "20" }
+    ],
+    discountRate: 0,
+    ownerId: "user-runtime",
+    createdAt: "2026-07-14T00:00:00.000Z",
+    updatedAt: "2026-07-14T00:00:00.000Z"
+  };
+  const lines = createSalesOrderLinesFromQuote(quote);
+  const totals = calculateSalesOrderTotals({ lines, currency: "MAD", discountRate: 0 });
+
+  assert(lines[0].productId === "product-a", "Product-backed converted line should preserve Product ID.");
+  assert(lines[0].productSku === "P-121", "Product-backed converted line should preserve SKU.");
+  assert(lines[0].quantityOrdered === 8, "Persisted Decimal-like Quote quantity should convert to quantityOrdered=8.");
+  assert(lines[0].unitPrice === 5000, "Persisted Decimal-like Quote unit price should remain 5000.");
+  assert(lines[0].taxRate === 20, "Persisted Decimal-like Quote tax should remain 20.");
+  assert(!lines[1].productId && lines[1].quantityOrdered === 2, "Free-form Quote lines should convert quantity without inferring Product identity.");
+  assert(totals.subtotal === 42000, "Converted Sales Order subtotal should include Product and free-form lines.");
+  assert(totals.tax === 8400, "Converted Sales Order tax should follow line VAT.");
+  assert(totals.total === 50400, "Converted Sales Order total should be recalculated from converted lines.");
+});
+
+test("Sales Order dialog preserves converted Product line commercial values", () => {
+  const dialogSource = read("src/modules/sales/orders/ui/order-dialog.tsx");
+  const repositorySource = read("src/server/persistence/crm-sales-repository.ts");
+
+  assert(dialogSource.includes("currentLine?.productId && currentLine.productId === productId"), "Sales Order dialog should not overwrite converted values when the same Product is already selected.");
+  assert(dialogSource.includes("!products.some((product) => product.id === line.productId)"), "Sales Order dialog should display converted Product snapshots before catalog hydration.");
+  assert(repositorySource.includes("quantity: decimalToNumber(row.quantity)"), "Persisted Quote lines should hydrate quantity as a plain number.");
+  assert(repositorySource.includes("quantityOrdered: decimalToNumber(row.quantityOrdered)"), "Persisted Sales Order lines should hydrate ordered quantity as a plain number.");
+});
+
+test("Quote lifecycle actions and conversion readiness are server validated", () => {
+  const quoteDetailsSource = read("src/modules/sales/quotes/ui/quote-details-workspace.tsx");
+  const routeSource = read("src/app/api/persistence/crm-sales/route.ts");
+  const repositorySource = read("src/server/persistence/crm-sales-repository.ts");
+  const clientSource = read("src/platform/persistence/crm-sales-persistence.client.ts");
+
+  assert(quoteDetailsSource.includes("Marquer comme envoyé"), "Quote detail should expose draft to sent lifecycle action.");
+  assert(quoteDetailsSource.includes("Marquer comme accepté"), "Quote detail should expose sent to accepted lifecycle action.");
+  assert(quoteDetailsSource.includes("Marquer comme refusé"), "Quote detail should expose sent to refused lifecycle action.");
+  assert(quoteDetailsSource.includes('available: salesOrdersEnabled && quoteValue.status === "accepted"'), "Sales Order conversion action should remain accepted-only in the UI.");
+  assert(clientSource.includes("transitionPersistedQuoteStatus"), "Client persistence should expose a shared Quote status transition call.");
+  assert(routeSource.includes('"transitionQuoteStatus"'), "CRM/Sales persistence API should expose a dedicated Quote transition operation.");
+  assert(repositorySource.includes("validateQuoteStatusTransition"), "Quote status changes should be validated in the persistence repository.");
+  assert(repositorySource.includes("Un nouveau devis doit être créé en brouillon."), "Server should prevent directly creating non-draft Quotes.");
+  assert(repositorySource.includes("Une commande client ne peut être créée qu'à partir d'un devis accepté."), "Server should block Sales Order conversion when the source Quote is not accepted.");
+  assert(repositorySource.includes("La commande client doit appartenir à l'espace Commandes clients."), "Server should reject Sales Orders persisted under the Quote workspace.");
+});
+
+test("Sales Order reservation persistence uses remaining quantity only", () => {
+  const repositorySource = read("src/server/persistence/crm-sales-repository.ts");
+
+  assert(repositorySource.includes("line.quantityOrdered - line.quantityReserved"), "Reservation should calculate remaining quantity from ordered minus already reserved.");
+  assert(repositorySource.includes("line.quantityReserved + quantityToReserve"), "Reservation should add only the newly reserved quantity.");
+  assert(repositorySource.includes('throw new Error("Cette commande client est déjà annulée.")'), "Duplicate cancellation should be rejected.");
+  assert(repositorySource.includes("Produit non suivi en stock") || read("src/modules/sales/orders/ui/order-details-workspace.tsx").includes("Produit non suivi en stock"), "UI should explain non-inventory Product reservation ineligibility.");
+  assert(read("src/modules/sales/shared/sales-line-items-editor.tsx").includes("productId: undefined"), "Clearing Product selection should remove stale Product identity.");
+});
+
+test("Product Catalog exposes stockable and non-stocked Product classification", () => {
+  const { ProductService, PRODUCTS_WORKSPACE_ID } = load("src/modules/products");
+  const service = new ProductService({
+    now: () => "2026-07-14T17:30:00.000Z",
+    createProductId: (() => {
+      let count = 0;
+      return () => `product-classification-${++count}`;
+    })()
+  });
+  const stockable = service.createProduct({
+    workspaceId: PRODUCTS_WORKSPACE_ID,
+    sku: "STOCK-A",
+    name: "Produit stockable A",
+    sellingPrice: 2000,
+    flags: { trackInventory: true }
+  }).product;
+  const serviceProduct = service.createProduct({
+    workspaceId: PRODUCTS_WORKSPACE_ID,
+    sku: "SERV-A",
+    name: "Service A",
+    sellingPrice: 800,
+    flags: { trackInventory: false }
+  }).product;
+  const updated = service.updateProduct({
+    id: serviceProduct.id,
+    workspaceId: PRODUCTS_WORKSPACE_ID,
+    sku: "SERV-A",
+    name: "Service A",
+    sellingPrice: 800,
+    flags: { trackInventory: true }
+  }).product;
+
+  assert(stockable.flags.trackInventory, "Created stockable Product should keep trackInventory=true.");
+  assert(!serviceProduct.flags.trackInventory, "Created service Product should keep trackInventory=false.");
+  assert(updated.flags.trackInventory, "SERVICE to STOCKABLE should be allowed at Product service level.");
+});
+
+test("Inventory manual operations only offer active stockable Products", () => {
+  const hookSource = read("src/modules/inventory/ui/hooks/use-inventory-workspace.ts");
+  const dialogSource = read("src/modules/inventory/ui/dialogs/inventory-operation-dialog.tsx");
+
+  assert(hookSource.includes("product.active && product.flags.trackInventory"), "Inventory Product picker should filter to active stockable Products.");
+  assert(dialogSource.includes("La sélection utilise le catalogue produit canonique."), "Inventory operation dialog should use the canonical Product picker.");
+});
+
+test("Warehouse persistence and manual receipt use the authenticated tenant and canonical warehouse source", () => {
+  const hookSource = read("src/modules/inventory/ui/hooks/use-inventory-workspace.ts");
+  const dialogSource = read("src/modules/inventory/ui/dialogs/inventory-operation-dialog.tsx");
+  const warehouseDialogSource = read("src/modules/inventory/ui/dialogs/warehouse-dialog.tsx");
+  const clientSource = read("src/platform/persistence/inventory-persistence.client.ts");
+  const routeSource = read("src/app/api/persistence/inventory/route.ts");
+  const repositorySource = read("src/server/persistence/inventory-repository.ts");
+
+  assert(hookSource.includes('activeCompanyId') && !hookSource.includes('"company-bosiaco"'), "Inventory workspace should use the authenticated demo tenant instead of the stale company-bosiaco scope.");
+  assert(hookSource.includes("inventoryLocalService.getSnapshot(INVENTORY_COMPANY_ID)"), "Warehouse table should read the canonical Inventory snapshot.");
+  assert(dialogSource.includes("warehouses={activeWarehouses}") || dialogSource.includes("warehouses: readonly Warehouse[]"), "Manual receipt selector should consume workspace Warehouses.");
+  assert(warehouseDialogSource.includes('await persistInventoryOperation("createWarehouse"'), "Warehouse success should wait for persistence.");
+  assert(clientSource.includes("if (body.snapshot) applyInventorySnapshot(body.snapshot)"), "Inventory POST should hydrate the returned canonical snapshot.");
+  assert(routeSource.includes("snapshot: await loadInventorySnapshot(scope)"), "Inventory API should return a fresh tenant snapshot after writes.");
+  assert(repositorySource.includes("companyId: scope.companyId"), "Warehouse persistence should use server tenant scope.");
+});
+
+test("Inventory posting rejects non-stocked Products and normalizes quantity at persistence boundary", () => {
+  const repositorySource = read("src/server/persistence/inventory-repository.ts");
+  const operationDialogSource = read("src/modules/inventory/ui/dialogs/inventory-operation-dialog.tsx");
+  const reservationDialogSource = read("src/modules/inventory/ui/dialogs/reservation-dialog.tsx");
+
+  assert(repositorySource.includes("normalizeInventoryQuantity(input.quantity)"), "Inventory repository should normalize posted quantities before persistence.");
+  assert(repositorySource.includes("!product.trackInventory"), "Inventory repository should reject non-inventory Products.");
+  assert(repositorySource.includes("Produit non suivi en stock."), "Inventory repository should return a French non-stocked Product error.");
+  assert(operationDialogSource.includes('type="text"') && operationDialogSource.includes('inputMode="decimal"'), "Manual receipt quantity should use controlled decimal input.");
+  assert(operationDialogSource.includes("parseInventoryQuantityInput(form.quantity)"), "Manual receipt should parse locale-aware quantities before submit.");
+  assert(operationDialogSource.includes("adjustInventoryQuantityInput"), "Manual receipt Arrow increments should use the canonical quantity helper.");
+  assert(reservationDialogSource.includes("parseInventoryQuantityInput(form.quantity)"), "Reservation quantity should use the same canonical quantity parser.");
+});
+
+test("Product UI and persistence protect unsafe stockable to service transitions", () => {
+  const dialogSource = read("src/modules/products/ui/dialogs/product-dialog.tsx");
+  const hookSource = read("src/modules/products/ui/hooks/use-products-page.ts");
+  const repositorySource = read("src/server/persistence/product-catalog-repository.ts");
+
+  assert(dialogSource.includes("Produit stockable"), "Product dialog should expose a stockable Product choice.");
+  assert(dialogSource.includes("Service / non stocké"), "Product dialog should expose a non-stocked service choice.");
+  assert(dialogSource.includes("comportement de stock"), "Product dialog copy should no longer say the catalog is without inventory.");
+  assert(hookSource.includes("trackInventory: true"), "New Product form should default to explicit stockable classification.");
+  assert(hookSource.includes("hasInventoryHistory"), "Product edit UI should guard unsafe stockable to service transition.");
+  assert(repositorySource.includes("assertSafeTrackingPolicyChange"), "Product persistence should guard unsafe stockable to service transition server-side.");
+  assert(repositorySource.includes("inventoryBalance.count"), "Server guard should inspect Inventory balances.");
+  assert(repositorySource.includes("inventoryStockMovement.count"), "Server guard should inspect Inventory movement history.");
+});
+
+test("Current Alpha remains the only default Edition after Inventory-tracked Product QA fix", () => {
+  const { alphaCrmSalesEditionProfile, salesOperationsEditionProfile } = load("src/platform/editions");
+
+  assert(alphaCrmSalesEditionProfile.defaultForEnvironment === true, "alpha.crm-sales should remain the default profile.");
+  assert(salesOperationsEditionProfile.defaultForEnvironment === false, "sales-operations should remain disabled by default after QA restoration.");
 });
 
 const failures = results.filter((result) => result.status === "fail");

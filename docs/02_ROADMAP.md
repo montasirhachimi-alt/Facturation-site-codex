@@ -24,6 +24,13 @@ Track the planned evolution of HicoPilot from ERP foundation to commercial produ
 - Commercial Documents Foundation: standardize document headers, lines, totals, status, lifecycle and definitions before Sales Orders, Delivery Notes, Purchasing documents or unified rendering.
 - Procurement Foundation: introduce Suppliers and Purchase Orders as activation-gated Procurement capabilities before Goods Receipt, Supplier Invoice or stock posting.
 - Goods Receipt & Inventory Posting: connect Purchase Orders to Inventory through persistent Goods Receipts and transaction-safe `RECEIPT` movements.
+- Sales Orders Foundation: introduce customer commitment documents with optional Inventory reservation, while keeping physical stock decrement for future Delivery Notes.
+- Quote Product Identity & Sales Order QA: preserve Product-backed vs free-form line identity across Quote, Invoice and Sales Order before Delivery Notes.
+- Inventory-Tracked Product QA Fix: expose the existing Product tracking policy in Product create/edit so stockable Products can be received and reserved from the UI.
+- Warehouse Persistence & Inventory Quantity QA Fix: align Inventory workspace tenant scope with persistence and normalize stock quantities before Delivery Note work.
+- Quote to Sales Order Quantity Conversion Fix: preserve Quote line quantities, Product snapshots, negotiated prices and VAT when generating Sales Orders.
+- Quote Lifecycle Actions & Conversion Readiness: allow draft Quotes to become sent, sent Quotes to become accepted/refused, and keep Sales Order conversion accepted-only with server validation.
+- Quote Conversion Sales Order Workspace Fix: ensure accepted Quote conversion creates Sales Orders in the Sales Orders workspace so the generated detail page opens correctly.
 
 ## Milestones
 
@@ -64,6 +71,13 @@ Track the planned evolution of HicoPilot from ERP foundation to commercial produ
 - Commercial document definitions for future document types must remain metadata only until their workflows, persistence and route availability are implemented.
 - Purchase Orders must not post stock. Goods Receipt will own future inventory increases.
 - Goods Receipts must post stock only through the Inventory posting engine; no Procurement UI may mutate Inventory balances directly.
+- Sales Orders must reserve or release stock only through the Inventory reservation engine and must never post physical `ISSUE` movements.
+- Product-backed commercial lines must carry Product IDs; free-form lines must remain valid and non-inventory.
+- Product stockability must use `Product.flags.trackInventory`; do not create duplicate product-type authorities.
+- Inventory workspaces must use the authenticated tenant scope and the canonical Inventory quantity helpers; do not reintroduce hardcoded local company scopes or native number-step artifacts.
+- Persisted commercial document numeric fields must hydrate as plain numbers before entering dialogs, conversion adapters, PDFs or calculation wrappers.
+- Quote lifecycle status changes must use the Commercial Documents lifecycle and Sales Order conversion must remain blocked until the source Quote is accepted.
+- Quote-to-Sales-Order conversion must preserve document relationships through source IDs while assigning each document to its canonical workspace.
 
 ## Open Questions
 

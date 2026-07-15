@@ -1,6 +1,6 @@
 import { PackageCheck } from "lucide-react";
-import type { StockProduct } from "@/lib/types";
 import { calculateDocumentLine, roundDocumentAmount, validateDocumentLine } from "@/platform/commercial-documents";
+import type { Product } from "@/modules/products";
 import type { EntityPickerItem } from "@/ui/forms/entity-picker.types";
 import type { SalesLineItemDraft, SalesLineItemValidation } from "./sales-line-item.types";
 
@@ -9,18 +9,23 @@ export function createEmptySalesLineItem(prefix = "line"): SalesLineItemDraft {
     id: `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     description: "",
     quantity: 1,
+    unit: "piece",
     unitPrice: 0,
     taxRate: 20
   };
 }
 
-export function createSalesLineItemFromProduct(product: StockProduct, prefix = "line"): SalesLineItemDraft {
+export function createSalesLineItemFromProduct(product: Product, prefix = "line"): SalesLineItemDraft {
   return {
     id: `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-    description: product.designation,
+    productId: product.id,
+    productSku: product.sku,
+    productName: product.name,
+    description: product.name,
     quantity: 1,
-    unitPrice: product.salePrice,
-    taxRate: product.vat
+    unit: product.unit,
+    unitPrice: product.sellingPrice,
+    taxRate: product.vatRate
   };
 }
 
@@ -60,23 +65,27 @@ export function normalizeSalesLineItems(lines: readonly SalesLineItemDraft[]) {
   return lines
     .map((line) => ({
       id: line.id,
+      productId: line.productId,
+      productSku: line.productSku,
+      productName: line.productName,
       description: line.description.trim(),
       quantity: Number(line.quantity),
+      unit: line.unit,
       unitPrice: roundDocumentAmount(Number(line.unitPrice)),
       taxRate: Number(line.taxRate)
     }))
     .filter((line) => line.description && line.quantity > 0 && line.unitPrice >= 0);
 }
 
-export function productToSalesPickerItem(product: StockProduct): EntityPickerItem {
+export function productToSalesPickerItem(product: Product): EntityPickerItem {
   return {
     id: product.id,
-    title: product.designation,
+    title: product.name,
     type: "product",
     typeLabel: "Produit",
-    metadata: `${product.reference} · ${product.category} · ${product.salePrice} HT · TVA ${product.vat}%`,
+    metadata: `${product.sku} · ${product.categoryName ?? "Catalogue"} · ${product.sellingPrice} HT · TVA ${product.vatRate}%`,
     icon: PackageCheck,
-    keywords: [product.reference, product.designation, product.description, product.category, product.unit].filter(Boolean)
+    keywords: [product.sku, product.name, product.description, product.categoryName, product.unit].filter((value): value is string => Boolean(value))
   };
 }
 

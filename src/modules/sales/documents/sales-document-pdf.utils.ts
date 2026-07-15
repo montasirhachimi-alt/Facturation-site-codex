@@ -5,6 +5,8 @@ import type { Company } from "@/modules/crm/companies";
 import type { Contact } from "@/modules/crm/contacts";
 import type { Invoice } from "@/modules/sales/invoices/invoice.types";
 import { getInvoiceTotals } from "@/modules/sales/invoices/invoice.utils";
+import type { SalesOrder } from "@/modules/sales/orders";
+import { calculateSalesOrderTotals } from "@/modules/sales/orders";
 import type { Quote, QuoteItem } from "@/modules/sales/quotes/quote.types";
 import { getQuoteTotals } from "@/modules/sales/quotes/quote.utils";
 import type { SalesDocumentPdfMode } from "./sales-document-pdf.types";
@@ -70,6 +72,38 @@ export function buildInvoicePdfDocument(invoice: Invoice, context: SalesPdfConte
     notes: invoice.notes,
     paymentTerms: "Règlement selon les conditions commerciales convenues.",
     filename: sanitizeFileName(`Facture-${invoice.number}`),
+    company: activeCompanyProfile
+  };
+}
+
+export function buildSalesOrderPdfDocument(order: SalesOrder): PdfLayoutDocument {
+  const totals = calculateSalesOrderTotals(order);
+  return {
+    title: "BON DE COMMANDE",
+    number: order.number,
+    date: formatPdfDate(order.orderDate),
+    dueDate: order.expectedDeliveryDate ? formatPdfDate(order.expectedDeliveryDate) : undefined,
+    status: normalizeStatus(order.status),
+    internalReference: order.sourceQuoteNumber ?? order.internalReference,
+    currency: order.currency,
+    recipient: buildRecipient(order.companyName, { companyName: order.companyName, contactName: order.contactName }),
+    lines: order.lines.map((line) => ({
+      reference: line.productSku ?? line.productId ?? line.id,
+      designation: line.description,
+      quantity: line.quantityOrdered,
+      unitPrice: line.unitPrice,
+      vat: line.taxRate
+    })),
+    discount: totals.discount,
+    totals: {
+      subtotal: totals.subtotal,
+      discount: totals.discount,
+      tax: totals.tax,
+      total: totals.total
+    },
+    notes: order.notes,
+    paymentTerms: "Commande client confirmée selon les conditions commerciales convenues.",
+    filename: sanitizeFileName(`Commande-client-${order.number}`),
     company: activeCompanyProfile
   };
 }
@@ -155,7 +189,7 @@ function normalizePdfText(value: string) {
 
 function buildPdfLines(items: readonly QuoteItem[]): PdfLineItem[] {
   return items.map((item, index) => ({
-    reference: item.id || `L${index + 1}`,
+    reference: item.productSku ?? item.id ?? `L${index + 1}`,
     designation: item.description,
     quantity: item.quantity,
     unitPrice: item.unitPrice,

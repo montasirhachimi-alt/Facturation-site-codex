@@ -16,6 +16,8 @@ import { CRM_CONTACTS_USER_ID, CRM_CONTACTS_WORKSPACE_ID } from "@/modules/crm/c
 import { crmContactLocalService, notifyCrmContactStoreUpdated } from "@/modules/crm/contacts/ui/contact-local-store";
 import { QuoteDialog } from "@/modules/sales/quotes/ui/quote-dialog";
 import { InvoiceDialog } from "@/modules/sales/invoices/ui/invoice-dialog";
+import { SalesOrderDialog, createEmptySalesOrderLine, type SalesOrderFormState } from "@/modules/sales/orders/ui";
+import { SALES_ORDERS_USER_ID, SALES_ORDERS_WORKSPACE_ID, salesOrderService, notifySalesOrderStoreUpdated } from "@/modules/sales/orders";
 import { PROCUREMENT_WORKSPACE_ID, procurementLocalService, notifyProcurementStoreUpdated } from "@/modules/procurement";
 import { hydrateInventoryPersistence, persistProcurementRecord, postProcurementGoodsReceipt, hydrateProductCatalogPersistence } from "@/platform/persistence";
 import { inventoryLocalService } from "@/modules/inventory/inventory-local-store";
@@ -88,6 +90,21 @@ function createEmptyGoodsReceiptForm(): GoodsReceiptFormState {
   };
 }
 
+function createEmptySalesOrderForm(): SalesOrderFormState {
+  return {
+    companyId: "",
+    contactId: "",
+    orderDate: new Date().toISOString().slice(0, 10),
+    expectedDeliveryDate: "",
+    currency: "MAD",
+    customerReference: "",
+    internalReference: "",
+    notes: "",
+    discountRate: 0,
+    lines: [createEmptySalesOrderLine("quick-so")]
+  };
+}
+
 type QuickCreateDialogHostProps = {
   activeAction: QuickCreateActionId | null;
   onClose: () => void;
@@ -100,6 +117,7 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
   const [supplierForm, setSupplierForm] = useState<SupplierFormState>(emptySupplierForm);
   const [purchaseOrderForm, setPurchaseOrderForm] = useState<PurchaseOrderFormState>(createEmptyPurchaseOrderForm);
   const [goodsReceiptForm, setGoodsReceiptForm] = useState<GoodsReceiptFormState>(createEmptyGoodsReceiptForm);
+  const [salesOrderForm, setSalesOrderForm] = useState<SalesOrderFormState>(createEmptySalesOrderForm);
   const [contactCompanyId, setContactCompanyId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -115,6 +133,7 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
     setSupplierForm(emptySupplierForm);
     setPurchaseOrderForm(createEmptyPurchaseOrderForm());
     setGoodsReceiptForm(createEmptyGoodsReceiptForm());
+    setSalesOrderForm(createEmptySalesOrderForm());
     setError(null);
     onClose();
   }, [onClose]);
@@ -134,6 +153,7 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
     setSupplierForm(emptySupplierForm);
     setPurchaseOrderForm(createEmptyPurchaseOrderForm());
     setGoodsReceiptForm(createEmptyGoodsReceiptForm());
+    setSalesOrderForm(createEmptySalesOrderForm());
     setError(null);
     setSuccessMessage(message);
     onClose();
@@ -313,6 +333,47 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
     return true;
   }
 
+  async function submitSalesOrder() {
+    const company = crmCompanyLocalService.getCompany(salesOrderForm.companyId as never, CRM_COMPANIES_WORKSPACE_ID);
+    if (!company) {
+      setError("Sélectionnez une société.");
+      return false;
+    }
+    const contact = salesOrderForm.contactId ? crmContactLocalService.getContact(salesOrderForm.contactId as never, CRM_CONTACTS_WORKSPACE_ID) : undefined;
+    const snapshot = salesOrderService.listOrders({ workspaceId: SALES_ORDERS_WORKSPACE_ID, includeArchived: true }).orders;
+    const result = salesOrderService.createOrder({
+      workspaceId: SALES_ORDERS_WORKSPACE_ID,
+      companyId: company.id,
+      companyName: company.displayName,
+      contactId: contact?.id,
+      contactName: contact?.fullName,
+      orderDate: new Date(salesOrderForm.orderDate).toISOString(),
+      expectedDeliveryDate: salesOrderForm.expectedDeliveryDate ? new Date(salesOrderForm.expectedDeliveryDate).toISOString() : undefined,
+      currency: salesOrderForm.currency,
+      customerReference: salesOrderForm.customerReference,
+      internalReference: salesOrderForm.internalReference,
+      notes: salesOrderForm.notes,
+      lines: salesOrderForm.lines,
+      discountRate: salesOrderForm.discountRate,
+      ownerId: SALES_ORDERS_USER_ID
+    });
+    if (!result.order) {
+      setError(result.error ?? "Impossible de créer la commande client.");
+      return false;
+    }
+    try {
+      await persistCrmSalesRecord("salesOrder", result.order);
+    } catch {
+      salesOrderService.replaceOrders(snapshot);
+      setError("La commande client n'a pas pu être enregistrée dans la base.");
+      return false;
+    }
+    notifySalesOrderStoreUpdated();
+    finishWithSuccess("Commande client créée.");
+    router.push(`/sales/orders/${result.order.id}`);
+    return true;
+  }
+
   const toast = successMessage ? (
     <p
       role="status"
@@ -389,6 +450,29 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
         }}
         open
       />
+    );
+  }
+
+  if (activeAction === "quick-create.sales-order") {
+    void hydrateProductCatalogPersistence();
+    const companies = crmCompanyLocalService.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID, includeArchived: false }).companies;
+    const contacts = crmContactLocalService.listContacts({ workspaceId: CRM_CONTACTS_WORKSPACE_ID, includeArchived: false }).contacts;
+    const products = productLocalService.listProducts({ workspaceId: PRODUCTS_WORKSPACE_ID, status: "active" }).products;
+    return (
+      <>
+        {toast}
+        <SalesOrderDialog
+          companies={companies}
+          contacts={contacts}
+          error={error}
+          form={salesOrderForm}
+          onChange={setSalesOrderForm}
+          onClose={closeAndReset}
+          onSubmit={submitSalesOrder}
+          open
+          products={products}
+        />
+      </>
     );
   }
 

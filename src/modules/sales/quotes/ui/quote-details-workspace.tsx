@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Building2, CalendarClock, Download, Eye, FileText, HandCoins, NotebookPen, Printer, Receipt } from "lucide-react";
-import { persistCrmSalesRecord } from "@/platform/persistence";
+import { ArrowLeft, Building2, CalendarClock, CheckCircle2, ClipboardCheck, Download, Eye, FileText, HandCoins, NotebookPen, Printer, Receipt, Send, XCircle } from "lucide-react";
+import { persistCrmSalesRecord, transitionPersistedQuoteStatus } from "@/platform/persistence";
+import { useModuleEnabled } from "@/platform/modules/module-activation.context";
 import { CRM_COMPANIES_WORKSPACE_ID } from "@/modules/crm/companies/ui/companies.seed";
 import { crmCompanyLocalService, subscribeToCrmCompanyStore } from "@/modules/crm/companies/ui/company-local-store";
 import { CRM_CONTACTS_WORKSPACE_ID } from "@/modules/crm/contacts/ui/contacts.seed";
@@ -12,18 +13,22 @@ import { crmContactLocalService, subscribeToCrmContactStore } from "@/modules/cr
 import { ContextualActionStrip, createContextualActionRegistry } from "@/platform/contextual-actions";
 import { EntityEmptyState, EntityHeader, EntityPageLayout, InfoCard, MetricCard, SectionCard } from "@/ui";
 import { SalesDocumentPreviewDialog, buildQuotePdfDocument, downloadSalesDocumentPdf, printSalesDocumentPdf } from "@/modules/sales/documents";
-import type { QuoteId } from "../quote.types";
+import type { QuoteId, QuoteStatus } from "../quote.types";
 import { formatQuoteMoney, getQuoteTotals } from "../quote.utils";
 import { quoteService, subscribeToQuoteStore } from "../quote.store";
 import { SALES_QUOTES_WORKSPACE_ID } from "../quotes.seed";
 import { QuoteStatusBadge } from "./quotes-workspace";
 import { invoiceService, notifyInvoiceStoreUpdated } from "@/modules/sales/invoices";
+import { SALES_ORDERS_WORKSPACE_ID, salesOrderService, notifySalesOrderStoreUpdated } from "@/modules/sales/orders";
 import { QUOTE_STATUS_LABELS } from "../quote.constants";
 
 export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
   const router = useRouter();
   const [, setStoreVersion] = useState(0);
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
+  const [transitioningStatus, setTransitioningStatus] = useState<QuoteStatus | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const salesOrdersEnabled = useModuleEnabled("sales.orders");
   const quote = quoteService.getQuote(quoteId as QuoteId, SALES_QUOTES_WORKSPACE_ID);
 
   useEffect(() => {
@@ -58,6 +63,7 @@ export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
   const contactLabel = contact?.fullName ?? quoteValue.contactName ?? "Non lié";
   const validityLabel = quoteValue.validityDays ? `${quoteValue.validityDays} jours` : formatDate(quoteValue.expirationDate);
   const linkedInvoice = invoiceService.getInvoiceByQuote(quoteValue.id, quoteValue.workspaceId);
+  const linkedSalesOrder = salesOrderService.getOrderByQuote(quoteValue.id, SALES_ORDERS_WORKSPACE_ID);
   const pdfDocument = buildQuotePdfDocument(quoteValue, { company, companyName: quoteValue.companyName, contact, contactName: quoteValue.contactName });
   const contextualActions = createContextualActionRegistry([
     {
@@ -91,6 +97,57 @@ export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
       onSelect: () => void printSalesDocumentPdf(pdfDocument)
     },
     {
+      id: "quote.mark-sent",
+      entityType: "quote",
+      label: transitioningStatus === "sent" ? "Envoi..." : "Marquer comme envoyé",
+      description: "Faire passer ce devis de brouillon à envoyé.",
+      icon: Send,
+      priority: 8,
+      tone: "primary",
+      onSelect: () => void transitionQuoteLifecycle("sent", "Marquer ce devis comme envoyé ?"),
+      available: quoteValue.status === "draft",
+      disabled: Boolean(transitioningStatus),
+      disabledReason: "Une transition de statut est déjà en cours."
+    },
+    {
+      id: "quote.mark-accepted",
+      entityType: "quote",
+      label: transitioningStatus === "accepted" ? "Acceptation..." : "Marquer comme accepté",
+      description: "Valider ce devis pour permettre la commande client.",
+      icon: CheckCircle2,
+      priority: 8,
+      tone: "success",
+      onSelect: () => void transitionQuoteLifecycle("accepted", "Marquer ce devis comme accepté ?"),
+      available: quoteValue.status === "sent",
+      disabled: Boolean(transitioningStatus),
+      disabledReason: "Une transition de statut est déjà en cours."
+    },
+    {
+      id: "quote.mark-refused",
+      entityType: "quote",
+      label: transitioningStatus === "refused" ? "Refus..." : "Marquer comme refusé",
+      description: "Clôturer ce devis comme refusé.",
+      icon: XCircle,
+      priority: 9,
+      tone: "warning",
+      onSelect: () => void transitionQuoteLifecycle("refused", "Marquer ce devis comme refusé ?"),
+      available: quoteValue.status === "sent",
+      disabled: Boolean(transitioningStatus),
+      disabledReason: "Une transition de statut est déjà en cours."
+    },
+    {
+      id: linkedSalesOrder ? "quote.open-sales-order" : "quote.convert-sales-order",
+      entityType: "quote",
+      label: linkedSalesOrder ? "Ouvrir la commande" : "Créer une commande client",
+      description: linkedSalesOrder ? "Continuer depuis la commande client générée." : "Transformer ce devis en bon de commande client.",
+      icon: ClipboardCheck,
+      priority: 9,
+      tone: linkedSalesOrder ? "neutral" : "primary",
+      href: linkedSalesOrder ? `/sales/orders/${linkedSalesOrder.id}` : undefined,
+      onSelect: linkedSalesOrder ? undefined : createSalesOrder,
+      available: salesOrdersEnabled && quoteValue.status === "accepted"
+    },
+    {
       id: linkedInvoice ? "quote.open-invoice" : "quote.convert-invoice",
       entityType: "quote",
       label: linkedInvoice ? "Ouvrir la facture" : "Créer une facture",
@@ -122,11 +179,42 @@ export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
       await persistCrmSalesRecord("invoice", invoice);
     } catch (error) {
       invoiceService.replaceInvoices(snapshot);
-      console.error(error);
+      setActionError(getActionErrorMessage(error, "Impossible de créer la facture depuis ce devis."));
       return;
     }
+    setActionError(null);
     notifyInvoiceStoreUpdated();
     router.push(`/sales/invoices/${invoice.id}`);
+  }
+
+  async function createSalesOrder() {
+    const snapshot = salesOrderService.listOrders({ workspaceId: SALES_ORDERS_WORKSPACE_ID, includeArchived: true }).orders;
+    const result = salesOrderService.createFromQuote(quoteValue);
+    if (!result.order) return;
+    try {
+      await persistCrmSalesRecord("salesOrder", result.order);
+    } catch (error) {
+      salesOrderService.replaceOrders(snapshot);
+      setActionError(getActionErrorMessage(error, "Impossible de créer la commande client depuis ce devis."));
+      return;
+    }
+    setActionError(null);
+    notifySalesOrderStoreUpdated();
+    router.push(`/sales/orders/${result.order.id}`);
+  }
+
+  async function transitionQuoteLifecycle(nextStatus: QuoteStatus, confirmation: string) {
+    if (transitioningStatus) return;
+    if (!window.confirm(confirmation)) return;
+    setTransitioningStatus(nextStatus);
+    setActionError(null);
+    try {
+      await transitionPersistedQuoteStatus(quoteValue.id, nextStatus);
+    } catch (error) {
+      setActionError(getActionErrorMessage(error, "Impossible de changer le statut du devis."));
+    } finally {
+      setTransitioningStatus(null);
+    }
   }
 
   return (
@@ -157,6 +245,11 @@ export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
       />
 
       <ContextualActionStrip actions={contextualActions} />
+      {actionError && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200">
+          {actionError}
+        </div>
+      )}
       <SalesDocumentPreviewDialog document={pdfDocument} open={pdfPreviewOpen} onClose={() => setPdfPreviewOpen(false)} />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -199,7 +292,10 @@ export function QuoteDetailsWorkspace({ quoteId }: { quoteId: string }) {
                 <tbody>
                   {quote.items.map((item) => (
                     <tr key={item.id} className="border-t border-slate-100 dark:border-hicotech-dark-border">
-                      <td className="px-4 py-3 font-semibold text-hicotech-navy dark:text-white">{item.description}</td>
+                      <td className="px-4 py-3 font-semibold text-hicotech-navy dark:text-white">
+                        {item.description}
+                        {item.productSku && <p className="mt-1 text-xs font-bold text-slate-400">{item.productSku} · {item.productName ?? "Produit catalogue"}</p>}
+                      </td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{item.quantity}</td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{formatQuoteMoney(item.unitPrice, quote.currency)}</td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{item.taxRate}%</td>
@@ -251,4 +347,8 @@ function PlaceholderCard({ description, icon: Icon, title }: { description: stri
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("fr-MA", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value));
+}
+
+function getActionErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
 }

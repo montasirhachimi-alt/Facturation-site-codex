@@ -2,14 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { products as fallbackProducts } from "@/lib/demo-data";
-import type { StockProduct } from "@/lib/types";
-import { readProductsFromStorage } from "@/lib/product-tools";
+import { hydrateProductCatalogPersistence } from "@/platform/persistence";
+import { PRODUCTS_WORKSPACE_ID, type Product, type ProductId } from "@/modules/products";
+import { productLocalService, subscribeToProductStore } from "@/modules/products/ui/product-local-store";
 import { SmartEntityPicker } from "@/ui/forms/smart-entity-picker";
 import { entityInputClassName } from "@/ui/forms/form-field";
 import {
   createEmptySalesLineItem,
-  createSalesLineItemFromProduct,
   getSalesLineSubtotal,
   getSalesLineTax,
   getSalesLineTotal,
@@ -26,23 +25,17 @@ export function SalesLineItemsEditor({
   lines: readonly SalesLineItemDraft[];
   onChange: (lines: readonly SalesLineItemDraft[]) => void;
 }) {
-  const [products, setProducts] = useState<StockProduct[]>(fallbackProducts);
+  const [version, setVersion] = useState(0);
 
   useEffect(() => {
-    setProducts(readProductsFromStorage(fallbackProducts));
-
-    function syncProducts() {
-      setProducts(readProductsFromStorage(fallbackProducts));
-    }
-
-    window.addEventListener("hicotech-products-updated", syncProducts);
-    window.addEventListener("storage", syncProducts);
-    return () => {
-      window.removeEventListener("hicotech-products-updated", syncProducts);
-      window.removeEventListener("storage", syncProducts);
-    };
+    void hydrateProductCatalogPersistence();
+    return subscribeToProductStore(() => setVersion((value) => value + 1));
   }, []);
 
+  const products = useMemo(() => {
+    void version;
+    return productLocalService.listProducts({ workspaceId: PRODUCTS_WORKSPACE_ID, status: "active" }).products;
+  }, [version]);
   const productItems = useMemo(() => products.map(productToSalesPickerItem), [products]);
   const productById = useMemo(() => new Map(products.map((product) => [product.id, product])), [products]);
 
@@ -51,7 +44,28 @@ export function SalesLineItemsEditor({
   }
 
   function addLine() {
-    onChange([...lines, products[0] ? createSalesLineItemFromProduct(products[0], "sales-line") : createEmptySalesLineItem("sales-line")]);
+    onChange([...lines, createEmptySalesLineItem("sales-line")]);
+  }
+
+  function selectProduct(lineId: string, product?: Product) {
+    if (!product) {
+      updateLine(lineId, {
+        productId: undefined,
+        productSku: undefined,
+        productName: undefined
+      });
+      return;
+    }
+
+    updateLine(lineId, {
+      productId: product.id,
+      productSku: product.sku,
+      productName: product.name,
+      description: product.name,
+      unit: product.unit,
+      unitPrice: product.sellingPrice,
+      taxRate: product.vatRate
+    });
   }
 
   function removeLine(lineId: string) {
@@ -94,23 +108,16 @@ export function SalesLineItemsEditor({
                 </button>
               </div>
 
-              <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(180px,1.1fr)_minmax(220px,1.4fr)_96px_120px_90px_120px]">
+              <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(180px,1.1fr)_minmax(220px,1.4fr)_86px_110px_80px_80px_120px]">
                 <SmartEntityPicker
                   label="Produit"
                   items={productItems}
-                  value=""
+                  value={line.productId ?? ""}
                   onChange={({ item }) => {
-                    if (!item) return;
-                    const product = productById.get(item.id);
-                    if (!product) return;
-                    updateLine(line.id, {
-                      description: product.designation,
-                      unitPrice: product.salePrice,
-                      taxRate: product.vat
-                    });
+                    selectProduct(line.id, item ? productById.get(item.id as ProductId) : undefined);
                   }}
                   placeholder="Rechercher un produit..."
-                  helper="Optionnel"
+                  helper={line.productSku ? `${line.productSku} · identité produit conservée` : "Optionnel"}
                 />
                 <label className="block">
                   <span className="text-sm font-bold text-hicotech-navy dark:text-white">Description</span>
@@ -144,6 +151,15 @@ export function SalesLineItemsEditor({
                     onChange={(event) => updateLine(line.id, { unitPrice: Number(event.target.value) })}
                     className={entityInputClassName}
                     aria-label={`Prix unitaire ligne ${index + 1}`}
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-sm font-bold text-hicotech-navy dark:text-white">Unité</span>
+                  <input
+                    value={line.unit ?? "piece"}
+                    onChange={(event) => updateLine(line.id, { unit: event.target.value })}
+                    className={entityInputClassName}
+                    aria-label={`Unité ligne ${index + 1}`}
                   />
                 </label>
                 <label className="block">

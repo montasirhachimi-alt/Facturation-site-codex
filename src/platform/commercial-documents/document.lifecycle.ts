@@ -23,7 +23,15 @@ const TRANSITIONS_BY_TYPE: Readonly<Record<CommercialDocumentType, readonly Comm
     { from: "draft", to: "cancelled", label: "Annuler" },
     { from: "issued", to: "cancelled", label: "Annuler" }
   ]) satisfies readonly CommercialDocumentTransition[],
-  "sales-order": Object.freeze([]),
+  "sales-order": Object.freeze([
+    { from: "draft", to: "confirmed", label: "Confirmer" },
+    { from: "confirmed", to: "partially_reserved", label: "Réserver partiellement" },
+    { from: "confirmed", to: "reserved", label: "Réserver" },
+    { from: "draft", to: "cancelled", label: "Annuler" },
+    { from: "confirmed", to: "cancelled", label: "Annuler" },
+    { from: "partially_reserved", to: "cancelled", label: "Annuler" },
+    { from: "reserved", to: "cancelled", label: "Annuler" }
+  ]) satisfies readonly CommercialDocumentTransition[],
   "delivery-note": Object.freeze([]),
   "purchase-order": Object.freeze([
     { from: "draft", to: "sent", label: "Envoyer" },

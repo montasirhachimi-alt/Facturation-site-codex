@@ -8,8 +8,14 @@ import type { Meeting } from "@/modules/crm/meetings";
 import type { Note } from "@/modules/crm/notes";
 import type { Task } from "@/modules/crm/tasks";
 import type { Invoice } from "@/modules/sales/invoices";
+import { SALES_ORDERS_WORKSPACE_ID, type SalesOrder, type SalesOrderLine } from "@/modules/sales/orders";
 import type { Payment } from "@/modules/sales/payments";
-import type { Quote, QuoteItem } from "@/modules/sales/quotes";
+import type { Quote, QuoteItem, QuoteStatus } from "@/modules/sales/quotes";
+import type { InventoryCompanyId, InventoryUserId } from "@/modules/inventory";
+import type { ProductId } from "@/modules/products";
+import { canTransitionDocument, type CommercialDocumentStatus } from "@/platform/commercial-documents";
+import { getSalesOrderReservationStatus } from "@/modules/sales/orders";
+import { loadInventorySnapshot, postInventoryMovementInTransaction } from "./inventory-repository";
 import { prisma } from "./prisma";
 import type { PersistenceTenantScope } from "./tenant-scope";
 
@@ -20,9 +26,11 @@ type DbMeeting = Prisma.CrmMeetingGetPayload<Record<string, never>>;
 type DbTask = Prisma.CrmTaskGetPayload<Record<string, never>>;
 type DbNote = Prisma.CrmNoteGetPayload<Record<string, never>>;
 type DbQuote = Prisma.SalesQuoteGetPayload<{ include: { lines: true } }>;
+type DbSalesOrder = Prisma.SalesOrderGetPayload<{ include: { lines: true } }>;
 type DbInvoice = Prisma.SalesInvoiceGetPayload<{ include: { lines: true } }>;
 type DbPayment = Prisma.SalesPaymentGetPayload<Record<string, never>>;
 type DbLine = Prisma.SalesQuoteLineGetPayload<Record<string, never>> | Prisma.SalesInvoiceLineGetPayload<Record<string, never>>;
+type DbSalesOrderLine = Prisma.SalesOrderLineGetPayload<Record<string, never>>;
 
 export type CrmSalesPersistenceSnapshot = Readonly<{
   companies: Company[];
@@ -32,6 +40,7 @@ export type CrmSalesPersistenceSnapshot = Readonly<{
   tasks: Task[];
   notes: Note[];
   quotes: Quote[];
+  salesOrders: SalesOrder[];
   invoices: Invoice[];
   payments: Payment[];
 }>;
@@ -44,11 +53,12 @@ export type CrmSalesPersistenceResource =
   | "task"
   | "note"
   | "quote"
+  | "salesOrder"
   | "invoice"
   | "payment";
 
 export async function loadCrmSalesSnapshot(scope: PersistenceTenantScope): Promise<CrmSalesPersistenceSnapshot> {
-  const [companies, customers, contacts, meetings, tasks, notes, quotes, invoices, payments] = await Promise.all([
+  const [companies, customers, contacts, meetings, tasks, notes, quotes, salesOrders, invoices, payments] = await Promise.all([
     prisma.crmCompany.findMany({ where: { tenantCompanyId: scope.companyId }, orderBy: { updatedAt: "desc" } }),
     prisma.crmCustomer.findMany({ where: { tenantCompanyId: scope.companyId }, orderBy: { updatedAt: "desc" } }),
     prisma.crmContact.findMany({ where: { tenantCompanyId: scope.companyId }, orderBy: { updatedAt: "desc" } }),
@@ -56,6 +66,11 @@ export async function loadCrmSalesSnapshot(scope: PersistenceTenantScope): Promi
     prisma.crmTask.findMany({ where: { tenantCompanyId: scope.companyId }, orderBy: { dueDate: "asc" } }),
     prisma.crmNote.findMany({ where: { tenantCompanyId: scope.companyId }, orderBy: { updatedAt: "desc" } }),
     prisma.salesQuote.findMany({
+      where: { tenantCompanyId: scope.companyId },
+      include: { lines: { orderBy: { position: "asc" } } },
+      orderBy: { updatedAt: "desc" }
+    }),
+    prisma.salesOrder.findMany({
       where: { tenantCompanyId: scope.companyId },
       include: { lines: { orderBy: { position: "asc" } } },
       orderBy: { updatedAt: "desc" }
@@ -76,6 +91,7 @@ export async function loadCrmSalesSnapshot(scope: PersistenceTenantScope): Promi
     tasks: tasks.map(mapDbTask),
     notes: notes.map(mapDbNote),
     quotes: quotes.map(mapDbQuote),
+    salesOrders: salesOrders.map(mapDbSalesOrder),
     invoices: invoices.map(mapDbInvoice),
     payments: payments.map(mapDbPayment)
   };
@@ -89,9 +105,153 @@ export async function persistCrmSalesRecord(scope: PersistenceTenantScope, resou
   if (resource === "task") return persistTask(scope, record as Task);
   if (resource === "note") return persistNote(scope, record as Note);
   if (resource === "quote") return persistQuote(scope, record as Quote);
+  if (resource === "salesOrder") return persistSalesOrder(scope, record as SalesOrder);
   if (resource === "invoice") return persistInvoice(scope, record as Invoice);
   if (resource === "payment") return persistPayment(scope, record as Payment);
   throw new Error("Ressource persistante inconnue.");
+}
+
+export async function transitionQuoteStatus(scope: PersistenceTenantScope, quoteId: string, nextStatus: QuoteStatus) {
+  const existing = await prisma.salesQuote.findUnique({
+    where: { id: quoteId },
+    include: { lines: { orderBy: { position: "asc" } } }
+  });
+  if (!existing) throw new Error("Devis introuvable pour cette entreprise.");
+  assertTenantOwner(scope, existing.tenantCompanyId);
+  validateQuoteStatusTransition(existing.status as QuoteStatus, nextStatus);
+
+  const updated = await prisma.salesQuote.update({
+    where: { id: quoteId },
+    data: { status: nextStatus, updatedAt: new Date() },
+    include: { lines: { orderBy: { position: "asc" } } }
+  });
+  return mapDbQuote(updated);
+}
+
+export async function confirmSalesOrder(scope: PersistenceTenantScope, order: SalesOrder, options: { reserve?: boolean; warehouseId?: string; allowPartial?: boolean } = {}) {
+  await assertCrmCompanyTenant(scope, order.companyId);
+  if (order.contactId) await assertCrmContactTenant(scope, order.contactId);
+  if (order.sourceQuoteId) await assertAcceptedSalesQuoteTenant(scope, order.sourceQuoteId);
+  await assertUniqueSalesOrderSourceQuote(scope, order);
+
+  const now = new Date();
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.salesOrder.findUnique({ where: { id: order.id }, include: { lines: true } });
+    if (existing) {
+      if (existing.tenantCompanyId !== scope.companyId) throw new Error("Accès refusé: cette commande client appartient à une autre entreprise.");
+      if (existing.status !== "draft" && existing.status !== "confirmed") throw new Error("Cette commande client ne peut plus être confirmée.");
+    }
+
+    let lines = existing ? mapDbSalesOrder(existing).lines : order.lines.map((line) => ({ ...line }));
+    if (options.reserve) {
+      if (!options.warehouseId) throw new Error("Sélectionnez un entrepôt pour réserver le stock.");
+      const warehouse = await tx.inventoryWarehouse.findUnique({ where: { id: options.warehouseId }, select: { id: true, name: true, companyId: true, active: true } });
+      if (!warehouse || warehouse.companyId !== scope.companyId) throw new Error("Entrepôt introuvable pour cette entreprise.");
+      if (!warehouse.active) throw new Error("Entrepôt inactif.");
+
+      const reservedLines: SalesOrderLine[] = [];
+      for (const line of lines) {
+        if (!line.productId) {
+          reservedLines.push(line);
+          continue;
+        }
+        const product = await tx.product.findUnique({ where: { id: line.productId }, select: { companyId: true, active: true, trackInventory: true } });
+        if (!product || product.companyId !== scope.companyId) throw new Error("Produit introuvable pour cette entreprise.");
+        if (!product.active) throw new Error("Produit inactif.");
+        if (!product.trackInventory) {
+          reservedLines.push(line);
+          continue;
+        }
+
+        if (line.quantityOrdered <= 0) throw new Error("Quantité commandée invalide.");
+        const remainingQuantity = Math.max(0, line.quantityOrdered - line.quantityReserved);
+        if (remainingQuantity <= 0) {
+          reservedLines.push(line);
+          continue;
+        }
+        const balance = await tx.inventoryBalance.findUnique({
+          where: { companyId_productId_warehouseId: { companyId: scope.companyId, productId: line.productId, warehouseId: options.warehouseId } },
+          select: { quantityAvailable: true }
+        });
+        const available = decimalToNumber(balance?.quantityAvailable);
+        const quantityToReserve = Math.min(remainingQuantity, available);
+        if (quantityToReserve <= 0) {
+          reservedLines.push(line);
+          continue;
+        }
+        if (quantityToReserve < remainingQuantity && !options.allowPartial) {
+          throw new Error("Stock disponible insuffisant pour une réservation complète.");
+        }
+        await postInventoryMovementInTransaction(tx, scope, {
+          id: `movement-${order.id}-${line.id}-reservation` as never,
+          companyId: scope.companyId as InventoryCompanyId,
+          productId: line.productId,
+          toWarehouseId: options.warehouseId as never,
+          type: "RESERVATION",
+          quantity: quantityToReserve,
+          reference: order.number,
+          referenceType: "SALES_ORDER",
+          referenceId: order.id,
+          reason: `Réservation commande client ${order.number}`,
+          createdBy: order.ownerId as unknown as InventoryUserId
+        });
+        reservedLines.push({ ...line, quantityReserved: line.quantityReserved + quantityToReserve, warehouseId: warehouse.id, warehouseName: warehouse.name });
+      }
+      lines = reservedLines;
+    }
+
+    const reservationStatus = getSalesOrderReservationStatus(lines);
+    const nextStatus = reservationStatus === "reserved" ? "reserved" : reservationStatus === "partially_reserved" ? "partially_reserved" : "confirmed";
+    const nextOrder: SalesOrder = { ...order, status: nextStatus, reservationStatus, lines, updatedAt: now.toISOString() };
+    await upsertSalesOrderWithLines(tx, scope, nextOrder);
+  });
+
+  return {
+    crmSalesSnapshot: await loadCrmSalesSnapshot(scope),
+    inventorySnapshot: await loadInventorySnapshot(scope)
+  };
+}
+
+export async function cancelSalesOrder(scope: PersistenceTenantScope, orderId: string) {
+  const now = new Date();
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.salesOrder.findUnique({ where: { id: orderId }, include: { lines: { orderBy: { position: "asc" } } } });
+    if (!existing || existing.tenantCompanyId !== scope.companyId) throw new Error("Commande client introuvable.");
+    if (existing.status === "cancelled") throw new Error("Cette commande client est déjà annulée.");
+    if (existing.status === "archived") throw new Error("Cette commande client est archivée.");
+    const order = mapDbSalesOrder(existing);
+    for (const line of order.lines) {
+      if (!line.productId || !line.warehouseId || line.quantityReserved <= 0) continue;
+      await postInventoryMovementInTransaction(tx, scope, {
+        id: `movement-${order.id}-${line.id}-release` as never,
+        companyId: scope.companyId as InventoryCompanyId,
+        productId: line.productId,
+        fromWarehouseId: line.warehouseId as never,
+        type: "RELEASE",
+        quantity: line.quantityReserved,
+        reference: order.number,
+        referenceType: "SALES_ORDER",
+        referenceId: order.id,
+        reason: `Libération réservation commande client ${order.number}`,
+        createdBy: order.ownerId as unknown as InventoryUserId
+      });
+    }
+    await tx.salesOrder.update({
+      where: { id: order.id },
+      data: {
+        status: "cancelled",
+        reservationStatus: "released",
+        updatedAt: now,
+        lines: {
+          update: order.lines.map((line) => ({ where: { id: line.id }, data: { quantityReserved: 0 } }))
+        }
+      }
+    });
+  });
+  return {
+    crmSalesSnapshot: await loadCrmSalesSnapshot(scope),
+    inventorySnapshot: await loadInventorySnapshot(scope)
+  };
 }
 
 async function persistCompany(scope: PersistenceTenantScope, company: Company) {
@@ -291,7 +451,8 @@ async function persistNote(scope: PersistenceTenantScope, note: Note) {
 }
 
 async function persistQuote(scope: PersistenceTenantScope, quote: Quote) {
-  await assertSalesQuoteTenant(scope, quote.id);
+  await assertPersistedQuoteStatus(scope, quote);
+  await assertSalesLineProductsTenant(scope, quote.items);
   await prisma.salesQuote.upsert({
     where: { id: quote.id },
     update: quoteWriteData(quote),
@@ -305,8 +466,38 @@ async function persistQuote(scope: PersistenceTenantScope, quote: Quote) {
   return quote;
 }
 
+async function persistSalesOrder(scope: PersistenceTenantScope, order: SalesOrder) {
+  if (order.workspaceId !== SALES_ORDERS_WORKSPACE_ID) throw new Error("La commande client doit appartenir à l'espace Commandes clients.");
+  await assertSalesOrderTenant(scope, order.id);
+  await assertCrmCompanyTenant(scope, order.companyId);
+  if (order.contactId) await assertCrmContactTenant(scope, order.contactId);
+  if (order.sourceQuoteId) await assertAcceptedSalesQuoteTenant(scope, order.sourceQuoteId);
+  await assertUniqueSalesOrderSourceQuote(scope, order);
+  await prisma.$transaction((tx) => upsertSalesOrderWithLines(tx, scope, order));
+  return order;
+}
+
+async function upsertSalesOrderWithLines(tx: Prisma.TransactionClient, scope: PersistenceTenantScope, order: SalesOrder) {
+  await tx.salesOrder.upsert({
+    where: { id: order.id },
+    update: salesOrderWriteData(order),
+    create: {
+      id: order.id,
+      tenantCompanyId: scope.companyId,
+      ...salesOrderWriteData(order)
+    }
+  });
+  await tx.salesOrderLine.deleteMany({ where: { salesOrderId: order.id } });
+  if (order.lines.length > 0) {
+    await tx.salesOrderLine.createMany({
+      data: order.lines.map((line, position) => salesOrderLineWriteData(order.id, line, position))
+    });
+  }
+}
+
 async function persistInvoice(scope: PersistenceTenantScope, invoice: Invoice) {
   await assertSalesInvoiceTenant(scope, invoice.id);
+  await assertSalesLineProductsTenant(scope, invoice.items);
   await prisma.salesInvoice.upsert({
     where: { id: invoice.id },
     update: invoiceWriteData(invoice),
@@ -364,9 +555,45 @@ async function assertCrmNoteTenant(scope: PersistenceTenantScope, id: string) {
   assertTenantOwner(scope, existing?.tenantCompanyId);
 }
 
-async function assertSalesQuoteTenant(scope: PersistenceTenantScope, id: string) {
-  const existing = await prisma.salesQuote.findUnique({ where: { id }, select: { tenantCompanyId: true } });
+async function assertPersistedQuoteStatus(scope: PersistenceTenantScope, quote: Quote) {
+  const existing = await prisma.salesQuote.findUnique({ where: { id: quote.id }, select: { tenantCompanyId: true, status: true } });
   assertTenantOwner(scope, existing?.tenantCompanyId);
+  if (!existing) {
+    if (quote.status !== "draft") throw new Error("Un nouveau devis doit être créé en brouillon.");
+    return;
+  }
+  if (existing.status !== quote.status) validateQuoteStatusTransition(existing.status as QuoteStatus, quote.status);
+}
+
+async function assertAcceptedSalesQuoteTenant(scope: PersistenceTenantScope, id: string) {
+  const existing = await prisma.salesQuote.findUnique({ where: { id }, select: { tenantCompanyId: true, status: true } });
+  if (!existing) throw new Error("Devis source introuvable pour cette entreprise.");
+  assertTenantOwner(scope, existing.tenantCompanyId);
+  if (existing.status !== "accepted") {
+    throw new Error("Une commande client ne peut être créée qu'à partir d'un devis accepté.");
+  }
+}
+
+async function assertUniqueSalesOrderSourceQuote(scope: PersistenceTenantScope, order: SalesOrder) {
+  if (!order.sourceQuoteId) return;
+  const existing = await prisma.salesOrder.findFirst({
+    where: {
+      tenantCompanyId: scope.companyId,
+      sourceQuoteId: order.sourceQuoteId,
+      NOT: { id: order.id }
+    },
+    select: { id: true, number: true }
+  });
+  if (existing) {
+    throw new Error(`Une commande client existe déjà pour ce devis (${existing.number}).`);
+  }
+}
+
+function validateQuoteStatusTransition(from: QuoteStatus, to: QuoteStatus) {
+  if (from === to) throw new Error("Ce devis possède déjà ce statut.");
+  if (!canTransitionDocument("quote", from as CommercialDocumentStatus, to as CommercialDocumentStatus)) {
+    throw new Error("Transition de devis non autorisée.");
+  }
 }
 
 async function assertSalesInvoiceTenant(scope: PersistenceTenantScope, id: string) {
@@ -374,9 +601,23 @@ async function assertSalesInvoiceTenant(scope: PersistenceTenantScope, id: strin
   assertTenantOwner(scope, existing?.tenantCompanyId);
 }
 
+async function assertSalesOrderTenant(scope: PersistenceTenantScope, id: string) {
+  const existing = await prisma.salesOrder.findUnique({ where: { id }, select: { tenantCompanyId: true } });
+  assertTenantOwner(scope, existing?.tenantCompanyId);
+}
+
 async function assertSalesPaymentTenant(scope: PersistenceTenantScope, id: string) {
   const existing = await prisma.salesPayment.findUnique({ where: { id }, select: { tenantCompanyId: true } });
   assertTenantOwner(scope, existing?.tenantCompanyId);
+}
+
+async function assertSalesLineProductsTenant(scope: PersistenceTenantScope, items: readonly QuoteItem[]) {
+  const productIds = [...new Set(items.map((item) => item.productId).filter((id): id is NonNullable<QuoteItem["productId"]> => Boolean(id)))];
+  if (productIds.length === 0) return;
+  const products = await prisma.product.findMany({ where: { companyId: scope.companyId, id: { in: productIds } }, select: { id: true } });
+  const found = new Set(products.map((product) => product.id));
+  const missing = productIds.find((id) => !found.has(id));
+  if (missing) throw new Error("Produit introuvable pour cette entreprise.");
 }
 
 function assertTenantOwner(scope: PersistenceTenantScope, tenantCompanyId?: string) {
@@ -434,6 +675,32 @@ function invoiceWriteData(invoice: Invoice) {
     archivedAt: invoice.archivedAt ? parseDate(invoice.archivedAt) : null,
     createdAt: parseDate(invoice.createdAt),
     updatedAt: parseDate(invoice.updatedAt)
+  };
+}
+
+function salesOrderWriteData(order: SalesOrder) {
+  return {
+    workspaceId: order.workspaceId,
+    number: order.number,
+    crmCompanyId: order.companyId,
+    companyName: order.companyName,
+    crmContactId: order.contactId ?? null,
+    contactName: order.contactName ?? null,
+    sourceQuoteId: order.sourceQuoteId ?? null,
+    sourceQuoteNumber: order.sourceQuoteNumber ?? null,
+    orderDate: parseDate(order.orderDate),
+    expectedDeliveryDate: order.expectedDeliveryDate ? parseDate(order.expectedDeliveryDate) : null,
+    currency: order.currency,
+    status: order.status,
+    reservationStatus: order.reservationStatus,
+    customerReference: order.customerReference ?? null,
+    internalReference: order.internalReference ?? null,
+    notes: order.notes ?? null,
+    discountRate: order.discountRate,
+    ownerId: order.ownerId,
+    archivedAt: order.archivedAt ? parseDate(order.archivedAt) : null,
+    createdAt: parseDate(order.createdAt),
+    updatedAt: parseDate(order.updatedAt)
   };
 }
 
@@ -541,10 +808,35 @@ async function replaceInvoiceLines(invoiceId: string, items: readonly QuoteItem[
 function lineWriteData(item: QuoteItem) {
   return {
     id: item.id,
+    productId: item.productId ?? null,
+    productSku: item.productSku ?? null,
+    productName: item.productName ?? null,
     description: item.description,
     quantity: item.quantity,
+    unit: item.unit ?? null,
     unitPrice: item.unitPrice,
     taxRate: item.taxRate
+  };
+}
+
+function salesOrderLineWriteData(salesOrderId: string, line: SalesOrderLine, position: number) {
+  return {
+    id: line.id,
+    salesOrderId,
+    productId: line.productId ?? null,
+    productSku: line.productSku ?? null,
+    productName: line.productName ?? null,
+    description: line.description,
+    quantityOrdered: line.quantityOrdered,
+    quantityReserved: line.quantityReserved,
+    quantityDelivered: line.quantityDelivered,
+    warehouseId: line.warehouseId ?? null,
+    warehouseName: line.warehouseName ?? null,
+    unit: String(line.unit),
+    unitPrice: line.unitPrice,
+    discountRate: line.discountRate,
+    taxRate: line.taxRate,
+    position
   };
 }
 
@@ -707,12 +999,59 @@ function mapDbQuote(row: DbQuote): Quote {
     validityDays: row.validityDays ?? undefined,
     currency: row.currency,
     items: row.lines.map(mapDbLine),
-    discountRate: row.discountRate,
+    discountRate: decimalToNumber(row.discountRate),
     notes: row.notes ?? undefined,
     ownerId: row.ownerId,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString()
   } as unknown as Quote;
+}
+
+function mapDbSalesOrder(row: DbSalesOrder): SalesOrder {
+  return {
+    id: row.id,
+    workspaceId: row.workspaceId,
+    number: row.number,
+    companyId: row.crmCompanyId,
+    companyName: row.companyName,
+    contactId: row.crmContactId ?? undefined,
+    contactName: row.contactName ?? undefined,
+    sourceQuoteId: row.sourceQuoteId ?? undefined,
+    sourceQuoteNumber: row.sourceQuoteNumber ?? undefined,
+    orderDate: row.orderDate.toISOString(),
+    expectedDeliveryDate: row.expectedDeliveryDate?.toISOString(),
+    currency: row.currency,
+    status: row.status,
+    reservationStatus: row.reservationStatus,
+    customerReference: row.customerReference ?? undefined,
+    internalReference: row.internalReference ?? undefined,
+    notes: row.notes ?? undefined,
+    lines: row.lines.map(mapDbSalesOrderLine),
+    discountRate: decimalToNumber(row.discountRate),
+    ownerId: row.ownerId,
+    archivedAt: row.archivedAt?.toISOString(),
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString()
+  } as unknown as SalesOrder;
+}
+
+function mapDbSalesOrderLine(row: DbSalesOrderLine): SalesOrderLine {
+  return {
+    id: row.id,
+    productId: row.productId ? row.productId as ProductId : undefined,
+    productSku: row.productSku ?? undefined,
+    productName: row.productName ?? undefined,
+    description: row.description,
+    quantityOrdered: decimalToNumber(row.quantityOrdered),
+    quantityReserved: decimalToNumber(row.quantityReserved),
+    quantityDelivered: decimalToNumber(row.quantityDelivered),
+    warehouseId: row.warehouseId ?? undefined,
+    warehouseName: row.warehouseName ?? undefined,
+    unit: row.unit,
+    unitPrice: decimalToNumber(row.unitPrice),
+    discountRate: decimalToNumber(row.discountRate),
+    taxRate: decimalToNumber(row.taxRate)
+  } as SalesOrderLine;
 }
 
 function mapDbInvoice(row: DbInvoice): Invoice {
@@ -734,10 +1073,10 @@ function mapDbInvoice(row: DbInvoice): Invoice {
     dueDate: row.dueDate.toISOString(),
     currency: row.currency,
     items: row.lines.map(mapDbLine),
-    discountRate: row.discountRate,
+    discountRate: decimalToNumber(row.discountRate),
     notes: row.notes ?? undefined,
     ownerId: row.ownerId,
-    paidAmount: row.paidAmount,
+    paidAmount: decimalToNumber(row.paidAmount),
     archivedAt: row.archivedAt?.toISOString(),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString()
@@ -757,7 +1096,7 @@ function mapDbPayment(row: DbPayment): Payment {
     opportunityId: row.opportunityId ?? undefined,
     status: row.status,
     method: row.method,
-    amount: row.amount,
+    amount: decimalToNumber(row.amount),
     currency: row.currency,
     receivedAt: row.receivedAt.toISOString(),
     reference: row.reference ?? undefined,
@@ -772,10 +1111,14 @@ function mapDbPayment(row: DbPayment): Payment {
 function mapDbLine(row: DbLine): QuoteItem {
   return {
     id: row.id,
+    productId: row.productId ? row.productId as ProductId : undefined,
+    productSku: row.productSku ?? undefined,
+    productName: row.productName ?? undefined,
     description: row.description,
-    quantity: row.quantity,
-    unitPrice: row.unitPrice,
-    taxRate: row.taxRate
+    quantity: decimalToNumber(row.quantity),
+    unit: row.unit ?? undefined,
+    unitPrice: decimalToNumber(row.unitPrice),
+    taxRate: decimalToNumber(row.taxRate)
   };
 }
 
@@ -790,4 +1133,9 @@ function readObjectArray(value: unknown): readonly Record<string, unknown>[] {
 function parseDate(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? new Date() : date;
+}
+
+function decimalToNumber(value: Prisma.Decimal | number | null | undefined) {
+  if (value === null || value === undefined) return 0;
+  return typeof value === "number" ? value : value.toNumber();
 }

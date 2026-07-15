@@ -25,6 +25,13 @@ export const salesNavigation = Object.freeze({
       metadata: { icon: "Receipt", permissionModule: "invoices", activePath: "/sales/invoices" }
     },
     {
+      id: "sales.orders",
+      label: "Commandes clients",
+      route: "/sales/orders",
+      permission: "sales.order.read",
+      metadata: { icon: "ClipboardCheck", permissionModule: "orders", activePath: "/sales/orders" }
+    },
+    {
       id: "sales.payments",
       label: "Paiements",
       route: "/sales/payments",

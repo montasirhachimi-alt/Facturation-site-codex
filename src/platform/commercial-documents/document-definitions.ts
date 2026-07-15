@@ -24,7 +24,7 @@ export const COMMERCIAL_DOCUMENT_DEFINITIONS: readonly CommercialDocumentDefinit
     type: "sales-order",
     label: "Commande client",
     pluralLabel: "Commandes client",
-    prefix: "BC",
+    prefix: "SO",
     alphaReady: false,
     defaultStatus: "draft",
     status: "planned"

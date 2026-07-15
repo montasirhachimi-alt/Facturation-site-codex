@@ -93,6 +93,7 @@ export async function applyProductCatalogImport(scope: PersistenceTenantScope, r
 async function persistProduct(scope: PersistenceTenantScope, product: Product) {
   await assertProductTenant(scope, product.id);
   if (product.categoryId) await assertProductCategoryTenant(scope, product.categoryId);
+  await assertSafeTrackingPolicyChange(scope, product);
 
   await prisma.product.upsert({
     where: { id: product.id },
@@ -104,6 +105,19 @@ async function persistProduct(scope: PersistenceTenantScope, product: Product) {
     }
   });
   return product;
+}
+
+async function assertSafeTrackingPolicyChange(scope: PersistenceTenantScope, product: Product) {
+  if (product.flags.trackInventory) return;
+  const existing = await prisma.product.findUnique({ where: { id: product.id }, select: { companyId: true, trackInventory: true } });
+  if (!existing || existing.companyId !== scope.companyId || !existing.trackInventory) return;
+  const [balanceCount, movementCount] = await Promise.all([
+    prisma.inventoryBalance.count({ where: { companyId: scope.companyId, productId: product.id } }),
+    prisma.inventoryStockMovement.count({ where: { companyId: scope.companyId, productId: product.id } })
+  ]);
+  if (balanceCount > 0 || movementCount > 0) {
+    throw new Error("Ce produit a déjà un historique ou un solde de stock. Il ne peut pas être transformé en service non stocké.");
+  }
 }
 
 async function persistProductCategory(scope: PersistenceTenantScope, category: ProductCategory) {

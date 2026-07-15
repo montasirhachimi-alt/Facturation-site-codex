@@ -111,6 +111,7 @@ model Company {
   crmTasks                  CrmTask[]
   crmNotes                  CrmNote[]
   salesQuotes               SalesQuote[]
+  salesOrders               SalesOrder[]
   salesInvoices             SalesInvoice[]
   salesPayments             SalesPayment[]
   procurementSuppliers      ProcurementSupplier[]
@@ -259,6 +260,9 @@ model Product {
   movements                     StockMovement[]
   inventoryBalances             InventoryBalance[]
   inventoryMovements            InventoryStockMovement[]
+  salesQuoteLines               SalesQuoteLine[]
+  salesOrderLines               SalesOrderLine[]
+  salesInvoiceLines             SalesInvoiceLine[]
   createdAt                     DateTime                       @default(now())
   updatedAt                     DateTime                       @updatedAt
 
@@ -702,6 +706,7 @@ model CrmCompany {
   crmTasks           CrmTask[]
   crmNotes           CrmNote[]
   salesQuotes        SalesQuote[]
+  salesOrders        SalesOrder[]
   salesInvoices      SalesInvoice[]
   salesPayments      SalesPayment[]
   createdAt          DateTime       @default(now())
@@ -730,6 +735,7 @@ model CrmCustomer {
   createdBy       String
   updatedBy       String?
   salesQuotes     SalesQuote[]
+  salesOrders     SalesOrder[]
   salesInvoices   SalesInvoice[]
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -767,6 +773,7 @@ model CrmContact {
   createdBy         String
   updatedBy         String?
   salesQuotes       SalesQuote[]
+  salesOrders       SalesOrder[]
   salesInvoices     SalesInvoice[]
   salesPayments     SalesPayment[]
   crmMeetings       CrmMeeting[]
@@ -894,6 +901,7 @@ model SalesQuote {
   salesInvoices   SalesInvoice[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
+  salesOrders     SalesOrder[]
 
   @@unique([tenantCompanyId, number])
   @@index([tenantCompanyId, workspaceId])
@@ -906,13 +914,88 @@ model SalesQuoteLine {
   id          String     @id
   quoteId     String
   quote       SalesQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     Product?   @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productSku  String?
+  productName String?
   description String
   quantity    Float
+  unit        String?
   unitPrice   Float
   taxRate     Float
   position    Int
 
   @@index([quoteId])
+  @@index([productId])
+}
+
+model SalesOrder {
+  id                   String           @id
+  tenantCompanyId      String
+  tenantCompany        Company          @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  workspaceId          String
+  number               String
+  crmCompanyId         String
+  crmCompany           CrmCompany       @relation(fields: [crmCompanyId], references: [id], onDelete: Restrict)
+  companyName          String
+  crmContactId         String?
+  crmContact           CrmContact?      @relation(fields: [crmContactId], references: [id], onDelete: SetNull)
+  contactName          String?
+  sourceQuoteId        String?
+  sourceQuote          SalesQuote?      @relation(fields: [sourceQuoteId], references: [id], onDelete: SetNull)
+  sourceQuoteNumber    String?
+  orderDate            DateTime
+  expectedDeliveryDate DateTime?
+  currency             String
+  status               String
+  reservationStatus    String
+  customerReference    String?
+  internalReference    String?
+  notes                String?
+  discountRate         Float            @default(0)
+  ownerId              String
+  archivedAt           DateTime?
+  lines                SalesOrderLine[]
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  crmCustomer          CrmCustomer?     @relation(fields: [crmCustomerId], references: [id])
+  crmCustomerId        String?
+
+  @@unique([tenantCompanyId, number])
+  @@unique([tenantCompanyId, sourceQuoteId])
+  @@index([tenantCompanyId, workspaceId])
+  @@index([tenantCompanyId, crmCompanyId])
+  @@index([tenantCompanyId, crmContactId])
+  @@index([tenantCompanyId, sourceQuoteId])
+  @@index([tenantCompanyId, status])
+  @@index([tenantCompanyId, reservationStatus])
+}
+
+model SalesOrderLine {
+  id                String     @id
+  salesOrderId      String
+  salesOrder        SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  productId         String?
+  product           Product?   @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productSku        String?
+  productName       String?
+  description       String
+  quantityOrdered   Float
+  quantityReserved  Float      @default(0)
+  quantityDelivered Float      @default(0)
+  warehouseId       String?
+  warehouseName     String?
+  unit              String
+  unitPrice         Float
+  discountRate      Float      @default(0)
+  taxRate           Float      @default(0)
+  position          Int
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@index([salesOrderId])
+  @@index([productId])
+  @@index([warehouseId])
 }
 
 model SalesInvoice {
@@ -960,13 +1043,19 @@ model SalesInvoiceLine {
   id          String       @id
   invoiceId   String
   invoice     SalesInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     Product?     @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productSku  String?
+  productName String?
   description String
   quantity    Float
+  unit        String?
   unitPrice   Float
   taxRate     Float
   position    Int
 
   @@index([invoiceId])
+  @@index([productId])
 }
 
 model SalesPayment {

@@ -15,7 +15,7 @@ export function getDocumentNumberPrefix(type: string) {
   const prefixes: Record<string, string> = {
     quote: "DEV",
     invoice: "FAC",
-    "sales-order": "BC",
+    "sales-order": "SO",
     "delivery-note": "BL",
     "purchase-order": "PO",
     "goods-receipt": "GR",

@@ -2,6 +2,7 @@ import type { CompanyId } from "@/modules/crm/companies";
 import type { ContactId } from "@/modules/crm/contacts";
 import type { CustomerId } from "@/modules/crm/customers";
 import type { OpportunityId } from "@/modules/crm/opportunities";
+import type { ProductId } from "@/modules/products";
 
 export type QuoteId = string & { readonly __brand: "QuoteId" };
 export type WorkspaceId = string & { readonly __brand: "WorkspaceId" };
@@ -12,8 +13,12 @@ export type QuoteCurrency = "MAD" | "EUR" | "USD";
 
 export type QuoteItem = Readonly<{
   id: string;
+  productId?: ProductId;
+  productSku?: string;
+  productName?: string;
   description: string;
   quantity: number;
+  unit?: string;
   unitPrice: number;
   taxRate: number;
 }>;

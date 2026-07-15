@@ -27,7 +27,14 @@ const STATUS_BY_TYPE: Readonly<Record<CommercialDocumentType, readonly Commercia
     { status: "paid", label: "Payee", terminal: true },
     { status: "overdue", label: "En retard" }
   ]) satisfies readonly CommercialDocumentStatusDefinition[],
-  "sales-order": COMMON_STATUSES,
+  "sales-order": Object.freeze([
+    ...COMMON_STATUSES,
+    { status: "confirmed", label: "Confirmee" },
+    { status: "partially_reserved", label: "Partiellement reservee" },
+    { status: "reserved", label: "Reservee" },
+    { status: "partially_delivered", label: "Partiellement livree" },
+    { status: "delivered", label: "Livree", terminal: true }
+  ]) satisfies readonly CommercialDocumentStatusDefinition[],
   "delivery-note": COMMON_STATUSES,
   "purchase-order": Object.freeze([
     ...COMMON_STATUSES,

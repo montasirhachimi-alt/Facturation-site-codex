@@ -31,12 +31,29 @@ export function ProductDialog({
       onSubmit={onSubmit}
       eyebrow="Catalogue produit"
       title={editing ? "Modifier le produit" : "Créer un produit"}
-      description="Fondation catalogue uniquement : prix, TVA et métadonnées produit sans inventaire."
+      description="Gérez les informations commerciales et le comportement de stock du produit."
       error={error}
       size="lg"
       footer={<FormActions onCancel={onClose} submitLabel={editing ? "Enregistrer" : "Créer le produit"} />}
     >
       <div className="grid gap-3 md:grid-cols-2">
+        <fieldset className="md:col-span-2">
+          <legend className="text-sm font-bold text-hicotech-navy dark:text-white">Type de produit</legend>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            <ProductTypeOption
+              checked={form.trackInventory}
+              description="Disponible pour les réceptions, les stocks, les réservations et les futures livraisons."
+              label="Produit stockable"
+              onChange={() => onChange({ ...form, trackInventory: true })}
+            />
+            <ProductTypeOption
+              checked={!form.trackInventory}
+              description="Ligne commerciale valide, sans réception stock ni réservation inventaire."
+              label="Service / non stocké"
+              onChange={() => onChange({ ...form, trackInventory: false })}
+            />
+          </div>
+        </fieldset>
         <FormField label="SKU" required help="Référence unique normalisée.">
           <input value={form.sku} onChange={(event) => onChange({ ...form, sku: event.target.value })} className={entityInputClassName} placeholder="SKU-001" />
         </FormField>
@@ -94,5 +111,37 @@ export function ProductDialog({
         </div>
       </div>
     </EntityDialog>
+  );
+}
+
+function ProductTypeOption({
+  checked,
+  description,
+  label,
+  onChange
+}: {
+  checked: boolean;
+  description: string;
+  label: string;
+  onChange: () => void;
+}) {
+  return (
+    <label className={`flex cursor-pointer gap-3 rounded-2xl border p-3 transition focus-within:ring-4 focus-within:ring-hicotech-blue/10 ${
+      checked
+        ? "border-hicotech-blue bg-hicotech-blue/10 text-hicotech-navy dark:text-white"
+        : "border-slate-200 bg-white text-slate-600 hover:border-hicotech-blue/40 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/30 dark:text-slate-300"
+    }`}>
+      <input
+        type="radio"
+        checked={checked}
+        onChange={onChange}
+        className="mt-1 size-4 accent-hicotech-blue"
+        name="product-tracking-type"
+      />
+      <span>
+        <span className="block text-sm font-bold">{label}</span>
+        <span className="mt-1 block text-xs font-medium leading-5 text-slate-500 dark:text-slate-400">{description}</span>
+      </span>
+    </label>
   );
 }

@@ -16,7 +16,7 @@ import type {
   UpdateWarehouseInput,
   Warehouse
 } from "./inventory.types";
-import { balanceKey, calculateQuantityAvailable, createAvailabilityFromBalance, createEmptyBalance, freezeBalance, freezeMovement, normalizeWarehouseCode, roundQuantity } from "./inventory.utils";
+import { balanceKey, calculateQuantityAvailable, createAvailabilityFromBalance, createEmptyBalance, freezeBalance, freezeMovement, normalizeInventoryQuantity, normalizeWarehouseCode, roundQuantity } from "./inventory.utils";
 import { singleIssue, validateCreateWarehouseInput, validatePostMovementInput, validateUpdateWarehouseInput, validationResult } from "./inventory.validation";
 
 export type InventoryServiceOptions = Readonly<{
@@ -193,12 +193,13 @@ export class InventoryService {
   }
 
   postMovement(input: PostMovementInput): InventoryOperationResult<StockMovement> {
-    const validation = this.validatePosting(input);
+    const normalizedInput = { ...input, quantity: normalizeInventoryQuantity(input.quantity) };
+    const validation = this.validatePosting(normalizedInput);
     if (!validation.valid) return { validation };
 
-    const snapshot = this.getSnapshot(input.companyId);
+    const snapshot = this.getSnapshot(normalizedInput.companyId);
     try {
-      const movement = this.applyPostedMovement(input);
+      const movement = this.applyPostedMovement(normalizedInput);
       return { data: movement, validation: validationResult([]) };
     } catch (error) {
       this.replaceSnapshot(snapshot);

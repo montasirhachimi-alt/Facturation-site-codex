@@ -8,10 +8,12 @@ export type SalesRouteId =
   | "sales.quote.details"
   | "sales.invoices"
   | "sales.invoice.details"
+  | "sales.orders"
+  | "sales.order.details"
   | "sales.payments"
   | "sales.payment.details";
 
-export type SalesNavigationId = "sales" | "sales.pipeline" | "sales.quotes" | "sales.invoices" | "sales.payments";
+export type SalesNavigationId = "sales" | "sales.pipeline" | "sales.quotes" | "sales.invoices" | "sales.orders" | "sales.payments";
 
 export type SalesNavigationItem = Readonly<{
   id: SalesNavigationId;

@@ -20,6 +20,7 @@ export type ModuleId =
   | "crm.notes"
   | "crm.opportunities"
   | "sales.quotes"
+  | "sales.orders"
   | "sales.invoices"
   | "sales.payments"
   | "sales.products"

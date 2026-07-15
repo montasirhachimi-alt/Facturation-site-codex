@@ -3,6 +3,7 @@ import {
   Building2,
   ContactRound,
   CalendarCheck,
+  ClipboardCheck,
   Boxes,
   PackageCheck,
   Receipt,
@@ -29,6 +30,7 @@ import { getInvoiceTotals } from "@/modules/sales/invoices/invoice.utils";
 import { paymentService } from "@/modules/sales/payments/payment.store";
 import { PAYMENT_STATUS_LABELS } from "@/modules/sales/payments/payment.constants";
 import { getCurrentAlphaActivation } from "@/platform/modules/module-activation.current";
+import { SALES_ORDERS_WORKSPACE_ID, salesOrderService, SALES_ORDER_RESERVATION_LABELS, SALES_ORDER_STATUS_LABELS } from "@/modules/sales/orders";
 import { PRODUCTS_WORKSPACE_ID } from "@/modules/products";
 import { productLocalService } from "@/modules/products/ui/product-local-store";
 import { inventoryLocalService } from "@/modules/inventory/inventory-local-store";
@@ -91,6 +93,9 @@ export function createRecordSearchRegistry(activation: ModuleActivationResult = 
   if (activation.activeModuleIdSet.has("sales.products")) {
     registry.registerMany(buildProductRecords());
   }
+  if (activation.activeModuleIdSet.has("sales.orders")) {
+    registry.registerMany(buildSalesOrderRecords());
+  }
   if (activation.activeModuleIdSet.has("inventory.stock")) {
     registry.registerMany(buildWarehouseRecords());
   }
@@ -105,6 +110,18 @@ export function createRecordSearchRegistry(activation: ModuleActivationResult = 
   }
 
   return registry;
+}
+
+function buildSalesOrderRecords(): readonly RecordSearchResult[] {
+  return salesOrderService.listOrders({ workspaceId: SALES_ORDERS_WORKSPACE_ID, includeArchived: false }).orders.map((order) => ({
+    id: `record.sales-order.${order.id}`,
+    title: order.number,
+    type: "Commande client",
+    description: `${order.companyName} · ${SALES_ORDER_STATUS_LABELS[order.status]} · ${SALES_ORDER_RESERVATION_LABELS[order.reservationStatus]}`,
+    href: `/sales/orders/${order.id}`,
+    icon: ClipboardCheck,
+    keywords: [order.number, order.companyName, order.contactName, order.customerReference, order.sourceQuoteNumber, order.status, order.reservationStatus].filter(Boolean) as string[]
+  }));
 }
 
 function buildGoodsReceiptRecords(): readonly RecordSearchResult[] {

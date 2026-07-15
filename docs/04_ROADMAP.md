@@ -63,6 +63,13 @@ Foundation in progress:
 - SPR-410 adds the Commercial Documents Foundation so Quotes and Invoices consume shared document primitives while Sales Orders, Delivery Notes and Purchasing documents remain future metadata only.
 - SPR-411 adds the Procurement Foundation with Suppliers and Purchase Orders, activation-gated outside Alpha and without Goods Receipt, Supplier Invoice, Accounting, Payments or Inventory posting.
 - SPR-412 adds Goods Receipt and Inventory Posting so Purchase Orders can be received partially or fully into Inventory through persistent Goods Receipts and transaction-safe `RECEIPT` stock movements.
+- SPR-413 adds Sales Orders as customer commitment documents with persistent lines, Quote-to-Order conversion, PDF export and optional Inventory reservation/release through the controlled Sales Operations profile.
+- SPR-413A preserves Product identity on Quote and Invoice lines, carries Product-backed lines into Sales Orders, keeps free-form lines non-inventory and adds Draft Sales Order edit for controlled QA.
+- SPR-413B exposes Product stockability in the Product Catalog UI, filters Inventory movements to active stockable Products and protects unsafe stockable-to-service transitions without adding a new Product field.
+- SPR-413C fixes Warehouse persistence visibility by aligning Inventory workspace scope with authenticated persistence, and introduces a canonical 6-decimal Inventory quantity policy to prevent floating-point artifacts in manual receipt and reservation QA.
+- SPR-413D fixes Quote-to-Sales-Order quantity conversion by hydrating persisted commercial numeric fields as plain numbers and preserving quantity, price and VAT in converted Sales Order drafts.
+- SPR-413E adds Quote lifecycle actions so draft Quotes can be marked sent, sent Quotes can be accepted/refused, and Sales Order conversion readiness is enforced only for accepted Quotes.
+- SPR-413F fixes Quote-to-Sales-Order workspace mapping so converted Sales Orders are created in `sales-orders-main` and can open directly after conversion.
 - Supplier Invoice, Purchasing approvals, returns, variants, barcode scanning, valuation, sales allocation and stock movement cancellation remain future work.
 
 ## Milestone 5 — Enterprise AI

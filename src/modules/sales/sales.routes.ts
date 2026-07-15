@@ -6,6 +6,8 @@ export const salesRoutes = Object.freeze([
   defineRoute("sales.quote.details", "/sales/quotes/[quoteId]", "sales.quote.read", "Sales quote details route."),
   defineRoute("sales.invoices", "/sales/invoices", "sales.invoice.read", "Sales invoices workspace route."),
   defineRoute("sales.invoice.details", "/sales/invoices/[invoiceId]", "sales.invoice.read", "Sales invoice details route."),
+  defineRoute("sales.orders", "/sales/orders", "sales.order.read", "Sales orders workspace route."),
+  defineRoute("sales.order.details", "/sales/orders/[orderId]", "sales.order.read", "Sales order details route."),
   defineRoute("sales.payments", "/sales/payments", "sales.payment.read", "Sales payments workspace route."),
   defineRoute("sales.payment.details", "/sales/payments/[paymentId]", "sales.payment.read", "Sales payment details route.")
 ] satisfies SalesRouteDefinition[]);

@@ -1,5 +1,6 @@
 import { DEFAULT_QUOTE_SORT } from "./quote.constants";
-import type { CreateQuoteInput, Quote, QuoteFilters, QuoteId, QuoteListResult, QuoteSort, WorkspaceId } from "./quote.types";
+import { canTransitionDocument } from "@/platform/commercial-documents";
+import type { CreateQuoteInput, Quote, QuoteFilters, QuoteId, QuoteListResult, QuoteSort, WorkspaceId, QuoteStatus } from "./quote.types";
 import { addDays, matchesQuoteSearch, sortQuotes } from "./quote.utils";
 
 export class QuoteService {
@@ -39,6 +40,21 @@ export class QuoteService {
   getQuote(id: QuoteId, workspaceId: WorkspaceId) {
     const quote = this.quotes.get(id);
     return quote?.workspaceId === workspaceId ? quote : undefined;
+  }
+
+  transitionQuoteStatus(id: QuoteId, workspaceId: WorkspaceId, nextStatus: QuoteStatus) {
+    const quote = this.getQuote(id, workspaceId);
+    if (!quote) return { error: "Devis introuvable dans l'espace de travail actif." };
+    if (quote.status === nextStatus) return { error: "Ce devis possède déjà ce statut." };
+    if (!canTransitionDocument("quote", quote.status, nextStatus)) return { error: "Transition de devis non autorisée." };
+
+    const updated = freezeQuote({
+      ...quote,
+      status: nextStatus,
+      updatedAt: new Date().toISOString()
+    });
+    this.quotes.set(updated.id, updated);
+    return { quote: updated };
   }
 
   createQuote(input: CreateQuoteInput) {

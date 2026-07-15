@@ -3,7 +3,7 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import type { ProductId } from "@/modules/products";
 import type { InventoryBalance, InventoryMovementId, InventorySnapshot, InventoryWarehouseId, PostMovementInput, StockMovement, Warehouse } from "@/modules/inventory";
-import { calculateQuantityAvailable, normalizeWarehouseCode, roundQuantity } from "@/modules/inventory";
+import { calculateQuantityAvailable, normalizeInventoryQuantity, normalizeWarehouseCode, roundQuantity } from "@/modules/inventory";
 import { prisma } from "./prisma";
 import type { PersistenceTenantScope } from "./tenant-scope";
 
@@ -121,30 +121,33 @@ export async function postInventoryMovement(scope: PersistenceTenantScope, input
 }
 
 export async function postInventoryMovementInTransaction(tx: InventoryTx, scope: PersistenceTenantScope, input: PostMovementInput) {
+  const quantity = normalizeInventoryQuantity(input.quantity);
+  if (!Number.isFinite(quantity) || quantity <= 0) throw new Error("Saisissez une quantité supérieure à zéro.");
+
   await assertProductTenant(scope, input.productId, tx);
   await assertMovementNotPosted(scope, input.id, tx);
   if (input.fromWarehouseId) await assertWarehouseTenant(scope, input.fromWarehouseId, tx);
   if (input.toWarehouseId) await assertWarehouseTenant(scope, input.toWarehouseId, tx);
 
   if (input.type === "RECEIPT" || input.type === "ADJUSTMENT_IN") {
-    await incrementOnHand(tx, scope, input.productId, input.toWarehouseId!, input.quantity);
+    await incrementOnHand(tx, scope, input.productId, input.toWarehouseId!, quantity);
   }
   if (input.type === "ISSUE" || input.type === "ADJUSTMENT_OUT") {
-    await assertAvailable(tx, scope, input.productId, input.fromWarehouseId!, input.quantity);
-    await incrementOnHand(tx, scope, input.productId, input.fromWarehouseId!, -input.quantity);
+    await assertAvailable(tx, scope, input.productId, input.fromWarehouseId!, quantity);
+    await incrementOnHand(tx, scope, input.productId, input.fromWarehouseId!, -quantity);
   }
   if (input.type === "TRANSFER") {
-    await assertAvailable(tx, scope, input.productId, input.fromWarehouseId!, input.quantity);
-    await incrementOnHand(tx, scope, input.productId, input.fromWarehouseId!, -input.quantity);
-    await incrementOnHand(tx, scope, input.productId, input.toWarehouseId!, input.quantity);
+    await assertAvailable(tx, scope, input.productId, input.fromWarehouseId!, quantity);
+    await incrementOnHand(tx, scope, input.productId, input.fromWarehouseId!, -quantity);
+    await incrementOnHand(tx, scope, input.productId, input.toWarehouseId!, quantity);
   }
   if (input.type === "RESERVATION") {
-    await assertAvailable(tx, scope, input.productId, input.toWarehouseId!, input.quantity);
-    await incrementReserved(tx, scope, input.productId, input.toWarehouseId!, input.quantity);
+    await assertAvailable(tx, scope, input.productId, input.toWarehouseId!, quantity);
+    await incrementReserved(tx, scope, input.productId, input.toWarehouseId!, quantity);
   }
   if (input.type === "RELEASE") {
-    await assertReserved(tx, scope, input.productId, input.fromWarehouseId!, input.quantity);
-    await incrementReserved(tx, scope, input.productId, input.fromWarehouseId!, -input.quantity);
+    await assertReserved(tx, scope, input.productId, input.fromWarehouseId!, quantity);
+    await incrementReserved(tx, scope, input.productId, input.fromWarehouseId!, -quantity);
   }
 
   const now = new Date();
@@ -157,7 +160,7 @@ export async function postInventoryMovementInTransaction(tx: InventoryTx, scope:
       toWarehouseId: input.toWarehouseId ?? null,
       type: input.type,
       status: "POSTED",
-      quantity: input.quantity,
+      quantity,
       reference: input.reference?.trim() || null,
       referenceType: input.referenceType ?? null,
       referenceId: input.referenceId?.trim() || null,
@@ -223,9 +226,10 @@ async function assertReserved(tx: InventoryTx, scope: PersistenceTenantScope, pr
 }
 
 async function assertProductTenant(scope: PersistenceTenantScope, productId: string, tx: InventoryTx = prisma) {
-  const product = await tx.product.findUnique({ where: { id: productId }, select: { companyId: true, active: true } });
+  const product = await tx.product.findUnique({ where: { id: productId }, select: { companyId: true, active: true, trackInventory: true } });
   if (!product || product.companyId !== scope.companyId) throw new Error("Produit introuvable pour cette entreprise.");
   if (!product.active) throw new Error("Produit inactif.");
+  if (!product.trackInventory) throw new Error("Produit non suivi en stock.");
 }
 
 async function assertWarehouseTenant(scope: PersistenceTenantScope, warehouseId: string, tx: InventoryTx = prisma) {

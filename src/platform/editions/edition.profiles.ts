@@ -149,6 +149,30 @@ export const inventoryEditionProfile = Object.freeze({
   futurePlanCode: "INVENTORY"
 } satisfies EditionProfile);
 
+export const salesOperationsEditionProfile = Object.freeze({
+  id: "sales-operations",
+  name: "BOSIACO Sales Operations",
+  shortName: "Sales Ops",
+  description: "Controlled internal profile for Sales Orders, Product Catalog and Inventory reservation QA.",
+  status: "planned",
+  version: "0.1.0",
+  targetAudience: "Internal QA for customer order commitment and reservation flows.",
+  includeDefaults: false,
+  strictDependencies: true,
+  allowHiddenModules: true,
+  allowPreviewModules: false,
+  allowPlannedModules: true,
+  defaultForEnvironment: false,
+  commercial: false,
+  order: 55,
+  enabledModuleIds: Object.freeze(["core.dashboard", "core.settings", "crm.overview", "crm.companies", "crm.contacts", "sales.quotes", "sales.invoices", "sales.payments", "sales.products", "inventory.stock", "sales.orders"]),
+  disabledModuleIds: Object.freeze([]),
+  tags: Object.freeze(["internal", "planned", "sales-operations"]),
+  notes: Object.freeze(["Controlled QA profile only. It is not selectable in the Alpha runtime."]),
+  futureLicenseKey: "edition.sales-operations",
+  futurePlanCode: "SALES_OPERATIONS"
+} satisfies EditionProfile);
+
 export const purchasingEditionProfile = Object.freeze({
   id: "purchasing",
   name: "BOSIACO Purchasing",
@@ -263,6 +287,7 @@ export const bosiacoEditionProfiles = Object.freeze([
   crmEditionProfile,
   salesEditionProfile,
   inventoryEditionProfile,
+  salesOperationsEditionProfile,
   purchasingEditionProfile,
   hrEditionProfile,
   enterpriseEditionProfile,

@@ -234,6 +234,26 @@ export const bosiacoModuleDescriptors = Object.freeze([
     order: 210
   },
   {
+    id: "sales.orders",
+    name: "Commandes clients",
+    description: "Bon de commande client confirmé, avec évaluation de disponibilité et réservation optionnelle du stock.",
+    category: "sales",
+    iconKey: "ClipboardCheck",
+    route: "/sales/orders",
+    status: "planned",
+    version: "0.1.0",
+    dependencies: ["crm.companies", "sales.products", "platform.persistence"],
+    optionalDependencies: ["crm.contacts", "sales.quotes", "inventory.stock"],
+    features: ["create", "details", "pdf", "quoteConversion", "availability", "reservation"],
+    navigation: { label: "Commandes clients", href: "/sales/orders", iconKey: "ClipboardCheck", group: "Ventes", order: 215, searchKeywords: ["commandes clients", "sales orders", "bon de commande client"] },
+    commandCenter: { navigationKeywords: ["commandes clients", "sales orders", "bc client"], quickCreateKeys: ["quick-create.sales-order"], recordSearchKeys: ["sales-order"] },
+    dashboard: { dashboardSectionKey: "sales", widgetKeys: ["sales-orders-to-confirm", "sales-orders-reserved", "sales-orders-shortage", "sales-orders-recent"], priority: 33, hidden: true },
+    defaultEnabled: false,
+    alphaReady: false,
+    hidden: false,
+    order: 215
+  },
+  {
     id: "sales.payments",
     name: "Paiements",
     description: "Suivi des paiements et encaissements reliés aux factures.",

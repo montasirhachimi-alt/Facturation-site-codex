@@ -5,13 +5,15 @@ import { Boxes, PackageCheck } from "lucide-react";
 import type { EntityPickerItem } from "@/ui/forms/entity-picker.types";
 import { PRODUCTS_WORKSPACE_ID, type Product, type ProductId } from "@/modules/products";
 import { productLocalService, subscribeToProductStore } from "@/modules/products/ui/product-local-store";
+import { activeCompanyId } from "@/lib/demo-data";
 import { inventoryLocalService, subscribeToInventoryStore } from "../../inventory-local-store";
 import type { InventoryBalance, InventoryMovementType, StockMovement, Warehouse } from "../../inventory.types";
+import { INVENTORY_QUANTITY_PRECISION } from "../../inventory.utils";
 
 export type InventoryTab = "overview" | "stock" | "warehouses" | "movements" | "reservations";
 export type InventoryOperationMode = "receipt" | "issue" | "transfer" | "adjustment";
 
-export const INVENTORY_COMPANY_ID = "company-bosiaco" as import("../../inventory.types").InventoryCompanyId;
+export const INVENTORY_COMPANY_ID = activeCompanyId as import("../../inventory.types").InventoryCompanyId;
 
 export type StockRow = Readonly<{
   id: string;
@@ -78,7 +80,7 @@ export function useInventoryWorkspace() {
     const reservationRows = movementRows.filter((row) => row.movement.type === "RESERVATION" || row.movement.type === "RELEASE");
     const filteredReservationRows = reservationRows.filter((row) => filterReservationRow(row, reservationQuery, reservationWarehouseId, reservationType));
     const trackedProductIds = new Set(stockRows.map((row) => row.balance.productId));
-    const productItems = products.map(productToPickerItem);
+    const productItems = products.filter((product) => product.active && product.flags.trackInventory).map(productToPickerItem);
 
     return {
       activeTab,
@@ -130,7 +132,7 @@ export function useInventoryWorkspace() {
 }
 
 export function formatInventoryQuantity(value: number) {
-  return new Intl.NumberFormat("fr-MA", { maximumFractionDigits: 2 }).format(value);
+  return new Intl.NumberFormat("fr-MA", { maximumFractionDigits: INVENTORY_QUANTITY_PRECISION }).format(value);
 }
 
 export function movementTypeLabel(type: InventoryMovementType) {

@@ -7,6 +7,7 @@ import { SmartEntityPicker } from "@/ui/forms/smart-entity-picker";
 import { persistInventoryOperation } from "@/platform/persistence/inventory-persistence.client";
 import type { EntityPickerItem } from "@/ui/forms/entity-picker.types";
 import type { ProductId } from "@/modules/products";
+import { adjustInventoryQuantityInput, formatInventoryQuantityInput, parseInventoryQuantityInput } from "../../inventory.utils";
 import type { InventoryBalance, InventoryMovementReferenceType, InventoryWarehouseId, ReservationRequest, Warehouse } from "../../inventory.types";
 import { INVENTORY_COMPANY_ID, formatInventoryQuantity } from "../hooks/use-inventory-workspace";
 
@@ -69,7 +70,7 @@ export function ReservationDialog({
   const [saving, setSaving] = useState(false);
   const activeWarehouses = useMemo(() => warehouses.filter((warehouse) => warehouse.active), [warehouses]);
   const selectedBalance = useMemo(() => balances.find((balance) => balance.productId === form.productId && balance.warehouseId === form.warehouseId), [balances, form.productId, form.warehouseId]);
-  const quantity = Number(form.quantity);
+  const quantity = parseInventoryQuantityInput(form.quantity);
   const currentOnHand = selectedBalance?.quantityOnHand ?? 0;
   const currentReserved = selectedBalance?.quantityReserved ?? 0;
   const currentAvailable = selectedBalance?.quantityAvailable ?? 0;
@@ -152,7 +153,23 @@ export function ReservationDialog({
           </div>
           <WarehouseSelect value={form.warehouseId} warehouses={activeWarehouses} onChange={(value) => setForm((current) => ({ ...current, warehouseId: value }))} />
           <FormField label={mode === "reserve" ? "Quantité à réserver" : "Quantité à libérer"} required>
-            <input type="number" min="0.000001" step="0.01" value={form.quantity} onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))} className={entityInputClassName} />
+            <input
+              type="text"
+              inputMode="decimal"
+              value={form.quantity}
+              onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))}
+              onBlur={() => setForm((current) => {
+                const quantity = parseInventoryQuantityInput(current.quantity);
+                return Number.isFinite(quantity) ? { ...current, quantity: formatInventoryQuantityInput(quantity) } : current;
+              })}
+              onKeyDown={(event) => {
+                if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+                event.preventDefault();
+                setForm((current) => ({ ...current, quantity: adjustInventoryQuantityInput(current.quantity, event.key === "ArrowUp" ? 1 : -1) }));
+              }}
+              className={entityInputClassName}
+              placeholder="20 ou 2,5"
+            />
           </FormField>
         </FormSection>
 

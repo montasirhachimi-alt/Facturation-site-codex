@@ -1,6 +1,7 @@
 import {
   BriefcaseBusiness,
   Building2,
+  ClipboardCheck,
   ContactRound,
   HandCoins,
   PackageCheck,
@@ -16,6 +17,7 @@ export type QuickCreateActionId =
   | "quick-create.company"
   | "quick-create.contact"
   | "quick-create.quote"
+  | "quick-create.sales-order"
   | "quick-create.invoice"
   | "quick-create.supplier"
   | "quick-create.purchase-order"
@@ -33,6 +35,7 @@ const quickCreateActionIds = new Set<string>([
   "quick-create.company",
   "quick-create.contact",
   "quick-create.quote",
+  "quick-create.sales-order",
   "quick-create.invoice",
   "quick-create.supplier",
   "quick-create.purchase-order",
@@ -60,6 +63,13 @@ const seedQuickCreateActions: readonly QuickCreateAction[] = [
     description: "Ouvrir le flux de création d'un devis.",
     icon: BriefcaseBusiness,
     keywords: ["new", "create", "nouveau", "devis", "quote", "quo", "proposition"]
+  },
+  {
+    id: "quick-create.sales-order",
+    title: "Nouvelle commande client",
+    description: "Créer un bon de commande client.",
+    icon: ClipboardCheck,
+    keywords: ["new", "create", "nouveau", "commande client", "sales order", "bc client"]
   },
   {
     id: "quick-create.invoice",

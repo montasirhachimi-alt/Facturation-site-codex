@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { persistProductCatalogRecord } from "@/platform/persistence";
 import { paginateCrmItems } from "@/modules/crm/shared";
+import { inventoryLocalService } from "@/modules/inventory/inventory-local-store";
 import { DEFAULT_PRODUCT_CURRENCY, DEFAULT_PRODUCT_UNIT, DEFAULT_PRODUCT_VAT_RATE, PRODUCTS_USER_ID, PRODUCTS_WORKSPACE_ID } from "../../product.constants";
 import type { CreateProductInput, Product, ProductCategoryId, ProductId, ProductSort, ProductStatus, ProductUnit, UpdateProductInput } from "../../product.types";
 import { productLocalService, notifyProductStoreUpdated, subscribeToProductStore } from "../product-local-store";
@@ -22,6 +23,7 @@ export type ProductFormState = Readonly<{
   currency: string;
   image: string;
   notes: string;
+  trackInventory: boolean;
 }>;
 
 export type ProductSortKey = ProductSort["field"];
@@ -40,7 +42,8 @@ const emptyForm: ProductFormState = {
   vatRate: DEFAULT_PRODUCT_VAT_RATE,
   currency: DEFAULT_PRODUCT_CURRENCY,
   image: "",
-  notes: ""
+  notes: "",
+  trackInventory: true
 };
 
 export function useProductsPage() {
@@ -148,6 +151,10 @@ export function useProductsPage() {
 
   const updateProduct = useCallback(async (product: Product) => {
     const snapshot = productLocalService.listProducts({ workspaceId: PRODUCTS_WORKSPACE_ID, includeArchived: true }).products;
+    if (product.flags.trackInventory && !form.trackInventory && hasInventoryHistory(product)) {
+      setError("Ce produit a déjà un historique ou un solde de stock. Il ne peut pas être transformé en service non stocké.");
+      return false;
+    }
     const input: UpdateProductInput = {
       id: product.id,
       workspaceId: PRODUCTS_WORKSPACE_ID,
@@ -267,7 +274,10 @@ function formToProductInput(form: ProductFormState) {
     vatRate: form.vatRate,
     currency: form.currency,
     image: form.image || undefined,
-    notes: form.notes || undefined
+    notes: form.notes || undefined,
+    flags: {
+      trackInventory: form.trackInventory
+    }
   };
 }
 
@@ -286,8 +296,15 @@ function productToForm(product: Product): ProductFormState {
     vatRate: product.vatRate,
     currency: product.currency,
     image: product.image ?? "",
-    notes: product.notes ?? ""
+    notes: product.notes ?? "",
+    trackInventory: product.flags.trackInventory
   };
+}
+
+function hasInventoryHistory(product: Product) {
+  const snapshot = inventoryLocalService.getSnapshot();
+  return snapshot.balances.some((balance) => balance.productId === product.id)
+    || snapshot.movements.some((movement) => movement.productId === product.id);
 }
 
 function getAveragePrice(products: readonly Product[]) {

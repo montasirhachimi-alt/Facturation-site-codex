@@ -1,5 +1,137 @@
 # HicoPilot Architecture Decision Records
 
+## ADR-035 — Quote Conversion Creates Sales Orders In The Sales Orders Workspace
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+
+### Decision
+
+Quote-to-Sales-Order conversion must always create the Sales Order in the canonical Sales Orders workspace:
+
+```text
+sales-orders-main
+```
+
+The source Quote remains in the Quotes workspace:
+
+```text
+sales-quotes-main
+```
+
+The relationship between both documents is represented by `sourceQuoteId` and `sourceQuoteNumber`, not by sharing the same workspace ID.
+
+### Motivation
+
+QA found that converting an accepted Quote redirected to `/sales/orders/:id`, but the detail page displayed `Commande client introuvable.`
+
+The converted Sales Order had inherited `quote.workspaceId`, so the Sales Orders detail workspace could not resolve it.
+
+### Consequences
+
+`SalesOrderService.createFromQuote()` now writes converted orders to `SALES_ORDERS_WORKSPACE_ID`.
+
+The persistence repository rejects Sales Orders persisted under the wrong workspace.
+
+No Delivery Note, physical stock `ISSUE`, accounting, Prisma migration, permission or route behavior was introduced.
+
+## ADR-034 — Quote Lifecycle Gates Sales Order Readiness
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+
+### Decision
+
+Quote lifecycle actions must reuse the Commercial Documents lifecycle instead of creating a second Sales status system.
+
+The minimal V1 Quote lifecycle is:
+
+```text
+draft -> sent -> accepted / refused
+```
+
+Sales Order conversion is available only when the source Quote is `accepted`. The persistence repository validates both Quote status transitions and Sales Order source Quote status.
+
+### Motivation
+
+SPR-413D fixed Quote-to-Sales-Order quantity conversion, but newly created Quotes remained `draft` and there was no stable user flow to mark a Quote as accepted. This made the conversion technically correct but practically inaccessible.
+
+### Consequences
+
+Quote details expose contextual lifecycle actions for `draft` and `sent` Quotes.
+
+New Quotes must be persisted as `draft`; direct `draft -> accepted` is rejected.
+
+Sales Orders with a `sourceQuoteId` are rejected unless the source Quote belongs to the tenant and is accepted.
+
+No Delivery Note, physical stock `ISSUE`, Returns, Accounting, Manufacturing, POS, AI, Kanban, Prisma migration, permission or authentication behavior was introduced.
+
+## ADR-033 — Persisted Commercial Numeric Fields Hydrate As Plain Numbers
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+
+### Decision
+
+CRM/Sales persistence mapping must convert Prisma Decimal values to plain JavaScript numbers before records enter client local stores, dialogs, conversion adapters, PDFs or calculation wrappers.
+
+Quote to Sales Order conversion explicitly maps:
+
+```text
+QuoteItem.quantity → SalesOrderLine.quantityOrdered
+```
+
+and must never rely on object spreading across incompatible commercial line models.
+
+### Motivation
+
+Authenticated Sales Operations QA found that a Quote line with quantity `8` could open as a Sales Order draft line with quantity `0`.
+
+Product identity, description, price and VAT were preserved, but persisted numeric values could cross the server/client boundary as Decimal-like values. That destabilized dialog and normalization paths expecting plain numbers.
+
+### Consequences
+
+Quote, Invoice, Payment and Sales Order numeric fields are normalized at repository hydration.
+
+Product-backed converted lines preserve Product ID, SKU/name snapshots and negotiated commercial values. Free-form lines preserve quantity and prices without inferring Product identity.
+
+Sales Order totals continue to be recalculated through the Commercial Documents Foundation.
+
+No Prisma migration, Inventory rule, Reservation rule, Delivery Note, physical stock `ISSUE`, Returns, Accounting, Manufacturing, POS, AI or Kanban behavior was introduced.
+
+## ADR-032 — Inventory Workspace Uses Authenticated Tenant Scope And Canonical Quantity Policy
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+
+### Decision
+
+Inventory workspace reads must use the same tenant identity as persistence writes.
+
+For the current authenticated demo environment, Inventory workspace scope is derived from `activeCompanyId` instead of a stale hardcoded local company ID.
+
+Inventory quantities use a single 6-decimal normalization policy through `normalizeInventoryQuantity()`, `parseInventoryQuantityInput()` and related helpers.
+
+### Motivation
+
+Warehouse creation was confirmed by the server but disappeared in the UI because the server wrote records under the authenticated tenant while the workspace filtered the applied snapshot under another company ID.
+
+Manual stock quantity inputs also relied on native number stepping and raw `Number(...)` parsing, which could expose floating-point artifacts during QA.
+
+### Consequences
+
+Warehouse tables, Manual Receipt selectors, reservation selectors and Inventory KPIs now consume the same canonical Inventory snapshot and tenant scope.
+
+Manual Inventory and reservation dialogs use controlled decimal text inputs with deterministic Arrow Up/Down behavior.
+
+The server repository normalizes movement quantities before updating balances and movement history, and rejects non-stocked Products for Inventory posting.
+
+No Prisma migration, Delivery Notes, physical stock `ISSUE`, Returns, Accounting, Manufacturing, POS, AI or Kanban behavior was introduced.
+
 ## ADR-029 — Procurement Foundation
 
 | Field | Value |
@@ -977,3 +1109,69 @@ Purchase Orders represent intent to buy, not physical receipt. Posting stock fro
 ### Consequences
 
 `procurement.goods-receipts` depends on `procurement.purchase-orders`, `inventory.stock`, `sales.products` and `platform.persistence`. Posted receipt lines create `RECEIPT` Inventory movements with `referenceType = GOODS_RECEIPT`. Purchase Orders become `partially_received` or `received` from posted receipt quantities. Returns, reversal and Supplier Invoice matching remain future work.
+
+## ADR-029 — Sales Orders Own Customer Commitment, Not Physical Stock Issue
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+
+### Decision
+
+Sales Orders represent customer commitment and optional stock reservation. They must never physically decrease Inventory on-hand quantities.
+
+Confirming a Sales Order may post Inventory `RESERVATION` movements when the user explicitly chooses to reserve stock. Cancelling a reserved Sales Order posts Inventory `RELEASE` movements. Physical stock decrement remains the responsibility of future Delivery Notes.
+
+### Motivation
+
+BOSIACO needs a clear operational boundary between commitment, allocation, fulfillment, billing and payment. If Sales Orders directly posted `ISSUE` movements, stock would decrease before goods are delivered and future Delivery Notes would either duplicate or fight the same responsibility.
+
+### Consequences
+
+`sales.orders` depends on Product Catalog and can integrate with Inventory availability, but it does not own fulfillment. Manual Sales Order lines with Product IDs can reserve stock. Quote-converted lines preserve commercial information but are not reservable until Quote lines carry Product references. Delivery Notes remain the future module that will post Inventory `ISSUE` movements.
+
+## ADR-030 — Commercial Lines May Be Product-Backed or Free-Form
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+
+### Decision
+
+Sales document lines support two explicit modes:
+
+- Product-backed lines carry an optional canonical Product ID plus SKU/name snapshots.
+- Free-form lines carry commercial text only and have no Product ID.
+
+Product identity must be preserved from Product Catalog to Quote, Invoice and Sales Order lines when selected. Free-form lines remain valid and must never be inferred as Products from descriptions, labels or SKU-like text.
+
+### Motivation
+
+Delivery Notes, reservation, movement history and future fulfillment require stable Product IDs. At the same time, BOSIACO must continue to support service/manual lines that are commercial but not Inventory stock.
+
+### Consequences
+
+Quote and Invoice line persistence stores optional Product identity. Quote-to-Sales-Order and Quote-to-Invoice conversion preserve Product-backed and free-form line modes. Inventory reservation uses Product IDs only and calculates remaining reservation from ordered quantity minus already reserved quantity.
+
+## ADR-031 — Product Inventory Tracking Uses the Existing Canonical Flag
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+
+### Decision
+
+Product inventory behavior is controlled by the existing canonical field:
+
+- Domain: `Product.flags.trackInventory`
+- Prisma: `Product.trackInventory`
+
+BOSIACO must not introduce a second product-type or stockable field for the same concept.
+
+### Motivation
+
+The Product Catalog already had the persistence and service contract needed for inventory tracking. The missing piece was Product create/edit UX. Adding another field would split Product identity and create ambiguity for Inventory, Sales Orders and future Delivery Notes.
+
+### Consequences
+
+The Product dialog exposes `Produit stockable` and `Service / non stocké`. New Products default to stockable for controlled Product → Inventory → Sales Order QA. Services remain valid commercial Products but are excluded from Inventory movements and reservation eligibility. A stockable Product cannot be changed to service/non-stocked after Inventory balances or movements exist.
