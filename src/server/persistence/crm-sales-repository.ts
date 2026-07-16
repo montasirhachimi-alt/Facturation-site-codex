@@ -220,6 +220,9 @@ export async function cancelSalesOrder(scope: PersistenceTenantScope, orderId: s
     if (existing.status === "cancelled") throw new Error("Cette commande client est déjà annulée.");
     if (existing.status === "archived") throw new Error("Cette commande client est archivée.");
     const order = mapDbSalesOrder(existing);
+    if (order.lines.some((line) => line.quantityDelivered > 0)) {
+      throw new Error("Cette commande contient déjà des quantités livrées et ne peut pas être annulée.");
+    }
     for (const line of order.lines) {
       if (!line.productId || !line.warehouseId || line.quantityReserved <= 0) continue;
       await postInventoryMovementInTransaction(tx, scope, {

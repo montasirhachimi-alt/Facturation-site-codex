@@ -38,6 +38,7 @@ const emptyForm: ReservationForm = {
 const referenceTypeLabels: Record<InventoryMovementReferenceType, string> = {
   ADJUSTMENT: "Ajustement",
   DELIVERY: "Livraison",
+  DELIVERY_NOTE: "Bon de livraison",
   GOODS_RECEIPT: "Réception fournisseur",
   MANUAL: "Manuelle",
   PURCHASE_ORDER: "Commande fournisseur",

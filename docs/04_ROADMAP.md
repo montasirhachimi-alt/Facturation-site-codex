@@ -70,7 +70,9 @@ Foundation in progress:
 - SPR-413D fixes Quote-to-Sales-Order quantity conversion by hydrating persisted commercial numeric fields as plain numbers and preserving quantity, price and VAT in converted Sales Order drafts.
 - SPR-413E adds Quote lifecycle actions so draft Quotes can be marked sent, sent Quotes can be accepted/refused, and Sales Order conversion readiness is enforced only for accepted Quotes.
 - SPR-413F fixes Quote-to-Sales-Order workspace mapping so converted Sales Orders are created in `sales-orders-main` and can open directly after conversion.
-- Supplier Invoice, Purchasing approvals, returns, variants, barcode scanning, valuation, sales allocation and stock movement cancellation remain future work.
+- SPR-414 adds persistent Delivery Notes with partial/full fulfillment, reservation consumption and transaction-safe Inventory `ISSUE` posting while keeping the module outside Alpha.
+- SPR-414A removes native Delivery Note quantity stepping drift and applies canonical Inventory precision from controlled input through posting without a schema migration.
+- Supplier Invoice, Purchasing approvals, customer returns/reversal, variants, barcode scanning, valuation and stock movement cancellation remain future work.
 
 ## Milestone 5 — Enterprise AI
 

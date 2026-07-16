@@ -7,10 +7,10 @@
 | Product | HicoPilot |
 | Version | v0.9.0-alpha |
 | Current Milestone | Business Platform |
-| Current Phase | Inventory Domain Foundation |
-| Current Sprint | SPR-413F — Quote Conversion Sales Order Workspace Fix |
-| Next Sprint | SPR-414 — Delivery Note readiness planning |
-| Repository Health | Builds successfully with one known existing image optimization warning; Alpha-visible navigation, route availability and Dashboard contributions remain activation-driven, Product Catalog, Inventory and Sales Orders remain controlled-profile only, Quote-to-Sales-Order conversion preserves commercial quantities, Quote lifecycle transitions are server-validated, and converted Sales Orders now use the Sales Orders workspace. |
+| Current Phase | Business Platform |
+| Current Sprint | SPR-414A — Delivery Note Quantity Precision QA Fix |
+| Next Sprint | To be defined after authenticated Delivery Note QA |
+| Repository Health | Delivery Note quantities use deterministic six-decimal Inventory normalization from controlled input through posting; Alpha remains the sole default profile. Builds complete with the known existing PDF preview image warning. |
 
 ## Completed Core Engines
 
@@ -59,6 +59,8 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | Inventory Quantity Policy | `src/modules/inventory/inventory.utils.ts` | Implemented as a 6-decimal quantity normalization and parsing policy consumed by Inventory dialogs, services and persistence. |
 | Quote Lifecycle Actions | `src/modules/sales/quotes/` and `src/server/persistence/crm-sales-repository.ts` | Implemented as a minimal draft → sent → accepted/refused workflow with persistence validation and accepted-only Sales Order conversion readiness. |
 | Quote to Sales Order Workspace Mapping | `src/modules/sales/orders/order.service.ts` | Implemented so accepted Quote conversion creates Sales Orders in `sales-orders-main` and persistence rejects malformed Sales Order workspace IDs. |
+| Delivery Notes & Physical Stock Issue | `src/modules/sales/delivery-notes/` | Implemented as persistent draft/post/archive documents that consume Sales Order reservations, post Inventory `ISSUE` movements and update delivered quantities atomically. |
+| Delivery Note Quantity Precision | `src/modules/sales/delivery-notes/` and `src/modules/inventory/inventory.utils.ts` | Delivery quantity inputs reuse the canonical controlled decimal policy and are normalized again at the server boundary before persistence and posting. |
 
 ## Completed Integrations
 
@@ -246,16 +248,18 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - SPR-413 Sales Orders Foundation adds persistent Sales Orders, Sales Order lines, `/sales/orders` routes, Quote-to-Order conversion, PDF export, activation-gated Command Center metadata and optional Inventory reservation/release flows while keeping Sales Orders inactive in Alpha.
 - SPR-413A Quote Product Identity & Sales Order QA preserves optional Product identity on Quote and Invoice lines, carries Product-backed lines into Sales Orders, keeps free-form lines non-inventory, adds Draft Sales Order edit and protects reservation retries from double-reserving already reserved quantities.
 - SPR-413B Inventory-Tracked Product QA Fix exposes the existing `Product.flags.trackInventory` contract in the Product create/edit dialog, defaults new Products to stockable, excludes services from manual Inventory movements and protects unsafe stockable-to-service transitions while keeping Alpha as the only default profile.
+- SPR-414 Delivery Notes & Physical Stock Issue adds persistent Delivery Notes, partial/full fulfillment, reservation consumption, transaction-safe Inventory `ISSUE` posting, Sales Order delivery status updates, activation-gated workspace/Command Center integration and non-financial PDF rendering while keeping Alpha as the only default profile.
+- SPR-414A Delivery Note Quantity Precision QA Fix removes native micro-stepping, supports comma/dot decimals, normalizes the same quantity across Delivery, Inventory and Sales Orders, and clarifies the projected draft remainder without a schema change.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passed during SPR-413B. |
-| `npm run build` | Yes | Passed during SPR-413B; the known PDF preview image warning remains. |
-| `npm run validate:runtime` | Yes for platform work | Passed during SPR-413B with 118/118 checks, including Product tracking classification and Alpha default restoration coverage. |
-| Prisma schema validation | Yes for persistence work | Passed during SPR-413B; no migration required because `Product.trackInventory` already existed. |
-| Prisma migration replay | Yes for persistence work | SPR-413 migration applied locally; fresh replay remains part of final validation when required. |
+| `npm run typecheck` | Yes | Passed during SPR-414A. |
+| `npm run build` | Yes | Passed during SPR-414A; the known PDF preview image warning remains. |
+| `npm run validate:runtime` | Yes for platform work | Passed during SPR-414A with 133/133 checks, including the exact `3 → Arrow Up → Arrow Down → 3` regression. |
+| Prisma schema validation | Yes for persistence work | Passed during SPR-414A; no schema change or new migration was required. |
+| Prisma migration replay | Yes for persistence work | Migration `20260715171406_delivery_notes_physical_issue` applied; fresh replay result is recorded in the final report. |
 
 ## Repository Health
 

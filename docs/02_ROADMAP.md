@@ -31,6 +31,8 @@ Track the planned evolution of HicoPilot from ERP foundation to commercial produ
 - Quote to Sales Order Quantity Conversion Fix: preserve Quote line quantities, Product snapshots, negotiated prices and VAT when generating Sales Orders.
 - Quote Lifecycle Actions & Conversion Readiness: allow draft Quotes to become sent, sent Quotes to become accepted/refused, and keep Sales Order conversion accepted-only with server validation.
 - Quote Conversion Sales Order Workspace Fix: ensure accepted Quote conversion creates Sales Orders in the Sales Orders workspace so the generated detail page opens correctly.
+- Delivery Notes & Physical Stock Issue: fulfill Sales Orders partially or fully through persistent Delivery Notes and transaction-safe Inventory `ISSUE` posting.
+- Delivery Note Quantity Precision QA Fix: keep Delivery quantities deterministic from locale-aware input through reservation consumption and physical issue.
 
 ## Milestones
 
@@ -78,6 +80,8 @@ Track the planned evolution of HicoPilot from ERP foundation to commercial produ
 - Persisted commercial document numeric fields must hydrate as plain numbers before entering dialogs, conversion adapters, PDFs or calculation wrappers.
 - Quote lifecycle status changes must use the Commercial Documents lifecycle and Sales Order conversion must remain blocked until the source Quote is accepted.
 - Quote-to-Sales-Order conversion must preserve document relationships through source IDs while assigning each document to its canonical workspace.
+- Delivery Notes are the only current Sales boundary for physical stock issue; Sales Orders reserve and Invoices remain financial.
+- Delivery, Reservation and Inventory quantity arithmetic must reuse the canonical six-decimal Inventory policy.
 
 ## Open Questions
 

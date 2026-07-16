@@ -6,6 +6,7 @@ import type { Contact } from "@/modules/crm/contacts";
 import type { Invoice } from "@/modules/sales/invoices/invoice.types";
 import { getInvoiceTotals } from "@/modules/sales/invoices/invoice.utils";
 import type { SalesOrder } from "@/modules/sales/orders";
+import type { DeliveryNote } from "@/modules/sales/delivery-notes";
 import { calculateSalesOrderTotals } from "@/modules/sales/orders";
 import type { Quote, QuoteItem } from "@/modules/sales/quotes/quote.types";
 import { getQuoteTotals } from "@/modules/sales/quotes/quote.utils";
@@ -105,6 +106,34 @@ export function buildSalesOrderPdfDocument(order: SalesOrder): PdfLayoutDocument
     paymentTerms: "Commande client confirmée selon les conditions commerciales convenues.",
     filename: sanitizeFileName(`Commande-client-${order.number}`),
     company: activeCompanyProfile
+  };
+}
+
+export function buildDeliveryNotePdfDocument(note: DeliveryNote, context: SalesPdfContext = {}): PdfLayoutDocument {
+  const quantities = note.lines.map((line) => line.quantityPosted || line.quantityToDeliver);
+  return {
+    title: "BON DE LIVRAISON",
+    number: note.number,
+    date: formatPdfDate(note.deliveryDate),
+    status: normalizeStatus(note.status),
+    internalReference: `${note.salesOrderNumber} · ${note.warehouseName}`,
+    recipient: buildRecipient(note.companyName, { ...context, companyName: note.companyName, contactName: note.contactName }),
+    lines: note.lines.map((line, index) => ({
+      reference: line.productSku ?? line.productId,
+      designation: line.description,
+      quantity: quantities[index] ?? 0,
+      unitPrice: 0,
+      vat: 0
+    })),
+    notes: note.notes,
+    paymentTerms: "Livraison physique issue de la commande client indiquée.",
+    filename: sanitizeFileName(`Bon-livraison-${note.number}`),
+    company: activeCompanyProfile,
+    deliverySummary: {
+      totalItems: note.lines.length,
+      totalDelivered: quantities.reduce((total, quantity) => total + quantity, 0)
+    },
+    hideFinancials: true
   };
 }
 

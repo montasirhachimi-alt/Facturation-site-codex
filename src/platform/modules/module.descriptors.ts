@@ -273,6 +273,26 @@ export const bosiacoModuleDescriptors = Object.freeze([
     order: 220
   },
   {
+    id: "sales.delivery-notes",
+    name: "Bons de livraison",
+    description: "Sorties physiques de stock issues des commandes clients, avec livraisons partielles et consommation des réservations.",
+    category: "sales",
+    iconKey: "Truck",
+    route: "/sales/delivery-notes",
+    status: "planned",
+    version: "0.1.0",
+    dependencies: ["sales.orders", "sales.products", "inventory.stock", "crm.companies", "platform.persistence"],
+    optionalDependencies: ["crm.contacts"],
+    features: ["create", "details", "pdf", "partialDelivery", "inventoryIssue", "reservationConsumption"],
+    navigation: { label: "Bons de livraison", href: "/sales/delivery-notes", iconKey: "Truck", group: "Ventes", order: 217, searchKeywords: ["livraisons", "bons de livraison", "delivery notes", "bl"] },
+    commandCenter: { navigationKeywords: ["livraisons", "bons de livraison", "delivery notes", "bl"], quickCreateKeys: ["quick-create.delivery-note"], recordSearchKeys: ["delivery-note"] },
+    dashboard: { dashboardSectionKey: "sales", widgetKeys: ["deliveries-to-prepare", "partial-deliveries", "deliveries-today", "orders-to-deliver"], priority: 34, hidden: true },
+    defaultEnabled: false,
+    alphaReady: false,
+    hidden: false,
+    order: 217
+  },
+  {
     id: "crm.opportunities",
     name: "Opportunités",
     description: "Pipeline commercial futur, masqué tant que la persistance n'est pas prête.",

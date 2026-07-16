@@ -1,5 +1,45 @@
 # HicoPilot Architecture Decision Records
 
+## ADR-037 — Delivery Quantities Reuse Canonical Inventory Precision
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-07-15 |
+
+### Decision
+
+Delivery Note quantity entry, persistence and posting reuse the canonical Inventory six-decimal quantity policy. Editable form quantities remain controlled locale-aware strings until explicit conversion; the server normalizes again before persistence and uses one normalized quantity for reservation consumption, Inventory `ISSUE` and Sales Order delivery updates.
+
+### Motivation
+
+Native number input stepping with `step="0.000001"` could place values such as `3.000003` in Delivery Note form state. Normalizing only after that state crossed module boundaries was too late to provide deterministic user feedback and trusted persistence.
+
+### Consequences
+
+Delivery Notes do not define a competing precision policy. Draft details show the projected remainder after the current BL. No Prisma migration is required, posted history remains immutable, and Alpha activation is unchanged.
+
+## ADR-036 — Delivery Notes Own Physical Customer Stock Issue
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-07-15 |
+
+### Decision
+
+Sales Orders own customer commitment and optional reservation. Delivery Notes own physical customer stock issue. Posting a Delivery Note transactionally consumes applicable reservation, creates Inventory `ISSUE` movements, updates delivered quantities and changes the Sales Order delivery status.
+
+Delivery Notes V1 include only Product-backed lines whose canonical Product has Inventory tracking enabled. Posted Delivery Notes are immutable and non-financial PDFs omit prices and totals.
+
+### Motivation
+
+Reservation must not reduce on-hand stock, and Invoices must remain financial documents. A dedicated posting document creates one auditable boundary between commitment and physical fulfillment while supporting partial deliveries safely.
+
+### Consequences
+
+`sales.delivery-notes` is active only in the controlled `sales-operations` profile and remains inactive in `alpha.crm-sales`. The repository performs posting in one serializable Prisma transaction and prevents double posting, over-delivery, cross-tenant access and simple Sales Order cancellation after delivery. Customer Return and reversal remain future workflows.
+
 ## ADR-035 — Quote Conversion Creates Sales Orders In The Sales Orders Workspace
 
 | Field | Value |

@@ -3919,6 +3919,140 @@ test("Current Alpha remains the only default Edition after Inventory-tracked Pro
   assert(salesOperationsEditionProfile.defaultForEnvironment === false, "sales-operations should remain disabled by default after QA restoration.");
 });
 
+test("Delivery Note draft preserves source identities and remaining quantities without stock mutation", () => {
+  const { DeliveryNoteService, DELIVERY_NOTES_WORKSPACE_ID, formatDeliveryNoteNumber, getRemainingToDeliver } = load("src/modules/sales/delivery-notes");
+  const service = new DeliveryNoteService({ now: () => "2026-07-15T12:00:00.000Z" });
+  const stockBefore = Object.freeze({ quantityOnHand: 20, quantityReserved: 8, quantityAvailable: 12 });
+  const deliveredBefore = 0;
+  const result = service.createDeliveryNote({
+    workspaceId: DELIVERY_NOTES_WORKSPACE_ID,
+    companyId: "crm-company-delivery",
+    companyName: "Atlas Medical",
+    salesOrderId: "sales-order-delivery",
+    salesOrderNumber: "SO-2026-000001",
+    warehouseId: "warehouse-delivery",
+    warehouseName: "Entrepôt principal",
+    deliveryDate: "2026-07-15T00:00:00.000Z",
+    lines: [{
+      id: "delivery-line-1",
+      salesOrderLineId: "sales-order-line-1",
+      productId: "product-delivery",
+      productSku: "PROD-A",
+      productName: "Product A",
+      description: "Product A",
+      unit: "piece",
+      quantityToDeliver: 3,
+      quantityPosted: 0
+    }]
+  });
+
+  assert(result.deliveryNote.status === "draft", "New Delivery Note should remain draft.");
+  assert(result.deliveryNote.number === formatDeliveryNoteNumber(1), "Delivery Note should use canonical BL numbering.");
+  assert(result.deliveryNote.salesOrderId === "sales-order-delivery", "Delivery Note should preserve Sales Order identity.");
+  assert(result.deliveryNote.lines[0].productId === "product-delivery", "Delivery Note should preserve Product identity.");
+  assert(result.deliveryNote.lines[0].quantityPosted === 0, "Draft creation should not post any quantity.");
+  assert(stockBefore.quantityOnHand === 20 && stockBefore.quantityReserved === 8 && stockBefore.quantityAvailable === 12, "Draft creation should not mutate stock state.");
+  assert(deliveredBefore === 0, "Draft creation should not mutate Sales Order delivered quantity.");
+  assert(getRemainingToDeliver({ quantityOrdered: 8, quantityDelivered: 3 }) === 5, "Remaining quantity should be ordered minus delivered.");
+});
+
+test("Delivery Note quantity input reuses canonical Inventory precision without stepping drift", () => {
+  const {
+    adjustInventoryQuantityInput,
+    normalizeInventoryQuantity,
+    parseInventoryQuantityInput
+  } = load("src/modules/inventory/inventory.utils.ts");
+  const {
+    getProjectedRemainingToDeliver,
+    isValidDeliveryNoteQuantity,
+    parseDeliveryNoteQuantity
+  } = load("src/modules/sales/delivery-notes/delivery-note.utils.ts");
+  const dialogSource = read("src/modules/sales/delivery-notes/ui/delivery-note-dialog.tsx");
+
+  const steppedUp = adjustInventoryQuantityInput("3", 1);
+  const steppedBackDown = adjustInventoryQuantityInput(steppedUp, -1);
+  assert(steppedUp === "4", "Delivery quantity Arrow Up should increment deterministically.");
+  assert(steppedBackDown === "3", "Delivery quantity 3 stepped up and down should return exactly to 3.");
+  assert(!steppedBackDown.includes("000003"), "Delivery stepping should never produce the 3.000003 regression.");
+  assert(parseInventoryQuantityInput("2,5") === 2.5, "Canonical quantity parsing should accept a French comma.");
+  assert(parseDeliveryNoteQuantity("2.5") === 2.5, "Delivery quantity parsing should accept a decimal point.");
+  assert(normalizeInventoryQuantity(3.0000000000000004) === 3, "Binary floating artifacts should normalize to canonical precision.");
+  assert(!isValidDeliveryNoteQuantity(0), "Zero Delivery quantity should be rejected.");
+  assert(!isValidDeliveryNoteQuantity(-1), "Negative Delivery quantity should be rejected.");
+  assert(!isValidDeliveryNoteQuantity(Number.NaN), "NaN Delivery quantity should be rejected.");
+  assert(!isValidDeliveryNoteQuantity(Number.POSITIVE_INFINITY), "Infinite Delivery quantity should be rejected.");
+  assert(getProjectedRemainingToDeliver({ quantityOrdered: 8, quantityDelivered: 0 }, 3) === 5, "Draft projected remainder should be 5 after a quantity of 3.");
+  assert(dialogSource.includes('type="text"') && dialogSource.includes('inputMode="decimal"'), "Delivery quantity should use a controlled decimal text input.");
+  assert(dialogSource.includes("adjustInventoryQuantityInput"), "Delivery Arrow handling should reuse the canonical Inventory adjustment helper.");
+  assert(!dialogSource.includes('step="0.000001"'), "Delivery quantity should not use fragile native micro-stepping.");
+});
+
+test("Delivery Note persistence normalizes one trusted quantity across posting subsystems", () => {
+  const source = read("src/server/persistence/delivery-note-repository.ts");
+  const detailsSource = read("src/modules/sales/delivery-notes/ui/delivery-note-details-workspace.tsx");
+
+  assert(source.includes("normalizeDeliveryNoteDraft(note)"), "Draft persistence should normalize quantities at the trusted server boundary.");
+  assert(source.includes("requirePositiveDeliveryQuantity(line.quantityToDeliver)"), "Posting should reject invalid persisted quantities after canonical parsing.");
+  assert(source.includes("Math.min(quantity, orderLine.quantityReserved)"), "Reservation consumption should use the normalized posting quantity.");
+  assert(source.includes("quantityDelivered: normalizeInventoryQuantity(orderLine.quantityDelivered + quantity)"), "Sales Order delivered quantity should use the same normalized posting quantity.");
+  assert(source.includes("quantityReserved: normalizeInventoryQuantity"), "Remaining Sales Order reservation should be normalized after consumption.");
+  assert(source.includes('type: "ISSUE"') && source.includes("quantity,"), "Inventory ISSUE should receive the normalized posting quantity.");
+  assert(detailsSource.includes("Reliquat après ce BL"), "Draft details should name the projected remainder clearly.");
+  assert(detailsSource.includes("getProjectedRemainingToDeliver"), "Draft projected remainder should subtract the current draft quantity.");
+});
+
+test("Delivery Note posting is transactionally guarded and consumes reservation through Inventory ISSUE", () => {
+  const source = read("src/server/persistence/delivery-note-repository.ts");
+  const inventorySource = read("src/server/persistence/inventory-repository.ts");
+  const salesOrderSource = read("src/server/persistence/crm-sales-repository.ts");
+
+  assert(source.includes('isolationLevel: "Serializable"'), "Delivery posting should use a serializable Prisma transaction.");
+  assert(source.includes('type: "ISSUE"'), "Delivery posting should create Inventory ISSUE movements.");
+  assert(source.includes('referenceType: "DELIVERY_NOTE"'), "Inventory ISSUE should reference the Delivery Note semantically.");
+  assert(source.includes("consumeInventoryReservationInTransaction"), "Delivery posting should consume existing reservation first.");
+  assert(inventorySource.includes("consumeInventoryReservationInTransaction"), "Inventory repository should own reservation consumption.");
+  assert(source.includes("quantityDelivered: normalizeInventoryQuantity(orderLine.quantityDelivered + quantity)"), "Posting should increment and normalize delivered quantity.");
+  assert(source.includes('status: allDelivered ? "delivered" : anyDelivered ? "partially_delivered"'), "Posting should update Sales Order delivery status.");
+  assert(source.includes("Ce bon de livraison est déjà posté."), "Duplicate posting should be rejected clearly.");
+  assert(source.includes("La quantité dépasse le reliquat à livrer."), "Over-delivery should be rejected.");
+  assert(source.includes("Stock disponible insuffisant") || inventorySource.includes("Stock disponible insuffisant"), "Insufficient stock should be rejected by Inventory.");
+  assert(salesOrderSource.includes("Cette commande contient déjà des quantités livrées et ne peut pas être annulée."), "Delivered Sales Orders should reject simple cancellation.");
+  assert(source.includes("tenantCompanyId: scope.companyId"), "Delivery Note persistence should remain tenant-scoped.");
+});
+
+test("Delivery Notes are hidden in Alpha and available only in Sales Operations", () => {
+  const { ModuleActivationEngine, bosiacoModuleRegistry, getCurrentAlphaActivation } = load("src/platform/modules");
+  const { salesOperationsEditionProfile, editionToActivationRequest } = load("src/platform/editions");
+  const { getActiveModuleNavigationItems } = load("src/platform/modules/module-navigation.ts");
+  const { isRouteAvailable } = load("src/platform/modules/module-route-availability.ts");
+  const { createNavigationCommandRegistry } = load("src/platform/search/command-registry.ts");
+  const engine = new ModuleActivationEngine(bosiacoModuleRegistry);
+  const alpha = getCurrentAlphaActivation();
+  const salesOperations = engine.resolve(editionToActivationRequest(salesOperationsEditionProfile));
+  const alphaHrefs = getActiveModuleNavigationItems(alpha).map((item) => item.href);
+  const operationsHrefs = getActiveModuleNavigationItems(salesOperations).map((item) => item.href);
+  const commandHrefs = createNavigationCommandRegistry(salesOperations).getAll().map((command) => command.href);
+
+  assert(!alpha.activeModuleIdSet.has("sales.delivery-notes"), "Alpha should keep Delivery Notes inactive.");
+  assert(!alphaHrefs.includes("/sales/delivery-notes"), "Alpha navigation should hide Delivery Notes.");
+  assert(!isRouteAvailable("/sales/delivery-notes", alpha), "Alpha route policy should block Delivery Notes.");
+  assert(salesOperations.errors.length === 0, "Sales Operations should resolve Delivery Note dependencies.");
+  assert(salesOperations.activeModuleIdSet.has("sales.delivery-notes"), "Sales Operations should activate Delivery Notes.");
+  assert(operationsHrefs.includes("/sales/delivery-notes"), "Sales Operations navigation should expose Delivery Notes.");
+  assert(commandHrefs.includes("/sales/delivery-notes"), "Command Center should expose Delivery Notes only when active.");
+});
+
+test("Delivery Note PDF remains non-financial", () => {
+  const source = read("src/modules/sales/documents/sales-document-pdf.utils.ts");
+  const previewSource = read("src/modules/sales/documents/sales-document-template.tsx");
+  const pdfSource = read("src/lib/pdf.ts");
+
+  assert(source.includes("buildDeliveryNotePdfDocument"), "Sales PDF adapter should support Delivery Notes.");
+  assert(source.includes("hideFinancials: true"), "Delivery Note PDF should explicitly hide financial information.");
+  assert(previewSource.includes("document.hideFinancials"), "PDF preview should hide price columns for Delivery Notes.");
+  assert(pdfSource.includes("document.hideFinancials"), "Downloaded and printed PDFs should hide financial totals for Delivery Notes.");
+});
+
 const failures = results.filter((result) => result.status === "fail");
 
 for (const result of results) {

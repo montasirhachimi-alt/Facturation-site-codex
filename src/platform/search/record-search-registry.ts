@@ -9,7 +9,8 @@ import {
   Receipt,
   ScrollText,
   WalletCards,
-  HandCoins
+  HandCoins,
+  Truck
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { CRM_COMPANIES_WORKSPACE_ID } from "@/modules/crm/companies/ui/companies.seed";
@@ -38,6 +39,7 @@ import { GOODS_RECEIPT_STATUS_LABELS, PROCUREMENT_WORKSPACE_ID, procurementLocal
 import { calculatePurchaseOrderTotals, formatProcurementMoney } from "@/modules/procurement";
 import type { ModuleActivationResult } from "@/platform/modules/module-activation.types";
 import type { UniversalSearchItem, UniversalSearchSection } from "./universal-search.types";
+import { DELIVERY_NOTES_WORKSPACE_ID, DELIVERY_NOTE_STATUS_LABELS, deliveryNoteService } from "@/modules/sales/delivery-notes";
 
 export type RecordSearchResult = Readonly<{
   id: string;
@@ -96,6 +98,9 @@ export function createRecordSearchRegistry(activation: ModuleActivationResult = 
   if (activation.activeModuleIdSet.has("sales.orders")) {
     registry.registerMany(buildSalesOrderRecords());
   }
+  if (activation.activeModuleIdSet.has("sales.delivery-notes")) {
+    registry.registerMany(buildDeliveryNoteRecords());
+  }
   if (activation.activeModuleIdSet.has("inventory.stock")) {
     registry.registerMany(buildWarehouseRecords());
   }
@@ -110,6 +115,18 @@ export function createRecordSearchRegistry(activation: ModuleActivationResult = 
   }
 
   return registry;
+}
+
+function buildDeliveryNoteRecords(): readonly RecordSearchResult[] {
+  return deliveryNoteService.listDeliveryNotes({ workspaceId: DELIVERY_NOTES_WORKSPACE_ID, includeArchived: false }).deliveryNotes.map((note) => ({
+    id: `record.delivery-note.${note.id}`,
+    title: note.number,
+    type: "Bon de livraison",
+    description: `${note.companyName} · ${note.salesOrderNumber} · ${DELIVERY_NOTE_STATUS_LABELS[note.status]}`,
+    href: `/sales/delivery-notes/${note.id}`,
+    icon: Truck,
+    keywords: [note.number, note.salesOrderNumber, note.companyName, note.contactName, note.warehouseName, note.status].filter(Boolean) as string[]
+  }));
 }
 
 function buildSalesOrderRecords(): readonly RecordSearchResult[] {

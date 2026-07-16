@@ -95,11 +95,11 @@ async function renderPremiumPdf(document: PdfLayoutDocument, mode: PdfOutputMode
   const pdfSettings = resolvePdfSettings();
   const logo = await loadLogo(company.logoUrl);
   const totals = calculateTotals(document);
-  const amountInWords = document.amountInWords || `${numberToFrench(Math.round(totals.ttc))} ${getCurrencyWords(totals.currency)} toutes taxes comprises.`;
+  const amountInWords = document.hideFinancials ? "" : document.amountInWords || `${numberToFrench(Math.round(totals.ttc))} ${getCurrencyWords(totals.currency)} toutes taxes comprises.`;
   let page = 1;
   let y = drawPageHeader(pdf, document, page, company, logo, pdfSettings);
 
-  y = drawProductsTableHeader(pdf, y);
+  y = drawProductsTableHeader(pdf, y, document.hideFinancials);
 
   document.lines.forEach((line, index) => {
     if (y > tableBottomY) {
@@ -107,9 +107,9 @@ async function renderPremiumPdf(document: PdfLayoutDocument, mode: PdfOutputMode
       pdf.addPage();
       page += 1;
       y = drawPageHeader(pdf, document, page, company, logo, pdfSettings);
-      y = drawProductsTableHeader(pdf, y);
+      y = drawProductsTableHeader(pdf, y, document.hideFinancials);
     }
-    y = drawProductRow(pdf, line, index, y, totals.currency);
+    y = drawProductRow(pdf, line, index, y, totals.currency, document.hideFinancials);
   });
 
   if (y > 176) {
@@ -512,15 +512,16 @@ function drawRecipientBlock(pdf: jsPDF, recipient: PdfParty) {
   pdf.text(lines.slice(0, 5), x + 4, y + 18);
 }
 
-function drawProductsTableHeader(pdf: jsPDF, y: number) {
+function drawProductsTableHeader(pdf: jsPDF, y: number, hideFinancials = false) {
   pdf.setFillColor(...colors.navy);
   pdf.roundedRect(margin, y, contentWidth, 9, 1.5, 1.5, "F");
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(7.5);
   pdf.setTextColor(...colors.white);
   pdf.text("Désignation", 17, y + 6);
-  pdf.text("Référence", 76, y + 6);
-  pdf.text("Qté", 105, y + 6, { align: "right" });
+  pdf.text("Référence", hideFinancials ? 142 : 76, y + 6);
+  pdf.text("Qté", hideFinancials ? 193 : 105, y + 6, { align: "right" });
+  if (hideFinancials) return y + 10;
   pdf.text("PU HT", 126, y + 6, { align: "right" });
   pdf.text("TVA", 145, y + 6, { align: "right" });
   pdf.text("Total HT", 169, y + 6, { align: "right" });
@@ -528,11 +529,11 @@ function drawProductsTableHeader(pdf: jsPDF, y: number) {
   return y + 10;
 }
 
-function drawProductRow(pdf: jsPDF, line: PdfLineItem, index: number, y: number, currency = "MAD") {
+function drawProductRow(pdf: jsPDF, line: PdfLineItem, index: number, y: number, currency = "MAD", hideFinancials = false) {
   const ht = line.quantity * line.unitPrice;
   const vat = ht * (line.vat / 100);
   const ttc = ht + vat;
-  const designationLines = pdf.splitTextToSize(line.designation, 55).slice(0, 2);
+  const designationLines = pdf.splitTextToSize(line.designation, hideFinancials ? 110 : 55).slice(0, 2);
   const rowHeight = designationLines.length > 1 ? 12 : 9;
 
   if (index % 2 === 0) {
@@ -545,9 +546,15 @@ function drawProductRow(pdf: jsPDF, line: PdfLineItem, index: number, y: number,
   pdf.setTextColor(...colors.ink);
   pdf.text(designationLines, 17, y + 5);
   pdf.setTextColor(...colors.muted);
-  pdf.text((line.reference || "-").slice(0, 16), 76, y + 5);
+  pdf.text((line.reference || "-").slice(0, 24), hideFinancials ? 142 : 76, y + 5);
   pdf.setTextColor(...colors.ink);
-  pdf.text(formatQty(line.quantity), 105, y + 5, { align: "right" });
+  pdf.text(formatQty(line.quantity), hideFinancials ? 193 : 105, y + 5, { align: "right" });
+  if (hideFinancials) {
+    pdf.setDrawColor(...colors.border);
+    pdf.setLineWidth(0.15);
+    pdf.line(margin, y + rowHeight - 1, pageWidth - margin, y + rowHeight - 1);
+    return y + rowHeight;
+  }
   pdf.text(formatMoney(line.unitPrice, currency), 126, y + 5, { align: "right" });
   pdf.text(`${formatQty(line.vat)}%`, 145, y + 5, { align: "right" });
   pdf.text(formatMoney(ht, currency), 169, y + 5, { align: "right" });
@@ -570,6 +577,24 @@ function drawBottomBlocks(
   pdfSettings: StoredPdfSettings
 ) {
   const y = Math.max(startY, 152);
+  if (document.hideFinancials) {
+    pdf.setFillColor(...colors.lightBlue);
+    pdf.roundedRect(margin, y, contentWidth, 36, 2, 2, "F");
+    pdf.setDrawColor(...colors.border);
+    pdf.roundedRect(margin, y, contentWidth, 36, 2, 2);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(8.5);
+    pdf.setTextColor(...colors.navy);
+    pdf.text("Réception de la livraison", margin + 4, y + 7);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(7.8);
+    pdf.setTextColor(...colors.ink);
+    if (document.deliverySummary) pdf.text(`Articles : ${document.deliverySummary.totalItems}   Quantité livrée : ${document.deliverySummary.totalDelivered}`, margin + 4, y + 14);
+    if (document.notes) pdf.text(document.notes, margin + 4, y + 21, { maxWidth: 105 });
+    pdf.text("Nom, cachet et signature du destinataire :", 126, y + 14);
+    pdf.line(126, y + 29, pageWidth - margin - 4, y + 29);
+    return;
+  }
   const leftW = 104;
   const totalsX = 126;
   const totalsW = 70;

@@ -54,9 +54,9 @@ export function matchesSalesOrderSearch(order: SalesOrder, query: string) {
 }
 
 export function getSalesOrderReservationStatus(lines: readonly SalesOrderLine[]) {
-  const reservable = lines.filter((line) => line.productId && line.quantityOrdered > 0);
+  const reservable = lines.filter((line) => line.productId && line.quantityOrdered - line.quantityDelivered > 0);
   if (reservable.length === 0) return "not_applicable" as const;
-  const ordered = reservable.reduce((total, line) => total + line.quantityOrdered, 0);
+  const ordered = reservable.reduce((total, line) => total + Math.max(0, line.quantityOrdered - line.quantityDelivered), 0);
   const reserved = reservable.reduce((total, line) => total + line.quantityReserved, 0);
   if (reserved <= 0) return "not_reserved" as const;
   if (reserved >= ordered) return "reserved" as const;

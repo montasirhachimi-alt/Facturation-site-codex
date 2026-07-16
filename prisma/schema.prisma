@@ -112,6 +112,7 @@ model Company {
   crmNotes                  CrmNote[]
   salesQuotes               SalesQuote[]
   salesOrders               SalesOrder[]
+  salesDeliveryNotes        SalesDeliveryNote[]
   salesInvoices             SalesInvoice[]
   salesPayments             SalesPayment[]
   procurementSuppliers      ProcurementSupplier[]
@@ -262,6 +263,7 @@ model Product {
   inventoryMovements            InventoryStockMovement[]
   salesQuoteLines               SalesQuoteLine[]
   salesOrderLines               SalesOrderLine[]
+  salesDeliveryNoteLines        SalesDeliveryNoteLine[]
   salesInvoiceLines             SalesInvoiceLine[]
   createdAt                     DateTime                       @default(now())
   updatedAt                     DateTime                       @updatedAt
@@ -590,20 +592,21 @@ model StockMovement {
 }
 
 model InventoryWarehouse {
-  id            String                    @id @default(cuid())
-  companyId     String
-  company       Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  code          String
-  name          String
-  description   String?
-  active        Boolean                   @default(true)
-  isDefault     Boolean                   @default(false)
-  balances      InventoryBalance[]
-  movementsFrom InventoryStockMovement[]  @relation("InventoryMovementFromWarehouse")
-  movementsTo   InventoryStockMovement[]  @relation("InventoryMovementToWarehouse")
-  goodsReceipts ProcurementGoodsReceipt[]
-  createdAt     DateTime                  @default(now())
-  updatedAt     DateTime                  @updatedAt
+  id                 String                    @id @default(cuid())
+  companyId          String
+  company            Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code               String
+  name               String
+  description        String?
+  active             Boolean                   @default(true)
+  isDefault          Boolean                   @default(false)
+  balances           InventoryBalance[]
+  movementsFrom      InventoryStockMovement[]  @relation("InventoryMovementFromWarehouse")
+  movementsTo        InventoryStockMovement[]  @relation("InventoryMovementToWarehouse")
+  goodsReceipts      ProcurementGoodsReceipt[]
+  salesDeliveryNotes SalesDeliveryNote[]
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -679,9 +682,9 @@ model Reminder {
 }
 
 model CrmCompany {
-  id                 String         @id
+  id                 String              @id
   tenantCompanyId    String
-  tenantCompany      Company        @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  tenantCompany      Company             @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
   workspaceId        String
   legalName          String
   displayName        String
@@ -707,10 +710,11 @@ model CrmCompany {
   crmNotes           CrmNote[]
   salesQuotes        SalesQuote[]
   salesOrders        SalesOrder[]
+  salesDeliveryNotes SalesDeliveryNote[]
   salesInvoices      SalesInvoice[]
   salesPayments      SalesPayment[]
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   @@index([tenantCompanyId, workspaceId])
   @@index([tenantCompanyId, status])
@@ -746,41 +750,42 @@ model CrmCustomer {
 }
 
 model CrmContact {
-  id                String         @id
-  tenantCompanyId   String
-  tenantCompany     Company        @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
-  workspaceId       String
-  crmCompanyId      String
-  crmCompany        CrmCompany     @relation(fields: [crmCompanyId], references: [id], onDelete: Cascade)
-  firstName         String
-  lastName          String
-  fullName          String
-  jobTitle          String?
-  department        String?
-  email             String?
-  mobilePhone       String?
-  officePhone       String?
-  preferredLanguage String?
-  timezone          String?
-  status            String
-  role              String?
-  isPrimaryContact  Boolean        @default(false)
-  isDecisionMaker   Boolean        @default(false)
-  linkedin          String?
-  notes             String?
-  tags              Json
-  ownerId           String?
-  createdBy         String
-  updatedBy         String?
-  salesQuotes       SalesQuote[]
-  salesOrders       SalesOrder[]
-  salesInvoices     SalesInvoice[]
-  salesPayments     SalesPayment[]
-  crmMeetings       CrmMeeting[]
-  crmTasks          CrmTask[]
-  crmNotes          CrmNote[]
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
+  id                 String              @id
+  tenantCompanyId    String
+  tenantCompany      Company             @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  workspaceId        String
+  crmCompanyId       String
+  crmCompany         CrmCompany          @relation(fields: [crmCompanyId], references: [id], onDelete: Cascade)
+  firstName          String
+  lastName           String
+  fullName           String
+  jobTitle           String?
+  department         String?
+  email              String?
+  mobilePhone        String?
+  officePhone        String?
+  preferredLanguage  String?
+  timezone           String?
+  status             String
+  role               String?
+  isPrimaryContact   Boolean             @default(false)
+  isDecisionMaker    Boolean             @default(false)
+  linkedin           String?
+  notes              String?
+  tags               Json
+  ownerId            String?
+  createdBy          String
+  updatedBy          String?
+  salesQuotes        SalesQuote[]
+  salesOrders        SalesOrder[]
+  salesDeliveryNotes SalesDeliveryNote[]
+  salesInvoices      SalesInvoice[]
+  salesPayments      SalesPayment[]
+  crmMeetings        CrmMeeting[]
+  crmTasks           CrmTask[]
+  crmNotes           CrmNote[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   @@index([tenantCompanyId, workspaceId])
   @@index([tenantCompanyId, crmCompanyId])
@@ -930,19 +935,19 @@ model SalesQuoteLine {
 }
 
 model SalesOrder {
-  id                   String           @id
+  id                   String              @id
   tenantCompanyId      String
-  tenantCompany        Company          @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  tenantCompany        Company             @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
   workspaceId          String
   number               String
   crmCompanyId         String
-  crmCompany           CrmCompany       @relation(fields: [crmCompanyId], references: [id], onDelete: Restrict)
+  crmCompany           CrmCompany          @relation(fields: [crmCompanyId], references: [id], onDelete: Restrict)
   companyName          String
   crmContactId         String?
-  crmContact           CrmContact?      @relation(fields: [crmContactId], references: [id], onDelete: SetNull)
+  crmContact           CrmContact?         @relation(fields: [crmContactId], references: [id], onDelete: SetNull)
   contactName          String?
   sourceQuoteId        String?
-  sourceQuote          SalesQuote?      @relation(fields: [sourceQuoteId], references: [id], onDelete: SetNull)
+  sourceQuote          SalesQuote?         @relation(fields: [sourceQuoteId], references: [id], onDelete: SetNull)
   sourceQuoteNumber    String?
   orderDate            DateTime
   expectedDeliveryDate DateTime?
@@ -952,13 +957,14 @@ model SalesOrder {
   customerReference    String?
   internalReference    String?
   notes                String?
-  discountRate         Float            @default(0)
+  discountRate         Float               @default(0)
   ownerId              String
   archivedAt           DateTime?
   lines                SalesOrderLine[]
-  createdAt            DateTime         @default(now())
-  updatedAt            DateTime         @updatedAt
-  crmCustomer          CrmCustomer?     @relation(fields: [crmCustomerId], references: [id])
+  deliveryNotes        SalesDeliveryNote[]
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  crmCustomer          CrmCustomer?        @relation(fields: [crmCustomerId], references: [id])
   crmCustomerId        String?
 
   @@unique([tenantCompanyId, number])
@@ -972,30 +978,91 @@ model SalesOrder {
 }
 
 model SalesOrderLine {
-  id                String     @id
+  id                String                  @id
   salesOrderId      String
-  salesOrder        SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  salesOrder        SalesOrder              @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
   productId         String?
-  product           Product?   @relation(fields: [productId], references: [id], onDelete: SetNull)
+  product           Product?                @relation(fields: [productId], references: [id], onDelete: SetNull)
   productSku        String?
   productName       String?
   description       String
   quantityOrdered   Float
-  quantityReserved  Float      @default(0)
-  quantityDelivered Float      @default(0)
+  quantityReserved  Float                   @default(0)
+  quantityDelivered Float                   @default(0)
   warehouseId       String?
   warehouseName     String?
   unit              String
   unitPrice         Float
-  discountRate      Float      @default(0)
-  taxRate           Float      @default(0)
+  discountRate      Float                   @default(0)
+  taxRate           Float                   @default(0)
   position          Int
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  deliveryNoteLines SalesDeliveryNoteLine[]
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
 
   @@index([salesOrderId])
   @@index([productId])
   @@index([warehouseId])
+}
+
+model SalesDeliveryNote {
+  id                String                  @id
+  tenantCompanyId   String
+  tenantCompany     Company                 @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  workspaceId       String
+  number            String
+  crmCompanyId      String
+  crmCompany        CrmCompany              @relation(fields: [crmCompanyId], references: [id], onDelete: Restrict)
+  companyName       String
+  crmContactId      String?
+  crmContact        CrmContact?             @relation(fields: [crmContactId], references: [id], onDelete: SetNull)
+  contactName       String?
+  salesOrderId      String
+  salesOrder        SalesOrder              @relation(fields: [salesOrderId], references: [id], onDelete: Restrict)
+  salesOrderNumber  String
+  warehouseId       String
+  warehouse         InventoryWarehouse      @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  warehouseName     String
+  deliveryDate      DateTime
+  status            String
+  notes             String?
+  customerReference String?
+  postedAt          DateTime?
+  postedBy          String?
+  archivedAt        DateTime?
+  lines             SalesDeliveryNoteLine[]
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  @@unique([tenantCompanyId, number])
+  @@index([tenantCompanyId, workspaceId])
+  @@index([tenantCompanyId, salesOrderId])
+  @@index([tenantCompanyId, crmCompanyId])
+  @@index([tenantCompanyId, warehouseId])
+  @@index([tenantCompanyId, status])
+}
+
+model SalesDeliveryNoteLine {
+  id                String            @id
+  deliveryNoteId    String
+  deliveryNote      SalesDeliveryNote @relation(fields: [deliveryNoteId], references: [id], onDelete: Cascade)
+  salesOrderLineId  String
+  salesOrderLine    SalesOrderLine    @relation(fields: [salesOrderLineId], references: [id], onDelete: Restrict)
+  productId         String
+  product           Product           @relation(fields: [productId], references: [id], onDelete: Restrict)
+  productSku        String?
+  productName       String?
+  description       String
+  unit              String
+  quantityToDeliver Decimal
+  quantityPosted    Decimal           @default(0)
+  position          Int
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([deliveryNoteId])
+  @@index([salesOrderLineId])
+  @@index([productId])
 }
 
 model SalesInvoice {

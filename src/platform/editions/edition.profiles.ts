@@ -165,7 +165,7 @@ export const salesOperationsEditionProfile = Object.freeze({
   defaultForEnvironment: false,
   commercial: false,
   order: 55,
-  enabledModuleIds: Object.freeze(["core.dashboard", "core.settings", "crm.overview", "crm.companies", "crm.contacts", "sales.quotes", "sales.invoices", "sales.payments", "sales.products", "inventory.stock", "sales.orders"]),
+  enabledModuleIds: Object.freeze(["core.dashboard", "core.settings", "crm.overview", "crm.companies", "crm.contacts", "sales.quotes", "sales.invoices", "sales.payments", "sales.products", "inventory.stock", "sales.orders", "sales.delivery-notes"]),
   disabledModuleIds: Object.freeze([]),
   tags: Object.freeze(["internal", "planned", "sales-operations"]),
   notes: Object.freeze(["Controlled QA profile only. It is not selectable in the Alpha runtime."]),

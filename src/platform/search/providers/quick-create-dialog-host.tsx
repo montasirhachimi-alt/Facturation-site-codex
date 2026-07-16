@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { persistCrmSalesRecord } from "@/platform/persistence";
+import { hydrateCrmSalesPersistence, hydrateDeliveryNotePersistence, persistCrmSalesRecord, persistDeliveryNoteDraft } from "@/platform/persistence";
 import { FormSection } from "@/ui/forms/form-field";
 import { SmartEntityPicker } from "@/ui/forms/smart-entity-picker";
 import type { CompanyId } from "@/modules/crm/companies";
@@ -29,6 +29,8 @@ import { DEFAULT_PROCUREMENT_CURRENCY, PROCUREMENT_USER_ID } from "@/modules/pro
 import { createEmptyPurchaseOrderLine } from "@/modules/procurement/procurement.utils";
 import { getCompanyPickerItems, subscribeToCrmPickerSources } from "@/ui/forms/entity-picker.crm-data";
 import type { QuickCreateActionId } from "../action-registry";
+import { DeliveryNoteDialog, createDeliveryNoteForm, parseDeliveryNoteFormLines, type DeliveryNoteFormState } from "@/modules/sales/delivery-notes/ui";
+import { DELIVERY_NOTES_WORKSPACE_ID, deliveryNoteService, notifyDeliveryNoteStoreUpdated } from "@/modules/sales/delivery-notes";
 
 const emptyCompanyForm: CompanyFormState = {
   legalName: "",
@@ -105,6 +107,10 @@ function createEmptySalesOrderForm(): SalesOrderFormState {
   };
 }
 
+function createEmptyDeliveryNoteForm(): DeliveryNoteFormState {
+  return { salesOrderId: "", warehouseId: "", deliveryDate: new Date().toISOString().slice(0, 10), notes: "", lines: [] };
+}
+
 type QuickCreateDialogHostProps = {
   activeAction: QuickCreateActionId | null;
   onClose: () => void;
@@ -118,6 +124,7 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
   const [purchaseOrderForm, setPurchaseOrderForm] = useState<PurchaseOrderFormState>(createEmptyPurchaseOrderForm);
   const [goodsReceiptForm, setGoodsReceiptForm] = useState<GoodsReceiptFormState>(createEmptyGoodsReceiptForm);
   const [salesOrderForm, setSalesOrderForm] = useState<SalesOrderFormState>(createEmptySalesOrderForm);
+  const [deliveryNoteForm, setDeliveryNoteForm] = useState<DeliveryNoteFormState>(createEmptyDeliveryNoteForm);
   const [contactCompanyId, setContactCompanyId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -134,11 +141,18 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
     setPurchaseOrderForm(createEmptyPurchaseOrderForm());
     setGoodsReceiptForm(createEmptyGoodsReceiptForm());
     setSalesOrderForm(createEmptySalesOrderForm());
+    setDeliveryNoteForm(createEmptyDeliveryNoteForm());
     setError(null);
     onClose();
   }, [onClose]);
 
   useEffect(() => subscribeToCrmPickerSources(() => setPickerVersion((value) => value + 1)), []);
+
+  useEffect(() => {
+    if (activeAction !== "quick-create.delivery-note") return;
+    void Promise.all([hydrateCrmSalesPersistence(), hydrateDeliveryNotePersistence(), hydrateInventoryPersistence(), hydrateProductCatalogPersistence()])
+      .then(() => setPickerVersion((value) => value + 1));
+  }, [activeAction]);
 
   useEffect(() => {
     if (!successMessage) return;
@@ -154,6 +168,7 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
     setPurchaseOrderForm(createEmptyPurchaseOrderForm());
     setGoodsReceiptForm(createEmptyGoodsReceiptForm());
     setSalesOrderForm(createEmptySalesOrderForm());
+    setDeliveryNoteForm(createEmptyDeliveryNoteForm());
     setError(null);
     setSuccessMessage(message);
     onClose();
@@ -374,6 +389,42 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
     return true;
   }
 
+  async function submitDeliveryNote() {
+    const order = salesOrderService.getOrder(deliveryNoteForm.salesOrderId as never, SALES_ORDERS_WORKSPACE_ID);
+    const warehouse = inventoryLocalService.getSnapshot().warehouses.find((item) => item.id === deliveryNoteForm.warehouseId && item.active);
+    if (!order) { setError("Sélectionnez une commande client éligible."); return false; }
+    if (!warehouse) { setError("Sélectionnez un entrepôt actif."); return false; }
+    const snapshot = deliveryNoteService.listDeliveryNotes({ workspaceId: DELIVERY_NOTES_WORKSPACE_ID, includeArchived: true }).deliveryNotes;
+    const result = deliveryNoteService.createDeliveryNote({
+      workspaceId: DELIVERY_NOTES_WORKSPACE_ID,
+      companyId: order.companyId,
+      companyName: order.companyName,
+      contactId: order.contactId,
+      contactName: order.contactName,
+      salesOrderId: order.id,
+      salesOrderNumber: order.number,
+      warehouseId: warehouse.id,
+      warehouseName: warehouse.name,
+      deliveryDate: new Date(deliveryNoteForm.deliveryDate).toISOString(),
+      notes: deliveryNoteForm.notes || undefined,
+      customerReference: order.customerReference,
+      lines: parseDeliveryNoteFormLines(deliveryNoteForm.lines)
+    });
+    if (!result.deliveryNote) { setError(result.error ?? "Impossible de créer le bon de livraison."); return false; }
+    try {
+      const persisted = await persistDeliveryNoteDraft(result.deliveryNote);
+      deliveryNoteService.upsertDeliveryNote(persisted);
+    } catch (saveError) {
+      deliveryNoteService.replaceDeliveryNotes(snapshot);
+      setError(saveError instanceof Error ? saveError.message : "Le bon de livraison n'a pas pu être enregistré.");
+      return false;
+    }
+    notifyDeliveryNoteStoreUpdated();
+    finishWithSuccess("Bon de livraison créé.");
+    router.push(`/sales/delivery-notes/${result.deliveryNote.id}`);
+    return true;
+  }
+
   const toast = successMessage ? (
     <p
       role="status"
@@ -535,6 +586,22 @@ export function QuickCreateDialogHost({ activeAction, onClose }: QuickCreateDial
         />
       </>
     );
+  }
+
+  if (activeAction === "quick-create.delivery-note") {
+    void pickerVersion;
+    const inventory = inventoryLocalService.getSnapshot();
+    const warehouses = inventory.warehouses.filter((warehouse) => warehouse.active);
+    const products = productLocalService.listProducts({ workspaceId: PRODUCTS_WORKSPACE_ID, status: "active" }).products;
+    const orders = salesOrderService.listOrders({ workspaceId: SALES_ORDERS_WORKSPACE_ID, includeArchived: false }).orders.filter((order) =>
+      ["confirmed", "partially_reserved", "reserved", "partially_delivered"].includes(order.status) && order.lines.some((line) => line.productId && line.quantityDelivered < line.quantityOrdered)
+    );
+    const changeOrder = (orderId: string) => {
+      const order = orders.find((item) => item.id === orderId);
+      const warehouse = warehouses.find((item) => item.id === deliveryNoteForm.warehouseId) ?? warehouses.find((item) => item.isDefault) ?? warehouses[0];
+      setDeliveryNoteForm(createDeliveryNoteForm(order, warehouse, products));
+    };
+    return <DeliveryNoteDialog error={error} form={deliveryNoteForm} inventory={inventory} onChange={setDeliveryNoteForm} onClose={closeAndReset} onOrderChange={changeOrder} onSubmit={submitDeliveryNote} open orders={orders} products={products} warehouses={warehouses} />;
   }
 
   return toast;

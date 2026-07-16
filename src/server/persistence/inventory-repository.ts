@@ -172,6 +172,23 @@ export async function postInventoryMovementInTransaction(tx: InventoryTx, scope:
   return mapDbMovement(movement);
 }
 
+export async function consumeInventoryReservationInTransaction(
+  tx: InventoryTx,
+  scope: PersistenceTenantScope,
+  productId: ProductId,
+  warehouseId: InventoryWarehouseId,
+  requestedQuantity: number
+) {
+  const quantity = normalizeInventoryQuantity(requestedQuantity);
+  if (!Number.isFinite(quantity) || quantity <= 0) return 0;
+  const balance = await getOrCreateBalance(tx, scope, productId, warehouseId);
+  const currentReserved = decimalToNumber(balance.quantityReserved);
+  const consumed = Math.min(currentReserved, quantity);
+  if (consumed <= 0) return 0;
+  await updateBalance(tx, balance.id, decimalToNumber(balance.quantityOnHand), roundQuantity(currentReserved - consumed));
+  return consumed;
+}
+
 async function incrementOnHand(tx: InventoryTx, scope: PersistenceTenantScope, productId: ProductId, warehouseId: InventoryWarehouseId, delta: number) {
   const balance = await getOrCreateBalance(tx, scope, productId, warehouseId);
   const quantityOnHand = roundQuantity(decimalToNumber(balance.quantityOnHand) + delta);

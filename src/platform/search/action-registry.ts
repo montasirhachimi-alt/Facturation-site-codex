@@ -6,7 +6,8 @@ import {
   HandCoins,
   PackageCheck,
   Plus,
-  Receipt
+  Receipt,
+  Truck
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { bosiacoModuleRegistry, getCurrentAlphaActivation } from "@/platform/modules";
@@ -21,7 +22,8 @@ export type QuickCreateActionId =
   | "quick-create.invoice"
   | "quick-create.supplier"
   | "quick-create.purchase-order"
-  | "quick-create.goods-receipt";
+  | "quick-create.goods-receipt"
+  | "quick-create.delivery-note";
 
 export type QuickCreateAction = Readonly<{
   id: QuickCreateActionId;
@@ -39,7 +41,8 @@ const quickCreateActionIds = new Set<string>([
   "quick-create.invoice",
   "quick-create.supplier",
   "quick-create.purchase-order",
-  "quick-create.goods-receipt"
+  "quick-create.goods-receipt",
+  "quick-create.delivery-note"
 ]);
 
 const seedQuickCreateActions: readonly QuickCreateAction[] = [
@@ -98,6 +101,13 @@ const seedQuickCreateActions: readonly QuickCreateAction[] = [
     description: "Réceptionner une commande fournisseur vers le stock.",
     icon: PackageCheck,
     keywords: ["new", "create", "nouveau", "réception", "reception", "goods receipt", "bon de réception", "stock"]
+  },
+  {
+    id: "quick-create.delivery-note",
+    title: "Nouveau bon de livraison",
+    description: "Préparer une sortie physique depuis une commande client.",
+    icon: Truck,
+    keywords: ["new", "create", "nouveau", "livraison", "bon de livraison", "delivery note", "bl", "expédition"]
   }
 ];
 

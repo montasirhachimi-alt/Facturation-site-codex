@@ -59,6 +59,7 @@ export type PdfLayoutDocument = {
     totalItems: number;
     totalDelivered: number;
   };
+  hideFinancials?: boolean;
 };
 
 export const pdfTheme = {

@@ -49,15 +49,15 @@ export function SalesDocumentTemplate({ document }: { document: PdfLayoutDocumen
 
       <section className="overflow-hidden rounded-xl border border-slate-200 dark:border-hicotech-dark-border">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[700px] text-sm">
+          <table className={`w-full text-sm ${document.hideFinancials ? "min-w-[480px]" : "min-w-[700px]"}`}>
             <thead className="bg-hicotech-navy text-left text-white">
               <tr>
                 <th className="px-4 py-3 font-bold">Référence</th>
                 <th className="px-4 py-3 font-bold">Désignation</th>
                 <th className="px-4 py-3 text-right font-bold">Qté</th>
-                <th className="px-4 py-3 text-right font-bold">PU</th>
-                <th className="px-4 py-3 text-right font-bold">TVA</th>
-                <th className="px-4 py-3 text-right font-bold">Total</th>
+                {!document.hideFinancials ? <th className="px-4 py-3 text-right font-bold">PU</th> : null}
+                {!document.hideFinancials ? <th className="px-4 py-3 text-right font-bold">TVA</th> : null}
+                {!document.hideFinancials ? <th className="px-4 py-3 text-right font-bold">Total</th> : null}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-hicotech-dark-border">
@@ -66,9 +66,9 @@ export function SalesDocumentTemplate({ document }: { document: PdfLayoutDocumen
                   <td className="px-4 py-3 text-slate-500 dark:text-slate-300">{line.reference}</td>
                   <td className="px-4 py-3 font-semibold">{line.designation}</td>
                   <td className="px-4 py-3 text-right text-slate-600 dark:text-slate-300">{formatQuantity(line.quantity)}</td>
-                  <td className="px-4 py-3 text-right text-slate-600 dark:text-slate-300">{formatPdfMoney(line.unitPrice, currency)}</td>
-                  <td className="px-4 py-3 text-right text-slate-600 dark:text-slate-300">{line.vat}%</td>
-                  <td className="px-4 py-3 text-right font-bold">{formatPdfMoney(line.quantity * line.unitPrice, currency)}</td>
+                  {!document.hideFinancials ? <td className="px-4 py-3 text-right text-slate-600 dark:text-slate-300">{formatPdfMoney(line.unitPrice, currency)}</td> : null}
+                  {!document.hideFinancials ? <td className="px-4 py-3 text-right text-slate-600 dark:text-slate-300">{line.vat}%</td> : null}
+                  {!document.hideFinancials ? <td className="px-4 py-3 text-right font-bold">{formatPdfMoney(line.quantity * line.unitPrice, currency)}</td> : null}
                 </tr>
               ))}
             </tbody>
@@ -76,13 +76,13 @@ export function SalesDocumentTemplate({ document }: { document: PdfLayoutDocumen
         </div>
       </section>
 
-      <footer className="grid gap-4 pt-5 md:grid-cols-[1fr_300px]">
+      <footer className={`grid gap-4 pt-5 ${document.hideFinancials ? "md:grid-cols-2" : "md:grid-cols-[1fr_300px]"}`}>
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600 dark:border-hicotech-dark-border dark:bg-slate-900/30 dark:text-slate-300">
-          <p className="font-bold text-hicotech-navy dark:text-white">Conditions</p>
+          <p className="font-bold text-hicotech-navy dark:text-white">{document.hideFinancials ? "Informations de livraison" : "Conditions"}</p>
           <p className="mt-1">{document.paymentTerms ?? "Conditions commerciales selon accord."}</p>
           {document.notes ? <p className="mt-3">{document.notes}</p> : null}
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
+        {document.hideFinancials ? <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm dark:border-hicotech-dark-border dark:bg-hicotech-dark-card"><p className="font-bold text-hicotech-navy dark:text-white">Réception</p><p className="mt-2 text-slate-500">Nom, cachet et signature du destinataire</p><div className="mt-8 border-t border-dashed border-slate-300 pt-2 text-xs text-slate-400">Date et signature</div></div> : <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
           <PreviewTotal label="Sous-total" value={formatPdfMoney(totals.subtotal, currency)} />
           <PreviewTotal label="TVA" value={formatPdfMoney(totals.tax, currency)} />
           <PreviewTotal label="Remise" value={formatPdfMoney(totals.discount, currency)} />
@@ -93,7 +93,7 @@ export function SalesDocumentTemplate({ document }: { document: PdfLayoutDocumen
               <PreviewTotal label="Reste à payer" value={formatPdfMoney(totals.remaining, currency)} strong />
             </>
           ) : null}
-        </div>
+        </div>}
       </footer>
     </article>
   );

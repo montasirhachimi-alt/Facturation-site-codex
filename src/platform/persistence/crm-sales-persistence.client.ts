@@ -50,7 +50,8 @@ export type CrmSalesPersistenceResource =
 
 let hydrationPromise: Promise<void> | null = null;
 
-export function hydrateCrmSalesPersistence() {
+export function hydrateCrmSalesPersistence(options: { force?: boolean } = {}) {
+  if (options.force) hydrationPromise = null;
   hydrationPromise ??= fetch("/api/persistence/crm-sales", {
     method: "GET",
     headers: { Accept: "application/json" }

@@ -20,6 +20,7 @@ export type InventoryMovementReferenceType =
   | "QUOTE"
   | "SALES_ORDER"
   | "DELIVERY"
+  | "DELIVERY_NOTE"
   | "ADJUSTMENT"
   | "PURCHASE_ORDER"
   | "GOODS_RECEIPT"

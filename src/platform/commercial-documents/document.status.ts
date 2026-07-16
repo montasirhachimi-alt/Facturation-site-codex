@@ -35,7 +35,10 @@ const STATUS_BY_TYPE: Readonly<Record<CommercialDocumentType, readonly Commercia
     { status: "partially_delivered", label: "Partiellement livree" },
     { status: "delivered", label: "Livree", terminal: true }
   ]) satisfies readonly CommercialDocumentStatusDefinition[],
-  "delivery-note": COMMON_STATUSES,
+  "delivery-note": Object.freeze([
+    ...COMMON_STATUSES,
+    { status: "posted", label: "Poste", terminal: true }
+  ]) satisfies readonly CommercialDocumentStatusDefinition[],
   "purchase-order": Object.freeze([
     ...COMMON_STATUSES,
     { status: "sent", label: "Envoyee" },

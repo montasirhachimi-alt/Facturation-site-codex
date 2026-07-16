@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ArrowLeft, CheckCircle2, Download, Eye, Pencil, Printer, XCircle } from "lucide-react";
-import { cancelPersistedSalesOrder, confirmPersistedSalesOrder, hydrateCrmSalesPersistence, hydrateInventoryPersistence, hydrateProductCatalogPersistence, persistCrmSalesRecord } from "@/platform/persistence";
+import { ArrowLeft, CheckCircle2, Download, Eye, PackageCheck, Pencil, Printer, XCircle } from "lucide-react";
+import { cancelPersistedSalesOrder, confirmPersistedSalesOrder, hydrateCrmSalesPersistence, hydrateDeliveryNotePersistence, hydrateInventoryPersistence, hydrateProductCatalogPersistence, persistCrmSalesRecord } from "@/platform/persistence";
 import { CRM_COMPANIES_WORKSPACE_ID } from "@/modules/crm/companies/ui/companies.seed";
 import { crmCompanyLocalService, subscribeToCrmCompanyStore } from "@/modules/crm/companies/ui/company-local-store";
 import { CRM_CONTACTS_WORKSPACE_ID } from "@/modules/crm/contacts/ui/contacts.seed";
@@ -17,8 +17,11 @@ import { notifySalesOrderStoreUpdated, salesOrderService, subscribeToSalesOrderS
 import type { SalesOrder, SalesOrderId, SalesOrderLine } from "../order.types";
 import { calculateSalesOrderTotals } from "../order.utils";
 import { SalesOrderDialog, type SalesOrderFormState } from "./order-dialog";
+import { useModuleEnabled } from "@/platform/modules/module-activation.context";
+import { DELIVERY_NOTES_WORKSPACE_ID, deliveryNoteService, getSalesOrderDeliveryProgress, subscribeToDeliveryNoteStore } from "@/modules/sales/delivery-notes";
 
 export function OrderDetailsWorkspace({ orderId }: { orderId: string }) {
+  const deliveryNotesEnabled = useModuleEnabled("sales.delivery-notes");
   const [, setVersion] = useState(0);
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -28,11 +31,12 @@ export function OrderDetailsWorkspace({ orderId }: { orderId: string }) {
   useEffect(() => {
     void hydrateCrmSalesPersistence();
     void hydrateInventoryPersistence();
+    if (deliveryNotesEnabled) void hydrateDeliveryNotePersistence();
     void hydrateProductCatalogPersistence();
     const refresh = () => setVersion((value) => value + 1);
-    const unsubscribers = [subscribeToSalesOrderStore(refresh), subscribeToInventoryStore(refresh), subscribeToCrmCompanyStore(refresh), subscribeToCrmContactStore(refresh), subscribeToProductStore(refresh)];
+    const unsubscribers = [subscribeToSalesOrderStore(refresh), subscribeToInventoryStore(refresh), subscribeToCrmCompanyStore(refresh), subscribeToCrmContactStore(refresh), subscribeToProductStore(refresh), subscribeToDeliveryNoteStore(refresh)];
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
-  }, []);
+  }, [deliveryNotesEnabled]);
 
   const order = salesOrderService.getOrder(orderId as SalesOrderId, SALES_ORDERS_WORKSPACE_ID);
   const companies = crmCompanyLocalService.listCompanies({ workspaceId: CRM_COMPANIES_WORKSPACE_ID, includeArchived: false }).companies;
@@ -51,8 +55,11 @@ export function OrderDetailsWorkspace({ orderId }: { orderId: string }) {
   const pdfDocument = buildSalesOrderPdfDocument(orderValue);
   const defaultWarehouse = warehouses.find((warehouse) => warehouse.isDefault) ?? warehouses[0];
   const canConfirm = orderValue.status === "draft" || orderValue.status === "confirmed";
-  const canCancel = orderValue.status !== "cancelled" && orderValue.status !== "archived";
+  const deliveryProgress = getSalesOrderDeliveryProgress(orderValue);
+  const linkedDeliveryNotes = deliveryNoteService.listDeliveryNotes({ workspaceId: DELIVERY_NOTES_WORKSPACE_ID, salesOrderId: orderValue.id, includeArchived: false }).deliveryNotes;
+  const canCancel = orderValue.status !== "cancelled" && orderValue.status !== "archived" && !deliveryProgress.quantityDelivered;
   const canEdit = orderValue.status === "draft";
+  const canCreateDelivery = deliveryNotesEnabled && ["confirmed", "partially_reserved", "reserved", "partially_delivered"].includes(orderValue.status) && deliveryProgress.quantityRemaining > 0;
 
   async function confirm(reserve: boolean) {
     setError(null);
@@ -135,6 +142,8 @@ export function OrderDetailsWorkspace({ orderId }: { orderId: string }) {
             {canEdit && <button onClick={openEdit} className={actionClassName}><Pencil size={15} /> Modifier</button>}
             {canConfirm && <button onClick={() => void confirm(false)} className={primaryClassName}><CheckCircle2 size={15} /> Confirmer</button>}
             {canConfirm && defaultWarehouse && <button onClick={() => void confirm(true)} className={primaryClassName}>Confirmer et réserver</button>}
+            {canCreateDelivery && <Link href={`/sales/delivery-notes?orderId=${orderValue.id}`} className={primaryClassName}><PackageCheck size={15} /> {deliveryProgress.partial ? "Livrer le reliquat" : "Créer un bon de livraison"}</Link>}
+            {deliveryNotesEnabled && deliveryProgress.complete && linkedDeliveryNotes.length > 0 ? <Link href={`/sales/delivery-notes?orderId=${orderValue.id}`} className={actionClassName}><PackageCheck size={15} /> Ouvrir les bons de livraison</Link> : null}
             {canCancel && <button onClick={() => void cancel()} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-sm font-bold text-red-600"><XCircle size={15} /> Annuler</button>}
           </div>
         </div>
