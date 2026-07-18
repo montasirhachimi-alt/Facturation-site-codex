@@ -19,6 +19,7 @@ export * from "./tables/entity-action-menu";
 export * from "./tables/entity-bulk-actions";
 export * from "./tables/entity-pagination";
 export * from "./tables/entity-table";
+export * from "./timeline";
 export * from "./toolbar/entity-search-bar";
 export * from "./toolbar/entity-toolbar";
 export * from "./toolbar/workspace-control-styles";

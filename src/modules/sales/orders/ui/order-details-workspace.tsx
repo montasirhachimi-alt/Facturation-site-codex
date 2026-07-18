@@ -17,6 +17,7 @@ import { notifySalesOrderStoreUpdated, salesOrderService, subscribeToSalesOrderS
 import type { SalesOrder, SalesOrderId, SalesOrderLine } from "../order.types";
 import { calculateSalesOrderTotals } from "../order.utils";
 import { SalesOrderDialog, type SalesOrderFormState } from "./order-dialog";
+import { SalesOrderBusinessTimeline } from "./sales-order-business-timeline";
 import { useModuleEnabled } from "@/platform/modules/module-activation.context";
 import { DELIVERY_NOTES_WORKSPACE_ID, deliveryNoteService, getSalesOrderDeliveryProgress, subscribeToDeliveryNoteStore } from "@/modules/sales/delivery-notes";
 
@@ -60,6 +61,11 @@ export function OrderDetailsWorkspace({ orderId }: { orderId: string }) {
   const canCancel = orderValue.status !== "cancelled" && orderValue.status !== "archived" && !deliveryProgress.quantityDelivered;
   const canEdit = orderValue.status === "draft";
   const canCreateDelivery = deliveryNotesEnabled && ["confirmed", "partially_reserved", "reserved", "partially_delivered"].includes(orderValue.status) && deliveryProgress.quantityRemaining > 0;
+  const timelineRefreshKey = [
+    orderValue.updatedAt,
+    linkedDeliveryNotes.map((note) => `${note.id}:${note.updatedAt}:${note.postedAt ?? ""}`).join("|"),
+    inventorySnapshot.movements.length
+  ].join("::");
 
   async function confirm(reserve: boolean) {
     setError(null);
@@ -183,6 +189,7 @@ export function OrderDetailsWorkspace({ orderId }: { orderId: string }) {
           </tbody>
         </table>
       </section>
+      <SalesOrderBusinessTimeline refreshKey={timelineRefreshKey} salesOrderId={orderValue.id} />
       {editForm && (
         <SalesOrderDialog
           companies={companies}

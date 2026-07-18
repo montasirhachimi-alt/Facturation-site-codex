@@ -8,9 +8,9 @@
 | Version | v0.9.0-alpha |
 | Current Milestone | Business Platform |
 | Current Phase | Business Platform |
-| Current Sprint | SPR-414A — Delivery Note Quantity Precision QA Fix |
-| Next Sprint | To be defined after authenticated Delivery Note QA |
-| Repository Health | Delivery Note quantities use deterministic six-decimal Inventory normalization from controlled input through posting; Alpha remains the sole default profile. Builds complete with the known existing PDF preview image warning. |
+| Current Sprint | SPR-420 — Unified Global Search Foundation |
+| Next Sprint | Module-owned CRM/Sales search providers backed by persisted records, then gradual Command Center migration to SearchService |
+| Repository Health | Delivery Note quantities use deterministic six-decimal Inventory normalization from controlled input through posting. SPR-419 hardens the read-only Sales Order Timeline UI, stale-result protection and accessibility while preserving TimelineService boundaries. SPR-420 adds a Runtime-first Unified Search foundation with provider registration, deterministic aggregation and SearchService facade compatibility. Sales Order browser QA remains blocked under default Alpha because Sales Orders are inactive and no runtime profile switch is wired. Builds complete with the known existing PDF preview image warning. |
 
 ## Completed Core Engines
 
@@ -61,6 +61,12 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | Quote to Sales Order Workspace Mapping | `src/modules/sales/orders/order.service.ts` | Implemented so accepted Quote conversion creates Sales Orders in `sales-orders-main` and persistence rejects malformed Sales Order workspace IDs. |
 | Delivery Notes & Physical Stock Issue | `src/modules/sales/delivery-notes/` | Implemented as persistent draft/post/archive documents that consume Sales Order reservations, post Inventory `ISSUE` movements and update delivered quantities atomically. |
 | Delivery Note Quantity Precision | `src/modules/sales/delivery-notes/` and `src/modules/inventory/inventory.utils.ts` | Delivery quantity inputs reuse the canonical controlled decimal policy and are normalized again at the server boundary before persistence and posting. |
+| Business Timeline Engine | `src/runtime/timeline/` and `src/services/timeline/` | Implemented as a generic provider registry and timeline service foundation for future entity journey reconstruction without business-specific providers. |
+| Sales Timeline Provider | `src/modules/sales/timeline/` | Implemented as the first Business Timeline provider, mapping existing Quotes, Sales Orders, Invoices and Payments into generic deterministic timeline events. |
+| Inventory & Delivery Timeline Provider | `src/modules/inventory/timeline/` | Implemented as a read-only logistics provider mapping reservations, Delivery Notes and Inventory `ISSUE` movements into generic deterministic timeline events. |
+| Business Timeline UI Integration | `src/modules/sales/orders/ui/sales-order-business-timeline.tsx` | Implemented as the first production Timeline placement, rendering Sales Order journeys through `TimelineService` and the shared domain-agnostic Timeline UI. |
+| Business Timeline UX Hardening | `src/ui/timeline/` and `src/modules/sales/orders/ui/sales-order-business-timeline.tsx` | Implemented semantic Timeline event lists, visible status labels, local retry, safer wrapping and explicit stale-response protection without changing providers or business workflows. |
+| Unified Global Search Foundation | `src/runtime/search/` and `src/services/search/` | Implemented as a Runtime-first provider registry, deterministic aggregation engine and SearchService facade for future Global Search, Command Center, HicoPilot, AI Agents and quick navigation consumers. |
 
 ## Completed Integrations
 
@@ -116,6 +122,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | Global Search Foundation introduces a premium topbar search trigger and a sectioned UI-only search dialog ready for future providers. | Completed |
 | CRM Experience 2.0 upgrades CRM home, companies, contacts, pipeline, contextual panels and shared CRM UI primitives for a more premium SaaS demo experience. | Completed |
 | Core Search React UI is separated into Platform Search. | Completed |
+| Unified Global Search Foundation adds a Runtime-first provider registry, failure-isolated aggregation engine and SearchService facade while preserving existing Header Search and Command Center behavior. | Completed |
 | Runtime validation checks Platform Events, event subscribers, Permission Enforcement, Permission Runtime Integration, Capability Registry, Manifest System, Module Loader, Plugin Runtime, CRM Module Foundation, CRM Customers Foundation, Preferences Runtime, Widget Runtime, Workspace Context and Platform Search separation. | Completed |
 | Platform Module Registry describes Alpha-ready, hidden and planned modules with lifecycle, dependency, navigation, Command Center and dashboard metadata without changing visible product behavior. | Completed |
 | Module Activation Engine resolves active modules from the Alpha profile, auto-enables required dependencies, reports conflicts and filters low-risk Sidebar and Command Center navigation metadata without changing visible behavior. | Completed |
@@ -250,14 +257,20 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - SPR-413B Inventory-Tracked Product QA Fix exposes the existing `Product.flags.trackInventory` contract in the Product create/edit dialog, defaults new Products to stockable, excludes services from manual Inventory movements and protects unsafe stockable-to-service transitions while keeping Alpha as the only default profile.
 - SPR-414 Delivery Notes & Physical Stock Issue adds persistent Delivery Notes, partial/full fulfillment, reservation consumption, transaction-safe Inventory `ISSUE` posting, Sales Order delivery status updates, activation-gated workspace/Command Center integration and non-financial PDF rendering while keeping Alpha as the only default profile.
 - SPR-414A Delivery Note Quantity Precision QA Fix removes native micro-stepping, supports comma/dot decimals, normalizes the same quantity across Delivery, Inventory and Sales Orders, and clarifies the projected draft remainder without a schema change.
+- SPR-415 Business Timeline Engine Foundation adds a Runtime-first generic timeline registry, provider contract, service facade and reusable UI renderer so future modules can reconstruct complete entity journeys without changing existing business behavior.
+- SPR-416 Sales Timeline Provider proves the timeline provider model with existing Sales records, resolving Quote, Sales Order, Invoice and Payment journeys through explicit relationships only.
+- SPR-417 Inventory & Delivery Timeline Provider connects logistics execution to Sales Order journeys through explicit reservation, Delivery Note and Inventory movement relationships without changing Delivery or Inventory behavior.
+- SPR-418 Business Timeline UI Integration places the first read-only production timeline on Sales Order details, loading `sales.order` journeys through `TimelineService` and preserving generic UI/provider boundaries.
+- SPR-419 Business Timeline UX Hardening improves the Sales Order Timeline presentation, accessibility, retry and stale-result protections, and documents the current authenticated QA blocker: `/sales/orders` is unavailable under default `alpha.crm-sales`.
+- SPR-420 Unified Global Search Foundation adds the canonical provider-based Search Runtime and SearchService facade for future Global Search, Command Center, HicoPilot, AI Agent and quick navigation consumers without adding UI or business search.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passed during SPR-414A. |
-| `npm run build` | Yes | Passed during SPR-414A; the known PDF preview image warning remains. |
-| `npm run validate:runtime` | Yes for platform work | Passed during SPR-414A with 133/133 checks, including the exact `3 → Arrow Up → Arrow Down → 3` regression. |
+| `npm run typecheck` | Yes | Passed during SPR-420. |
+| `npm run build` | Yes | Passed during SPR-420; the known PDF preview image warning remains. |
+| `npm run validate:runtime` | Yes for platform work | Passed during SPR-420 with 153/153 checks, including Unified Search provider registration, deterministic aggregation, failure isolation and import-safety coverage. |
 | Prisma schema validation | Yes for persistence work | Passed during SPR-414A; no schema change or new migration was required. |
 | Prisma migration replay | Yes for persistence work | Migration `20260715171406_delivery_notes_physical_issue` applied; fresh replay result is recorded in the final report. |
 

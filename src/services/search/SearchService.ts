@@ -2,6 +2,10 @@ import { getCommands } from "@/core/commands";
 import { getFavorites } from "@/core/favorites";
 import { getRecentItems } from "@/core/recent";
 import { searchCoreModules } from "@/core/search";
+import type { ModuleSearchResult } from "@/core/search";
+import { businessSearchRuntime } from "@/runtime/search";
+import type { SearchProvider, SearchQuery as RuntimeSearchQuery, SearchResult as RuntimeSearchResult } from "@/runtime/search";
+import { ensureDefaultSearchProvidersRegistered } from "./search-provider.bootstrap";
 
 export type GlobalSearchOptions = {
   query: string;
@@ -9,8 +13,38 @@ export type GlobalSearchOptions = {
 };
 
 export class SearchService {
-  search(query: string, limit?: number) {
+  constructor() {
+    ensureDefaultSearchProvidersRegistered();
+  }
+
+  search(query: string, limit?: number): ModuleSearchResult[];
+  search(query: RuntimeSearchQuery): Promise<readonly RuntimeSearchResult[]>;
+  search(query: string | RuntimeSearchQuery, limit?: number) {
+    if (typeof query !== "string") {
+      return businessSearchRuntime.search(query);
+    }
+
     return this.searchModules(query, limit);
+  }
+
+  registerProvider(provider: SearchProvider) {
+    return businessSearchRuntime.registerProvider(provider);
+  }
+
+  unregisterProvider(moduleId: SearchProvider["moduleId"]) {
+    return businessSearchRuntime.unregisterProvider(moduleId);
+  }
+
+  listProviders() {
+    return businessSearchRuntime.listProviders();
+  }
+
+  searchUnified(query: RuntimeSearchQuery) {
+    return businessSearchRuntime.search(query);
+  }
+
+  searchUnifiedWithDiagnostics(query: RuntimeSearchQuery) {
+    return businessSearchRuntime.searchWithDiagnostics(query);
   }
 
   searchModules(query: string, limit?: number) {

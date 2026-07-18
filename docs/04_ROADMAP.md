@@ -72,6 +72,12 @@ Foundation in progress:
 - SPR-413F fixes Quote-to-Sales-Order workspace mapping so converted Sales Orders are created in `sales-orders-main` and can open directly after conversion.
 - SPR-414 adds persistent Delivery Notes with partial/full fulfillment, reservation consumption and transaction-safe Inventory `ISSUE` posting while keeping the module outside Alpha.
 - SPR-414A removes native Delivery Note quantity stepping drift and applies canonical Inventory precision from controlled input through posting without a schema migration.
+- SPR-415 adds the Business Timeline Engine foundation so future CRM, Sales, Inventory, Accounting and HR providers can reconstruct an entity journey through a generic Runtime registry and service.
+- SPR-416 adds the first Timeline provider for Sales, reconstructing Quote, Sales Order, Invoice and Payment journeys from explicit existing relationships without changing Sales workflows.
+- SPR-417 adds the Inventory & Delivery Timeline Provider, connecting Sales Order logistics journeys to reservation movements, Delivery Notes and Inventory `ISSUE` movements through explicit references only.
+- SPR-418 integrates the Business Timeline into Sales Order details as the first production UI placement while keeping the page dependent on `TimelineService` rather than module-specific providers.
+- SPR-419 hardens the Sales Order Timeline UX with semantic rendering, visible statuses, local retry and stale-result protection, and identifies the remaining blocker for authenticated browser QA: `sales-operations` is not runtime-selectable while Alpha remains the default profile.
+- SPR-420 adds the Unified Global Search Foundation as a Runtime-first provider registry, aggregation engine and `SearchService` facade for future Global Search, Command Center, HicoPilot, AI Agents and quick navigation consumers.
 - Supplier Invoice, Purchasing approvals, customer returns/reversal, variants, barcode scanning, valuation and stock movement cancellation remain future work.
 
 ## Milestone 5 — Enterprise AI

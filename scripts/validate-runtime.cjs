@@ -34,6 +34,7 @@ require.extensions[".ts"] = function compileTypeScript(module, filename) {
 require.extensions[".tsx"] = require.extensions[".ts"];
 
 const results = [];
+const scheduledTests = [];
 
 function assert(condition, message) {
   if (!condition) {
@@ -42,12 +43,14 @@ function assert(condition, message) {
 }
 
 function test(name, run) {
-  try {
-    run();
-    results.push({ name, status: "pass" });
-  } catch (error) {
-    results.push({ name, status: "fail", error });
-  }
+  scheduledTests.push(async () => {
+    try {
+      await run();
+      results.push({ name, status: "pass" });
+    } catch (error) {
+      results.push({ name, status: "fail", error });
+    }
+  });
 }
 
 function read(relativePath) {
@@ -233,6 +236,148 @@ test("Platform Search separation keeps Core Search framework-agnostic", () => {
   const platformSource = platformFiles.map((file) => read(file)).join("\n");
   assert(platformSource.includes("react"), "Platform Search may own React-specific search code.");
   assert(platformSource.includes("@/core/search"), "Platform Search should consume Core Search.");
+});
+
+test("Business Search Runtime registers providers and prevents duplicates", () => {
+  const { BusinessSearchRuntime } = load("src/runtime/search");
+  const runtime = new BusinessSearchRuntime({ now: () => "2026-07-18T00:00:00.000Z" });
+
+  runtime.registerProvider({
+    moduleId: "crm.companies",
+    label: "Companies",
+    search: () => []
+  });
+
+  assert(runtime.listProviders().length === 1, "Search Runtime should expose registered providers.");
+  assert(runtime.listProviders()[0].registeredAt === "2026-07-18T00:00:00.000Z", "Search provider registration should be deterministic when now is injected.");
+
+  let duplicateRejected = false;
+  try {
+    runtime.registerProvider({
+      moduleId: "crm.companies",
+      search: () => []
+    });
+  } catch {
+    duplicateRejected = true;
+  }
+
+  assert(duplicateRejected, "Search Runtime should reject duplicate provider moduleIds.");
+});
+
+test("Business Search Runtime aggregates deterministically and filters modules", async () => {
+  const { BusinessSearchRuntime } = load("src/runtime/search");
+  const runtime = new BusinessSearchRuntime({ now: () => "2026-07-18T00:00:00.000Z" });
+
+  runtime.registerProvider({
+    moduleId: "sales.quotes",
+    search: () => [
+      {
+        id: "quote-b",
+        entityType: "sales.quote",
+        entityId: "quote-b",
+        moduleId: "sales.quotes",
+        title: "DEV-B",
+        score: 80
+      },
+      {
+        id: "quote-a",
+        entityType: "sales.quote",
+        entityId: "quote-a",
+        moduleId: "sales.quotes",
+        title: "DEV-A",
+        score: 90
+      }
+    ]
+  });
+
+  runtime.registerProvider({
+    moduleId: "crm.companies",
+    search: () => [
+      {
+        id: "company-a",
+        entityType: "crm.company",
+        entityId: "company-a",
+        moduleId: "crm.companies",
+        title: "Atlas Medical",
+        score: 90
+      }
+    ]
+  });
+
+  const allResults = await runtime.search({ text: "a" });
+  assert(allResults.map((result) => result.id).join(",") === "company-a,quote-a,quote-b", "Search results should be sorted deterministically by score, module, type, title and id.");
+
+  const filteredResults = await runtime.search({ text: "a", modules: ["sales.quotes"] });
+  assert(filteredResults.length === 2, "Search Runtime should only invoke or return requested modules.");
+  assert(filteredResults.every((result) => result.moduleId === "sales.quotes"), "Module filter should keep only matching module results.");
+
+  const limitedResults = await runtime.search({ text: "a", limit: 1 });
+  assert(limitedResults.length === 1 && limitedResults[0].id === "company-a", "Search Runtime should apply deterministic limits after sorting.");
+});
+
+test("Business Search Runtime isolates failing providers", async () => {
+  const { BusinessSearchRuntime } = load("src/runtime/search");
+  const runtime = new BusinessSearchRuntime();
+
+  runtime.registerProvider({
+    moduleId: "inventory.stock",
+    search: () => {
+      throw new Error("Inventory unavailable");
+    }
+  });
+
+  runtime.registerProvider({
+    moduleId: "sales.invoices",
+    search: () => [
+      {
+        id: "invoice-a",
+        entityType: "sales.invoice",
+        entityId: "invoice-a",
+        moduleId: "sales.invoices",
+        title: "FACT-A",
+        score: 75
+      }
+    ]
+  });
+
+  const result = await runtime.searchWithDiagnostics({ text: "fact" });
+
+  assert(result.results.length === 1 && result.results[0].id === "invoice-a", "One failing provider should not prevent healthy provider results.");
+  assert(result.failures.length === 1 && result.failures[0].moduleId === "inventory.stock", "Search Runtime should report isolated provider failures for diagnostics.");
+});
+
+test("SearchService exposes the Unified Search facade without breaking legacy module search", async () => {
+  const { SearchService } = load("src/services/search");
+  const service = new SearchService();
+  const legacyResults = service.search("dashboard", 3);
+  const unifiedResults = await service.search({ text: "atlas", limit: 5 });
+  const providers = service.listProviders().map((provider) => provider.moduleId);
+
+  assert(Array.isArray(legacyResults), "String SearchService.search calls should preserve legacy synchronous module search.");
+  assert(Array.isArray(unifiedResults), "Object SearchService.search calls should use the Unified Search Runtime.");
+  const expectedProviderIds = ["crm.overview", "crm.companies", "crm.contacts", "crm.meetings", "crm.tasks", "crm.notes", "sales.quotes", "sales.invoices", "sales.payments"];
+
+  assert(expectedProviderIds.every((providerId) => providers.includes(providerId)), "SearchService should bootstrap initial Alpha CRM/Sales module-owned search providers.");
+});
+
+test("Unified Search preserves Runtime-first import boundaries", () => {
+  const runtimeSource = listFiles("src/runtime/search").map((file) => read(file)).join("\n");
+  const serviceSource = read("src/services/search/SearchService.ts");
+  const bootstrapSource = read("src/services/search/search-provider.bootstrap.ts");
+  const uiSource = listFiles("src/ui").map((file) => read(file)).join("\n");
+  const platformSearchSource = listFiles("src/platform/search").map((file) => read(file)).join("\n");
+  const crmProviderSource = read("src/modules/crm/search/crm-search.provider.ts");
+  const salesProviderSource = read("src/modules/sales/search/sales-search.provider.ts");
+
+  assert(!runtimeSource.includes("react") && !runtimeSource.includes("next/") && !runtimeSource.includes("@/modules/"), "Generic Search Runtime should not import React, Next UI or business modules.");
+  assert(!runtimeSource.includes("@prisma/client") && !runtimeSource.includes("@/server/"), "Generic Search Runtime should not import Prisma or server repositories.");
+  assert(serviceSource.includes("@/runtime/search"), "SearchService should be the public application service facade over the Search Runtime.");
+  assert(bootstrapSource.includes("@/modules/crm/search") && bootstrapSource.includes("@/modules/sales/search"), "Default Search providers should be registered through the service bootstrap.");
+  assert(bootstrapSource.includes("crmSearchProviders") && bootstrapSource.includes("salesSearchProviders"), "Default Search provider bootstrap should register the Alpha CRM/Sales provider lists.");
+  assert(!bootstrapSource.includes("useEffect") && !bootstrapSource.includes("react"), "Search provider registration should not happen through React rendering.");
+  assert(crmProviderSource.includes("@/runtime/search") && salesProviderSource.includes("@/runtime/search"), "Module search providers should depend only on the generic Search provider contract.");
+  assert(!uiSource.includes("@/runtime/search"), "Shared UI should not call the Search Runtime directly.");
+  assert(!platformSearchSource.includes("@/modules/crm/search") && !platformSearchSource.includes("@/modules/sales/search"), "Platform Search UI should not import module-owned providers directly.");
 });
 
 test("Platform Module Registry describes Alpha-ready modules without changing activation", () => {
@@ -4053,20 +4198,603 @@ test("Delivery Note PDF remains non-financial", () => {
   assert(pdfSource.includes("document.hideFinancials"), "Downloaded and printed PDFs should hide financial totals for Delivery Notes.");
 });
 
-const failures = results.filter((result) => result.status === "fail");
+test("Business Timeline Registry registers providers deterministically", () => {
+  const { TimelineRegistry } = load("src/runtime/timeline");
+  const registry = new TimelineRegistry(() => "2026-07-16T08:00:00.000Z");
+  const provider = {
+    id: "test.timeline-provider",
+    label: "Test Timeline Provider",
+    supports: () => true,
+    getEvents: () => []
+  };
+  const registration = registry.register(provider);
+  let duplicateRejected = false;
 
-for (const result of results) {
-  if (result.status === "pass") {
-    console.log(`✓ ${result.name}`);
-  } else {
-    console.error(`✗ ${result.name}`);
-    console.error(result.error instanceof Error ? result.error.message : result.error);
+  try {
+    registry.register(provider);
+  } catch {
+    duplicateRejected = true;
   }
+
+  assert(registration.id === "test.timeline-provider", "Timeline provider registration should expose the provider id.");
+  assert(registration.registeredAt === "2026-07-16T08:00:00.000Z", "Timeline provider registration should be deterministic when a clock is supplied.");
+  assert(registry.list().length === 1, "Timeline registry should list registered providers.");
+  assert(registry.find("test.timeline-provider") === provider, "Timeline registry should find registered providers.");
+  assert(duplicateRejected, "Timeline registry should reject duplicate provider ids.");
+  assert(registry.unregister("test.timeline-provider"), "Timeline registry should unregister existing providers.");
+  assert(registry.list().length === 0, "Timeline registry should be empty after unregister.");
+});
+
+test("Business Timeline utilities filter, deduplicate and sort generic events", () => {
+  const { normalizeTimelineEvents } = load("src/runtime/timeline");
+  const query = Object.freeze({ entityType: "quote", entityId: "quote-1", limit: 3 });
+  const events = normalizeTimelineEvents([
+    {
+      id: "event-older",
+      entityType: "quote",
+      entityId: "quote-1",
+      eventType: "quote.created",
+      title: "Created",
+      date: "2026-07-15T10:00:00.000Z"
+    },
+    {
+      id: "event-newer",
+      entityType: "quote",
+      entityId: "quote-1",
+      eventType: "quote.accepted",
+      title: "Accepted",
+      date: "2026-07-16T10:00:00.000Z",
+      metadata: { status: "accepted" }
+    },
+    {
+      id: "event-other-entity",
+      entityType: "quote",
+      entityId: "quote-2",
+      eventType: "quote.created",
+      title: "Other",
+      date: "2026-07-17T10:00:00.000Z"
+    },
+    {
+      id: "event-newer",
+      entityType: "quote",
+      entityId: "quote-1",
+      eventType: "quote.accepted",
+      title: "Accepted duplicate",
+      date: "2026-07-16T10:00:00.000Z"
+    }
+  ], query);
+
+  assert(events.length === 2, "Timeline normalization should filter unrelated entities and deduplicate by event id.");
+  assert(events[0].id === "event-newer", "Timeline normalization should sort newest events first.");
+  assert(Object.isFrozen(events), "Timeline normalization should return an immutable event list.");
+  assert(Object.isFrozen(events[0]), "Timeline normalization should freeze returned events.");
+});
+
+test("Business Timeline foundation stays Runtime-first and business-module agnostic", () => {
+  const runtimeFiles = listFiles("src/runtime/timeline");
+  const serviceSource = read("src/services/timeline/TimelineService.ts");
+  const uiSource = listFiles("src/ui/timeline").map((file) => read(file)).join("\n");
+  const forbiddenRuntimePatterns = [
+    /@\/modules\/crm/,
+    /@\/modules\/sales/,
+    /@\/modules\/inventory/,
+    /@\/server/,
+    /@prisma\/client/,
+    /from ["']react["']/,
+    /from ["']next\//
+  ];
+
+  for (const file of runtimeFiles) {
+    const source = read(file);
+    for (const pattern of forbiddenRuntimePatterns) {
+      assert(!pattern.test(source), `Business Timeline Runtime should not import forbidden dependency in ${file}.`);
+    }
+  }
+
+  assert(serviceSource.includes("@/runtime/timeline"), "TimelineService should orchestrate the Runtime timeline package.");
+  assert(serviceSource.includes("ensureDefaultTimelineProvidersRegistered"), "TimelineService should use an explicit provider bootstrap boundary.");
+  assert(uiSource.includes("@/runtime/timeline"), "Timeline UI should render generic TimelineEvent records.");
+  assert(!uiSource.includes("@/modules/sales") && !uiSource.includes("@/modules/crm") && !uiSource.includes("@/modules/inventory"), "Timeline UI should remain domain-agnostic.");
+});
+
+test("Sales Timeline Provider implements the generic TimelineProvider boundary", () => {
+  const { SalesTimelineProvider, SALES_TIMELINE_PROVIDER_ID } = load("src/modules/sales/timeline");
+  const provider = new SalesTimelineProvider();
+  const source = read("src/modules/sales/timeline/sales-timeline.provider.ts");
+  const mapperSource = read("src/modules/sales/timeline/sales-timeline.mapper.ts");
+
+  assert(provider.id === SALES_TIMELINE_PROVIDER_ID, "Sales Timeline Provider should expose a stable provider id.");
+  assert(provider.supports({ entityType: "sales.quote", entityId: "quote-dev-2026-041" }), "Sales Timeline Provider should support sales.quote queries.");
+  assert(provider.supports({ entityType: "SalesOrder", entityId: "sales-order-test" }), "Sales Timeline Provider should support documented SalesOrder aliases.");
+  assert(!provider.supports({ entityType: "crm.company", entityId: "company-test" }), "Sales Timeline Provider should not claim non-Sales entities.");
+  assert(source.includes("implements TimelineProvider"), "Sales Timeline Provider should implement the generic TimelineProvider contract.");
+  assert(!source.includes("from \"react\"") && !mapperSource.includes("from \"react\""), "Sales Timeline Provider and mapper should not depend on React.");
+  assert(!source.includes("@prisma/client") && !mapperSource.includes("@prisma/client"), "Sales Timeline Provider should not depend on Prisma.");
+});
+
+test("Sales Timeline Provider returns deterministic Quote journey events from canonical Sales relationships", () => {
+  const { SalesTimelineProvider } = load("src/modules/sales/timeline");
+  const { normalizeTimelineEvents } = load("src/runtime/timeline");
+  const provider = new SalesTimelineProvider();
+  const query = { entityType: "sales.quote", entityId: "quote-dev-2026-041" };
+  const first = normalizeTimelineEvents(provider.getEvents(query), query);
+  const second = normalizeTimelineEvents(provider.getEvents(query), query);
+  const eventTypes = first.map((event) => event.eventType);
+  const eventIds = first.map((event) => event.id);
+
+  assert(eventTypes.includes("sales.quote.created"), "Known Quote should include its creation event.");
+  assert(eventTypes.includes("sales.invoice.created"), "Known Quote should include explicitly linked Invoice events.");
+  assert(eventTypes.includes("sales.payment.recorded"), "Known Quote should include payments linked through the Invoice.");
+  assert(!first.some((event) => event.metadata?.sourceEntityId === "invoice-fac-2026-001"), "Quote journey should not include unrelated Invoices from other Quotes.");
+  assert(first[0].date >= first[first.length - 1].date, "Timeline engine normalization should return Sales events newest-first.");
+  assert(JSON.stringify(eventIds) === JSON.stringify(second.map((event) => event.id)), "Repeated Sales timeline calls should keep stable event IDs.");
+  assert(JSON.stringify(first.map((event) => event.eventType)) === JSON.stringify(second.map((event) => event.eventType)), "Repeated Sales timeline calls should be equivalent.");
+  assert(Object.isFrozen(first), "Timeline normalization should return immutable Sales timeline results.");
+  assert(first.every((event) => event.entityType === "sales.quote" && event.entityId === "quote-dev-2026-041"), "Related Sales events should attach to the requested timeline entity.");
+});
+
+test("Sales Timeline Provider resolves Sales Order, Invoice, Payment and unknown entities safely", () => {
+  const { SalesTimelineProvider } = load("src/modules/sales/timeline");
+  const { SalesOrderService } = load("src/modules/sales/orders/order.service.ts");
+  const provider = new SalesTimelineProvider({
+    getQuote: () => undefined,
+    listQuotes: () => [],
+    getOrder: (id) => id === "sales-order-linked" ? {
+      id: "sales-order-linked",
+      workspaceId: "sales-orders-main",
+      number: "SO-2026-001",
+      companyId: "company-test",
+      companyName: "Atlas Test",
+      sourceQuoteId: "quote-missing",
+      sourceQuoteNumber: "DEV-MISSING",
+      orderDate: "2026-07-10T10:00:00.000Z",
+      currency: "MAD",
+      status: "confirmed",
+      reservationStatus: "not_reserved",
+      lines: [],
+      discountRate: 0,
+      ownerId: "user-test",
+      createdAt: "2026-07-10T10:00:00.000Z",
+      updatedAt: "2026-07-10T11:00:00.000Z"
+    } : undefined,
+    listOrders: () => [],
+    getInvoice: (id) => id === "invoice-test" ? {
+      id: "invoice-test",
+      workspaceId: "workspace-hicopilot",
+      number: "FAC-TEST",
+      customerName: "Atlas Test",
+      companyId: "company-test",
+      status: "issued",
+      issueDate: "2026-07-11T09:00:00.000Z",
+      dueDate: "2026-08-11T09:00:00.000Z",
+      currency: "MAD",
+      items: [],
+      discountRate: 0,
+      ownerId: "user-test",
+      paidAmount: 0,
+      createdAt: "2026-07-11T09:00:00.000Z",
+      updatedAt: "2026-07-11T09:00:00.000Z"
+    } : undefined,
+    listInvoices: () => [],
+    getPayment: (id) => id === "payment-test" ? {
+      id: "payment-test",
+      workspaceId: "workspace-hicopilot",
+      number: "REG-TEST",
+      invoiceId: "invoice-test",
+      invoiceNumber: "FAC-TEST",
+      customerName: "Atlas Test",
+      companyId: "company-test",
+      status: "recorded",
+      method: "cash",
+      amount: 100,
+      currency: "MAD",
+      receivedAt: "2026-07-12T12:00:00.000Z",
+      ownerId: "user-test",
+      createdAt: "2026-07-12T12:00:00.000Z",
+      updatedAt: "2026-07-12T12:00:00.000Z"
+    } : undefined,
+    listPayments: () => []
+  });
+  const orderEvents = provider.getEvents({ entityType: "sales.order", entityId: "sales-order-linked" });
+  const invoiceEvents = provider.getEvents({ entityType: "sales.invoice", entityId: "invoice-test" });
+  const paymentEvents = provider.getEvents({ entityType: "sales.payment", entityId: "payment-test" });
+  const missingEvents = provider.getEvents({ entityType: "sales.quote", entityId: "missing-quote" });
+  const before = new SalesOrderService().listOrders({ workspaceId: "sales-orders-main", includeArchived: true }).total;
+  provider.getEvents({ entityType: "sales.order", entityId: "sales-order-linked" });
+  const after = new SalesOrderService().listOrders({ workspaceId: "sales-orders-main", includeArchived: true }).total;
+
+  assert(orderEvents.some((event) => event.eventType === "sales.order.created"), "Known Sales Order should return deterministic order events.");
+  assert(invoiceEvents.some((event) => event.eventType === "sales.invoice.issued"), "Known Invoice should return deterministic issue events.");
+  assert(paymentEvents.some((event) => event.eventType === "sales.payment.recorded"), "Known Payment should return deterministic payment events.");
+  assert(missingEvents.length === 0, "Unknown Sales entity IDs should return an empty timeline.");
+  assert(before === after, "Sales Timeline Provider should not mutate Sales services or records.");
+});
+
+test("Sales Timeline Provider registration is explicit, unique and outside React rendering", () => {
+  const { TimelineService } = load("src/services/timeline");
+  const { businessTimelineRuntime } = load("src/runtime/timeline");
+  const bootstrapSource = read("src/services/timeline/timeline-provider.bootstrap.ts");
+
+  new TimelineService();
+  new TimelineService();
+
+  const salesProviders = businessTimelineRuntime.listProviders().filter((provider) => provider.id === "sales.timeline");
+
+  assert(salesProviders.length === 1, "Default TimelineService bootstrap should register Sales provider exactly once.");
+  assert(bootstrapSource.includes("ensureDefaultTimelineProvidersRegistered"), "Default timeline providers should register through an explicit bootstrap helper.");
+  assert(!bootstrapSource.includes("useEffect") && !bootstrapSource.includes("react"), "Sales Timeline Provider registration should not happen through React rendering.");
+});
+
+test("Sales Timeline Provider preserves Runtime and UI dependency direction", () => {
+  const runtimeSource = listFiles("src/runtime/timeline").map((file) => read(file)).join("\n");
+  const uiSource = listFiles("src/ui/timeline").map((file) => read(file)).join("\n");
+  const providerSource = listFiles("src/modules/sales/timeline").map((file) => read(file)).join("\n");
+
+  assert(!runtimeSource.includes("@/modules/sales"), "Generic Timeline Runtime should not import Sales provider code.");
+  assert(!uiSource.includes("@/modules/sales"), "Generic Timeline UI should not import Sales provider code.");
+  assert(providerSource.includes("@/runtime/timeline"), "Sales provider should depend on the generic Timeline contract.");
+  assert(!providerSource.includes("@/server/"), "Sales provider should not call server repositories directly.");
+  assert(!providerSource.includes("@prisma/client"), "Sales provider should not import Prisma.");
+});
+
+test("Inventory Timeline Provider implements the generic TimelineProvider boundary", () => {
+  const { InventoryTimelineProvider, INVENTORY_TIMELINE_PROVIDER_ID } = load("src/modules/inventory/timeline");
+  const provider = new InventoryTimelineProvider();
+  const source = read("src/modules/inventory/timeline/inventory-timeline.provider.ts");
+  const mapperSource = read("src/modules/inventory/timeline/inventory-timeline.mapper.ts");
+
+  assert(provider.id === INVENTORY_TIMELINE_PROVIDER_ID, "Inventory Timeline Provider should expose a stable provider id.");
+  assert(provider.supports({ entityType: "sales.order", entityId: "sales-order-test" }), "Inventory Timeline Provider should support Sales Order logistics queries.");
+  assert(provider.supports({ entityType: "delivery.note", entityId: "delivery-note-test" }), "Inventory Timeline Provider should support Delivery Note queries.");
+  assert(provider.supports({ entityType: "inventory.movement", entityId: "movement-test" }), "Inventory Timeline Provider should support Inventory Movement queries.");
+  assert(provider.supports({ entityType: "inventory.reservation", entityId: "reservation-test" }), "Inventory Timeline Provider should support Inventory Reservation queries.");
+  assert(!provider.supports({ entityType: "sales.quote", entityId: "quote-test" }), "Inventory Timeline Provider should not claim Quote ownership.");
+  assert(source.includes("implements TimelineProvider"), "Inventory Timeline Provider should implement the generic TimelineProvider contract.");
+  assert(!source.includes("from \"react\"") && !mapperSource.includes("from \"react\""), "Inventory Timeline Provider and mapper should not depend on React.");
+  assert(!source.includes("@prisma/client") && !mapperSource.includes("@prisma/client"), "Inventory Timeline Provider should not depend on Prisma.");
+});
+
+test("Inventory Timeline Provider reconstructs reservation, partial delivery, final delivery and ISSUE events", () => {
+  const {
+    InventoryTimelineProvider,
+    createInventoryTimelineDataSourceFromRecords
+  } = load("src/modules/inventory/timeline");
+  const { normalizeTimelineEvents } = load("src/runtime/timeline");
+  const order = {
+    id: "sales-order-timeline-1",
+    workspaceId: "sales-orders-main",
+    number: "SO-TL-001",
+    companyId: "company-timeline",
+    companyName: "Atlas Timeline",
+    orderDate: "2026-07-15T08:00:00.000Z",
+    currency: "MAD",
+    status: "delivered",
+    reservationStatus: "not_reserved",
+    lines: [{
+      id: "sales-order-line-timeline-1",
+      productId: "product-timeline-1",
+      productSku: "PT-1",
+      productName: "Timeline Product",
+      description: "Timeline Product",
+      quantityOrdered: 8,
+      quantityReserved: 0,
+      quantityDelivered: 8,
+      warehouseId: "warehouse-timeline",
+      warehouseName: "Entrepôt Timeline",
+      unit: "piece",
+      unitPrice: 10,
+      discountRate: 0,
+      taxRate: 20
+    }],
+    discountRate: 0,
+    ownerId: "user-timeline",
+    createdAt: "2026-07-15T08:00:00.000Z",
+    updatedAt: "2026-07-15T12:00:00.000Z"
+  };
+  const deliveryNotes = [
+    {
+      id: "delivery-note-timeline-3",
+      workspaceId: "sales-delivery-notes-main",
+      number: "BL-TL-003",
+      companyId: "company-timeline",
+      companyName: "Atlas Timeline",
+      salesOrderId: "sales-order-timeline-1",
+      salesOrderNumber: "SO-TL-001",
+      warehouseId: "warehouse-timeline",
+      warehouseName: "Entrepôt Timeline",
+      deliveryDate: "2026-07-15T10:00:00.000Z",
+      status: "posted",
+      postedAt: "2026-07-15T10:05:00.000Z",
+      postedBy: "user-timeline",
+      lines: [{
+        id: "delivery-note-line-timeline-3",
+        salesOrderLineId: "sales-order-line-timeline-1",
+        productId: "product-timeline-1",
+        productSku: "PT-1",
+        productName: "Timeline Product",
+        description: "Timeline Product",
+        unit: "piece",
+        quantityToDeliver: 3,
+        quantityPosted: 3
+      }],
+      createdAt: "2026-07-15T09:50:00.000Z",
+      updatedAt: "2026-07-15T10:05:00.000Z"
+    },
+    {
+      id: "delivery-note-timeline-5",
+      workspaceId: "sales-delivery-notes-main",
+      number: "BL-TL-005",
+      companyId: "company-timeline",
+      companyName: "Atlas Timeline",
+      salesOrderId: "sales-order-timeline-1",
+      salesOrderNumber: "SO-TL-001",
+      warehouseId: "warehouse-timeline",
+      warehouseName: "Entrepôt Timeline",
+      deliveryDate: "2026-07-15T11:00:00.000Z",
+      status: "posted",
+      postedAt: "2026-07-15T11:05:00.000Z",
+      postedBy: "user-timeline",
+      lines: [{
+        id: "delivery-note-line-timeline-5",
+        salesOrderLineId: "sales-order-line-timeline-1",
+        productId: "product-timeline-1",
+        productSku: "PT-1",
+        productName: "Timeline Product",
+        description: "Timeline Product",
+        unit: "piece",
+        quantityToDeliver: 5,
+        quantityPosted: 5
+      }],
+      createdAt: "2026-07-15T10:50:00.000Z",
+      updatedAt: "2026-07-15T11:05:00.000Z"
+    }
+  ];
+  const movements = [
+    {
+      id: "movement-reserve-timeline-8",
+      companyId: "company-timeline",
+      productId: "product-timeline-1",
+      toWarehouseId: "warehouse-timeline",
+      type: "RESERVATION",
+      status: "POSTED",
+      quantity: 8,
+      reference: "SO-TL-001",
+      referenceType: "SALES_ORDER",
+      referenceId: "sales-order-timeline-1",
+      postedAt: "2026-07-15T09:00:00.000Z",
+      createdAt: "2026-07-15T09:00:00.000Z",
+      updatedAt: "2026-07-15T09:00:00.000Z"
+    },
+    {
+      id: "movement-issue-timeline-3",
+      companyId: "company-timeline",
+      productId: "product-timeline-1",
+      fromWarehouseId: "warehouse-timeline",
+      type: "ISSUE",
+      status: "POSTED",
+      quantity: 3,
+      reference: "BL-TL-003 · SO-TL-001",
+      referenceType: "DELIVERY_NOTE",
+      referenceId: "delivery-note-timeline-3",
+      postedAt: "2026-07-15T10:05:00.000Z",
+      createdAt: "2026-07-15T10:05:00.000Z",
+      updatedAt: "2026-07-15T10:05:00.000Z"
+    },
+    {
+      id: "movement-issue-timeline-5",
+      companyId: "company-timeline",
+      productId: "product-timeline-1",
+      fromWarehouseId: "warehouse-timeline",
+      type: "ISSUE",
+      status: "POSTED",
+      quantity: 5,
+      reference: "BL-TL-005 · SO-TL-001",
+      referenceType: "DELIVERY_NOTE",
+      referenceId: "delivery-note-timeline-5",
+      postedAt: "2026-07-15T11:05:00.000Z",
+      createdAt: "2026-07-15T11:05:00.000Z",
+      updatedAt: "2026-07-15T11:05:00.000Z"
+    },
+    {
+      id: "movement-unrelated",
+      companyId: "company-timeline",
+      productId: "product-timeline-1",
+      fromWarehouseId: "warehouse-timeline",
+      type: "ISSUE",
+      status: "POSTED",
+      quantity: 99,
+      reference: "Unrelated",
+      referenceType: "DELIVERY_NOTE",
+      referenceId: "delivery-note-unrelated",
+      postedAt: "2026-07-15T12:00:00.000Z",
+      createdAt: "2026-07-15T12:00:00.000Z",
+      updatedAt: "2026-07-15T12:00:00.000Z"
+    }
+  ];
+  const provider = new InventoryTimelineProvider(createInventoryTimelineDataSourceFromRecords({
+    salesOrders: [order],
+    deliveryNotes,
+    movements
+  }));
+  const query = { entityType: "sales.order", entityId: "sales-order-timeline-1" };
+  const first = normalizeTimelineEvents(provider.getEvents(query), query);
+  const second = normalizeTimelineEvents(provider.getEvents(query), query);
+  const eventTypes = first.map((event) => event.eventType);
+
+  assert(eventTypes.includes("inventory.reservation.created"), "Sales Order logistics timeline should include the reservation event.");
+  assert(eventTypes.filter((eventType) => eventType === "delivery.note.posted").length === 2, "Each posted Delivery Note should create its own posted event.");
+  assert(eventTypes.includes("delivery.note.partially_delivered"), "First partial Delivery Note should create a partial delivery event.");
+  assert(eventTypes.includes("sales.order.fully_delivered"), "Final Delivery Note should create a full delivery event when order is delivered.");
+  assert(eventTypes.filter((eventType) => eventType === "inventory.issue.posted").length === 2, "Each physical ISSUE movement should create one ISSUE event.");
+  assert(!first.some((event) => event.metadata?.movementId === "movement-unrelated"), "Unrelated Inventory movements should not appear.");
+  assert(JSON.stringify(first.map((event) => event.id)) === JSON.stringify(second.map((event) => event.id)), "Inventory timeline event ids should be stable.");
+  assert(first[0].date >= first[first.length - 1].date, "Inventory logistics events should sort newest-first through Timeline normalization.");
+  assert(Object.isFrozen(first), "Inventory timeline normalized result should be immutable.");
+  assert(provider.getEvents({ entityType: "sales.order", entityId: "missing-order" }).length === 0, "Unknown Sales Order logistics timeline should be empty.");
+});
+
+test("Inventory Timeline Provider resolves Delivery Note and movement roots through explicit references only", () => {
+  const {
+    InventoryTimelineProvider,
+    createInventoryTimelineDataSourceFromRecords
+  } = load("src/modules/inventory/timeline");
+  const note = {
+    id: "delivery-note-root",
+    workspaceId: "sales-delivery-notes-main",
+    number: "BL-ROOT",
+    companyId: "company-root",
+    companyName: "Atlas Root",
+    salesOrderId: "sales-order-root",
+    salesOrderNumber: "SO-ROOT",
+    warehouseId: "warehouse-root",
+    warehouseName: "Entrepôt Root",
+    deliveryDate: "2026-07-16T10:00:00.000Z",
+    status: "posted",
+    postedAt: "2026-07-16T10:30:00.000Z",
+    postedBy: "user-root",
+    lines: [{
+      id: "delivery-note-line-root",
+      salesOrderLineId: "sales-order-line-root",
+      productId: "product-root",
+      description: "Root Product",
+      unit: "piece",
+      quantityToDeliver: 2,
+      quantityPosted: 2
+    }],
+    createdAt: "2026-07-16T10:00:00.000Z",
+    updatedAt: "2026-07-16T10:30:00.000Z"
+  };
+  const issue = {
+    id: "movement-root-issue",
+    companyId: "company-root",
+    productId: "product-root",
+    fromWarehouseId: "warehouse-root",
+    type: "ISSUE",
+    status: "POSTED",
+    quantity: 2,
+    reference: "BL-ROOT",
+    referenceType: "DELIVERY_NOTE",
+    referenceId: "delivery-note-root",
+    postedAt: "2026-07-16T10:30:00.000Z",
+    createdAt: "2026-07-16T10:30:00.000Z",
+    updatedAt: "2026-07-16T10:30:00.000Z"
+  };
+  const sameProductUnrelatedIssue = {
+    ...issue,
+    id: "movement-root-unrelated",
+    referenceId: "delivery-note-other",
+    quantity: 2
+  };
+  const provider = new InventoryTimelineProvider(createInventoryTimelineDataSourceFromRecords({
+    deliveryNotes: [note],
+    movements: [issue, sameProductUnrelatedIssue]
+  }));
+  const noteEvents = provider.getEvents({ entityType: "delivery.note", entityId: "delivery-note-root" });
+  const movementEvents = provider.getEvents({ entityType: "inventory.movement", entityId: "movement-root-issue" });
+
+  assert(noteEvents.some((event) => event.eventType === "delivery.note.posted"), "Delivery Note root should include its posted event.");
+  assert(noteEvents.some((event) => event.eventType === "inventory.issue.posted"), "Delivery Note root should include explicitly linked ISSUE movement.");
+  assert(!noteEvents.some((event) => event.metadata?.movementId === "movement-root-unrelated"), "Provider should not infer movement relationships from product or quantity.");
+  assert(movementEvents.some((event) => event.eventType === "inventory.issue.posted"), "Inventory Movement root should include its ISSUE event.");
+  assert(provider.getEvents({ entityType: "inventory.movement", entityId: "missing-movement" }).length === 0, "Unknown movement roots should return no events.");
+});
+
+test("Inventory Timeline Provider registration is explicit, unique and preserves Sales provider behavior", () => {
+  const { TimelineService } = load("src/services/timeline");
+  const { businessTimelineRuntime } = load("src/runtime/timeline");
+  const bootstrapSource = read("src/services/timeline/timeline-provider.bootstrap.ts");
+
+  new TimelineService();
+  new TimelineService();
+
+  const providerIds = businessTimelineRuntime.listProviders().map((provider) => provider.id);
+  const salesCount = providerIds.filter((providerId) => providerId === "sales.timeline").length;
+  const inventoryCount = providerIds.filter((providerId) => providerId === "inventory.timeline").length;
+
+  assert(salesCount === 1, "Sales Timeline Provider should remain registered exactly once.");
+  assert(inventoryCount === 1, "Inventory Timeline Provider should register exactly once.");
+  assert(bootstrapSource.includes("new InventoryTimelineProvider()"), "Inventory provider should register through the existing timeline bootstrap.");
+  assert(!bootstrapSource.includes("useEffect") && !bootstrapSource.includes("react"), "Inventory provider registration should not happen through React rendering.");
+});
+
+test("Inventory Timeline Provider preserves Runtime and logistics dependency boundaries", () => {
+  const runtimeSource = listFiles("src/runtime/timeline").map((file) => read(file)).join("\n");
+  const uiSource = listFiles("src/ui/timeline").map((file) => read(file)).join("\n");
+  const providerSource = listFiles("src/modules/inventory/timeline").map((file) => read(file)).join("\n");
+  const salesProviderSource = listFiles("src/modules/sales/timeline").map((file) => read(file)).join("\n");
+
+  assert(!runtimeSource.includes("@/modules/inventory") && !runtimeSource.includes("@/modules/sales/delivery-notes"), "Generic Timeline Runtime should not import Inventory or Delivery modules.");
+  assert(!uiSource.includes("@/modules/inventory") && !uiSource.includes("@/modules/sales/delivery-notes"), "Generic Timeline UI should not import Inventory or Delivery modules.");
+  assert(!salesProviderSource.includes("@/modules/inventory/timeline"), "Sales Timeline Provider should not import the Inventory provider.");
+  assert(providerSource.includes("@/runtime/timeline"), "Inventory provider should depend on the generic Timeline contract.");
+  assert(!providerSource.includes("postDeliveryNote") && !providerSource.includes("postInventoryMovement") && !providerSource.includes("consumeInventoryReservation"), "Inventory timeline files should not duplicate posting or reservation consumption logic.");
+  assert(!providerSource.includes("@/server/") && !providerSource.includes("@prisma/client"), "Inventory provider should not import server repositories or Prisma.");
+  assert(!providerSource.includes("parseDeliveryNoteQuantity") && !providerSource.includes("normalizeInventoryQuantity"), "Inventory timeline files should not duplicate quantity normalization policy.");
+});
+
+test("Sales Order details integrates Business Timeline through TimelineService only", () => {
+  const timelineSource = read("src/modules/sales/orders/ui/sales-order-business-timeline.tsx");
+  const detailsSource = read("src/modules/sales/orders/ui/order-details-workspace.tsx");
+
+  assert(timelineSource.includes('import { TimelineService } from "@/services/timeline"'), "Sales Order Timeline UI should use the TimelineService facade.");
+  assert(timelineSource.includes("new TimelineService()"), "Sales Order Timeline UI should instantiate the service facade, not providers.");
+  assert(timelineSource.includes('entityType: "sales.order"'), "Sales Order Timeline UI should query the canonical sales.order timeline entity.");
+  assert(timelineSource.includes("entityId: salesOrderId"), "Sales Order Timeline UI should query by the current Sales Order id.");
+  assert(timelineSource.includes("<BusinessTimeline"), "Sales Order Timeline UI should render the shared generic BusinessTimeline component.");
+  assert(timelineSource.includes("Impossible de charger l'historique"), "Sales Order Timeline UI should expose a clear French error state.");
+  assert(timelineSource.includes('emptyMessage="Aucune activité disponible pour cette commande."'), "Sales Order Timeline UI should expose a clear empty state.");
+  assert(!timelineSource.includes("SalesTimelineProvider"), "Sales Order Timeline UI should not import the Sales provider directly.");
+  assert(!timelineSource.includes("InventoryTimelineProvider"), "Sales Order Timeline UI should not import the Inventory provider directly.");
+  assert(!timelineSource.includes("deliveryNoteService") && !timelineSource.includes("inventoryLocalService") && !timelineSource.includes("salesOrderService"), "Sales Order Timeline UI should not reconstruct events from module stores.");
+  assert(timelineSource.includes("requestIdRef") && timelineSource.includes("requestId !== requestIdRef.current"), "Sales Order Timeline UI should reject late responses for stale Sales Order requests.");
+  assert(timelineSource.includes("setEvents([])"), "Sales Order Timeline UI should clear stale events while loading a new Sales Order timeline.");
+  assert(timelineSource.includes("Réessayer") && timelineSource.includes("retryToken"), "Sales Order Timeline UI should provide a local retry without global refresh machinery.");
+  assert(!timelineSource.includes("setInterval") && !timelineSource.includes("WebSocket") && !timelineSource.includes("EventSource"), "Sales Order Timeline UI should not add polling, WebSockets or server push.");
+  assert(detailsSource.includes("<SalesOrderBusinessTimeline"), "Sales Order details should render the Business Timeline integration.");
+  assert(detailsSource.includes("timelineRefreshKey"), "Sales Order details should provide a stable refresh key for timeline updates.");
+});
+
+test("Timeline shared UI remains domain agnostic and link-safe after Sales Order integration", () => {
+  const uiSource = listFiles("src/ui/timeline").map((file) => read(file)).join("\n");
+  const eventSource = read("src/ui/timeline/TimelineEvent.tsx");
+  const cardSource = read("src/ui/timeline/TimelineCard.tsx");
+  const integrationSource = read("src/modules/sales/orders/ui/sales-order-business-timeline.tsx");
+
+  assert(!uiSource.includes("@/modules/sales") && !uiSource.includes("@/modules/inventory") && !uiSource.includes("@/modules/crm"), "Shared Timeline UI should remain business-module agnostic.");
+  assert(eventSource.includes('import Link from "next/link"'), "Timeline events should use Next Link for internal navigation.");
+  assert(eventSource.includes("<Link"), "Timeline event links should render through the SPA navigation component.");
+  assert(cardSource.includes("<ol") && eventSource.includes("<li"), "Timeline events should render as a semantic chronological list.");
+  assert(eventSource.includes("getTimelineStatus") && eventSource.includes("Validé") && eventSource.includes("Attention"), "Timeline status should be visible text, not color-only dots.");
+  assert(eventSource.includes("break-words"), "Timeline event titles and descriptions should wrap safely.");
+  assert(!uiSource.includes("event.metadata") && !uiSource.includes("providerId"), "Shared Timeline UI should not render raw metadata or provider ids.");
+  assert(!integrationSource.includes("useEffect(() => ensureDefaultTimelineProvidersRegistered"), "Timeline provider registration should not happen inside React rendering.");
+});
+
+async function runValidation() {
+  for (const run of scheduledTests) {
+    await run();
+  }
+
+  const failures = results.filter((result) => result.status === "fail");
+
+  for (const result of results) {
+    if (result.status === "pass") {
+      console.log(`✓ ${result.name}`);
+    } else {
+      console.error(`✗ ${result.name}`);
+      console.error(result.error instanceof Error ? result.error.message : result.error);
+    }
+  }
+
+  if (failures.length > 0) {
+    console.error(`\nRuntime validation failed: ${failures.length}/${results.length} checks failed.`);
+    process.exit(1);
+  }
+
+  console.log(`\nRuntime validation passed: ${results.length}/${results.length} checks passed.`);
 }
 
-if (failures.length > 0) {
-  console.error(`\nRuntime validation failed: ${failures.length}/${results.length} checks failed.`);
+runValidation().catch((error) => {
+  console.error(error instanceof Error ? error.message : error);
   process.exit(1);
-}
-
-console.log(`\nRuntime validation passed: ${results.length}/${results.length} checks passed.`);
+});

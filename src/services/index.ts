@@ -10,5 +10,6 @@ export * from "./preferences";
 export * from "./recent";
 export * from "./search";
 export * from "./session";
+export * from "./timeline";
 export * from "./widgets";
 export * from "./workspace";

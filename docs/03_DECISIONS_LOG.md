@@ -1,5 +1,156 @@
 # HicoPilot Architecture Decision Records
 
+## ADR-043 — Unified Global Search Is Runtime-First And Provider-Based
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-07-18 |
+
+### Decision
+
+Unified Global Search is introduced as a generic Runtime foundation under `src/runtime/search/`.
+
+Business modules may contribute search through `SearchProvider` implementations. Providers register through a service bootstrap, and future UI consumers must call `SearchService` instead of importing modules or the Runtime directly.
+
+SPR-420 preserves the existing Header Search and Command Center behavior. It adds the canonical provider-based architecture in parallel so future sprints can migrate consumers safely.
+
+### Motivation
+
+Existing search surfaces were useful but split between Core module search, Platform Search, Command Center registries and local record search. Future Global Search, HicoPilot, AI Agents, Activity Feed, deep links and quick navigation need one canonical contract.
+
+### Consequences
+
+`BusinessSearchRuntime` handles provider registration, aggregation, deterministic ordering and provider failure isolation. Initial CRM and Sales providers are placeholders and intentionally return empty results. No UI, Prisma query, API, AI ranking, fuzzy search or business workflow changed.
+
+## ADR-042 — Timeline UX Hardening Must Preserve Service-Only Integration
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-07-17 |
+
+### Decision
+
+Sales Order Timeline UX hardening may improve presentation, accessibility, local retry and stale-result protection, but it must keep the same read-only integration boundary:
+
+```text
+SalesOrderBusinessTimeline
+  ↓
+TimelineService.getTimeline({ entityType: "sales.order", entityId })
+```
+
+Shared Timeline UI may render generic Timeline fields more clearly, but it must not interpret Sales, Inventory, Delivery Note, reservation, Invoice or Payment metadata.
+
+### Motivation
+
+SPR-418 made the Business Timeline visible, but the first implementation needed production hardening before broader rollout. The hardening should make the UI more robust without turning the page into a second Timeline engine.
+
+### Consequences
+
+Timeline events now render as a semantic list with visible status labels and safer wrapping. The Sales Order integration rejects stale late responses and offers a local retry. No provider mappings, business workflows, posting behavior, Prisma schema or APIs changed. Authenticated browser QA remains dependent on a safe way to activate the internal `sales-operations` profile because `alpha.crm-sales` correctly redirects `/sales/orders` to `/dashboard`.
+
+## ADR-041 — Sales Order Details Are The First Business Timeline Surface
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-07-17 |
+
+### Decision
+
+The first production Business Timeline UI placement is Sales Order details.
+
+Sales Order details may render an `Historique de l'activité` section, but it must load events only through:
+
+```text
+TimelineService.getTimeline({ entityType: "sales.order", entityId })
+```
+
+The page and integration component must not import timeline providers directly or reconstruct history from Sales, Inventory, Delivery Note or reservation stores.
+
+### Motivation
+
+SPR-415 through SPR-417 created the generic Timeline Runtime and providers, but users still had no visible place to understand the complete journey of a commercial commitment. Sales Orders are the best first surface because they connect commercial status, reservations, Delivery Notes and physical Inventory `ISSUE` events.
+
+### Consequences
+
+The shared Timeline UI remains domain-agnostic. Provider registration stays in the service bootstrap outside React rendering. Future timeline placements should follow the same service-only integration pattern.
+
+## ADR-040 — Logistics Timeline Events Are Owned By Inventory Timeline Provider
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-07-17 |
+
+### Decision
+
+`InventoryTimelineProvider` owns Business Timeline events for logistics execution:
+
+- reservation and release movements
+- Delivery Note creation/posting
+- partial and final physical delivery milestones
+- Inventory `ISSUE` movements
+
+The provider may attach logistics events to a `sales.order` timeline only through explicit canonical relationships such as `DeliveryNote.salesOrderId`, `StockMovement.referenceType` and `StockMovement.referenceId`.
+
+### Motivation
+
+SPR-416 made commercial Sales events visible to the Business Timeline, but physical execution events remained absent. The timeline needs to tell the complete journey from customer commitment to stock issue without duplicating Sales provider events or changing posting behavior.
+
+### Consequences
+
+Sales remains owner of commercial document events. Inventory owns logistics events. The provider is read-only and does not duplicate Delivery Note posting, reservation consumption or Inventory quantity normalization logic. Reservation consumption milestones cannot be emitted until they exist as canonical persisted records.
+
+## ADR-039 — Sales Timeline Provider Uses Explicit Relationships Only
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-07-16 |
+
+### Decision
+
+`SalesTimelineProvider` is the first Business Timeline provider. It maps existing Quotes, Sales Orders, Invoices and Payments into generic `TimelineEvent` records.
+
+Sales timeline journey resolution may only use canonical identifiers already present in the Sales model:
+
+- `SalesOrder.sourceQuoteId`
+- `Invoice.quoteId`
+- `Payment.invoiceId`
+
+The provider must not infer relationships from names, totals, dates, labels or document numbers.
+
+### Motivation
+
+The Business Timeline Engine needs real module participation without making the Runtime depend on Sales or adding Sales-specific fields to the generic event model.
+
+### Consequences
+
+Related Sales document events are attached to the requested root timeline entity and preserve the actual source document in metadata. Current Sales records do not store a complete status transition history, so unsupported intermediate events remain absent until canonical timestamps exist.
+
+## ADR-038 — Business Timeline Is Runtime-First And Provider-Based
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-07-16 |
+
+### Decision
+
+Business Timeline is introduced as a generic Runtime foundation. Timeline providers register with `src/runtime/timeline/`, and `TimelineService.getTimeline()` merges provider events for a requested entity into a deduplicated, immutable, newest-first journey.
+
+The core model is `TimelineEvent` and remains domain-agnostic. No Sales, CRM, Inventory, Accounting or HR fields are built into the Runtime model.
+
+### Motivation
+
+After Delivery Notes and physical stock posting, BOSIACO needs a way to reconstruct an entity's full business journey across modules without turning Dashboard, Activity Feed or Notifications into the source of truth.
+
+### Consequences
+
+Future modules can add providers such as `SalesTimelineProvider`, `InventoryTimelineProvider`, `CRMTimelineProvider` or `AccountingTimelineProvider` without changing the engine. SPR-415 does not add database tables, APIs, notifications, Activity Feed behavior, Prisma changes or business page redesigns.
+
 ## ADR-037 — Delivery Quantities Reuse Canonical Inventory Precision
 
 | Field | Value |
