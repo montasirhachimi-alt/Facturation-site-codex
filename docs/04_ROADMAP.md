@@ -78,6 +78,7 @@ Foundation in progress:
 - SPR-418 integrates the Business Timeline into Sales Order details as the first production UI placement while keeping the page dependent on `TimelineService` rather than module-specific providers.
 - SPR-419 hardens the Sales Order Timeline UX with semantic rendering, visible statuses, local retry and stale-result protection, and identifies the remaining blocker for authenticated browser QA: `sales-operations` is not runtime-selectable while Alpha remains the default profile.
 - SPR-420 adds the Unified Global Search Foundation as a Runtime-first provider registry, aggregation engine and `SearchService` facade for future Global Search, Command Center, HicoPilot, AI Agents and quick navigation consumers.
+- SPR-421 implements real module-owned Unified Search providers for CRM Companies/Contacts and Sales documents while keeping the Search Runtime module-agnostic and the current Command Center unchanged.
 - Supplier Invoice, Purchasing approvals, customer returns/reversal, variants, barcode scanning, valuation and stock movement cancellation remain future work.
 
 ## Milestone 5 — Enterprise AI

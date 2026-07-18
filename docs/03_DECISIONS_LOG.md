@@ -1,5 +1,26 @@
 # HicoPilot Architecture Decision Records
 
+## ADR-044 — Business Search Results Are Contributed By Module-Owned Providers
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-07-18 |
+
+### Decision
+
+Unified Search business results are contributed by module-owned providers.
+
+CRM owns CRM search mappings. Sales owns Sales search mappings. The generic Search Runtime owns only provider registration, aggregation, failure isolation, module filtering and deterministic sorting.
+
+### Motivation
+
+SPR-420 created the canonical Search Runtime but kept providers empty. SPR-421 needed real business results without moving CRM/Sales knowledge into the Runtime or duplicating business services.
+
+### Consequences
+
+CRM Companies and Contacts, plus Sales Quotes, Invoices, Sales Orders, Delivery Notes and Payments now return canonical `SearchResult` records through `SearchService`. The Runtime remains free of React, UI, Prisma, APIs and business-module imports. Command Center UI remains unchanged and can migrate later.
+
 ## ADR-043 — Unified Global Search Is Runtime-First And Provider-Based
 
 | Field | Value |

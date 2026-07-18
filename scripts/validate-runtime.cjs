@@ -355,9 +355,144 @@ test("SearchService exposes the Unified Search facade without breaking legacy mo
 
   assert(Array.isArray(legacyResults), "String SearchService.search calls should preserve legacy synchronous module search.");
   assert(Array.isArray(unifiedResults), "Object SearchService.search calls should use the Unified Search Runtime.");
-  const expectedProviderIds = ["crm.overview", "crm.companies", "crm.contacts", "crm.meetings", "crm.tasks", "crm.notes", "sales.quotes", "sales.invoices", "sales.payments"];
+  const expectedProviderIds = ["crm.overview", "crm.companies", "crm.contacts", "crm.meetings", "crm.tasks", "crm.notes", "sales.quotes", "sales.invoices", "sales.orders", "sales.delivery-notes", "sales.payments"];
 
   assert(expectedProviderIds.every((providerId) => providers.includes(providerId)), "SearchService should bootstrap initial Alpha CRM/Sales module-owned search providers.");
+});
+
+test("Unified Search providers return real CRM Company and Contact results", async () => {
+  const { SearchService } = load("src/services/search");
+  const service = new SearchService();
+  const companyResults = await service.searchUnified({ text: "Ecole Al Hikma", modules: ["crm"], limit: 10 });
+  const contactResults = await service.searchUnified({ text: "Sara Amrani", modules: ["crm"], limit: 10 });
+
+  const company = companyResults.find((result) => result.entityType === "crm.company" && result.entityId === "company-al-hikma");
+  const contact = contactResults.find((result) => result.entityType === "crm.contact" && result.entityId === "contact-sara-amrani");
+
+  assert(Boolean(company), "CRM Search provider should return real Company results from the canonical Company source.");
+  assert(company.url === "/crm/companies/company-al-hikma", "Company search result should use the canonical Company detail route.");
+  assert(Boolean(contact), "CRM Search provider should return real Contact results from the canonical Contact source.");
+  assert(contact.url === "/crm/contacts/contact-sara-amrani", "Contact search result should use the canonical Contact detail route.");
+  assert(contact.subtitle === "Ecole Al Hikma", "Contact search result should include associated Company context.");
+});
+
+test("Unified Search providers return real Sales document results", async () => {
+  const { SearchService } = load("src/services/search");
+  const { salesOrderService, SALES_ORDERS_WORKSPACE_ID } = load("src/modules/sales/orders");
+  const { deliveryNoteService, DELIVERY_NOTES_WORKSPACE_ID } = load("src/modules/sales/delivery-notes");
+  const service = new SearchService();
+
+  salesOrderService.upsertOrder({
+    id: "sales-order-search-001",
+    workspaceId: SALES_ORDERS_WORKSPACE_ID,
+    number: "SO-SEARCH-001",
+    companyId: "company-al-hikma",
+    companyName: "Ecole Al Hikma",
+    contactId: "contact-sara-amrani",
+    contactName: "Sara Amrani",
+    sourceQuoteId: "quote-dev-2026-041",
+    sourceQuoteNumber: "DEV-2026-041",
+    orderDate: "2026-07-18T09:00:00.000Z",
+    currency: "MAD",
+    status: "confirmed",
+    reservationStatus: "not_reserved",
+    customerReference: "BC-SEARCH",
+    internalReference: "INT-SEARCH",
+    notes: "Commande client de validation Search.",
+    lines: [{
+      id: "sales-order-search-line-001",
+      description: "Ligne Search",
+      quantityOrdered: 2,
+      quantityReserved: 0,
+      quantityDelivered: 0,
+      unit: "piece",
+      unitPrice: 100,
+      discountRate: 0,
+      taxRate: 20
+    }],
+    discountRate: 0,
+    ownerId: "user-search",
+    createdAt: "2026-07-18T09:00:00.000Z",
+    updatedAt: "2026-07-18T09:00:00.000Z"
+  });
+
+  deliveryNoteService.upsertDeliveryNote({
+    id: "delivery-note-search-001",
+    workspaceId: DELIVERY_NOTES_WORKSPACE_ID,
+    number: "BL-SEARCH-001",
+    companyId: "company-al-hikma",
+    companyName: "Ecole Al Hikma",
+    contactId: "contact-sara-amrani",
+    contactName: "Sara Amrani",
+    salesOrderId: "sales-order-search-001",
+    salesOrderNumber: "SO-SEARCH-001",
+    warehouseId: "warehouse-search",
+    warehouseName: "Entrepôt Search",
+    deliveryDate: "2026-07-18T10:00:00.000Z",
+    status: "draft",
+    customerReference: "BL-REF-SEARCH",
+    lines: [{
+      id: "delivery-note-search-line-001",
+      salesOrderLineId: "sales-order-search-line-001",
+      productId: "product-search",
+      productSku: "SKU-SEARCH",
+      productName: "Produit Search",
+      description: "Produit Search",
+      unit: "piece",
+      quantityToDeliver: 2,
+      quantityPosted: 0
+    }],
+    createdAt: "2026-07-18T10:00:00.000Z",
+    updatedAt: "2026-07-18T10:00:00.000Z"
+  });
+
+  const results = await service.searchUnified({ text: "SEARCH", modules: ["sales"], limit: 20 });
+  const quote = await service.searchUnified({ text: "DEV-2026-041", modules: ["sales.quotes"], limit: 5 });
+  const invoice = await service.searchUnified({ text: "FAC-2026", modules: ["sales.invoices"], limit: 10 });
+
+  assert(quote.some((result) => result.entityType === "sales.quote" && result.url === "/sales/quotes/quote-dev-2026-041"), "Sales Search provider should return Quote results with canonical routes.");
+  assert(invoice.some((result) => result.entityType === "sales.invoice" && result.url?.startsWith("/sales/invoices/")), "Sales Search provider should return Invoice results with canonical routes.");
+  assert(results.some((result) => result.entityType === "sales.order" && result.url === "/sales/orders/sales-order-search-001"), "Sales Search provider should return Sales Order results with canonical routes.");
+  assert(results.some((result) => result.entityType === "sales.delivery-note" && result.url === "/sales/delivery-notes/delivery-note-search-001"), "Sales Search provider should return Delivery Note results with canonical routes.");
+});
+
+test("Unified Search ranking filtering limits and workspace isolation are deterministic", async () => {
+  const { SearchService } = load("src/services/search");
+  const { crmCompanyLocalService } = load("src/modules/crm/companies/ui/company-local-store");
+  const { CRM_COMPANIES_USER_ID } = load("src/modules/crm/companies/ui/companies.seed");
+  const service = new SearchService();
+
+  crmCompanyLocalService.upsertCompany({
+    id: "company-cross-workspace-search",
+    workspaceId: "workspace-other",
+    legalName: "Cross Workspace Search SARL",
+    displayName: "Cross Workspace Search",
+    industry: "services",
+    status: "active",
+    tags: [],
+    createdAt: "2026-07-18T00:00:00.000Z",
+    updatedAt: "2026-07-18T00:00:00.000Z",
+    createdBy: CRM_COMPANIES_USER_ID
+  });
+
+  const exact = await service.searchUnified({ text: "quote-dev-2026-041", modules: ["sales"], limit: 10 });
+  const prefix = await service.searchUnified({ text: "Sara", modules: ["crm"], limit: 10 });
+  const moduleFiltered = await service.searchUnified({ text: "Sara", modules: ["crm.contacts"], limit: 10 });
+  const limited = await service.searchUnified({ text: "Al", modules: ["crm"], limit: 1 });
+  const empty = await service.searchUnified({ text: "   ", modules: ["crm"], limit: 10 });
+  const crossWorkspace = await service.searchUnified({ text: "Cross Workspace Search", modules: ["crm"], limit: 10 });
+  const repeatedA = await service.searchUnified({ text: "Al", modules: ["crm"], limit: 10 });
+  const repeatedB = await service.searchUnified({ text: "Al", modules: ["crm"], limit: 10 });
+  const ids = repeatedA.map((result) => result.id);
+
+  assert(exact[0]?.entityType === "sales.quote", "Exact identifier match should rank the matching Sales document first.");
+  assert(prefix[0]?.title === "Sara Amrani", "Primary title prefix matches should outrank secondary Company matches.");
+  assert(moduleFiltered.every((result) => result.moduleId === "crm.contacts"), "Exact module filtering should return only requested module results.");
+  assert(limited.length === 1, "Unified Search should respect query limits after deterministic aggregation.");
+  assert(empty.length === 0, "Empty SearchQuery text should return no unified results.");
+  assert(crossWorkspace.length === 0, "Search providers should not return records from another workspace.");
+  assert(new Set(ids).size === ids.length, "Search result IDs should be stable and unique.");
+  assert(JSON.stringify(repeatedA.map((result) => result.id)) === JSON.stringify(repeatedB.map((result) => result.id)), "Search result ordering should be deterministic across repeated queries.");
 });
 
 test("Unified Search preserves Runtime-first import boundaries", () => {

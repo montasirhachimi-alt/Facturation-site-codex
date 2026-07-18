@@ -8,9 +8,9 @@
 | Version | v0.9.0-alpha |
 | Current Milestone | Business Platform |
 | Current Phase | Business Platform |
-| Current Sprint | SPR-420 — Unified Global Search Foundation |
-| Next Sprint | Module-owned CRM/Sales search providers backed by persisted records, then gradual Command Center migration to SearchService |
-| Repository Health | Delivery Note quantities use deterministic six-decimal Inventory normalization from controlled input through posting. SPR-419 hardens the read-only Sales Order Timeline UI, stale-result protection and accessibility while preserving TimelineService boundaries. SPR-420 adds a Runtime-first Unified Search foundation with provider registration, deterministic aggregation and SearchService facade compatibility. Sales Order browser QA remains blocked under default Alpha because Sales Orders are inactive and no runtime profile switch is wired. Builds complete with the known existing PDF preview image warning. |
+| Current Sprint | SPR-421 — Unified Search Provider Implementation |
+| Next Sprint | Gradual Command Center migration to SearchService when product scope allows UI integration |
+| Repository Health | Delivery Note quantities use deterministic six-decimal Inventory normalization from controlled input through posting. SPR-419 hardens the read-only Sales Order Timeline UI, stale-result protection and accessibility while preserving TimelineService boundaries. SPR-421 makes Unified Search return real CRM and Sales business results through module-owned providers while preserving legacy SearchService compatibility and the existing Command Center UI. Sales Order browser QA remains blocked under default Alpha because Sales Orders are inactive and no runtime profile switch is wired. Builds complete with the known existing PDF preview image warning. |
 
 ## Completed Core Engines
 
@@ -67,6 +67,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | Business Timeline UI Integration | `src/modules/sales/orders/ui/sales-order-business-timeline.tsx` | Implemented as the first production Timeline placement, rendering Sales Order journeys through `TimelineService` and the shared domain-agnostic Timeline UI. |
 | Business Timeline UX Hardening | `src/ui/timeline/` and `src/modules/sales/orders/ui/sales-order-business-timeline.tsx` | Implemented semantic Timeline event lists, visible status labels, local retry, safer wrapping and explicit stale-response protection without changing providers or business workflows. |
 | Unified Global Search Foundation | `src/runtime/search/` and `src/services/search/` | Implemented as a Runtime-first provider registry, deterministic aggregation engine and SearchService facade for future Global Search, Command Center, HicoPilot, AI Agents and quick navigation consumers. |
+| Unified Search Providers | `src/modules/crm/search/` and `src/modules/sales/search/` | Implemented real deterministic CRM Companies/Contacts and Sales document providers while keeping Runtime module-agnostic and Command Center unchanged. |
 
 ## Completed Integrations
 
@@ -123,6 +124,7 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 | CRM Experience 2.0 upgrades CRM home, companies, contacts, pipeline, contextual panels and shared CRM UI primitives for a more premium SaaS demo experience. | Completed |
 | Core Search React UI is separated into Platform Search. | Completed |
 | Unified Global Search Foundation adds a Runtime-first provider registry, failure-isolated aggregation engine and SearchService facade while preserving existing Header Search and Command Center behavior. | Completed |
+| Unified Search Provider Implementation returns real CRM and Sales business results through module-owned providers and the canonical Search Runtime contract. | Completed |
 | Runtime validation checks Platform Events, event subscribers, Permission Enforcement, Permission Runtime Integration, Capability Registry, Manifest System, Module Loader, Plugin Runtime, CRM Module Foundation, CRM Customers Foundation, Preferences Runtime, Widget Runtime, Workspace Context and Platform Search separation. | Completed |
 | Platform Module Registry describes Alpha-ready, hidden and planned modules with lifecycle, dependency, navigation, Command Center and dashboard metadata without changing visible product behavior. | Completed |
 | Module Activation Engine resolves active modules from the Alpha profile, auto-enables required dependencies, reports conflicts and filters low-risk Sidebar and Command Center navigation metadata without changing visible behavior. | Completed |
@@ -263,14 +265,15 @@ Application Services exist under `src/services/` and orchestrate Core Engines. I
 - SPR-418 Business Timeline UI Integration places the first read-only production timeline on Sales Order details, loading `sales.order` journeys through `TimelineService` and preserving generic UI/provider boundaries.
 - SPR-419 Business Timeline UX Hardening improves the Sales Order Timeline presentation, accessibility, retry and stale-result protections, and documents the current authenticated QA blocker: `/sales/orders` is unavailable under default `alpha.crm-sales`.
 - SPR-420 Unified Global Search Foundation adds the canonical provider-based Search Runtime and SearchService facade for future Global Search, Command Center, HicoPilot, AI Agent and quick navigation consumers without adding UI or business search.
+- SPR-421 Unified Search Provider Implementation replaces placeholder CRM/Sales providers with deterministic Companies, Contacts, Quotes, Invoices, Sales Orders, Delivery Notes and Payments results while preserving Runtime import boundaries and legacy search compatibility.
 
 ## Validation Status
 
 | Command | Required | Latest Known Result |
 | --- | --- | --- |
-| `npm run typecheck` | Yes | Passed during SPR-420. |
-| `npm run build` | Yes | Passed during SPR-420; the known PDF preview image warning remains. |
-| `npm run validate:runtime` | Yes for platform work | Passed during SPR-420 with 153/153 checks, including Unified Search provider registration, deterministic aggregation, failure isolation and import-safety coverage. |
+| `npm run typecheck` | Yes | Passed during SPR-421. |
+| `npm run build` | Yes | Passed during SPR-421; the known PDF preview image warning remains. |
+| `npm run validate:runtime` | Yes for platform work | Passed during SPR-421 with 156/156 checks, including real CRM/Sales Unified Search providers, ranking, module filtering, workspace isolation and import-safety coverage. |
 | Prisma schema validation | Yes for persistence work | Passed during SPR-414A; no schema change or new migration was required. |
 | Prisma migration replay | Yes for persistence work | Migration `20260715171406_delivery_notes_physical_issue` applied; fresh replay result is recorded in the final report. |
 
