@@ -12,6 +12,7 @@ import type { SalesOrder } from "@/modules/sales/orders";
 import type { QuoteStatus } from "@/modules/sales/quotes";
 
 const resources = new Set<CrmSalesPersistenceResource>(["company", "customer", "contact", "meeting", "task", "note", "quote", "salesOrder", "invoice", "payment"]);
+const route = "/api/persistence/crm-sales";
 
 export async function GET() {
   try {
@@ -24,6 +25,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  let operation = "persistCrmSalesRecord";
+  let entityType: string | undefined;
+
   try {
     const scope = await requirePersistenceTenantScope();
     const body = await request.json() as {
@@ -32,7 +36,11 @@ export async function POST(request: Request) {
       resource?: CrmSalesPersistenceResource;
       record?: unknown;
     };
+    operation = body.operation ?? "persistCrmSalesRecord";
+    entityType = body.resource;
+
     if (body.operation === "confirmSalesOrder" && body.payload?.order) {
+      entityType = "salesOrder";
       const result = await confirmSalesOrder(scope, body.payload.order, {
         reserve: body.payload.reserve,
         warehouseId: body.payload.warehouseId,
@@ -41,10 +49,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ snapshot: result.crmSalesSnapshot, inventorySnapshot: result.inventorySnapshot });
     }
     if (body.operation === "cancelSalesOrder" && body.payload?.orderId) {
+      entityType = "salesOrder";
       const result = await cancelSalesOrder(scope, body.payload.orderId);
       return NextResponse.json({ snapshot: result.crmSalesSnapshot, inventorySnapshot: result.inventorySnapshot });
     }
     if (body.operation === "transitionQuoteStatus" && body.payload?.quoteId && body.payload.status) {
+      entityType = "quote";
       const record = await transitionQuoteStatus(scope, body.payload.quoteId, body.payload.status);
       const snapshot = await loadCrmSalesSnapshot(scope);
       return NextResponse.json({ record, snapshot });
@@ -56,10 +66,42 @@ export async function POST(request: Request) {
     const record = await persistCrmSalesRecord(scope, body.resource, body.record);
     return NextResponse.json({ record });
   } catch (error) {
+    logPersistenceError({ operation, entityType, error });
     return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Erreur de persistance inconnue.";
+}
+
+function logPersistenceError({ operation, entityType, error }: { operation: string; entityType?: string; error: unknown }) {
+  console.error("[crm-sales:persistence-error]", {
+    operation,
+    route,
+    entityType: entityType ?? "unknown",
+    errorName: getErrorName(error),
+    errorMessage: getSafeErrorMessage(error),
+    prismaCode: getPrismaErrorCode(error),
+    stack: getErrorStack(error)
+  });
+}
+
+function getErrorName(error: unknown) {
+  return error instanceof Error ? error.name : typeof error;
+}
+
+function getSafeErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  return typeof error === "string" ? error : "Unknown persistence error.";
+}
+
+function getPrismaErrorCode(error: unknown) {
+  if (!error || typeof error !== "object" || !("code" in error)) return undefined;
+  const code = (error as { code?: unknown }).code;
+  return typeof code === "string" ? code : undefined;
+}
+
+function getErrorStack(error: unknown) {
+  return error instanceof Error ? error.stack : undefined;
 }
