@@ -1,5 +1,65 @@
 # HicoPilot Architecture Decision Records
 
+## ADR-050 — Sales Operations Is Promoted To Default Alpha After Authenticated QA
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-08-17 |
+
+### Decision
+
+`sales.orders`, `sales.delivery-notes` and `sales.shipments` are promoted into the default `alpha.crm-sales` Edition profile.
+
+The promotion uses the existing Module Registry, Edition Profile and Activation Engine. No sidebar override, route exception, permission bypass or alternate feature gate was introduced.
+
+The internal `sales-operations` profile remains available as a development/test QA compatibility profile, but it is no longer the sole way to access the validated Sales Operations workflow.
+
+### Motivation
+
+Authenticated end-to-end Sales Operations QA validated the full operational flow:
+
+```text
+Quote
+→ Quote acceptance
+→ Sales Order
+→ Stock reservation
+→ Partial Delivery Note
+→ Delivery Note posting
+→ Reservation consumption
+→ Inventory ISSUE
+→ Shipment creation
+→ Shipment lifecycle
+→ Remaining Delivery Note
+→ Final Delivery Note posting
+→ Complete Sales Order delivery
+→ Final inventory reconciliation
+```
+
+The validated inventory state confirmed:
+
+- initial on hand: 200;
+- order quantity: 8;
+- reservation: 8;
+- after first delivery of 3: on hand 197, reserved 5, available 192;
+- after final delivery of 5: on hand 192, reserved 0, available 192;
+- Sales Order delivered quantity: 8;
+- remaining to reserve: 0.
+
+SPR-425A also corrected the canonical Sales Order remaining-to-reserve projection to subtract delivered and currently reserved quantities.
+
+### Consequences
+
+Default Alpha navigation, route availability, Command Center navigation, record search and dashboard contributions may now expose:
+
+- Commandes clients;
+- Bons de livraison;
+- Expéditions.
+
+Delivery Notes remain the only owner of customer delivery Inventory `ISSUE` posting. Shipment remains logistics-only and does not mutate physical stock. Sales Orders continue to reserve/release stock but do not issue inventory.
+
+ADR-048 and ADR-049 remain historically accurate for the pre-QA gate, but the promotion gate they described is now closed by this decision.
+
 ## ADR-049 — Internal Edition Profile Override Is Development/Test Only
 
 | Field | Value |
@@ -28,32 +88,32 @@ The effective activation request must be resolved during server render and passe
 
 ### Motivation
 
-Sales Operations needs authenticated end-to-end browser QA before Alpha promotion. Manually editing Edition metadata or `defaultForEnvironment` is unsafe because it can accidentally promote gated modules.
+At the time of ADR-049, Sales Operations needed authenticated end-to-end browser QA before Alpha promotion. Manually editing Edition metadata or `defaultForEnvironment` was unsafe because it could accidentally promote gated modules.
 
 A constrained environment switch gives QA a repeatable path without creating a tenant-facing module manager, licensing engine, feature flag system or production backdoor.
 
 ### Consequences
 
-`alpha.crm-sales` remains the default profile after SPR-427. Sales Orders, Delivery Notes and Shipments remain activation-gated outside the internal `sales-operations` QA profile.
+`alpha.crm-sales` remains the default profile. After ADR-050, Sales Orders, Delivery Notes and Shipments are active in that default profile; the internal `sales-operations` override remains a development/test QA compatibility path.
 
 The resolver does not read URL parameters, cookies, localStorage or request headers. Unknown or non-allow-listed profile IDs fall back to default Alpha with a warning.
 
 The resolver must use static `process.env.NEXT_PUBLIC_BOSIACO_INTERNAL_EDITION_PROFILE` access, not dynamic `process.env[...]` lookup, so Next.js can inline the same public value for client bundles and avoid server/client activation divergence.
 
-Authenticated browser QA remains blocked until a documented local demo credential or approved authenticated QA mechanism is available. Therefore SPR-427 does not promote Sales Operations to default Alpha.
+Authenticated browser QA was later completed and ADR-050 promotes Sales Operations to default Alpha.
 
 ## ADR-048 — Sales Operations Alpha Promotion Requires Authenticated E2E QA
 
 | Field | Value |
 | --- | --- |
-| Status | Accepted |
+| Status | Superseded by ADR-050 |
 | Date | 2026-08-15 |
 
 ### Decision
 
-Sales Orders, Delivery Notes and Shipments remain activation-gated in the internal `sales-operations` profile until a full authenticated end-to-end browser QA run is completed.
+Sales Orders, Delivery Notes and Shipments remained activation-gated in the internal `sales-operations` profile until a full authenticated end-to-end browser QA run was completed.
 
-SPR-426 hardens the implementation without promoting the modules to default `alpha.crm-sales`.
+SPR-426 hardened the implementation without promoting the modules to default `alpha.crm-sales`. ADR-050 later records the successful promotion after authenticated QA.
 
 Sales Order editing is explicitly draft-only:
 
@@ -72,11 +132,11 @@ Promoting these modules without the complete authenticated workflow would risk e
 
 ### Consequences
 
-`alpha.crm-sales` remains unchanged after SPR-426. The internal `sales-operations` profile continues to activate `sales.orders`, `sales.delivery-notes` and `sales.shipments` for controlled QA.
+`alpha.crm-sales` remained unchanged after SPR-426. After ADR-050, it activates `sales.orders`, `sales.delivery-notes` and `sales.shipments`; the internal `sales-operations` profile remains for controlled QA compatibility.
 
 Dashboard contributions for stable Sales Operations widgets are rendered when the internal profile is active. Non-rendered Sales Order dashboard ideas remain planned and hidden.
 
-Future activation requires a safe runtime/profile switch plus authenticated QA evidence for Quote to Sales Order, reservation, partial Delivery Note posting, Inventory `ISSUE`, Shipment persistence and tenant isolation.
+The activation requirement was satisfied by authenticated QA evidence for Quote to Sales Order, reservation, partial Delivery Note posting, Inventory `ISSUE`, Shipment persistence and tenant isolation.
 
 ## ADR-047 — Shipment Persistence Is One-To-One With Posted Delivery Notes
 
@@ -103,7 +163,7 @@ The Delivery Note already owns physical stock issue, so Shipment persistence mus
 
 ### Consequences
 
-SPR-425 adds Shipment Prisma models, migration, server repository, API route and client hydration. `sales.shipments` remains activation-gated in the internal `sales-operations` profile, and default `alpha.crm-sales` remains unchanged.
+SPR-425 added Shipment Prisma models, migration, server repository, API route and client hydration. At that point `sales.shipments` remained activation-gated in the internal `sales-operations` profile; ADR-050 later promotes it into default `alpha.crm-sales`.
 
 Future split-carrier or multi-parcel logistics should extend Shipment with package/parcel records or revisit cardinality explicitly instead of silently allowing duplicate top-level Shipments for one Delivery Note.
 

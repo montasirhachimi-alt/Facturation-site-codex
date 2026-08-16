@@ -873,6 +873,9 @@ test("Dynamic Navigation preserves exact current Alpha Sidebar parity", () => {
     "/crm/tasks",
     "/crm/notes",
     "/sales/quotes",
+    "/sales/orders",
+    "/sales/delivery-notes",
+    "/sales/shipments",
     "/sales/invoices",
     "/sales/payments",
     "/sales/products",
@@ -4489,7 +4492,7 @@ test("Delivery Note posting is transactionally guarded and consumes reservation 
   assert(source.includes("tenantCompanyId: scope.companyId"), "Delivery Note persistence should remain tenant-scoped.");
 });
 
-test("Delivery Notes are hidden in Alpha and available only in Sales Operations", () => {
+test("Delivery Notes are active in Alpha while preserving Sales Operations compatibility", () => {
   const { ModuleActivationEngine, bosiacoModuleRegistry, getCurrentAlphaActivation } = load("src/platform/modules");
   const { salesOperationsEditionProfile, editionToActivationRequest } = load("src/platform/editions");
   const { getActiveModuleNavigationItems } = load("src/platform/modules/module-navigation.ts");
@@ -4500,15 +4503,17 @@ test("Delivery Notes are hidden in Alpha and available only in Sales Operations"
   const salesOperations = engine.resolve(editionToActivationRequest(salesOperationsEditionProfile));
   const alphaHrefs = getActiveModuleNavigationItems(alpha).map((item) => item.href);
   const operationsHrefs = getActiveModuleNavigationItems(salesOperations).map((item) => item.href);
-  const commandHrefs = createNavigationCommandRegistry(salesOperations).getAll().map((command) => command.href);
+  const alphaCommandHrefs = createNavigationCommandRegistry(alpha).getAll().map((command) => command.href);
+  const operationsCommandHrefs = createNavigationCommandRegistry(salesOperations).getAll().map((command) => command.href);
 
-  assert(!alpha.activeModuleIdSet.has("sales.delivery-notes"), "Alpha should keep Delivery Notes inactive.");
-  assert(!alphaHrefs.includes("/sales/delivery-notes"), "Alpha navigation should hide Delivery Notes.");
-  assert(!isRouteAvailable("/sales/delivery-notes", alpha), "Alpha route policy should block Delivery Notes.");
+  assert(alpha.activeModuleIdSet.has("sales.delivery-notes"), "Alpha should activate Delivery Notes after validated Sales Operations QA.");
+  assert(alphaHrefs.includes("/sales/delivery-notes"), "Alpha navigation should expose Delivery Notes.");
+  assert(isRouteAvailable("/sales/delivery-notes", alpha), "Alpha route policy should allow Delivery Notes.");
+  assert(alphaCommandHrefs.includes("/sales/delivery-notes"), "Command Center should expose Delivery Notes in Alpha.");
   assert(salesOperations.errors.length === 0, "Sales Operations should resolve Delivery Note dependencies.");
   assert(salesOperations.activeModuleIdSet.has("sales.delivery-notes"), "Sales Operations should activate Delivery Notes.");
   assert(operationsHrefs.includes("/sales/delivery-notes"), "Sales Operations navigation should expose Delivery Notes.");
-  assert(commandHrefs.includes("/sales/delivery-notes"), "Command Center should expose Delivery Notes only when active.");
+  assert(operationsCommandHrefs.includes("/sales/delivery-notes"), "Command Center should expose Delivery Notes when active.");
 });
 
 test("Delivery Note PDF remains non-financial", () => {
@@ -4570,8 +4575,8 @@ test("Shipment persistence bridge hydrates UI surfaces without changing activati
   assert(workspaceSource.includes("persistShipmentRecord"), "Shipment list workspace should save through persistence.");
   assert(detailsSource.includes("transitionPersistedShipmentStatus"), "Shipment details should update status through persistence.");
   assert(dashboardSource.includes("hydrateShipmentPersistence"), "Shipment dashboard should read persisted state after hydration.");
-  assert(!alphaCrmSalesEditionProfile.enabledModuleIds.includes("sales.shipments"), "Default Alpha should keep Shipments inactive.");
-  assert(salesOperationsEditionProfile.enabledModuleIds.includes("sales.shipments"), "Sales Operations should keep Shipments available for internal QA.");
+  assert(alphaCrmSalesEditionProfile.enabledModuleIds.includes("sales.shipments"), "Default Alpha should activate Shipments after authenticated Sales Operations QA.");
+  assert(salesOperationsEditionProfile.enabledModuleIds.includes("sales.shipments"), "Sales Operations should keep Shipments available for internal QA compatibility.");
 });
 
 test("Shipment search contribution remains activation-aware and persistence-aligned", () => {

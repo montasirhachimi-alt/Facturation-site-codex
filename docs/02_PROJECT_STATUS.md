@@ -11,9 +11,9 @@ This document is the current repository reality. It is intentionally not a sprin
 | Product | BOSIACO, still using some HicoPilot naming in legacy files and code comments. |
 | Stage | Alpha product moving from ERP Core into Business Platform foundations. |
 | Default runtime edition | `alpha.crm-sales` from `src/platform/editions/edition.profiles.ts`. |
-| Current default scope | Dashboard, CRM, Sales invoices/payments/quotes, Product Catalog, Inventory and Procurement. |
-| Latest completed sprint reflected in code | SPR-425A — Sales Order Remaining Reservation Accuracy. |
-| Important caveat | Sales Orders, Delivery Notes and Shipments are hardened and can be activated locally through a safe internal profile switch, but they remain unavailable in default `alpha.crm-sales` navigation until authenticated end-to-end Sales Operations QA is completed. |
+| Current default scope | Dashboard, CRM, Sales quotes/orders/delivery notes/shipments/invoices/payments, Product Catalog, Inventory and Procurement. |
+| Latest completed sprint reflected in code | SPR-427 — Sales Operations Profile Activation & Release Hardening. |
+| Important caveat | Sales Orders, Delivery Notes and Shipments are now enabled in default `alpha.crm-sales` after authenticated end-to-end Sales Operations QA. The internal `sales-operations` profile remains available as a QA compatibility profile, not as the default product gate. |
 
 ## Validation Snapshot
 
@@ -73,9 +73,9 @@ Hidden platform dependencies such as `platform.persistence` may be automatically
 
 | Module | Status | Notes |
 | --- | --- | --- |
-| `sales.orders` | Hardened, activation-gated | Persistent Sales Orders exist in the internal `sales-operations` profile. Draft edits are server-enforced, and the detail availability projection now subtracts delivered and reserved quantities before displaying `À réserver`. Default Alpha navigation remains closed pending authenticated E2E QA. |
-| `sales.delivery-notes` | Hardened, activation-gated | Persistent Delivery Notes post Inventory `ISSUE` movements and consume reservations through Sales Operations; dashboard contribution rendering is prepared for the internal profile. |
-| `sales.shipments` | Hardened, activation-gated | Persistent Shipment logistics records exist and remain active through the internal `sales-operations` profile, not default Alpha navigation. |
+| `sales.orders` | Active in Alpha | Persistent Sales Orders are enabled in `alpha.crm-sales`. Draft edits are server-enforced, confirmation/reservation uses the dedicated action, and the detail availability projection subtracts delivered and reserved quantities before displaying `À réserver`. |
+| `sales.delivery-notes` | Active in Alpha | Persistent Delivery Notes are enabled in `alpha.crm-sales`, post Inventory `ISSUE` movements, consume reservations and support partial/final delivery. |
+| `sales.shipments` | Active in Alpha | Persistent Shipment logistics records are enabled in `alpha.crm-sales`; lifecycle changes remain logistics-only and do not post Inventory movements. |
 | `crm.opportunities` | Hidden | Opportunity UI/domain remnants exist, but the route redirects because persistence is not stable. |
 | Legacy `purchasing.*`, `finance.*`, `hr.*` | Planned/hidden | Legacy demo-era routes are redirected or hidden from active navigation. |
 
@@ -89,11 +89,11 @@ Route availability is enforced by `src/middleware.ts` through `getRouteAvailabil
 | Legacy compatibility routes | Redirect to active canonical routes, for example `/devis` to `/sales/quotes`. |
 | Hidden/legacy routes | Redirect to the fallback active route, generally `/dashboard`. |
 | `/crm/opportunities` and `/crm/activities` | Redirect to active stable CRM/Sales destinations. |
-| `/sales/orders`, `/sales/delivery-notes`, `/sales/shipments` | Available only when a profile activates the owning modules. |
+| `/sales/orders`, `/sales/delivery-notes`, `/sales/shipments` | Available in default Alpha because `alpha.crm-sales` now activates the owning modules. |
 
 ## Internal Sales Operations QA Switch
 
-SPR-427 introduced a safe local/internal Edition profile switch for authenticated Sales Operations QA.
+SPR-427 introduced a safe local/internal Edition profile switch for authenticated Sales Operations QA. After the later authenticated end-to-end validation, Sales Operations was promoted into default `alpha.crm-sales`; the switch remains available for QA compatibility.
 
 Use this command for local Sales Operations QA:
 
@@ -120,7 +120,7 @@ Safety rules:
 - only `alpha.crm-sales` and `sales-operations` are allow-listed;
 - activation is not controlled by URL parameters, cookies, localStorage or request headers.
 
-Authenticated browser QA remains blocked until the repository provides a documented local demo credential or another approved authenticated QA mechanism. Therefore Sales Operations are not promoted to default Alpha.
+Authenticated browser QA has now validated the Quote to Sales Order to Reservation to Delivery Note to Shipment flow. Sales Operations is promoted to default Alpha through the Edition profile, not through navigation overrides.
 
 SPR-427A fixed the hydration consistency issue found during browser QA. The effective Edition activation request is now resolved during server render and passed into the client `ModuleActivationProvider`, so Sidebar and Command Center consumers hydrate from the same activation snapshot. The resolver also uses static `NEXT_PUBLIC_BOSIACO_INTERNAL_EDITION_PROFILE` access so Next.js can inline the public value consistently.
 
@@ -142,12 +142,12 @@ Persistent models are present in `prisma/schema.prisma` and backed by repository
 | Product Catalog | Persisted through Product/ProductCategory models and `product-catalog` persistence. |
 | Inventory | Persisted as `InventoryWarehouse`, `InventoryBalance` and `InventoryStockMovement`. |
 | Reservations | Persisted through structured Inventory movement references and availability logic. |
-| Sales Orders | Persisted as `SalesOrder` and `SalesOrderLine`; activation-gated. |
-| Delivery Notes | Persisted as `SalesDeliveryNote` and `SalesDeliveryNoteLine`; activation-gated. |
+| Sales Orders | Persisted as `SalesOrder` and `SalesOrderLine`; active in Alpha. |
+| Delivery Notes | Persisted as `SalesDeliveryNote` and `SalesDeliveryNoteLine`; active in Alpha. |
 | Procurement Suppliers | Persisted as `ProcurementSupplier`. |
 | Purchase Orders | Persisted as `ProcurementPurchaseOrder` and `ProcurementPurchaseOrderLine`. |
 | Goods Receipts | Persisted as `ProcurementGoodsReceipt` and `ProcurementGoodsReceiptLine`. |
-| Shipments | Persisted as `SalesShipment` and `SalesShipmentLine`; activation-gated. |
+| Shipments | Persisted as `SalesShipment` and `SalesShipmentLine`; active in Alpha. |
 
 ## Operational Capability Matrix
 
@@ -169,9 +169,9 @@ Persistent models are present in `prisma/schema.prisma` and backed by repository
 | Procurement Suppliers | Works, active, persisted. |
 | Purchase Orders | Works, active, persisted. |
 | Goods Receipts | Works, active, persisted, posts Inventory `RECEIPT` movements. |
-| Sales Orders | Works in internal profile, persisted, not visible in default Alpha. |
-| Delivery Notes | Works in internal profile, persisted, posts Inventory `ISSUE` movements. |
-| Shipments | Works in internal profile, persisted, logistics-only and does not post Inventory movements. |
+| Sales Orders | Works, active in Alpha, persisted. |
+| Delivery Notes | Works, active in Alpha, persisted, posts Inventory `ISSUE` movements. |
+| Shipments | Works, active in Alpha, persisted, logistics-only and does not post Inventory movements. |
 | Global Search / Command Center | Works as local provider-based productivity surface. |
 | Smart Entity Picker / Inline Creation | Implemented for supported forms; should remain generic and client-safe. |
 | Business Timeline | Foundation plus Sales/Inventory providers; currently integrated on Sales Order details. |
@@ -230,8 +230,8 @@ Shipment persistence exists as of this reconciliation.
 ## Known Limitations
 
 - Product Catalog create persistence now maps duplicate, validation, tenant and stale-category failures to controlled French errors, but full authenticated browser creation QA remains blocked in this environment by a local Prisma connection error during tenant bootstrap.
-- Sales Orders, Delivery Notes and Shipments are hardened and available through the safe internal local `sales-operations` switch, but remain activation-gated outside the default Alpha profile until authenticated end-to-end Sales Operations QA is completed.
-- Shipments are durable but remain activation-gated in the internal Sales Operations profile; carrier API integration, parcel split, GPS tracking and notification workflows are not implemented.
+- Sales Orders, Delivery Notes and Shipments are active in default Alpha after authenticated end-to-end Sales Operations QA.
+- Shipments are durable and active in Alpha; carrier API integration, parcel split, GPS tracking and notification workflows are not implemented.
 - Procurement is active in Alpha, but supplier invoices, approval workflows, purchasing payments and accounting integration are not implemented.
 - Product Catalog import/export handles master data only; it does not import stock quantities or inventory movements.
 - Inventory has posting, reservations and availability, but no barcode scanning, manufacturing, POS, carrier integration or advanced warehouse operations.
@@ -246,9 +246,9 @@ Shipment persistence exists as of this reconciliation.
 
 These are evidence-based candidates only. They do not assign SPR-428.
 
-1. Sales Operations Authenticated QA Enablement: document the local demo password or provide an approved local authenticated QA mechanism, then execute the complete Quote to Sales Order to Reservation to Delivery Note to Shipment workflow before promoting the modules to default Alpha.
-2. Shipment parcel/carrier decision: decide whether future logistics needs one Shipment with package lines or multiple Shipments per Delivery Note.
-3. Accounting Foundation: begin a minimal ledger/accounting architecture only if the product decision is to move beyond commercial invoices/payments into financial accounting.
+1. Shipment parcel/carrier decision: decide whether future logistics needs one Shipment with package lines or multiple Shipments per Delivery Note.
+2. Accounting Foundation: begin a minimal ledger/accounting architecture only if the product decision is to move beyond commercial invoices/payments into financial accounting.
+3. Sales Operations release monitoring: continue authenticated smoke QA for Quote acceptance, Sales Order reservation, Delivery Note posting, Shipment lifecycle and Inventory reconciliation now that the workflow is visible in Alpha.
 
 ## Documentation Guidance
 
