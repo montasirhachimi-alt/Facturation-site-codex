@@ -1,4 +1,5 @@
 export * from "./edition.current";
+export * from "./edition-profile.resolver";
 export * from "./edition.profiles";
 export * from "./edition.registry";
 export * from "./edition.types";

@@ -32,6 +32,7 @@ export type Product = Readonly<{
   sellingPrice: number;
   vatRate: number;
   currency: string;
+  reorderPoint: number;
   active: boolean;
   image?: string;
   notes?: string;
@@ -70,6 +71,7 @@ export type CreateProductInput = Readonly<{
   sellingPrice: number;
   vatRate?: number;
   currency?: string;
+  reorderPoint?: number;
   image?: string;
   notes?: string;
   flags?: Partial<ProductCatalogFlags>;

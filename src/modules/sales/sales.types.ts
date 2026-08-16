@@ -10,10 +10,14 @@ export type SalesRouteId =
   | "sales.invoice.details"
   | "sales.orders"
   | "sales.order.details"
+  | "sales.delivery-notes"
+  | "sales.delivery-note.details"
+  | "sales.shipments"
+  | "sales.shipment.details"
   | "sales.payments"
   | "sales.payment.details";
 
-export type SalesNavigationId = "sales" | "sales.pipeline" | "sales.quotes" | "sales.invoices" | "sales.orders" | "sales.payments";
+export type SalesNavigationId = "sales" | "sales.pipeline" | "sales.quotes" | "sales.invoices" | "sales.orders" | "sales.delivery-notes" | "sales.shipments" | "sales.payments";
 
 export type SalesNavigationItem = Readonly<{
   id: SalesNavigationId;

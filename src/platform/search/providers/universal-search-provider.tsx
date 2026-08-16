@@ -14,6 +14,7 @@ import { QuickCreateDialogHost } from "./quick-create-dialog-host";
 import { UniversalSearchContext } from "./universal-search-context";
 import type { UniversalSearchContextValue } from "./universal-search-context";
 import { shouldIgnoreKeyboardEvent } from "@/platform/keyboard/keyboard-shortcut.utils";
+import { useModuleActivation } from "@/platform/modules/module-activation.context";
 
 type UniversalSearchProviderProps = {
   children: ReactNode;
@@ -21,14 +22,18 @@ type UniversalSearchProviderProps = {
   onSelectItem?: (item: UniversalSearchItem) => void;
 };
 
-export function UniversalSearchProvider({ children, resolveSections = getFoundationSearchSections, onSelectItem }: UniversalSearchProviderProps) {
+export function UniversalSearchProvider({ children, resolveSections, onSelectItem }: UniversalSearchProviderProps) {
   const router = useRouter();
+  const activation = useModuleActivation();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const [activeQuickCreateAction, setActiveQuickCreateAction] = useState<QuickCreateActionId | null>(null);
   const { favorites, isFavorite, recent, recordRecent, toggleFavorite } = useCommandCenterHistory();
-  const baseSections = useMemo(() => resolveSections(query), [query, resolveSections]);
+  const baseSections = useMemo(
+    () => resolveSections ? resolveSections(query) : getFoundationSearchSections(query, activation),
+    [activation, query, resolveSections]
+  );
   const sections = useMemo(() => {
     if (query.trim()) return baseSections;
 

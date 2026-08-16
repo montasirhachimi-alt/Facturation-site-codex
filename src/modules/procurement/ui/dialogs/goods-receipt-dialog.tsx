@@ -106,7 +106,7 @@ export function GoodsReceiptDialog({
       title="Nouvelle réception fournisseur"
     >
       <div className="grid gap-4">
-        <FormSection title="Réception">
+        <FormSection title="Réception" description="La réception poste les quantités réellement arrivées et alimente le stock sélectionné.">
           <FormField label="Commande fournisseur" required>
             <select className={entityInputClassName} value={form.purchaseOrderId} onChange={(event) => selectOrder(event.target.value)}>
               <option value="">Sélectionner...</option>
@@ -119,10 +119,10 @@ export function GoodsReceiptDialog({
               {warehouses.filter((warehouse) => warehouse.active).map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.code} · {warehouse.name}</option>)}
             </select>
           </FormField>
-          <FormField label="Date de réception">
+          <FormField label="Date de réception" help="Date réelle d'entrée physique en stock.">
             <input type="date" className={entityInputClassName} value={form.receiptDate} onChange={(event) => onChange({ ...form, receiptDate: event.target.value })} />
           </FormField>
-          <FormField label="Référence">
+          <FormField label="Référence" help="Bon de livraison ou référence fournisseur, si disponible.">
             <input className={entityInputClassName} value={form.reference} onChange={(event) => onChange({ ...form, reference: event.target.value })} />
           </FormField>
         </FormSection>

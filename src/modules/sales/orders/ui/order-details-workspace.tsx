@@ -15,7 +15,7 @@ import { SalesDocumentPreviewDialog, buildSalesOrderPdfDocument, downloadSalesDo
 import { SALES_ORDER_RESERVATION_LABELS, SALES_ORDER_STATUS_LABELS, SALES_ORDERS_WORKSPACE_ID } from "../order.constants";
 import { notifySalesOrderStoreUpdated, salesOrderService, subscribeToSalesOrderStore } from "../order.store";
 import type { SalesOrder, SalesOrderId, SalesOrderLine } from "../order.types";
-import { calculateSalesOrderTotals } from "../order.utils";
+import { calculateSalesOrderTotals, getSalesOrderLineRemainingToReserve } from "../order.utils";
 import { SalesOrderDialog, type SalesOrderFormState } from "./order-dialog";
 import { SalesOrderBusinessTimeline } from "./sales-order-business-timeline";
 import { useModuleEnabled } from "@/platform/modules/module-activation.context";
@@ -248,7 +248,7 @@ function formatReservationInfo(line: SalesOrderLine, product: Product | undefine
   const onHand = balance?.quantityOnHand ?? 0;
   const reserved = balance?.quantityReserved ?? 0;
   const available = balance?.quantityAvailable ?? 0;
-  const remaining = Math.max(0, line.quantityOrdered - line.quantityReserved);
+  const remaining = getSalesOrderLineRemainingToReserve(line);
   const shortage = Math.max(0, remaining - available);
   return `En main ${onHand} · Réservé ${reserved} · Disponible ${available} · À réserver ${remaining}${shortage > 0 ? ` · Manque ${shortage}` : ""}`;
 }

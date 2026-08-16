@@ -1,4 +1,5 @@
 import { calculateDocumentTotals, formatCommercialDocumentNumber, roundDocumentAmount } from "@/platform/commercial-documents";
+import { normalizeInventoryQuantity } from "@/modules/inventory/inventory.utils";
 import type { Quote } from "@/modules/sales/quotes";
 import type { SalesOrder, SalesOrderLine } from "./order.types";
 
@@ -63,6 +64,13 @@ export function getSalesOrderReservationStatus(lines: readonly SalesOrderLine[])
   return "partially_reserved" as const;
 }
 
+export function getSalesOrderLineRemainingToReserve(line: Pick<SalesOrderLine, "quantityOrdered" | "quantityDelivered" | "quantityReserved">) {
+  const ordered = readSalesOrderQuantity(line.quantityOrdered);
+  const delivered = readSalesOrderQuantity(line.quantityDelivered);
+  const reserved = readSalesOrderQuantity(line.quantityReserved);
+  return normalizeInventoryQuantity(Math.max(0, ordered - delivered - reserved));
+}
+
 export function createSalesOrderLinesFromQuote(quote: Quote): SalesOrderLine[] {
   return quote.items.map((item) => ({
     id: `so-line-${item.id}`,
@@ -92,4 +100,9 @@ function readCommercialNumber(value: unknown) {
   }
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function readSalesOrderQuantity(value: number) {
+  const normalized = normalizeInventoryQuantity(Number(value));
+  return Number.isFinite(normalized) ? normalized : 0;
 }

@@ -137,6 +137,7 @@ export class ProductService {
       sellingPrice: normalized.sellingPrice,
       vatRate: normalized.vatRate,
       currency: normalized.currency,
+      reorderPoint: normalized.reorderPoint,
       active: true,
       image: normalized.image,
       notes: normalized.notes,
@@ -175,6 +176,7 @@ export class ProductService {
       sellingPrice: normalized.sellingPrice ?? existing.sellingPrice,
       vatRate: normalized.vatRate ?? existing.vatRate,
       currency: normalized.currency ?? existing.currency,
+      reorderPoint: normalized.reorderPoint ?? existing.reorderPoint,
       active: normalized.active ?? existing.active,
       image: normalized.image ?? existing.image,
       notes: normalized.notes ?? existing.notes,
@@ -273,6 +275,7 @@ export class ProductService {
 export function freezeProduct(product: Product): Product {
   return Object.freeze({
     ...product,
+    reorderPoint: product.reorderPoint ?? 0,
     flags: Object.freeze({ ...DEFAULT_PRODUCT_FLAGS, ...product.flags })
   });
 }

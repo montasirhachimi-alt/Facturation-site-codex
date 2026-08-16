@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Archive, Edit3, Plus } from "lucide-react";
+import Link from "next/link";
+import { Archive, Edit3, Eye, Plus } from "lucide-react";
 import { hydrateProcurementPersistence, persistProcurementRecord } from "@/platform/persistence";
 import { PROCUREMENT_WORKSPACE_ID, procurementLocalService, notifyProcurementStoreUpdated, subscribeToProcurementStore } from "../../index";
 import type { ProcurementSupplier } from "../../procurement.types";
@@ -11,6 +12,7 @@ import { SupplierDialog, emptySupplierForm, supplierToForm, type SupplierFormSta
 export function SuppliersPage() {
   const [version, setVersion] = useState(0);
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"active" | "all">("active");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ProcurementSupplier | null>(null);
   const [form, setForm] = useState<SupplierFormState>(emptySupplierForm);
@@ -23,8 +25,8 @@ export function SuppliersPage() {
 
   const suppliers = useMemo(() => {
     void version;
-    return procurementLocalService.listSuppliers({ workspaceId: PROCUREMENT_WORKSPACE_ID, query, includeArchived: false }).suppliers;
-  }, [query, version]);
+    return procurementLocalService.listSuppliers({ workspaceId: PROCUREMENT_WORKSPACE_ID, query, includeArchived: statusFilter === "all", status: statusFilter }).suppliers;
+  }, [query, statusFilter, version]);
 
   function openCreate() {
     setEditing(null);
@@ -86,11 +88,17 @@ export function SuppliersPage() {
             <h1 className="mt-1 font-display text-2xl font-bold text-hicotech-navy dark:text-white">Fournisseurs</h1>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">Répertoire fournisseurs persistant, séparé du CRM.</p>
           </div>
-          <button onClick={openCreate} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-hicotech-blue px-4 py-2 text-sm font-bold text-white">
-            <Plus size={16} /> Nouveau fournisseur
+          <button type="button" onClick={openCreate} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-hicotech-blue px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/20">
+            <Plus size={16} /> Créer un fournisseur
           </button>
         </div>
-        <input className="mt-4 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold outline-none focus:border-hicotech-blue dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white" placeholder="Rechercher un fournisseur..." value={query} onChange={(event) => setQuery(event.target.value)} />
+        <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
+          <input className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold outline-none focus:border-hicotech-blue dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white" placeholder="Rechercher un fournisseur..." value={query} onChange={(event) => setQuery(event.target.value)} />
+          <select className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold outline-none focus:border-hicotech-blue dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}>
+            <option value="active">Actifs</option>
+            <option value="all">Tous les statuts</option>
+          </select>
+        </div>
       </section>
 
       <section className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
@@ -110,15 +118,27 @@ export function SuppliersPage() {
                 <td className="px-4 py-3 font-bold text-hicotech-navy dark:text-white">{supplier.companyName}<p className="text-xs font-medium text-slate-500">{supplier.tradeName}</p></td>
                 <td className="px-4 py-3 text-slate-600 dark:text-slate-300">ICE {supplier.ice ?? "-"} · IF {supplier.taxId ?? "-"}</td>
                 <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{supplier.phone ?? "-"}<p>{supplier.email ?? ""}</p></td>
-                <td className="px-4 py-3">{SUPPLIER_STATUS_LABELS[supplier.status]}</td>
+                <td className="px-4 py-3">
+                  <span className={supplier.status === "active" ? "rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300" : "rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500 dark:bg-white/10 dark:text-slate-300"}>{SUPPLIER_STATUS_LABELS[supplier.status]}</span>
+                </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-2">
-                    <button onClick={() => openEdit(supplier)} className="rounded-lg border border-slate-200 p-2" aria-label="Modifier"><Edit3 size={16} /></button>
-                    <button onClick={() => archiveSupplier(supplier)} className="rounded-lg border border-slate-200 p-2 text-red-600" aria-label="Archiver"><Archive size={16} /></button>
+                    <Link href={`/procurement/suppliers/${supplier.id}`} className={iconActionClassName} aria-label="Voir les détails" title="Voir les détails"><Eye size={16} /></Link>
+                    <button type="button" onClick={() => openEdit(supplier)} className={iconActionClassName} aria-label="Modifier" title="Modifier"><Edit3 size={16} /></button>
+                    <button type="button" onClick={() => archiveSupplier(supplier)} className={`${iconActionClassName} text-red-600`} aria-label="Archiver" title="Archiver"><Archive size={16} /></button>
                   </div>
                 </td>
               </tr>
             ))}
+            {suppliers.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-4 py-10 text-center">
+                  <Plus className="mx-auto mb-3 text-slate-400" size={28} />
+                  <p className="font-display text-base font-bold text-hicotech-navy dark:text-white">Aucun fournisseur.</p>
+                  <p className="mt-1 text-sm text-slate-500">Cliquez sur &quot;Créer un fournisseur&quot; pour commencer.</p>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </section>
@@ -127,3 +147,5 @@ export function SuppliersPage() {
     </main>
   );
 }
+
+const iconActionClassName = "grid size-9 place-items-center rounded-lg border border-slate-200 text-hicotech-navy transition hover:border-hicotech-blue/30 hover:bg-hicotech-sky/50 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/10 dark:border-hicotech-dark-border dark:text-white dark:hover:bg-hicotech-dark-page/50";

@@ -38,6 +38,7 @@ import { Logo } from "@/components/logo";
 import { branding } from "@/lib/branding";
 import { canViewModule } from "@/lib/rbac";
 import type { AuthSession, PermissionModule } from "@/lib/types";
+import { useModuleActivation } from "@/platform/modules/module-activation.context";
 import { getSidebarGroups } from "@/services/navigation";
 
 const sidebarIconMap: Record<string, LucideIcon> = {
@@ -77,7 +78,8 @@ type SidebarProps = {
 
 export function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse, user }: SidebarProps) {
   const pathname = usePathname();
-  const groups = getSidebarGroups();
+  const activation = useModuleActivation();
+  const groups = getSidebarGroups(activation);
   const visibleGroups = groups
     .map((group) => ({
       ...group,

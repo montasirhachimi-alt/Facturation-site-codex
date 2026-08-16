@@ -47,7 +47,7 @@ export function GoodsReceiptsPage() {
     return procurementLocalService.listPurchaseOrders({ workspaceId: PROCUREMENT_WORKSPACE_ID, includeArchived: false }).purchaseOrders;
   }, [version]);
 
-  const receivableOrders = useMemo(() => purchaseOrders.filter((order) => order.status !== "received" && order.status !== "cancelled" && order.status !== "archived"), [purchaseOrders]);
+  const receivableOrders = useMemo(() => purchaseOrders.filter((order) => ["confirmed", "partially_received"].includes(order.status)), [purchaseOrders]);
 
   const receipts = useMemo(() => {
     void version;
@@ -127,8 +127,8 @@ export function GoodsReceiptsPage() {
             <h1 className="mt-1 font-display text-2xl font-bold text-hicotech-navy dark:text-white">Réceptions fournisseur</h1>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">Postez les quantités reçues et alimentez le stock depuis les commandes fournisseur.</p>
           </div>
-          <button onClick={() => openCreate()} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-hicotech-blue px-4 py-2 text-sm font-bold text-white">
-            <Plus size={16} /> Nouvelle réception
+          <button type="button" onClick={() => openCreate()} title="Créer une réception fournisseur" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-hicotech-blue px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/20">
+            <Plus size={16} /> Créer une réception
           </button>
         </div>
         <input className="mt-4 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold outline-none focus:border-hicotech-blue dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white" placeholder="Rechercher une réception..." value={query} onChange={(event) => setQuery(event.target.value)} />
@@ -164,7 +164,7 @@ export function GoodsReceiptsPage() {
                 <td colSpan={6} className="px-4 py-10 text-center">
                   <PackageCheck className="mx-auto mb-3 text-slate-400" size={28} />
                   <p className="font-display text-base font-bold text-hicotech-navy dark:text-white">Aucune réception fournisseur.</p>
-                  <p className="mt-1 text-sm text-slate-500">Créez une réception depuis une commande fournisseur confirmée.</p>
+                  <p className="mt-1 text-sm text-slate-500">Cliquez sur &quot;Créer une réception&quot; lorsqu&apos;une commande confirmée arrive en stock.</p>
                 </td>
               </tr>
             )}

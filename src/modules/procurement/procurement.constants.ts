@@ -11,7 +11,7 @@ export const PURCHASE_ORDER_STATUS_LABELS = {
   sent: "Envoyée",
   confirmed: "Confirmée",
   partially_received: "Partiellement reçue",
-  received: "Reçue",
+  received: "Totalement reçue",
   cancelled: "Annulée",
   archived: "Archivée"
 } as const;

@@ -14,6 +14,7 @@ export type ProductValidationIssueCode =
   | "invalid_purchase_price"
   | "invalid_selling_price"
   | "invalid_vat_rate"
+  | "invalid_reorder_point"
   | "invalid_currency"
   | "permission_denied";
 
@@ -40,6 +41,7 @@ export function validateCreateProductInput(input: CreateProductInput): ProductVa
   addMoneyIssue(input.purchasePrice ?? 0, "purchasePrice", "invalid_purchase_price", "Prix d'achat invalide.", issues);
   addMoneyIssue(input.sellingPrice, "sellingPrice", "invalid_selling_price", "Prix de vente invalide.", issues);
   addVatIssue(input.vatRate, issues);
+  addQuantityIssue(input.reorderPoint ?? 0, "reorderPoint", "invalid_reorder_point", "Seuil de réapprovisionnement invalide.", issues);
   addCurrencyIssue(input.currency, issues);
   addPermissionIssue(input.permission, issues);
   return createValidationResult(issues);
@@ -55,6 +57,7 @@ export function validateUpdateProductInput(input: UpdateProductInput): ProductVa
   if (input.purchasePrice !== undefined) addMoneyIssue(input.purchasePrice, "purchasePrice", "invalid_purchase_price", "Prix d'achat invalide.", issues);
   if (input.sellingPrice !== undefined) addMoneyIssue(input.sellingPrice, "sellingPrice", "invalid_selling_price", "Prix de vente invalide.", issues);
   addVatIssue(input.vatRate, issues);
+  if (input.reorderPoint !== undefined) addQuantityIssue(input.reorderPoint, "reorderPoint", "invalid_reorder_point", "Seuil de réapprovisionnement invalide.", issues);
   addCurrencyIssue(input.currency, issues);
   addPermissionIssue(input.permission, issues);
   return createValidationResult(issues);
@@ -108,6 +111,10 @@ function addVatIssue(value: number | undefined, issues: ProductValidationIssue[]
   if (!Number.isFinite(value) || value < 0 || value > 100) {
     issues.push({ code: "invalid_vat_rate", field: "vatRate", message: "VAT rate is invalid." });
   }
+}
+
+function addQuantityIssue(value: number, field: string, code: ProductValidationIssueCode, message: string, issues: ProductValidationIssue[]) {
+  if (!Number.isFinite(value) || value < 0) issues.push({ code, field, message });
 }
 
 function addCurrencyIssue(value: string | undefined, issues: ProductValidationIssue[]) {

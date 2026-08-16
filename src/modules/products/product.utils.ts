@@ -38,6 +38,7 @@ export function normalizeCreateProductInput(input: CreateProductInput) {
     sellingPrice: roundMoney(input.sellingPrice),
     vatRate: roundRate(input.vatRate ?? DEFAULT_PRODUCT_VAT_RATE),
     currency: normalizeCurrency(input.currency),
+    reorderPoint: roundQuantity(input.reorderPoint ?? 0),
     image: optionalText(input.image),
     notes: optionalText(input.notes),
     flags: { ...DEFAULT_PRODUCT_FLAGS, ...(input.flags ?? {}) }
@@ -58,6 +59,7 @@ export function normalizeUpdateProductInput(input: UpdateProductInput) {
     sellingPrice: input.sellingPrice === undefined ? undefined : roundMoney(input.sellingPrice),
     vatRate: input.vatRate === undefined ? undefined : roundRate(input.vatRate),
     currency: input.currency === undefined ? undefined : normalizeCurrency(input.currency),
+    reorderPoint: input.reorderPoint === undefined ? undefined : roundQuantity(input.reorderPoint),
     image: input.image === undefined ? undefined : optionalText(input.image),
     notes: input.notes === undefined ? undefined : optionalText(input.notes)
   };
@@ -148,4 +150,8 @@ function roundMoney(value: number) {
 
 function roundRate(value: number) {
   return Math.round(value * 100) / 100;
+}
+
+function roundQuantity(value: number) {
+  return Math.round(value * 1_000_000) / 1_000_000;
 }

@@ -471,10 +471,11 @@ async function persistQuote(scope: PersistenceTenantScope, quote: Quote) {
 
 async function persistSalesOrder(scope: PersistenceTenantScope, order: SalesOrder) {
   if (order.workspaceId !== SALES_ORDERS_WORKSPACE_ID) throw new Error("La commande client doit appartenir à l'espace Commandes clients.");
-  await assertSalesOrderTenant(scope, order.id);
+  await assertSalesOrderDraftPersistencePolicy(scope, order);
   await assertCrmCompanyTenant(scope, order.companyId);
   if (order.contactId) await assertCrmContactTenant(scope, order.contactId);
   if (order.sourceQuoteId) await assertAcceptedSalesQuoteTenant(scope, order.sourceQuoteId);
+  await assertSalesOrderLineProductsTenant(scope, order.lines);
   await assertUniqueSalesOrderSourceQuote(scope, order);
   await prisma.$transaction((tx) => upsertSalesOrderWithLines(tx, scope, order));
   return order;
@@ -592,6 +593,35 @@ async function assertUniqueSalesOrderSourceQuote(scope: PersistenceTenantScope, 
   }
 }
 
+async function assertSalesOrderDraftPersistencePolicy(scope: PersistenceTenantScope, order: SalesOrder) {
+  const existing = await prisma.salesOrder.findUnique({
+    where: { id: order.id },
+    select: { tenantCompanyId: true, status: true }
+  });
+  assertTenantOwner(scope, existing?.tenantCompanyId);
+
+  if (!existing) {
+    if (order.status !== "draft") throw new Error("Une nouvelle commande client doit être créée en brouillon.");
+  } else {
+    if (existing.status !== "draft") throw new Error("Seules les commandes client brouillon peuvent être modifiées.");
+    if (order.status !== "draft") throw new Error("Confirmez la commande client depuis l'action dédiée.");
+  }
+
+  const hasCommittedQuantity = order.lines.some((line) => line.quantityReserved > 0 || line.quantityDelivered > 0 || Boolean(line.warehouseId));
+  if (hasCommittedQuantity) {
+    throw new Error("Une commande client brouillon ne peut pas contenir de réservation, de livraison ou d'entrepôt engagé.");
+  }
+}
+
+async function assertSalesOrderLineProductsTenant(scope: PersistenceTenantScope, lines: readonly SalesOrderLine[]) {
+  const productIds = [...new Set(lines.map((line) => line.productId).filter((id): id is ProductId => Boolean(id)))];
+  if (productIds.length === 0) return;
+  const products = await prisma.product.findMany({ where: { companyId: scope.companyId, id: { in: productIds } }, select: { id: true } });
+  const found = new Set(products.map((product) => product.id));
+  const missing = productIds.find((id) => !found.has(id));
+  if (missing) throw new Error("Produit introuvable pour cette entreprise.");
+}
+
 function validateQuoteStatusTransition(from: QuoteStatus, to: QuoteStatus) {
   if (from === to) throw new Error("Ce devis possède déjà ce statut.");
   if (!canTransitionDocument("quote", from as CommercialDocumentStatus, to as CommercialDocumentStatus)) {
@@ -601,11 +631,6 @@ function validateQuoteStatusTransition(from: QuoteStatus, to: QuoteStatus) {
 
 async function assertSalesInvoiceTenant(scope: PersistenceTenantScope, id: string) {
   const existing = await prisma.salesInvoice.findUnique({ where: { id }, select: { tenantCompanyId: true } });
-  assertTenantOwner(scope, existing?.tenantCompanyId);
-}
-
-async function assertSalesOrderTenant(scope: PersistenceTenantScope, id: string) {
-  const existing = await prisma.salesOrder.findUnique({ where: { id }, select: { tenantCompanyId: true } });
   assertTenantOwner(scope, existing?.tenantCompanyId);
 }
 

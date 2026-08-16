@@ -18,18 +18,32 @@ export const salesNavigation = Object.freeze({
       metadata: { icon: "FileText", permissionModule: "quotes", activePath: "/sales/quotes" }
     },
     {
-      id: "sales.invoices",
-      label: "Factures",
-      route: "/sales/invoices",
-      permission: "sales.invoice.read",
-      metadata: { icon: "Receipt", permissionModule: "invoices", activePath: "/sales/invoices" }
-    },
-    {
       id: "sales.orders",
       label: "Commandes clients",
       route: "/sales/orders",
       permission: "sales.order.read",
       metadata: { icon: "ClipboardCheck", permissionModule: "orders", activePath: "/sales/orders" }
+    },
+    {
+      id: "sales.delivery-notes",
+      label: "Bons de livraison",
+      route: "/sales/delivery-notes",
+      permission: "sales.delivery-note.read",
+      metadata: { icon: "Truck", permissionModule: "delivery-notes", activePath: "/sales/delivery-notes" }
+    },
+    {
+      id: "sales.shipments",
+      label: "Expéditions",
+      route: "/sales/shipments",
+      permission: "sales.shipment.read",
+      metadata: { icon: "Truck", permissionModule: "shipments", activePath: "/sales/shipments" }
+    },
+    {
+      id: "sales.invoices",
+      label: "Factures",
+      route: "/sales/invoices",
+      permission: "sales.invoice.read",
+      metadata: { icon: "Receipt", permissionModule: "invoices", activePath: "/sales/invoices" }
     },
     {
       id: "sales.payments",

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Archive, ArrowLeft, CheckCircle2, Download, Eye, Pencil, Printer } from "lucide-react";
+import { Archive, ArrowLeft, CheckCircle2, Download, Eye, Pencil, Printer, Truck } from "lucide-react";
 import { CRM_COMPANIES_WORKSPACE_ID } from "@/modules/crm/companies/ui/companies.seed";
 import { crmCompanyLocalService, subscribeToCrmCompanyStore } from "@/modules/crm/companies/ui/company-local-store";
 import { inventoryLocalService, subscribeToInventoryStore } from "@/modules/inventory/inventory-local-store";
@@ -126,6 +126,7 @@ export function DeliveryNoteDetailsWorkspace({ deliveryNoteId }: { deliveryNoteI
             <button onClick={() => void printSalesDocumentPdf(pdfDocument)} className={actionClassName}><Printer size={15} /> Imprimer</button>
             {noteValue.status === "draft" ? <button onClick={openEdit} className={actionClassName}><Pencil size={15} /> Modifier</button> : null}
             {noteValue.status === "draft" ? <button onClick={() => setConfirmOpen(true)} className={primaryClassName}><CheckCircle2 size={15} /> Poster la livraison</button> : null}
+            {noteValue.status === "posted" ? <Link href={`/sales/shipments?deliveryNoteId=${noteValue.id}`} className={primaryClassName} title="Créer une expédition"><Truck size={15} /> Créer une expédition</Link> : null}
             {noteValue.status === "posted" ? <button onClick={() => void archive()} className={actionClassName}><Archive size={15} /> Archiver</button> : null}
           </div>
         </div>

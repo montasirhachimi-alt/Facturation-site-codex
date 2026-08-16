@@ -91,7 +91,7 @@ export function SupplierDialog({
           <FormField label="Raison sociale" required>
             <input className={entityInputClassName} value={form.companyName} onChange={(event) => update("companyName", event.target.value)} />
           </FormField>
-          <FormField label="Nom commercial">
+          <FormField label="Contact / nom commercial">
             <input className={entityInputClassName} value={form.tradeName} onChange={(event) => update("tradeName", event.target.value)} />
           </FormField>
           <FormField label="ICE">

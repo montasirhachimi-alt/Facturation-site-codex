@@ -27,12 +27,21 @@ export const alphaCrmSalesEditionProfile = Object.freeze({
     "crm.tasks",
     "crm.notes",
     "sales.quotes",
+    "sales.orders",
+    "sales.delivery-notes",
+    "sales.shipments",
     "sales.invoices",
-    "sales.payments"
+    "sales.payments",
+    "sales.products",
+    "inventory.stock",
+    "procurement.overview",
+    "procurement.suppliers",
+    "procurement.purchase-orders",
+    "procurement.goods-receipts"
   ]),
   disabledModuleIds: Object.freeze([]),
   tags: Object.freeze(["alpha", "crm", "sales"]),
-  notes: Object.freeze(["Current runtime default. Must preserve the visible Alpha product exactly."]),
+  notes: Object.freeze(["Current runtime default. Products, Inventory, Procurement and validated Sales Operations are active once operational workspaces are available."]),
   futureLicenseKey: "edition.alpha.crm-sales",
   futurePlanCode: "ALPHA_CRM_SALES"
 } satisfies EditionProfile);
@@ -165,7 +174,7 @@ export const salesOperationsEditionProfile = Object.freeze({
   defaultForEnvironment: false,
   commercial: false,
   order: 55,
-  enabledModuleIds: Object.freeze(["core.dashboard", "core.settings", "crm.overview", "crm.companies", "crm.contacts", "sales.quotes", "sales.invoices", "sales.payments", "sales.products", "inventory.stock", "sales.orders", "sales.delivery-notes"]),
+  enabledModuleIds: Object.freeze(["core.dashboard", "core.settings", "crm.overview", "crm.companies", "crm.contacts", "sales.quotes", "sales.orders", "sales.delivery-notes", "sales.shipments", "sales.invoices", "sales.payments", "sales.products", "inventory.stock"]),
   disabledModuleIds: Object.freeze([]),
   tags: Object.freeze(["internal", "planned", "sales-operations"]),
   notes: Object.freeze(["Controlled QA profile only. It is not selectable in the Alpha runtime."]),

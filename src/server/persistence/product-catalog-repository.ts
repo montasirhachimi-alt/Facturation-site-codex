@@ -8,6 +8,26 @@ import type { PersistenceTenantScope } from "./tenant-scope";
 
 type DbProduct = Prisma.ProductGetPayload<{ include: { productCategory: true } }>;
 type DbProductCategory = Prisma.ProductCategoryGetPayload<Record<string, never>>;
+type ProductCatalogPersistenceErrorCode =
+  | "duplicate_barcode"
+  | "duplicate_category"
+  | "duplicate_sku"
+  | "invalid_category"
+  | "invalid_product"
+  | "tenant_denied"
+  | "unsafe_tracking_change";
+
+export class ProductCatalogPersistenceError extends Error {
+  readonly code: ProductCatalogPersistenceErrorCode;
+  readonly status: number;
+
+  constructor(message: string, code: ProductCatalogPersistenceErrorCode, status: number) {
+    super(message);
+    this.name = "ProductCatalogPersistenceError";
+    this.code = code;
+    this.status = status;
+  }
+}
 
 export type ProductCatalogSnapshot = Readonly<{
   products: Product[];
@@ -91,19 +111,25 @@ export async function applyProductCatalogImport(scope: PersistenceTenantScope, r
 }
 
 async function persistProduct(scope: PersistenceTenantScope, product: Product) {
+  assertProductPayload(product);
   await assertProductTenant(scope, product.id);
-  if (product.categoryId) await assertProductCategoryTenant(scope, product.categoryId);
+  if (product.categoryId) await assertProductCategoryTenant(scope, product.categoryId, { requireExisting: true });
+  await assertUniqueProductPersistence(scope, product);
   await assertSafeTrackingPolicyChange(scope, product);
 
-  await prisma.product.upsert({
-    where: { id: product.id },
-    update: productWriteData(product),
-    create: {
-      id: product.id,
-      companyId: scope.companyId,
-      ...productWriteData(product)
-    }
-  });
+  try {
+    await prisma.product.upsert({
+      where: { id: product.id },
+      update: productWriteData(product),
+      create: {
+        id: product.id,
+        companyId: scope.companyId,
+        ...productWriteData(product)
+      }
+    });
+  } catch (error) {
+    throw mapProductPrismaError(error);
+  }
   return product;
 }
 
@@ -116,23 +142,32 @@ async function assertSafeTrackingPolicyChange(scope: PersistenceTenantScope, pro
     prisma.inventoryStockMovement.count({ where: { companyId: scope.companyId, productId: product.id } })
   ]);
   if (balanceCount > 0 || movementCount > 0) {
-    throw new Error("Ce produit a déjà un historique ou un solde de stock. Il ne peut pas être transformé en service non stocké.");
+    throw new ProductCatalogPersistenceError(
+      "Ce produit a déjà un historique ou un solde de stock. Il ne peut pas être transformé en service non stocké.",
+      "unsafe_tracking_change",
+      409
+    );
   }
 }
 
 async function persistProductCategory(scope: PersistenceTenantScope, category: ProductCategory) {
   await assertProductCategoryTenant(scope, category.id);
-  if (category.parentId) await assertProductCategoryTenant(scope, category.parentId);
+  if (category.parentId) await assertProductCategoryTenant(scope, category.parentId, { requireExisting: true });
+  await assertUniqueProductCategoryPersistence(scope, category);
 
-  await prisma.productCategory.upsert({
-    where: { id: category.id },
-    update: categoryWriteData(category),
-    create: {
-      id: category.id,
-      companyId: scope.companyId,
-      ...categoryWriteData(category)
-    }
-  });
+  try {
+    await prisma.productCategory.upsert({
+      where: { id: category.id },
+      update: categoryWriteData(category),
+      create: {
+        id: category.id,
+        companyId: scope.companyId,
+        ...categoryWriteData(category)
+      }
+    });
+  } catch (error) {
+    throw mapProductPrismaError(error);
+  }
   return category;
 }
 
@@ -141,15 +176,83 @@ async function assertProductTenant(scope: PersistenceTenantScope, id: string) {
   assertTenantOwner(scope, existing?.companyId);
 }
 
-async function assertProductCategoryTenant(scope: PersistenceTenantScope, id: string) {
+async function assertProductCategoryTenant(
+  scope: PersistenceTenantScope,
+  id: string,
+  options: { requireExisting?: boolean } = {}
+) {
   const existing = await prisma.productCategory.findUnique({ where: { id }, select: { companyId: true } });
+  if (!existing && options.requireExisting) {
+    throw new ProductCatalogPersistenceError("Cette catégorie produit n'existe plus. Actualisez le catalogue puis réessayez.", "invalid_category", 400);
+  }
   assertTenantOwner(scope, existing?.companyId);
 }
 
 function assertTenantOwner(scope: PersistenceTenantScope, companyId?: string) {
   if (companyId && companyId !== scope.companyId) {
-    throw new Error("Accès refusé: cet enregistrement produit appartient à une autre entreprise.");
+    throw new ProductCatalogPersistenceError("Accès refusé: cet enregistrement produit appartient à une autre entreprise.", "tenant_denied", 403);
   }
+}
+
+function assertProductPayload(product: Product) {
+  if (!product?.id || !product.workspaceId || !product.sku?.trim() || !product.name?.trim()) {
+    throw new ProductCatalogPersistenceError("Produit invalide: SKU, nom et espace de travail sont requis.", "invalid_product", 400);
+  }
+
+  if (!Number.isFinite(product.purchasePrice) || product.purchasePrice < 0) {
+    throw new ProductCatalogPersistenceError("Prix d'achat invalide.", "invalid_product", 400);
+  }
+
+  if (!Number.isFinite(product.sellingPrice) || product.sellingPrice < 0) {
+    throw new ProductCatalogPersistenceError("Prix de vente invalide.", "invalid_product", 400);
+  }
+
+  if (!Number.isFinite(product.vatRate) || product.vatRate < 0 || product.vatRate > 100) {
+    throw new ProductCatalogPersistenceError("TVA produit invalide.", "invalid_product", 400);
+  }
+
+  if (!Number.isFinite(product.reorderPoint) || product.reorderPoint < 0) {
+    throw new ProductCatalogPersistenceError("Seuil de réapprovisionnement invalide.", "invalid_product", 400);
+  }
+}
+
+async function assertUniqueProductPersistence(scope: PersistenceTenantScope, product: Product) {
+  const [skuMatch, barcodeMatch] = await Promise.all([
+    prisma.product.findFirst({
+      where: {
+        companyId: scope.companyId,
+        sku: product.sku,
+        NOT: { id: product.id }
+      },
+      select: { id: true }
+    }),
+    product.barcode
+      ? prisma.product.findFirst({
+        where: {
+          companyId: scope.companyId,
+          barcode: product.barcode,
+          NOT: { id: product.id }
+        },
+        select: { id: true }
+      })
+      : Promise.resolve(null)
+  ]);
+
+  if (skuMatch) throw new ProductCatalogPersistenceError("Ce SKU existe déjà.", "duplicate_sku", 409);
+  if (barcodeMatch) throw new ProductCatalogPersistenceError("Ce code-barres existe déjà.", "duplicate_barcode", 409);
+}
+
+async function assertUniqueProductCategoryPersistence(scope: PersistenceTenantScope, category: ProductCategory) {
+  const nameMatch = await prisma.productCategory.findFirst({
+    where: {
+      companyId: scope.companyId,
+      name: category.name,
+      NOT: { id: category.id }
+    },
+    select: { id: true }
+  });
+
+  if (nameMatch) throw new ProductCatalogPersistenceError("Cette catégorie existe déjà.", "duplicate_category", 409);
 }
 
 function productWriteData(product: Product) {
@@ -170,6 +273,7 @@ function productWriteData(product: Product) {
     salePrice: product.sellingPrice,
     vatRate: product.vatRate,
     currency: product.currency,
+    reorderPoint: product.reorderPoint,
     active: product.active,
     status: product.status,
     notes: product.notes ?? null,
@@ -221,6 +325,42 @@ function categoryWriteData(category: ProductCategory) {
   };
 }
 
+function mapProductPrismaError(error: unknown) {
+  if (error instanceof ProductCatalogPersistenceError) return error;
+
+  const prismaCode = getPrismaErrorCode(error);
+  if (prismaCode === "P2002") {
+    const target = getPrismaErrorTarget(error);
+    if (target.includes("sku") || target.includes("reference")) {
+      return new ProductCatalogPersistenceError("Ce SKU existe déjà.", "duplicate_sku", 409);
+    }
+    if (target.includes("barcode")) {
+      return new ProductCatalogPersistenceError("Ce code-barres existe déjà.", "duplicate_barcode", 409);
+    }
+    if (target.includes("name")) {
+      return new ProductCatalogPersistenceError("Cette catégorie existe déjà.", "duplicate_category", 409);
+    }
+  }
+
+  if (prismaCode === "P2003") {
+    return new ProductCatalogPersistenceError("La catégorie ou l'entreprise liée est introuvable. Actualisez puis réessayez.", "invalid_product", 400);
+  }
+
+  return error instanceof Error ? error : new Error("Erreur catalogue inconnue.");
+}
+
+function getPrismaErrorCode(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error
+    ? String((error as { code?: unknown }).code ?? "")
+    : "";
+}
+
+function getPrismaErrorTarget(error: unknown) {
+  if (typeof error !== "object" || error === null || !("meta" in error)) return "";
+  const target = (error as { meta?: { target?: unknown } }).meta?.target;
+  return Array.isArray(target) ? target.join(" ") : String(target ?? "");
+}
+
 function mapDbProduct(row: DbProduct): Product {
   return {
     id: row.id,
@@ -238,6 +378,7 @@ function mapDbProduct(row: DbProduct): Product {
     sellingPrice: decimalToNumber(row.sellingPrice),
     vatRate: decimalToNumber(row.vatRate),
     currency: row.currency,
+    reorderPoint: decimalToNumber(row.reorderPoint),
     active: row.active,
     image: row.imageUrl ?? undefined,
     notes: row.notes ?? undefined,

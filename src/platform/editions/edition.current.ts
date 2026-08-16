@@ -5,6 +5,7 @@ import { ModuleRegistry } from "../modules/module.registry";
 import { bosiacoEditionProfiles } from "./edition.profiles";
 import { EditionProfileRegistry } from "./edition.registry";
 import type { EditionId } from "./edition.types";
+import { resolveEditionProfileForEnvironment } from "./edition-profile.resolver";
 import { editionToActivationRequest } from "./edition.utils";
 
 export const bosiacoEditionModuleRegistry = new ModuleRegistry(bosiacoModuleDescriptors);
@@ -14,9 +15,11 @@ export const bosiacoEditionProfileRegistry = new EditionProfileRegistry(
   bosiacoEditionModuleRegistry
 );
 
-export const currentEditionProfile = Object.freeze(
-  bosiacoEditionProfileRegistry.getDefaultEdition() ?? bosiacoEditionProfileRegistry.get("alpha.crm-sales")!
+export const currentEditionProfileResolution = Object.freeze(
+  resolveEditionProfileForEnvironment(bosiacoEditionProfileRegistry)
 );
+
+export const currentEditionProfile = Object.freeze(currentEditionProfileResolution.profile);
 
 export const currentEditionActivationRequest = Object.freeze(
   editionToActivationRequest(currentEditionProfile)
@@ -32,6 +35,10 @@ export function getEditionProfile(id: EditionId) {
 
 export function getCurrentEditionProfile() {
   return currentEditionProfile;
+}
+
+export function getCurrentEditionProfileResolution() {
+  return currentEditionProfileResolution;
 }
 
 export function getCurrentEditionActivationRequest(): ModuleActivationRequest {

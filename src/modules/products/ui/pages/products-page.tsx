@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { BadgePercent, Coins, PackageCheck, Tags } from "lucide-react";
-import { EntityHeader, EntityPageLayout, EntityPagination, EntityStatsCards, InfoCard } from "@/ui";
+import { useRouter } from "next/navigation";
+import { AlertTriangle, Boxes, Coins, PackageCheck, Tags } from "lucide-react";
+import { EntityErrorState, EntityHeader, EntityPageLayout, EntityPagination, EntityStatsCards } from "@/ui";
+import { formatInventoryQuantity } from "@/modules/inventory/ui/hooks/use-inventory-workspace";
 import { ProductDialog } from "../dialogs/product-dialog";
 import { ProductImportDialog } from "../dialogs/product-import-dialog";
 import { downloadProductImportTemplate, downloadProductsExport } from "../product-file-io";
@@ -12,24 +14,25 @@ import { ProductsToolbar } from "../toolbar/products-toolbar";
 
 export function ProductsPage() {
   const state = useProductsPage();
+  const router = useRouter();
   const [importOpen, setImportOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   return (
     <EntityPageLayout>
       <EntityHeader
-        breadcrumb={["Business Platform", "Catalogue"]}
+        breadcrumb={["Stock", "Catalogue"]}
         title="Catalogue produits"
-        description="Fondation canonique des produits pour les futurs modules ventes, stock, achats, livraison et reporting."
-        meta={<InfoCard>Module préparé : non visible dans l&apos;Alpha tant que l&apos;activation ne l&apos;autorise pas.</InfoCard>}
+        description="Gérez les articles, les prix et la situation de stock depuis un espace opérationnel unique."
       />
 
       <EntityStatsCards
         metrics={[
           { icon: PackageCheck, label: "Produits actifs", value: String(state.stats.total), helper: "Catalogue opérationnel" },
           { icon: Tags, label: "Catégories", value: String(state.stats.categories), helper: "Classification produit" },
-          { icon: Coins, label: "Prix moyen", value: formatMoney(state.stats.averagePrice), helper: "Prix de vente HT" },
-          { icon: BadgePercent, label: "Archive", value: String(state.stats.archived), helper: "Produits retirés" }
+          { icon: Boxes, label: "Disponible", value: formatInventoryQuantity(state.stats.quantityAvailable), helper: `${formatInventoryQuantity(state.stats.quantityReserved)} réservé` },
+          { icon: AlertTriangle, label: "À surveiller", value: String(state.stats.lowStock + state.stats.outOfStock), helper: `${state.stats.outOfStock} rupture(s)` },
+          { icon: Coins, label: "Prix moyen", value: formatMoney(state.stats.averagePrice), helper: `${state.stats.archived} archivé(s)` }
         ]}
       />
 
@@ -58,13 +61,20 @@ export function ProductsPage() {
           state.setStatus(value);
           state.resetPage();
         }}
+        setStockStatus={(value) => {
+          state.setStockStatus(value);
+          state.resetPage();
+        }}
         setUnit={(value) => {
           state.setUnit(value);
           state.resetPage();
         }}
         status={state.status}
+        stockStatus={state.stockStatus}
         unit={state.unit}
       />
+
+      {state.loadError && <EntityErrorState message={state.loadError} />}
 
       {notice && (
         <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200">
@@ -74,9 +84,11 @@ export function ProductsPage() {
 
       <ProductsTable
         products={state.paginatedProducts.items}
-        onArchive={state.archiveProduct}
-        onEdit={state.openEditDialog}
-        onRestore={state.restoreProduct}
+        loading={state.loading}
+        onArchive={(row) => state.archiveProduct(row.product)}
+        onEdit={(row) => state.openEditDialog(row.product)}
+        onOpen={(row) => router.push(`/sales/products/${row.product.id}`)}
+        onRestore={(row) => state.restoreProduct(row.product)}
         onSort={state.updateSort}
         onToggleAll={state.toggleAllVisible}
         onToggleRow={state.toggleRow}

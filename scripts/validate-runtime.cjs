@@ -355,7 +355,7 @@ test("SearchService exposes the Unified Search facade without breaking legacy mo
 
   assert(Array.isArray(legacyResults), "String SearchService.search calls should preserve legacy synchronous module search.");
   assert(Array.isArray(unifiedResults), "Object SearchService.search calls should use the Unified Search Runtime.");
-  const expectedProviderIds = ["crm.overview", "crm.companies", "crm.contacts", "crm.meetings", "crm.tasks", "crm.notes", "sales.quotes", "sales.invoices", "sales.orders", "sales.delivery-notes", "sales.payments"];
+  const expectedProviderIds = ["crm.overview", "crm.companies", "crm.contacts", "crm.meetings", "crm.tasks", "crm.notes", "sales.quotes", "sales.invoices", "sales.orders", "sales.delivery-notes", "sales.shipments", "sales.payments"];
 
   assert(expectedProviderIds.every((providerId) => providers.includes(providerId)), "SearchService should bootstrap initial Alpha CRM/Sales module-owned search providers.");
 });
@@ -542,7 +542,8 @@ test("Platform Module Registry describes Alpha-ready modules without changing ac
   assert(validation.valid, `Platform Module Registry should validate: ${validation.issues.map((issue) => issue.message).join("; ")}`);
   assert(expectedVisibleIds.every((id) => visibleIds.includes(id)), "Visible module list should contain every Alpha-ready product workspace.");
   assert(!visibleIds.includes("crm.opportunities"), "Hidden opportunities module should not be visible.");
-  assert(!visibleIds.includes("inventory.stock"), "Hidden inventory module should not be visible.");
+  assert(alphaReadyIds.includes("sales.products"), "Operational Product Catalog should be Alpha-ready.");
+  assert(alphaReadyIds.includes("inventory.stock"), "Operational Inventory should be Alpha-ready.");
   assert(alphaReadyIds.includes("platform.command-center"), "Command Center should be represented as an Alpha-ready platform foundation.");
   assert(registry.listByCategory("crm").some((descriptor) => descriptor.id === "crm.companies"), "Registry should list modules by category.");
 
@@ -618,14 +619,21 @@ test("Platform Module Activation resolves the current Alpha profile deterministi
     "crm.notes",
     "sales.quotes",
     "sales.invoices",
-    "sales.payments"
+    "sales.payments",
+    "sales.products",
+    "inventory.stock",
+    "procurement.overview",
+    "procurement.suppliers",
+    "procurement.purchase-orders",
+    "procurement.goods-receipts"
   ];
 
   assert(first.errors.length === 0, `Alpha activation should resolve without errors: ${first.errors.map((issue) => issue.message).join("; ")}`);
   assert(JSON.stringify(first.activationOrder) === JSON.stringify(second.activationOrder), "Activation order should be deterministic.");
   assert(expectedVisibleIds.every((id) => visibleIds.includes(id)), "Alpha activation should include every visible Alpha module.");
   assert(!visibleIds.includes("crm.opportunities"), "Hidden opportunities module should not become visible.");
-  assert(!visibleIds.includes("inventory.stock"), "Planned inventory module should not become visible in Alpha.");
+  assert(visibleIds.includes("inventory.stock"), "Inventory should be visible in Alpha once the operational workspace is ready.");
+  assert(visibleIds.includes("procurement.purchase-orders"), "Procurement should be visible in Alpha once the operational workspace is ready.");
   assert(first.activeModuleIds.includes("platform.persistence"), "Required hidden platform dependencies may activate as non-visible foundations.");
   assert(first.automaticallyEnabledModuleIds.includes("platform.persistence"), "Required dependencies should auto-enable deterministically.");
   assert(getCurrentAlphaActivation().profileKey === "alpha.crm-sales", "Current Alpha activation should expose the current Edition profile key.");
@@ -635,19 +643,23 @@ test("Edition Profiles validate the default Alpha Edition and future metadata", 
   const {
     bosiacoEditionProfileRegistry,
     getCurrentEditionActivationResult,
-    getCurrentEditionProfile
+    getCurrentEditionProfile,
+    getCurrentEditionProfileResolution
   } = load("src/platform/editions");
   const validation = bosiacoEditionProfileRegistry.validate();
   const defaultEdition = bosiacoEditionProfileRegistry.getDefaultEdition();
   const alphaActivation = getCurrentEditionActivationResult();
+  const currentResolution = getCurrentEditionProfileResolution();
   const commercialEditionIds = bosiacoEditionProfileRegistry.listCommercial().map((profile) => profile.id);
 
   assert(validation.valid, `Edition profiles should validate: ${validation.issues.map((issue) => issue.message).join("; ")}`);
   assert(defaultEdition?.id === "alpha.crm-sales", "The current runtime default Edition should be Alpha CRM & Sales.");
   assert(getCurrentEditionProfile().id === "alpha.crm-sales", "Current Edition helper should return Alpha CRM & Sales.");
+  assert(currentResolution.source === "default", "Current Edition resolution should use the default Alpha profile when no internal override is configured.");
   assert(alphaActivation.errors.length === 0, "Current Edition activation should resolve without errors.");
   assert(alphaActivation.activeModuleIds.includes("sales.payments"), "Current Edition should activate stable Sales payments.");
-  assert(!alphaActivation.activeModuleIds.includes("inventory.stock"), "Current Edition should not activate planned Inventory.");
+  assert(alphaActivation.activeModuleIds.includes("sales.products"), "Current Edition should activate the operational Product Catalog.");
+  assert(alphaActivation.activeModuleIds.includes("inventory.stock"), "Current Edition should activate the operational Inventory workspace.");
   assert(commercialEditionIds.includes("basic"), "Basic should exist as commercial metadata.");
   assert(commercialEditionIds.includes("crm"), "CRM should exist as commercial metadata.");
   assert(commercialEditionIds.includes("sales"), "Sales should exist as commercial metadata.");
@@ -655,6 +667,80 @@ test("Edition Profiles validate the default Alpha Edition and future metadata", 
   assert(bosiacoEditionProfileRegistry.listByStatus("planned").some((profile) => profile.id === "inventory"), "Inventory should remain planned metadata.");
   assert(bosiacoEditionProfileRegistry.listByStatus("planned").some((profile) => profile.id === "purchasing"), "Purchasing should remain planned metadata.");
   assert(bosiacoEditionProfileRegistry.listByStatus("planned").some((profile) => profile.id === "hr"), "HR should remain planned metadata.");
+});
+
+test("Safe internal Edition profile resolver supports Sales Operations QA without production backdoor", () => {
+  const {
+    bosiacoEditionProfileRegistry,
+    internalEditionProfileEnvName,
+    resolveEditionProfileForEnvironment,
+    isInternalEditionProfileSelectionAllowed,
+    editionToActivationRequest
+  } = load("src/platform/editions");
+  const { ModuleActivationEngine, bosiacoModuleRegistry } = load("src/platform/modules");
+  const resolverSource = read("src/platform/editions/edition-profile.resolver.ts");
+  const engine = new ModuleActivationEngine(bosiacoModuleRegistry);
+
+  const defaultResolution = resolveEditionProfileForEnvironment(bosiacoEditionProfileRegistry, { nodeEnv: "development" });
+  const salesOperationsResolution = resolveEditionProfileForEnvironment(bosiacoEditionProfileRegistry, {
+    nodeEnv: "development",
+    internalEditionProfile: "sales-operations"
+  });
+  const alphaOverrideResolution = resolveEditionProfileForEnvironment(bosiacoEditionProfileRegistry, {
+    nodeEnv: "development",
+    internalEditionProfile: "alpha.crm-sales"
+  });
+  const productionResolution = resolveEditionProfileForEnvironment(bosiacoEditionProfileRegistry, {
+    nodeEnv: "production",
+    internalEditionProfile: "sales-operations"
+  });
+  const unknownResolution = resolveEditionProfileForEnvironment(bosiacoEditionProfileRegistry, {
+    nodeEnv: "development",
+    internalEditionProfile: "unknown-edition"
+  });
+  const purchasingResolution = resolveEditionProfileForEnvironment(bosiacoEditionProfileRegistry, {
+    nodeEnv: "development",
+    internalEditionProfile: "purchasing"
+  });
+  const salesOperationsActivation = engine.resolve(editionToActivationRequest(salesOperationsResolution.profile));
+
+  assert(internalEditionProfileEnvName === "NEXT_PUBLIC_BOSIACO_INTERNAL_EDITION_PROFILE", "Internal profile switch should use the documented local QA environment variable.");
+  assert(defaultResolution.profile.id === "alpha.crm-sales" && defaultResolution.source === "default", "Resolver should default to Alpha when no override is configured.");
+  assert(salesOperationsResolution.profile.id === "sales-operations", "Development override should select the internal Sales Operations profile.");
+  assert(salesOperationsResolution.source === "internal-environment", "Sales Operations override should be clearly marked as internal environment selection.");
+  assert(alphaOverrideResolution.profile.id === "alpha.crm-sales", "Development override should also allow explicit Alpha restoration.");
+  assert(productionResolution.profile.id === "alpha.crm-sales" && productionResolution.warning, "Production runtime should ignore internal profile overrides.");
+  assert(unknownResolution.profile.id === "alpha.crm-sales" && unknownResolution.warning, "Unknown profile override should fall back safely.");
+  assert(purchasingResolution.profile.id === "alpha.crm-sales" && purchasingResolution.warning, "Internal resolver should not become a generic Edition selector.");
+  assert(isInternalEditionProfileSelectionAllowed({ nodeEnv: "development" }), "Development runtime should allow the internal QA override.");
+  assert(isInternalEditionProfileSelectionAllowed({ nodeEnv: "test" }), "Test runtime should allow the internal QA override.");
+  assert(!isInternalEditionProfileSelectionAllowed({ nodeEnv: "production" }), "Production runtime should not allow internal Edition profile override.");
+  assert(salesOperationsActivation.activeModuleIdSet.has("sales.orders"), "Sales Operations override should activate Sales Orders.");
+  assert(salesOperationsActivation.activeModuleIdSet.has("sales.delivery-notes"), "Sales Operations override should activate Delivery Notes.");
+  assert(salesOperationsActivation.activeModuleIdSet.has("sales.shipments"), "Sales Operations override should activate Shipments.");
+  assert(!resolverSource.includes("localStorage") && !resolverSource.includes("cookies()") && !resolverSource.includes("headers()"), "Profile override must not read client-controlled localStorage, cookies or headers.");
+});
+
+test("Edition activation hydration stays server resolved and client consistent", () => {
+  const resolverSource = read("src/platform/editions/edition-profile.resolver.ts");
+  const layoutSource = read("src/app/(erp)/layout.tsx");
+  const shellSource = read("src/components/erp-shell.tsx");
+  const sidebarSource = read("src/components/sidebar.tsx");
+  const sidebarAdapterSource = read("src/services/navigation/sidebar-adapter.ts");
+  const searchProviderSource = read("src/platform/search/providers/universal-search-provider.tsx");
+
+  assert(resolverSource.includes("process.env.NEXT_PUBLIC_BOSIACO_INTERNAL_EDITION_PROFILE"), "Edition resolver should use static NEXT_PUBLIC env access so Next.js can inline the same value for client bundles.");
+  assert(!resolverSource.includes("process.env[internalEditionProfileEnvName]"), "Edition resolver must not use dynamic env lookup for a NEXT_PUBLIC variable because client bundles may not inline it.");
+  assert(layoutSource.includes("getCurrentEditionActivationRequest()"), "ERP layout should resolve the effective Edition activation request during server render.");
+  assert(layoutSource.includes("activationRequest={activationRequest}"), "ERP layout should pass the server-resolved activation request into the client shell.");
+  assert(shellSource.includes("activationRequest: ModuleActivationRequest"), "ERP shell should require an explicit activation request instead of relying on a client-side default during hydration.");
+  assert(shellSource.includes("<ModuleActivationProvider request={activationRequest}>"), "ModuleActivationProvider should hydrate from the same activation request used by SSR.");
+  assert(sidebarSource.includes("useModuleActivation()"), "Sidebar should consume the hydrated ModuleActivation context.");
+  assert(sidebarSource.includes("getSidebarGroups(activation)"), "Sidebar navigation should be derived from the hydrated activation snapshot.");
+  assert(sidebarAdapterSource.includes("activation: ModuleActivationResult = getCurrentAlphaActivation()"), "Sidebar adapter may keep a fallback for non-React callers.");
+  assert(!sidebarAdapterSource.includes("const activation = getCurrentAlphaActivation()"), "Sidebar adapter must not override the caller-provided activation with a global snapshot.");
+  assert(searchProviderSource.includes("useModuleActivation()"), "Command Center provider should consume the same hydrated activation context as navigation.");
+  assert(searchProviderSource.includes("getFoundationSearchSections(query, activation)"), "Command Center sections should be filtered by the hydrated activation snapshot.");
 });
 
 test("Edition adapter and validation report invalid profile combinations", () => {
@@ -741,7 +827,7 @@ test("Platform Module Activation reports unknown, hidden and disabled dependency
   });
   const planned = engine.resolve({
     includeDefaults: false,
-    enabledModuleIds: ["inventory.stock"]
+    enabledModuleIds: ["purchasing.orders"]
   });
   const disabledDependency = engine.resolve({
     ...alphaActivationProfile,
@@ -765,12 +851,14 @@ test("Sidebar and Command Center consume activation without exposing hidden modu
   assert(sidebarHrefs.includes("/crm/companies"), "Sidebar should keep Companies visible.");
   assert(sidebarHrefs.includes("/sales/quotes"), "Sidebar should keep Quotes visible.");
   assert(sidebarHrefs.includes("/parametres"), "Sidebar should keep Settings visible.");
+  assert(sidebarHrefs.includes("/sales/products"), "Sidebar should expose operational Products.");
+  assert(sidebarHrefs.includes("/inventory"), "Sidebar should expose operational Inventory.");
   assert(!sidebarHrefs.includes("/crm/opportunities"), "Sidebar should not expose hidden Opportunities.");
-  assert(!sidebarHrefs.includes("/inventory"), "Sidebar should not expose inactive Inventory.");
   assert(commandHrefs.includes("/crm/contacts"), "Command Center should keep active CRM navigation.");
   assert(commandHrefs.includes("/sales/invoices"), "Command Center should keep active Sales navigation.");
+  assert(commandHrefs.includes("/sales/products"), "Command Center should expose active Products navigation.");
+  assert(commandHrefs.includes("/inventory"), "Command Center should expose active Inventory navigation.");
   assert(!commandHrefs.includes("/crm/opportunities"), "Command Center should not expose hidden Opportunities.");
-  assert(!commandHrefs.includes("/inventory"), "Command Center should not expose inactive Inventory.");
 });
 
 test("Dynamic Navigation preserves exact current Alpha Sidebar parity", () => {
@@ -787,6 +875,12 @@ test("Dynamic Navigation preserves exact current Alpha Sidebar parity", () => {
     "/sales/quotes",
     "/sales/invoices",
     "/sales/payments",
+    "/sales/products",
+    "/inventory",
+    "/procurement",
+    "/procurement/suppliers",
+    "/procurement/purchase-orders",
+    "/procurement/goods-receipts",
     "/parametres"
   ];
   const sidebarHrefs = getSidebarGroups().flatMap((group) => group.items.map((item) => item.href));
@@ -853,11 +947,11 @@ test("Route availability handles matching, fallback and legacy compatibility red
   assert(normalizeRoutePath("/sales/quotes?status=open#top") === "/sales/quotes", "Route normalization should remove query strings and hashes.");
   assert(getRouteOwner("/sales/quotes/quote-demo")?.moduleId === "sales.quotes", "Most specific route ownership should match nested quote details.");
   assert(isRouteAvailable("/sales/quotes"), "Active route should be available.");
-  assert(!isRouteAvailable("/inventory"), "Inventory route should be unavailable in Alpha.");
+  assert(isRouteAvailable("/inventory"), "Inventory route should be available in Alpha.");
   assert(getRouteAvailabilityDecision("/devis").redirectTo === "/sales/quotes", "Legacy Devis route should redirect to active Quotes.");
   assert(getRouteAvailabilityDecision("/clients").redirectTo === "/crm/companies", "Legacy Clients route should redirect to active Companies.");
-  assert(getRouteAvailabilityDecision("/stock").redirectTo === "/dashboard", "Legacy inactive Stock route should redirect to fallback.");
-  assert(getRouteAvailabilityDecision("/inventory").redirectTo === "/dashboard", "Inactive Inventory route should redirect to fallback.");
+  assert(getRouteAvailabilityDecision("/stock").redirectTo === "/dashboard", "Legacy Stock compatibility route should still redirect to the safe fallback.");
+  assert(getRouteAvailabilityDecision("/inventory").available, "Inventory route should be directly available.");
   assert(getFallbackRouteForUnavailableModule() === "/dashboard", "Fallback route should prefer Dashboard when active.");
 });
 
@@ -956,14 +1050,20 @@ test("Dashboard Contribution Resolver preserves Alpha layout and filters inactiv
     "dashboard.priority-center",
     "dashboard.performance",
     "dashboard.recent-activity",
-    "dashboard.quick-actions"
+    "dashboard.quick-actions",
+    "dashboard.sales.orders-to-confirm",
+    "dashboard.sales.orders-reserved",
+    "dashboard.sales.deliveries-to-prepare",
+    "dashboard.inventory.low-stock",
+    "dashboard.sales.shipments",
+    "dashboard.procurement.active-suppliers"
   ];
   const alphaRenderKeys = alphaLayout.contributions.map((contribution) => contribution.renderKey);
   const basicRenderKeys = basicLayout.contributions.map((contribution) => contribution.renderKey);
 
   assert(JSON.stringify(alphaRenderKeys) === JSON.stringify(expectedRenderKeys), `Alpha dashboard render keys should remain deterministic. Received: ${alphaRenderKeys.join(", ")}`);
   assert(alphaLayout.zones.hero.length === 1, "Alpha dashboard should resolve one hero contribution.");
-  assert(alphaLayout.zones.secondary.length === 2, "Alpha dashboard should resolve the existing two-column secondary area.");
+  assert(alphaLayout.zones.secondary.length === 8, "Alpha dashboard should resolve CRM/Sales, Sales Operations, Inventory and Procurement secondary widgets.");
   assert(!basicRenderKeys.includes("dashboard.performance"), "Basic-style activation should filter Sales-owned dashboard contribution.");
   assert(basicRenderKeys.includes("dashboard.hero"), "Basic-style activation should keep Core dashboard contribution.");
 });
@@ -3129,7 +3229,7 @@ test("Product Catalog Foundation creates, validates, archives and restores canon
   assert(restored.product?.status === "active" && restored.product.active === true, "Restore should reactivate product.");
 });
 
-test("Product Catalog Foundation remains registered but inactive in the current Alpha profile", () => {
+test("Product Catalog Foundation is registered and operational in the current Alpha profile", () => {
   const {
     bosiacoModuleRegistry,
     getCurrentAlphaActivation
@@ -3138,9 +3238,9 @@ test("Product Catalog Foundation remains registered but inactive in the current 
   const activation = getCurrentAlphaActivation();
 
   assert(descriptor, "Product module descriptor should exist.");
-  assert(descriptor.status === "planned", "Product module should remain planned until a later activation sprint.");
-  assert(descriptor.hidden === false, "Product module may expose navigation metadata for controlled profiles.");
-  assert(!activation.activeModuleIdSet.has("sales.products"), "Product module should not be active in the current Alpha profile.");
+  assert(descriptor.status === "alpha", "Product module should be Alpha once the operational workspace is available.");
+  assert(descriptor.hidden === false, "Product module should expose navigation metadata.");
+  assert(activation.activeModuleIdSet.has("sales.products"), "Product module should be active in the current Alpha profile.");
 });
 
 test("Shared Import Export Platform maps, previews, validates and exports generic records", () => {
@@ -3237,6 +3337,7 @@ test("Product Catalog Import validates mapping, duplicate policies and export ro
     sellingPrice: 20,
     vatRate: 20,
     currency: "MAD",
+    reorderPoint: 0,
     active: true,
     status: "active",
     flags: { trackInventory: false, allowNegativeStock: false, hasVariants: false, serialTracked: false, batchTracked: false },
@@ -3492,11 +3593,11 @@ test("Reservation QA Workspace stays inside Inventory and uses existing persiste
   assert(workspaceSource.includes("<ReservationDialog"), "Inventory workspace should render the reservation dialog.");
   assert(dialogSource.includes('persistInventoryOperation(mode === "reserve" ? "reserve" : "release"'), "Reservation dialog should use existing Inventory persistence operations.");
   assert(apiSource.includes('operation: "reserve"') && apiSource.includes('operation: "release"'), "Inventory API should expose reservation operations without a separate route.");
-  assert(!isRouteAvailable("/inventory"), "Inventory route should remain unavailable in Alpha.");
+  assert(isRouteAvailable("/inventory"), "Inventory route should be available in Alpha once the operational workspace is ready.");
   assert(isRouteAvailable("/inventory", inventoryActivation), "Inventory route should remain available under controlled Inventory activation.");
 });
 
-test("Inventory Domain Foundation remains inactive in Alpha", () => {
+test("Inventory Domain Foundation is active in Alpha once workspace is operational", () => {
   const {
     bosiacoModuleRegistry,
     getCurrentAlphaActivation
@@ -3505,9 +3606,9 @@ test("Inventory Domain Foundation remains inactive in Alpha", () => {
   const activation = getCurrentAlphaActivation();
 
   assert(descriptor, "Inventory module descriptor should exist.");
-  assert(descriptor.status === "planned", "Inventory module should remain planned.");
-  assert(descriptor.hidden === false, "Inventory module may expose navigation metadata for controlled profiles.");
-  assert(!activation.activeModuleIdSet.has("inventory.stock"), "Inventory module should not be active in Alpha.");
+  assert(descriptor.status === "alpha", "Inventory module should be Alpha once the operational workspace is available.");
+  assert(descriptor.hidden === false, "Inventory module should expose navigation metadata.");
+  assert(activation.activeModuleIdSet.has("inventory.stock"), "Inventory module should be active in Alpha.");
 });
 
 test("CRM Opportunities Foundation has no Prisma API or platform runtime dependency", () => {
@@ -3662,7 +3763,7 @@ test("Sales Quote and Invoice totals consume the Commercial Documents calculatio
   assert(invoiceTotals.total === 270 && invoiceTotals.remaining === 200, "Invoice totals should reuse Quote calculation and keep payment balance.");
 });
 
-test("Procurement Foundation stays inactive in Alpha and activates through Purchasing profile", () => {
+test("Procurement Operational Workspace is active in Alpha and remains compatible with Purchasing profile", () => {
   const { ModuleActivationEngine, bosiacoModuleRegistry, getCurrentAlphaActivation } = load("src/platform/modules");
   const { purchasingEditionProfile, editionToActivationRequest } = load("src/platform/editions");
   const { isRouteAvailable } = load("src/platform/modules/module-route-availability.ts");
@@ -3670,11 +3771,12 @@ test("Procurement Foundation stays inactive in Alpha and activates through Purch
   const alpha = getCurrentAlphaActivation();
   const purchasing = engine.resolve(editionToActivationRequest(purchasingEditionProfile));
 
-  assert(!alpha.activeModuleIdSet.has("procurement.suppliers"), "Procurement Suppliers should remain inactive in Alpha.");
-  assert(!alpha.activeModuleIdSet.has("procurement.goods-receipts"), "Procurement Goods Receipts should remain inactive in Alpha.");
-  assert(!isRouteAvailable("/procurement", alpha), "Procurement overview route should be unavailable in Alpha.");
-  assert(!isRouteAvailable("/procurement/suppliers", alpha), "Procurement suppliers route should be unavailable in Alpha.");
-  assert(!isRouteAvailable("/procurement/goods-receipts", alpha), "Procurement goods receipt route should be unavailable in Alpha.");
+  assert(alpha.activeModuleIdSet.has("procurement.suppliers"), "Procurement Suppliers should be active in Alpha.");
+  assert(alpha.activeModuleIdSet.has("procurement.purchase-orders"), "Procurement Purchase Orders should be active in Alpha.");
+  assert(alpha.activeModuleIdSet.has("procurement.goods-receipts"), "Procurement Goods Receipts should be active in Alpha.");
+  assert(isRouteAvailable("/procurement", alpha), "Procurement overview route should be available in Alpha.");
+  assert(isRouteAvailable("/procurement/suppliers", alpha), "Procurement suppliers route should be available in Alpha.");
+  assert(isRouteAvailable("/procurement/goods-receipts", alpha), "Procurement goods receipt route should be available in Alpha.");
   assert(purchasing.activeModuleIdSet.has("procurement.suppliers"), "Purchasing profile should activate Suppliers.");
   assert(purchasing.activeModuleIdSet.has("procurement.purchase-orders"), "Purchasing profile should activate Purchase Orders.");
   assert(purchasing.activeModuleIdSet.has("procurement.goods-receipts"), "Purchasing profile should activate Goods Receipts.");
@@ -3776,6 +3878,20 @@ test("Procurement Foundation creates suppliers purchase orders and goods receipt
   assert(service.getPurchaseOrder(order.id, PROCUREMENT_WORKSPACE_ID).status === "received", "Purchase Order should become received after all quantities are posted.");
 });
 
+test("Procurement Goods Receipt persistence line ids remain unique across partial receipts", () => {
+  const { createGoodsReceiptLinePersistenceId } = load("src/modules/procurement");
+  const sharedPurchaseOrderLine = { purchaseOrderLineId: "po-line-partial-1" };
+  const firstLineId = createGoodsReceiptLinePersistenceId("gr-partial-1", sharedPurchaseOrderLine, 0);
+  const secondLineId = createGoodsReceiptLinePersistenceId("gr-partial-2", sharedPurchaseOrderLine, 0);
+  const thirdLineId = createGoodsReceiptLinePersistenceId("gr-partial-3", sharedPurchaseOrderLine, 0);
+  const multiLineSecondPositionId = createGoodsReceiptLinePersistenceId("gr-partial-2", sharedPurchaseOrderLine, 1);
+
+  assert(firstLineId !== secondLineId, "Separate Goods Receipts against the same Purchase Order line must persist different line ids.");
+  assert(secondLineId !== thirdLineId, "A third partial receipt must not reuse a previous Goods Receipt line id.");
+  assert(secondLineId !== multiLineSecondPositionId, "Multiple lines inside one receipt should remain uniquely identified by position.");
+  assert(firstLineId.includes(sharedPurchaseOrderLine.purchaseOrderLineId), "Persistence line ids should preserve the semantic Purchase Order line reference.");
+});
+
 test("Procurement Supplier import export uses the shared Import Export framework", () => {
   const {
     createDefaultSupplierImportMapping,
@@ -3806,7 +3922,7 @@ test("Procurement Supplier import export uses the shared Import Export framework
   assert(exported["Raison sociale"] === "Atlas Distribution", "Supplier export should use shared exporter definitions.");
 });
 
-test("Sales Orders stay inactive in Alpha and activate only through Sales Operations profile", () => {
+test("Sales Operations modules are active in Alpha through the canonical profile", () => {
   const { ModuleActivationEngine, bosiacoModuleRegistry, getCurrentAlphaActivation } = load("src/platform/modules");
   const { salesOperationsEditionProfile, editionToActivationRequest } = load("src/platform/editions");
   const { getActiveModuleNavigationItems } = load("src/platform/modules/module-navigation.ts");
@@ -3817,18 +3933,48 @@ test("Sales Orders stay inactive in Alpha and activate only through Sales Operat
   const salesOperations = engine.resolve(editionToActivationRequest(salesOperationsEditionProfile));
   const alphaHrefs = getActiveModuleNavigationItems(alpha).map((item) => item.href);
   const operationsHrefs = getActiveModuleNavigationItems(salesOperations).map((item) => item.href);
+  const alphaCommandHrefs = createNavigationCommandRegistry(alpha).getAll().map((command) => command.href);
   const operationsCommandHrefs = createNavigationCommandRegistry(salesOperations).getAll().map((command) => command.href);
 
-  assert(!alpha.activeModuleIdSet.has("sales.orders"), "Sales Orders should remain inactive in the current Alpha profile.");
-  assert(!alphaHrefs.includes("/sales/orders"), "Alpha navigation should not expose Sales Orders.");
-  assert(!isRouteAvailable("/sales/orders", alpha), "Sales Orders route should be unavailable in Alpha.");
+  assert(alpha.activeModuleIdSet.has("sales.orders"), "Alpha profile should activate Sales Orders after authenticated Sales Operations QA.");
+  assert(alpha.activeModuleIdSet.has("sales.delivery-notes"), "Alpha profile should activate Delivery Notes after authenticated Sales Operations QA.");
+  assert(alpha.activeModuleIdSet.has("sales.shipments"), "Alpha profile should activate Shipments after authenticated Sales Operations QA.");
+  assert(alpha.activeModuleIdSet.has("sales.products"), "Alpha profile should keep Product Catalog active for order lines.");
+  assert(alpha.activeModuleIdSet.has("inventory.stock"), "Alpha profile should keep Inventory active for reservation checks and Delivery Note ISSUE posting.");
+  assert(["/sales/orders", "/sales/delivery-notes", "/sales/shipments"].every((href) => alphaHrefs.includes(href)), "Alpha navigation should expose Sales Operations routes.");
+  assert(["/sales/orders", "/sales/delivery-notes", "/sales/shipments"].every((href) => alphaCommandHrefs.includes(href)), "Command Center should expose Sales Operations navigation in Alpha.");
+  assert(["/sales/orders", "/sales/orders/sales-order-demo", "/sales/delivery-notes", "/sales/delivery-notes/delivery-note-demo", "/sales/shipments", "/sales/shipments/shipment-demo"].every((route) => isRouteAvailable(route, alpha)), "Sales Operations routes and detail routes should be available in Alpha.");
+  assert(new Set(alphaHrefs).size === alphaHrefs.length, "Alpha navigation should not create duplicate module entries.");
   assert(salesOperations.errors.length === 0, `Sales Operations profile should resolve cleanly: ${salesOperations.errors.map((issue) => issue.message).join("; ")}`);
   assert(salesOperations.activeModuleIdSet.has("sales.orders"), "Sales Operations profile should activate Sales Orders.");
+  assert(salesOperations.activeModuleIdSet.has("sales.delivery-notes"), "Sales Operations profile should activate Delivery Notes.");
+  assert(salesOperations.activeModuleIdSet.has("sales.shipments"), "Sales Operations profile should activate Shipments.");
   assert(salesOperations.activeModuleIdSet.has("sales.products"), "Sales Operations profile should activate Product Catalog for order lines.");
   assert(salesOperations.activeModuleIdSet.has("inventory.stock"), "Sales Operations profile should activate Inventory for reservation checks.");
-  assert(operationsHrefs.includes("/sales/orders"), "Sales Operations navigation should expose Sales Orders.");
-  assert(isRouteAvailable("/sales/orders", salesOperations), "Sales Orders route should be available under Sales Operations profile.");
-  assert(operationsCommandHrefs.includes("/sales/orders"), "Command Center should expose Sales Orders only under Sales Operations profile.");
+  assert(["/sales/orders", "/sales/delivery-notes", "/sales/shipments"].every((href) => operationsHrefs.includes(href)), "Sales Operations profile should still expose the same operational navigation.");
+  assert(["/sales/orders", "/sales/delivery-notes", "/sales/shipments"].every((route) => isRouteAvailable(route, salesOperations)), "Sales Operations routes should remain available under the internal profile.");
+  assert(["/sales/orders", "/sales/delivery-notes", "/sales/shipments"].every((href) => operationsCommandHrefs.includes(href)), "Command Center should still expose Sales Operations under the internal profile.");
+});
+
+test("Sales Operations dashboard contributions render only operational widgets", () => {
+  const { ModuleActivationEngine, bosiacoModuleRegistry } = load("src/platform/modules");
+  const { salesOperationsEditionProfile, editionToActivationRequest } = load("src/platform/editions");
+  const { resolveDashboardContributions } = load("src/platform/dashboard");
+  const dashboardSource = read("src/app/(erp)/dashboard/page.tsx");
+  const contributionsSource = read("src/platform/dashboard/dashboard-contributions.ts");
+  const engine = new ModuleActivationEngine(bosiacoModuleRegistry);
+  const salesOperations = engine.resolve(editionToActivationRequest(salesOperationsEditionProfile));
+  const layout = resolveDashboardContributions({ activation: salesOperations });
+  const renderKeys = Object.values(layout.zones).flat().map((contribution) => contribution.renderKey);
+
+  assert(renderKeys.includes("dashboard.sales.orders-to-confirm"), "Sales Operations dashboard should expose Sales Orders waiting for confirmation.");
+  assert(renderKeys.includes("dashboard.sales.orders-reserved"), "Sales Operations dashboard should expose reserved Sales Orders.");
+  assert(renderKeys.includes("dashboard.sales.deliveries-to-prepare"), "Sales Operations dashboard should expose Delivery Notes preparation.");
+  assert(renderKeys.includes("dashboard.sales.shipments"), "Sales Operations dashboard should expose the Shipment widget.");
+  assert(!renderKeys.includes("dashboard.sales.orders-shortage"), "Stock shortage contribution should remain planned until a stable renderer exists.");
+  assert(!renderKeys.includes("dashboard.sales.orders-recent"), "Recent Sales Orders contribution should remain planned until the Dashboard footer zone is rendered.");
+  assert(dashboardSource.includes("SalesOperationsDashboardCard"), "Dashboard should render Sales Operations contribution keys through a dedicated lightweight component.");
+  assert(contributionsSource.includes('id: "sales.orders.shortage"') && contributionsSource.includes('status: "planned"'), "Non-rendered shortage contribution should not be alpha-visible.");
 });
 
 test("Sales Order service creates manual orders and prevents duplicate Quote conversion", () => {
@@ -3918,6 +4064,28 @@ test("Sales Order persistence protects Quote conversion workspace and duplicate 
   assert(repositorySource.includes("tenantCompanyId: scope.companyId") && repositorySource.includes("sourceQuoteId: order.sourceQuoteId"), "Duplicate source Quote protection should be tenant-scoped.");
   assert(repositorySource.includes("NOT: { id: order.id }"), "Duplicate source Quote protection should allow updating the same Sales Order.");
   assert(repositorySource.includes("Une commande client existe déjà pour ce devis"), "Duplicate source Quote protection should return a clear French business error.");
+  assert(repositorySource.includes("assertSalesOrderDraftPersistencePolicy"), "Server persistence should enforce the Sales Order draft edit policy.");
+  assert(repositorySource.includes("Seules les commandes client brouillon peuvent être modifiées."), "Persisted Sales Orders should be editable only while draft.");
+  assert(repositorySource.includes("Confirmez la commande client depuis l'action dédiée."), "Server should force confirmation through the dedicated action.");
+  assert(repositorySource.includes("Une commande client brouillon ne peut pas contenir de réservation"), "Draft edits should reject committed reservation or delivery quantities.");
+  assert(repositorySource.includes("assertSalesOrderLineProductsTenant"), "Sales Order draft persistence should verify Product ownership for line items.");
+});
+
+test("Sales Order remaining reservation subtracts delivered and reserved quantities", () => {
+  const { getSalesOrderLineRemainingToReserve } = load("src/modules/sales/orders");
+  const cases = [
+    [{ quantityOrdered: 8, quantityDelivered: 0, quantityReserved: 0 }, 8, "New order should expose the full ordered quantity as remaining to reserve."],
+    [{ quantityOrdered: 8, quantityDelivered: 0, quantityReserved: 8 }, 0, "Fully reserved order should not expose additional reservation."],
+    [{ quantityOrdered: 8, quantityDelivered: 3, quantityReserved: 5 }, 0, "Partial delivery with the remaining quantity reserved should not expose additional reservation."],
+    [{ quantityOrdered: 8, quantityDelivered: 3, quantityReserved: 2 }, 3, "Partial delivery with partial reservation should expose only the unreserved remainder."],
+    [{ quantityOrdered: 8, quantityDelivered: 8, quantityReserved: 0 }, 0, "Fully delivered order should never propose additional reservation."],
+    [{ quantityOrdered: 8, quantityDelivered: 6, quantityReserved: 5 }, 0, "Remaining reservation should be clamped at zero."]
+  ];
+
+  for (const [line, expected, message] of cases) {
+    assert(getSalesOrderLineRemainingToReserve(line) === expected, message);
+  }
+  assert(read("src/modules/sales/orders/ui/order-details-workspace.tsx").includes("getSalesOrderLineRemainingToReserve(line)"), "Sales Order details should use the canonical remaining reservation helper.");
 });
 
 test("Sales Order persistence reserves and releases stock without physical issue movements", () => {
@@ -4192,6 +4360,27 @@ test("Product UI and persistence protect unsafe stockable to service transitions
   assert(repositorySource.includes("inventoryStockMovement.count"), "Server guard should inspect Inventory movement history.");
 });
 
+test("Product Catalog create persistence reports domain errors without opaque 500s", () => {
+  const repositorySource = read("src/server/persistence/product-catalog-repository.ts");
+  const routeSource = read("src/app/api/persistence/product-catalog/route.ts");
+  const clientSource = read("src/platform/persistence/product-catalog-persistence.client.ts");
+  const hookSource = read("src/modules/products/ui/hooks/use-products-page.ts");
+
+  assert(repositorySource.includes("ProductCatalogPersistenceError"), "Product persistence should expose typed domain errors.");
+  assert(repositorySource.includes("assertProductPayload"), "Server persistence should validate required Product payload fields.");
+  assert(repositorySource.includes("assertUniqueProductPersistence"), "Server persistence should check duplicate SKU and barcode before Prisma write.");
+  assert(repositorySource.includes("Ce SKU existe déjà."), "Server duplicate SKU errors should be translated to a clear French message.");
+  assert(repositorySource.includes("Ce code-barres existe déjà."), "Server duplicate barcode errors should be translated to a clear French message.");
+  assert(repositorySource.includes("requireExisting: true"), "Product persistence should reject stale category ids instead of letting a foreign-key write fail.");
+  assert(repositorySource.includes("P2002") && repositorySource.includes("P2003"), "Repository should map Prisma unique and foreign-key errors as a fallback.");
+  assert(routeSource.includes("toProductCatalogErrorResponse"), "Product Catalog API should centralize safe error responses.");
+  assert(routeSource.includes("[product-catalog:persistence-error]"), "Unexpected Product Catalog persistence errors should be logged server-side.");
+  assert(routeSource.includes("error.status") && routeSource.includes("error.code"), "Known Product Catalog errors should preserve HTTP status and code.");
+  assert(!routeSource.includes("return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })"), "Product Catalog API should not leak raw persistence errors as generic 500 responses.");
+  assert(clientSource.includes("ProductCatalogClientPersistenceError"), "Client persistence should preserve server error status and code.");
+  assert(hookSource.includes("getProductPersistenceErrorMessage"), "Product UI should show the controlled server/domain error instead of always showing a connection message.");
+});
+
 test("Current Alpha remains the only default Edition after Inventory-tracked Product QA fix", () => {
   const { alphaCrmSalesEditionProfile, salesOperationsEditionProfile } = load("src/platform/editions");
 
@@ -4331,6 +4520,68 @@ test("Delivery Note PDF remains non-financial", () => {
   assert(source.includes("hideFinancials: true"), "Delivery Note PDF should explicitly hide financial information.");
   assert(previewSource.includes("document.hideFinancials"), "PDF preview should hide price columns for Delivery Notes.");
   assert(pdfSource.includes("document.hideFinancials"), "Downloaded and printed PDFs should hide financial totals for Delivery Notes.");
+});
+
+test("Shipment persistence model stores a durable one-to-one Delivery Note relationship", () => {
+  const schema = read("prisma/schema.prisma");
+  const migration = read("prisma/migrations/20260813120000_shipment_persistence/migration.sql");
+
+  assert(schema.includes("model SalesShipment"), "Prisma schema should define durable SalesShipment records.");
+  assert(schema.includes("model SalesShipmentLine"), "Prisma schema should define durable SalesShipmentLine records.");
+  assert(/deliveryNoteId\s+String\s+@unique/.test(schema), "SalesShipment should own a unique Delivery Note relationship.");
+  assert(schema.includes("deliveryNote       SalesDeliveryNote"), "SalesShipment should relate to SalesDeliveryNote explicitly.");
+  assert(schema.includes("@@unique([tenantCompanyId, deliveryNoteId])"), "Tenant-scoped duplicate protection should exist for Delivery Note shipments.");
+  assert(/deliveredAt\s+DateTime\?/.test(schema), "Shipment lifecycle should persist the delivered timestamp.");
+  assert(migration.includes('CREATE TABLE "SalesShipment"'), "Shipment migration should create the SalesShipment table.");
+  assert(migration.includes('CREATE TABLE "SalesShipmentLine"'), "Shipment migration should create the SalesShipmentLine table.");
+  assert(migration.includes('REFERENCES "SalesDeliveryNote"("id")'), "Shipment migration should enforce the Delivery Note foreign key.");
+});
+
+test("Shipment repository owns identity, duplicate protection and Inventory safety", () => {
+  const source = read("src/server/persistence/shipment-repository.ts");
+
+  assert(source.includes('import "server-only"'), "Shipment persistence repository should remain server-only.");
+  assert(source.includes("randomUUID"), "Server persistence should own durable Shipment identity generation.");
+  assert(source.includes("deliveryNoteId: shipment.deliveryNoteId"), "Duplicate protection should be based on the source Delivery Note.");
+  assert(source.includes("Une expédition existe déjà pour ce bon de livraison"), "Duplicate conversion should be rejected clearly.");
+  assert(source.includes('note.status !== "posted"'), "Shipments should only be created from posted Delivery Notes.");
+  assert(source.includes("L'expédition doit reprendre toutes les lignes du bon de livraison posté."), "Shipment persistence should reject partial line snapshots.");
+  assert(source.includes("validateShipmentStatusTransition"), "Server persistence should enforce deterministic lifecycle transitions.");
+  assert(source.includes("deliveredAt: status === \"delivered\""), "Delivered status should persist a delivered timestamp.");
+  assert(!source.includes("@/modules/inventory"), "Shipment persistence must not import Inventory modules.");
+  assert(!source.includes('type: "ISSUE"'), "Shipment persistence must not create physical stock issue movements.");
+  assert(!source.includes('type: "RECEIPT"'), "Shipment persistence must not create receipt movements.");
+});
+
+test("Shipment persistence bridge hydrates UI surfaces without changing activation defaults", () => {
+  const clientSource = read("src/platform/persistence/shipment-persistence.client.ts");
+  const providerSource = read("src/platform/persistence/shipment-persistence-provider.tsx");
+  const shellSource = read("src/components/erp-shell.tsx");
+  const workspaceSource = read("src/modules/sales/shipments/ui/shipments-workspace.tsx");
+  const detailsSource = read("src/modules/sales/shipments/ui/shipment-details-workspace.tsx");
+  const dashboardSource = read("src/modules/sales/shipments/ui/shipment-dashboard-section.tsx");
+  const { alphaCrmSalesEditionProfile, salesOperationsEditionProfile } = load("src/platform/editions");
+
+  assert(clientSource.includes("/api/persistence/shipments"), "Shipment persistence client should use the dedicated API route.");
+  assert(clientSource.includes("persistShipmentRecord"), "Shipment persistence client should expose confirmed save.");
+  assert(clientSource.includes("transitionPersistedShipmentStatus"), "Shipment persistence client should expose confirmed status transitions.");
+  assert(providerSource.includes("hydrateShipmentPersistence"), "Shipment provider should hydrate persisted Shipments.");
+  assert(shellSource.includes("ShipmentPersistenceProvider"), "ERP shell should mount Shipment persistence hydration.");
+  assert(workspaceSource.includes("persistShipmentRecord"), "Shipment list workspace should save through persistence.");
+  assert(detailsSource.includes("transitionPersistedShipmentStatus"), "Shipment details should update status through persistence.");
+  assert(dashboardSource.includes("hydrateShipmentPersistence"), "Shipment dashboard should read persisted state after hydration.");
+  assert(!alphaCrmSalesEditionProfile.enabledModuleIds.includes("sales.shipments"), "Default Alpha should keep Shipments inactive.");
+  assert(salesOperationsEditionProfile.enabledModuleIds.includes("sales.shipments"), "Sales Operations should keep Shipments available for internal QA.");
+});
+
+test("Shipment search contribution remains activation-aware and persistence-aligned", () => {
+  const source = read("src/platform/search/record-search-registry.ts");
+
+  assert(source.includes("SHIPMENTS_WORKSPACE_ID"), "Record search should know the canonical Shipment workspace.");
+  assert(source.includes('activeModuleIdSet.has("sales.shipments")'), "Shipment records should be indexed only when the module is active.");
+  assert(source.includes("buildShipmentRecords"), "Record search should include a Shipment record mapper.");
+  assert(source.includes("shipmentService.listShipments"), "Shipment search should read the hydrated Shipment source.");
+  assert(source.includes("/sales/shipments/"), "Shipment search results should use canonical Shipment detail routes.");
 });
 
 test("Business Timeline Registry registers providers deterministically", () => {

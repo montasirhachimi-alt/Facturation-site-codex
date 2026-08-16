@@ -4,6 +4,7 @@ import { Archive, Download, FileDown, FileSpreadsheet, Plus, Search, Upload } fr
 import { EntityToolbar, entityInputClassName } from "@/ui";
 import { PRODUCT_UNITS } from "../../product.constants";
 import type { ProductCategory, ProductCategoryId, ProductStatus, ProductUnit } from "../../product.types";
+import type { ProductStockStatusFilter } from "../hooks/use-products-page";
 
 export function ProductsToolbar({
   categories,
@@ -21,8 +22,10 @@ export function ProductsToolbar({
   setCategoryId,
   setQuery,
   setStatus,
+  setStockStatus,
   setUnit,
   status,
+  stockStatus,
   unit
 }: {
   categories: readonly ProductCategory[];
@@ -40,8 +43,10 @@ export function ProductsToolbar({
   setCategoryId: (value: ProductCategoryId | "all") => void;
   setQuery: (value: string) => void;
   setStatus: (value: ProductStatus | "all") => void;
+  setStockStatus: (value: ProductStockStatusFilter) => void;
   setUnit: (value: ProductUnit | "all") => void;
   status: ProductStatus | "all";
+  stockStatus: ProductStockStatusFilter;
   unit: ProductUnit | "all";
 }) {
   return (
@@ -80,7 +85,7 @@ export function ProductsToolbar({
         </div>
       }
     >
-      <div className="grid flex-1 gap-2 md:grid-cols-[minmax(220px,1fr)_160px_160px_180px]">
+      <div className="grid flex-1 gap-2 md:grid-cols-[minmax(220px,1fr)_150px_150px_170px_170px]">
         <label className="relative block">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
           <input value={query} onChange={(event) => setQuery(event.target.value)} className={`${entityInputClassName} mt-0 pl-9`} placeholder="Rechercher un produit, SKU, code-barres..." />
@@ -97,6 +102,14 @@ export function ProductsToolbar({
         <select value={categoryId} onChange={(event) => setCategoryId(event.target.value as ProductCategoryId | "all")} className={`${entityInputClassName} mt-0`}>
           <option value="all">Toutes catégories</option>
           {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+        </select>
+        <select value={stockStatus} onChange={(event) => setStockStatus(event.target.value as ProductStockStatusFilter)} className={`${entityInputClassName} mt-0`}>
+          <option value="all">Tous stocks</option>
+          <option value="inStock">En stock</option>
+          <option value="reserved">Réservé</option>
+          <option value="lowStock">Stock faible</option>
+          <option value="outOfStock">Rupture</option>
+          <option value="inactive">Inactif</option>
         </select>
       </div>
       {status === "archived" && (

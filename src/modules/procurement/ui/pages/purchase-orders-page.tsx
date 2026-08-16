@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus } from "lucide-react";
-import { hydrateInventoryPersistence, hydrateProductCatalogPersistence, hydrateProcurementPersistence, persistProcurementRecord, postProcurementGoodsReceipt } from "@/platform/persistence";
+import Link from "next/link";
+import { CheckCircle2, Copy, Edit3, Eye, PackageCheck, Plus, Trash2, XCircle } from "lucide-react";
+import { deleteDraftProcurementPurchaseOrder, hydrateInventoryPersistence, hydrateProductCatalogPersistence, hydrateProcurementPersistence, persistProcurementRecord, postProcurementGoodsReceipt } from "@/platform/persistence";
 import { inventoryLocalService, subscribeToInventoryStore } from "@/modules/inventory/inventory-local-store";
 import { PRODUCTS_WORKSPACE_ID } from "@/modules/products";
 import { productLocalService, subscribeToProductStore } from "@/modules/products/ui/product-local-store";
@@ -42,6 +43,7 @@ export function PurchaseOrdersPage() {
   const [inventoryVersion, setInventoryVersion] = useState(0);
   const [query, setQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<PurchaseOrder | null>(null);
   const [form, setForm] = useState<PurchaseOrderFormState>(emptyOrderForm);
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
   const [receiptForm, setReceiptForm] = useState<GoodsReceiptFormState>(emptyReceiptForm);
@@ -83,7 +85,25 @@ export function PurchaseOrdersPage() {
   }, [inventoryVersion]);
 
   function openCreate() {
+    setEditingOrder(null);
     setForm({ ...emptyOrderForm, lines: [createEmptyPurchaseOrderLine("po")] });
+    setError(null);
+    setDialogOpen(true);
+  }
+
+  function openEdit(order: PurchaseOrder) {
+    if (order.status !== "draft") return;
+    setEditingOrder(order);
+    setForm({
+      supplierId: order.supplierId,
+      issueDate: order.issueDate.slice(0, 10),
+      expectedDate: order.expectedDate?.slice(0, 10) ?? "",
+      currency: order.currency,
+      reference: order.reference ?? "",
+      notes: order.notes ?? "",
+      discountRate: order.discountRate,
+      lines: [...order.lines]
+    });
     setError(null);
     setDialogOpen(true);
   }
@@ -95,7 +115,7 @@ export function PurchaseOrdersPage() {
       return false;
     }
     const snapshot = procurementLocalService.listPurchaseOrders({ workspaceId: PROCUREMENT_WORKSPACE_ID, includeArchived: true }).purchaseOrders;
-    const result = procurementLocalService.createPurchaseOrder({
+    const payload = {
       workspaceId: PROCUREMENT_WORKSPACE_ID,
       supplierId: supplier.id,
       supplierName: supplier.companyName,
@@ -107,9 +127,12 @@ export function PurchaseOrdersPage() {
       lines: form.lines,
       discountRate: form.discountRate,
       ownerId: PROCUREMENT_USER_ID
-    });
+    };
+    const result = editingOrder
+      ? procurementLocalService.updatePurchaseOrder({ id: editingOrder.id, ...payload, status: editingOrder.status })
+      : procurementLocalService.createPurchaseOrder(payload);
     if (!result.purchaseOrder) {
-      setError(result.error ?? "Impossible de créer la commande fournisseur.");
+      setError(result.error ?? "Impossible d'enregistrer la commande fournisseur.");
       return false;
     }
     try {
@@ -122,6 +145,55 @@ export function PurchaseOrdersPage() {
     notifyProcurementStoreUpdated();
     setDialogOpen(false);
     return true;
+  }
+
+  async function updateOrderStatus(order: PurchaseOrder, status: PurchaseOrder["status"]) {
+    const snapshot = procurementLocalService.listPurchaseOrders({ workspaceId: PROCUREMENT_WORKSPACE_ID, includeArchived: true }).purchaseOrders;
+    const result = procurementLocalService.updatePurchaseOrder({ id: order.id, workspaceId: PROCUREMENT_WORKSPACE_ID, status });
+    if (!result.purchaseOrder) return;
+    try {
+      await persistProcurementRecord("purchaseOrder", result.purchaseOrder);
+    } catch {
+      procurementLocalService.replacePurchaseOrders(snapshot);
+    }
+    notifyProcurementStoreUpdated();
+  }
+
+  async function duplicateOrder(order: PurchaseOrder) {
+    const snapshot = procurementLocalService.listPurchaseOrders({ workspaceId: PROCUREMENT_WORKSPACE_ID, includeArchived: true }).purchaseOrders;
+    const result = procurementLocalService.createPurchaseOrder({
+      workspaceId: PROCUREMENT_WORKSPACE_ID,
+      supplierId: order.supplierId,
+      supplierName: order.supplierName,
+      issueDate: new Date().toISOString(),
+      expectedDate: order.expectedDate,
+      currency: order.currency,
+      reference: order.reference ? `Copie de ${order.reference}` : `Copie de ${order.number}`,
+      notes: order.notes,
+      lines: order.lines.map((line) => ({ ...line, id: createEmptyPurchaseOrderLine("po-copy").id })),
+      discountRate: order.discountRate,
+      ownerId: PROCUREMENT_USER_ID
+    });
+    if (!result.purchaseOrder) return;
+    try {
+      await persistProcurementRecord("purchaseOrder", result.purchaseOrder);
+    } catch {
+      procurementLocalService.replacePurchaseOrders(snapshot);
+    }
+    notifyProcurementStoreUpdated();
+  }
+
+  async function deleteDraft(order: PurchaseOrder) {
+    if (order.status !== "draft") return;
+    const snapshot = procurementLocalService.listPurchaseOrders({ workspaceId: PROCUREMENT_WORKSPACE_ID, includeArchived: true }).purchaseOrders;
+    const result = procurementLocalService.removePurchaseOrder(order.id, PROCUREMENT_WORKSPACE_ID);
+    if (!result.purchaseOrder) return;
+    try {
+      await deleteDraftProcurementPurchaseOrder(order.id);
+    } catch {
+      procurementLocalService.replacePurchaseOrders(snapshot);
+    }
+    notifyProcurementStoreUpdated();
   }
 
   function openReceive(order: PurchaseOrder) {
@@ -185,8 +257,8 @@ export function PurchaseOrdersPage() {
             <h1 className="mt-1 font-display text-2xl font-bold text-hicotech-navy dark:text-white">Commandes fournisseur</h1>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">Suivez les commandes fournisseur et réceptionnez les quantités vers le stock.</p>
           </div>
-          <button onClick={openCreate} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-hicotech-blue px-4 py-2 text-sm font-bold text-white">
-            <Plus size={16} /> Nouvelle commande
+          <button type="button" onClick={openCreate} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-hicotech-blue px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/20">
+            <Plus size={16} /> Créer la commande
           </button>
         </div>
         <input className="mt-4 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold outline-none focus:border-hicotech-blue dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-white" placeholder="Rechercher une commande..." value={query} onChange={(event) => setQuery(event.target.value)} />
@@ -200,15 +272,18 @@ export function PurchaseOrdersPage() {
               <th className="px-4 py-3">Statut</th>
               <th className="px-4 py-3">Lignes</th>
               <th className="px-4 py-3">Réception</th>
-              <th className="px-4 py-3 text-right">Total</th>
-              <th className="px-4 py-3 text-right">Action</th>
+              <th className="px-4 py-3 text-right">Total TTC</th>
+              <th className="px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             {purchaseOrders.map((order) => {
               const totals = calculatePurchaseOrderTotals(order);
               const receiptState = getPurchaseOrderReceiptState(order, postedReceipts);
-              const canReceive = receiptState.remainingQuantity > 0 && order.status !== "cancelled" && order.status !== "archived";
+              const canReceive = receiptState.remainingQuantity > 0 && ["confirmed", "partially_received"].includes(order.status);
+              const canEditDraft = order.status === "draft";
+              const canConfirm = order.status === "draft";
+              const canCancel = ["draft", "confirmed"].includes(order.status);
               return (
                 <tr key={order.id} className="border-t border-slate-100 dark:border-hicotech-dark-border">
                   <td className="px-4 py-3 font-bold text-hicotech-navy dark:text-white">{order.number}<p className="text-xs font-medium text-slate-500">{new Date(order.issueDate).toLocaleDateString("fr-MA")}</p></td>
@@ -217,17 +292,60 @@ export function PurchaseOrdersPage() {
                   <td className="px-4 py-3">{order.lines.length}</td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{receiptState.receivedQuantity} / {receiptState.orderedQuantity}</td>
                   <td className="px-4 py-3 text-right font-bold text-hicotech-navy dark:text-white">{formatProcurementMoney(totals.total, order.currency)}</td>
-                  <td className="px-4 py-3 text-right">
-                    <button type="button" disabled={!canReceive} onClick={() => openReceive(order)} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-hicotech-navy disabled:cursor-not-allowed disabled:opacity-40 dark:border-hicotech-dark-border dark:text-white">Recevoir</button>
+                  <td className="px-4 py-3">
+                    <div className="flex justify-end gap-2">
+                      <Link href={`/procurement/purchase-orders/${order.id}`} className={iconActionClassName} aria-label="Voir les détails" title="Voir les détails">
+                        <Eye size={15} />
+                      </Link>
+                      {canEditDraft && (
+                        <button type="button" onClick={() => openEdit(order)} className={iconActionClassName} aria-label="Modifier" title="Modifier">
+                          <Edit3 size={15} />
+                        </button>
+                      )}
+                      {canConfirm && (
+                        <button type="button" onClick={() => updateOrderStatus(order, "confirmed")} className={`${iconActionClassName} border-emerald-200 text-emerald-700 dark:border-emerald-500/30 dark:text-emerald-300`} aria-label="Confirmer la commande" title="Confirmer la commande">
+                          <CheckCircle2 size={15} />
+                        </button>
+                      )}
+                      <button type="button" onClick={() => duplicateOrder(order)} className={iconActionClassName} aria-label="Dupliquer" title="Dupliquer">
+                        <Copy size={15} />
+                      </button>
+                      {canReceive && (
+                        <button type="button" onClick={() => openReceive(order)} className={`${iconActionClassName} border-hicotech-blue/30 text-hicotech-blue`} aria-label="Créer une réception fournisseur" title="Créer une réception fournisseur">
+                          <PackageCheck size={15} />
+                        </button>
+                      )}
+                      {canCancel && (
+                        <button type="button" onClick={() => updateOrderStatus(order, "cancelled")} className={`${iconActionClassName} text-slate-500 dark:text-slate-300`} aria-label="Annuler la commande" title="Annuler la commande">
+                          <XCircle size={15} />
+                        </button>
+                      )}
+                      {canEditDraft && (
+                        <button type="button" onClick={() => deleteDraft(order)} className={`${iconActionClassName} border-red-200 text-red-600 dark:border-red-500/30`} aria-label="Supprimer" title="Supprimer">
+                          <Trash2 size={15} />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
             })}
+            {purchaseOrders.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-4 py-10 text-center">
+                  <PackageCheck className="mx-auto mb-3 text-slate-400" size={28} />
+                  <p className="font-display text-base font-bold text-hicotech-navy dark:text-white">Aucune commande fournisseur.</p>
+                  <p className="mt-1 text-sm text-slate-500">Cliquez sur &quot;Créer la commande&quot; pour commencer.</p>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </section>
-      <PurchaseOrderDialog error={error} form={form} onChange={setForm} onClose={() => setDialogOpen(false)} onSubmit={submitOrder} open={dialogOpen} products={products} suppliers={suppliers} />
+      <PurchaseOrderDialog editing={Boolean(editingOrder)} error={error} form={form} onChange={setForm} onClose={() => setDialogOpen(false)} onSubmit={submitOrder} open={dialogOpen} products={products} suppliers={suppliers} />
       <GoodsReceiptDialog error={error} form={receiptForm} onChange={setReceiptForm} onClose={() => setReceiptDialogOpen(false)} onSubmit={submitReceipt} open={receiptDialogOpen} postedReceipts={postedReceipts} purchaseOrders={purchaseOrders} warehouses={warehouses} />
     </main>
   );
 }
+
+const iconActionClassName = "grid size-9 place-items-center rounded-lg border border-slate-200 text-hicotech-navy transition hover:border-hicotech-blue/30 hover:bg-hicotech-sky/50 focus:outline-none focus:ring-4 focus:ring-hicotech-blue/10 dark:border-hicotech-dark-border dark:text-white dark:hover:bg-hicotech-dark-page/50";

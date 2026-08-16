@@ -28,7 +28,7 @@ Current implementation: `src/core/`
 
 ## Business Modules
 
-Existing modules include sales documents, invoices, delivery notes, clients, suppliers, stock, purchases, cash, payments, reports, PDFs, settings, users and HR foundations.
+Current Alpha modules include Dashboard, CRM, Sales, Product Catalog, Inventory and Procurement operational workspaces. Legacy purchases, suppliers, stock, cash, statistics, HR and other demo-era surfaces remain hidden unless activated through platform profiles.
 
 ## AI Platform
 
@@ -46,15 +46,15 @@ See: `docs/02_PROJECT_STATUS.md`
 
 ## Current Sprint
 
-SPR-324 — Product Experience Redesign (Phase 1).
+SPR-423 — Procurement Operational Workspace.
 
 ## Current Task
 
-Business Suite product experience polish.
+Operational purchasing lifecycle: Supplier -> Purchase Order -> Goods Receipt -> Inventory Update.
 
 ## Next Task
 
-SPR-325 — Product Experience Redesign (Phase 2).
+Continue with the next roadmap sprint after Procurement QA.
 
 ## Roadmap
 

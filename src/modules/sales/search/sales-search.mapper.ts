@@ -8,6 +8,8 @@ import type { Quote } from "@/modules/sales/quotes";
 import { QUOTE_STATUS_LABELS } from "@/modules/sales/quotes";
 import type { SalesOrder } from "@/modules/sales/orders";
 import { SALES_ORDER_STATUS_LABELS } from "@/modules/sales/orders";
+import type { Shipment } from "@/modules/sales/shipments";
+import { SHIPMENT_STATUS_LABELS } from "@/modules/sales/shipments";
 import type { SearchResult } from "@/runtime/search";
 import { scoreSearchFields } from "@/runtime/search";
 
@@ -138,6 +140,40 @@ export function mapDeliveryNoteToSearchResult(note: DeliveryNote, queryText: str
     score,
     status: note.status,
     workspaceId: note.workspaceId
+  });
+}
+
+export function mapShipmentToSearchResult(shipment: Shipment, queryText: string): SearchResult | undefined {
+  const score = scoreSearchFields(queryText, [
+    { value: shipment.id, weight: "identifier" },
+    { value: shipment.number, weight: "identifier" },
+    { value: shipment.deliveryNoteNumber, weight: "identifier" },
+    { value: shipment.salesOrderNumber, weight: "identifier" },
+    { value: shipment.companyName, weight: "title" },
+    { value: shipment.contactName, weight: "secondary" },
+    { value: shipment.carrier, weight: "secondary" },
+    { value: shipment.trackingNumber, weight: "identifier" },
+    { value: shipment.status, weight: "metadata" },
+    { value: SHIPMENT_STATUS_LABELS[shipment.status], weight: "metadata" },
+    { value: shipment.notes, weight: "metadata" }
+  ]);
+
+  if (score <= 0) return undefined;
+
+  return createSalesResult({
+    id: `sales:shipment:${shipment.id}`,
+    entityType: "sales.shipment",
+    entityId: shipment.id,
+    moduleId: "sales.shipments",
+    title: shipment.number,
+    subtitle: shipment.companyName,
+    description: [SHIPMENT_STATUS_LABELS[shipment.status], shipment.carrier, shipment.trackingNumber].filter(Boolean).join(" · "),
+    keywords: [shipment.id, shipment.number, shipment.companyName, shipment.contactName, shipment.deliveryNoteNumber, shipment.salesOrderNumber, shipment.carrier, shipment.trackingNumber, shipment.status, shipment.notes],
+    icon: "Truck",
+    url: `/sales/shipments/${shipment.id}`,
+    score,
+    status: shipment.status,
+    workspaceId: shipment.workspaceId
   });
 }
 

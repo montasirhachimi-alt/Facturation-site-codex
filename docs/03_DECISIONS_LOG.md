@@ -1,5 +1,154 @@
 # HicoPilot Architecture Decision Records
 
+## ADR-049 — Internal Edition Profile Override Is Development/Test Only
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-08-15 |
+
+### Decision
+
+BOSIACO supports a safe internal Edition profile override for local and automated QA through:
+
+```bash
+NEXT_PUBLIC_BOSIACO_INTERNAL_EDITION_PROFILE=sales-operations npm run dev
+```
+
+The override is allow-listed to:
+
+- `alpha.crm-sales`;
+- `sales-operations`.
+
+It is valid only when `NODE_ENV` is `development` or `test`. Production ignores the override and resolves the default Edition profile.
+
+The override is resolved centrally in `src/platform/editions/edition.current.ts`, so the Activation Engine remains the single source of module availability for Sidebar, route availability, Command Center and other activation consumers.
+
+The effective activation request must be resolved during server render and passed into the client `ModuleActivationProvider`. Client consumers such as Sidebar and Command Center must consume that hydrated activation context instead of independently resolving the profile during first render.
+
+### Motivation
+
+Sales Operations needs authenticated end-to-end browser QA before Alpha promotion. Manually editing Edition metadata or `defaultForEnvironment` is unsafe because it can accidentally promote gated modules.
+
+A constrained environment switch gives QA a repeatable path without creating a tenant-facing module manager, licensing engine, feature flag system or production backdoor.
+
+### Consequences
+
+`alpha.crm-sales` remains the default profile after SPR-427. Sales Orders, Delivery Notes and Shipments remain activation-gated outside the internal `sales-operations` QA profile.
+
+The resolver does not read URL parameters, cookies, localStorage or request headers. Unknown or non-allow-listed profile IDs fall back to default Alpha with a warning.
+
+The resolver must use static `process.env.NEXT_PUBLIC_BOSIACO_INTERNAL_EDITION_PROFILE` access, not dynamic `process.env[...]` lookup, so Next.js can inline the same public value for client bundles and avoid server/client activation divergence.
+
+Authenticated browser QA remains blocked until a documented local demo credential or approved authenticated QA mechanism is available. Therefore SPR-427 does not promote Sales Operations to default Alpha.
+
+## ADR-048 — Sales Operations Alpha Promotion Requires Authenticated E2E QA
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-08-15 |
+
+### Decision
+
+Sales Orders, Delivery Notes and Shipments remain activation-gated in the internal `sales-operations` profile until a full authenticated end-to-end browser QA run is completed.
+
+SPR-426 hardens the implementation without promoting the modules to default `alpha.crm-sales`.
+
+Sales Order editing is explicitly draft-only:
+
+- new Sales Orders must persist as `draft`;
+- existing Sales Orders may be edited only while the persisted status is `draft`;
+- confirmation and reservation must use the dedicated server action;
+- draft persistence rejects committed reservation, delivery or warehouse state;
+- Delivery Notes remain the sole owner of physical Inventory `ISSUE` posting;
+- Shipments remain logistics-only and do not post Inventory.
+
+### Motivation
+
+Sales Operations spans quote conversion, reservation, delivery, inventory posting and shipment tracking. The implementation can pass deterministic runtime validation while still requiring authenticated browser proof before becoming visible to Alpha users.
+
+Promoting these modules without the complete authenticated workflow would risk exposing an operational flow that is technically present but not yet release-gated.
+
+### Consequences
+
+`alpha.crm-sales` remains unchanged after SPR-426. The internal `sales-operations` profile continues to activate `sales.orders`, `sales.delivery-notes` and `sales.shipments` for controlled QA.
+
+Dashboard contributions for stable Sales Operations widgets are rendered when the internal profile is active. Non-rendered Sales Order dashboard ideas remain planned and hidden.
+
+Future activation requires a safe runtime/profile switch plus authenticated QA evidence for Quote to Sales Order, reservation, partial Delivery Note posting, Inventory `ISSUE`, Shipment persistence and tenant isolation.
+
+## ADR-047 — Shipment Persistence Is One-To-One With Posted Delivery Notes
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-08-13 |
+
+### Decision
+
+`sales.shipments` becomes a durable logistics record through `SalesShipment` and `SalesShipmentLine`.
+
+For the current Sales Operations model, BOSIACO enforces one Shipment per posted Delivery Note. The Shipment stores an explicit Delivery Note foreign key, a tenant-scoped duplicate guard and server-owned Shipment identity. Shipment lines persist the Delivery Note line relationship and copied product quantities.
+
+Shipment lifecycle is server-validated. Transitioning to delivered persists `deliveredAt`.
+
+Shipment still does not post Inventory movements.
+
+### Motivation
+
+SPR-424 created the operational Shipment workspace, but Shipment data remained session-scoped. A logistics workspace cannot be production-ready if created Shipments disappear after refresh or if duplicate Shipments can be created for the same posted Delivery Note.
+
+The Delivery Note already owns physical stock issue, so Shipment persistence must preserve the logistics boundary without touching Inventory posting.
+
+### Consequences
+
+SPR-425 adds Shipment Prisma models, migration, server repository, API route and client hydration. `sales.shipments` remains activation-gated in the internal `sales-operations` profile, and default `alpha.crm-sales` remains unchanged.
+
+Future split-carrier or multi-parcel logistics should extend Shipment with package/parcel records or revisit cardinality explicitly instead of silently allowing duplicate top-level Shipments for one Delivery Note.
+
+## ADR-046 — Shipment Is A Logistics Layer After Delivery Notes
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-07-25 |
+
+### Decision
+
+`sales.shipments` is introduced as a Sales Operations module after posted Delivery Notes.
+
+Shipment manages logistics only: carrier, tracking number, shipment dates, status timeline, customer address context and product quantities copied from the Delivery Note. It must not post stock or change Inventory balances.
+
+### Motivation
+
+Delivery Notes now own the physical stock issue. After a BL is posted, teams still need an operational way to organize transport and track whether the delivery is ready, shipped, in transit, delivered or cancelled.
+
+### Consequences
+
+Shipment depends on `sales.delivery-notes` and is activated in the internal `sales-operations` profile. The default `alpha.crm-sales` profile remains unchanged. SPR-424 does not add Prisma models, migrations, APIs or Inventory posting behavior. Shipment persistence is a future step.
+
+## ADR-045 — Products And Inventory Become Operational Alpha Workspaces
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-07-24 |
+
+### Decision
+
+`sales.products` and `inventory.stock` are promoted to Alpha-ready operational modules and added to the current `alpha.crm-sales` activation profile.
+
+Product reorder policy is represented as `Product.reorderPoint` for product-level operational visibility. Inventory balances keep their existing balance-level reorder point, and Product stock summaries use the strongest available reorder value without changing Inventory posting rules.
+
+### Motivation
+
+Product Catalog and Inventory foundations were technically present but not usable as daily workspaces. SPR-422 requires users to manage products, understand stock on hand, reserved stock, available stock, reorder point and recent movements directly from the UI.
+
+### Consequences
+
+Navigation now exposes `Stock → Produits` and `Stock → Stock` through the activation-driven module metadata. Product details are available at `/sales/products/[productId]`. The Product list and Product detail consume Product Catalog and Inventory snapshots; client UI does not call Prisma directly. Sales Orders, Delivery Notes, Procurement, Purchasing, HR and AI remain inactive unless their own profiles activate them.
+
 ## ADR-044 — Business Search Results Are Contributed By Module-Owned Providers
 
 | Field | Value |
@@ -1300,7 +1449,7 @@ The Reservation & Availability Engine needs authenticated manual QA before Sales
 
 ### Consequences
 
-The tab uses existing Inventory persistence operations (`reserve`, `release`) and movement-backed history. No duplicate reservation store, Reservation table, Command Center Quick Create or `/inventory/reservations` route is introduced. Alpha remains unchanged because Inventory remains inactive unless the controlled Inventory profile is active.
+The tab uses existing Inventory persistence operations (`reserve`, `release`) and movement-backed history. No duplicate reservation store, Reservation table, Command Center Quick Create or `/inventory/reservations` route is introduced. At SPR-409A time Alpha remained unchanged; SPR-422 later activated the operational Inventory workspace in Alpha.
 
 ## ADR-028 — Goods Receipt Owns Procurement Stock Increases
 
@@ -1387,3 +1536,23 @@ The Product Catalog already had the persistence and service contract needed for 
 ### Consequences
 
 The Product dialog exposes `Produit stockable` and `Service / non stocké`. New Products default to stockable for controlled Product → Inventory → Sales Order QA. Services remain valid commercial Products but are excluded from Inventory movements and reservation eligibility. A stockable Product cannot be changed to service/non-stocked after Inventory balances or movements exist.
+
+## ADR-033 — Procurement Becomes Operational in Alpha Through Goods Receipts
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+
+### Decision
+
+Procurement is now part of the default Alpha operational workspace through `procurement.overview`, `procurement.suppliers`, `procurement.purchase-orders` and `procurement.goods-receipts`.
+
+Purchase Orders represent purchasing intent. Inventory increases still happen only when a Goods Receipt is posted through the existing Inventory `RECEIPT` posting engine.
+
+### Motivation
+
+After Product Catalog and Inventory became operational in Alpha, Procurement needed to become usable from the UI instead of remaining a technical foundation. Administrators need to manage suppliers, create and confirm purchase orders, receive partial or complete quantities and see stock update immediately.
+
+### Consequences
+
+Procurement modules are `alpha` and `alphaReady`, visible through activation-driven navigation and Command Center metadata. Draft Purchase Orders can be edited, duplicated and safely deleted. Confirmed and partially received Purchase Orders can receive goods. Supplier invoices, accounting, supplier payments, approvals, returns and receipt reversal remain future work.

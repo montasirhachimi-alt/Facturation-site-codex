@@ -4,7 +4,7 @@ import type { Prisma } from "@prisma/client";
 import type { InventoryCompanyId, InventoryUserId } from "@/modules/inventory";
 import type { GoodsReceipt, GoodsReceiptId, GoodsReceiptLine, ProcurementSupplier, ProcurementSupplierId, ProcurementUserId, PurchaseOrder, PurchaseOrderId, PurchaseOrderLine } from "@/modules/procurement";
 import type { SupplierImportRequest, SupplierImportResult, SupplierImportValues } from "@/modules/procurement";
-import { getPurchaseOrderReceiptState, validateSupplierImportRows } from "@/modules/procurement";
+import { createGoodsReceiptLinePersistenceId, getPurchaseOrderReceiptState, validateSupplierImportRows } from "@/modules/procurement";
 import { loadInventorySnapshot, postInventoryMovementInTransaction } from "./inventory-repository";
 import { prisma } from "./prisma";
 import type { PersistenceTenantScope } from "./tenant-scope";
@@ -48,6 +48,22 @@ export async function persistProcurementRecord(scope: PersistenceTenantScope, re
   if (resource === "purchaseOrder") return persistPurchaseOrder(scope, record as PurchaseOrder);
   if (resource === "goodsReceipt") return persistGoodsReceipt(scope, record as GoodsReceipt);
   throw new Error("Ressource achats inconnue.");
+}
+
+export async function deleteDraftPurchaseOrder(scope: PersistenceTenantScope, id: PurchaseOrderId) {
+  const existing = await prisma.procurementPurchaseOrder.findUnique({
+    where: { id },
+    select: { tenantCompanyId: true, status: true }
+  });
+  if (!existing || existing.tenantCompanyId !== scope.companyId) throw new Error("Commande fournisseur introuvable.");
+  if (existing.status !== "draft") throw new Error("Seuls les brouillons peuvent être supprimés.");
+
+  await prisma.$transaction(async (tx) => {
+    await tx.procurementPurchaseOrderLine.deleteMany({ where: { purchaseOrderId: id } });
+    await tx.procurementPurchaseOrder.delete({ where: { id } });
+  });
+
+  return loadProcurementSnapshot(scope);
 }
 
 export async function postGoodsReceipt(scope: PersistenceTenantScope, receipt: GoodsReceipt) {
@@ -360,7 +376,7 @@ function goodsReceiptWriteData(receipt: GoodsReceipt) {
 
 function goodsReceiptLineWriteData(goodsReceiptId: string, line: GoodsReceiptLine, position: number) {
   return {
-    id: line.id,
+    id: createGoodsReceiptLinePersistenceId(goodsReceiptId, line, position),
     goodsReceiptId,
     purchaseOrderLineId: line.purchaseOrderLineId,
     productId: line.productId,

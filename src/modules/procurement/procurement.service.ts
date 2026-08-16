@@ -114,6 +114,14 @@ export class ProcurementService {
     return frozen;
   }
 
+  removePurchaseOrder(id: PurchaseOrderId, workspaceId: PurchaseOrderFilters["workspaceId"]) {
+    const existing = this.getPurchaseOrder(id, workspaceId);
+    if (!existing) return Object.freeze({ purchaseOrder: undefined, error: "Commande fournisseur introuvable." });
+    if (existing.status !== "draft") return Object.freeze({ purchaseOrder: undefined, error: "Seuls les brouillons peuvent être supprimés." });
+    this.purchaseOrders.delete(id);
+    return Object.freeze({ purchaseOrder: existing });
+  }
+
   upsertGoodsReceipt(receipt: GoodsReceipt) {
     const frozen = freezeGoodsReceipt(receipt);
     this.goodsReceipts.set(frozen.id, frozen);

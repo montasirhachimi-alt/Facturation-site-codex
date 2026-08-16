@@ -93,6 +93,9 @@ export function ProductDialog({
         <FormField label="Devise">
           <input value={form.currency} onChange={(event) => onChange({ ...form, currency: event.target.value })} className={entityInputClassName} placeholder="MAD" />
         </FormField>
+        <FormField label="Seuil de réapprovisionnement" help="Quantité canonique, virgule française acceptée.">
+          <input inputMode="decimal" value={form.reorderPoint} onChange={(event) => onChange({ ...form, reorderPoint: event.target.value })} className={entityInputClassName} placeholder="5" />
+        </FormField>
         <FormField label="Description courte">
           <input value={form.shortDescription} onChange={(event) => onChange({ ...form, shortDescription: event.target.value })} className={entityInputClassName} placeholder="Résumé interne" />
         </FormField>

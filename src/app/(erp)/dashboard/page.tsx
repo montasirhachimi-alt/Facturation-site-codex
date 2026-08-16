@@ -18,6 +18,9 @@ import { DashboardWorkspaceBridge } from "@/components/dashboard-workspace-bridg
 import { dashboardStats } from "@/lib/demo-data";
 import { formatCurrency } from "@/lib/format";
 import { getCurrentUser } from "@/lib/auth";
+import { ProcurementDashboardSection } from "@/modules/procurement/ui";
+import { SalesOperationsDashboardCard } from "@/modules/sales/orders/ui";
+import { ShipmentDashboardSection } from "@/modules/sales/shipments/ui";
 import { resolveDashboardContributions } from "@/platform/dashboard";
 import type { DashboardContribution } from "@/platform/dashboard";
 import { MetricCard, ProductHero, ProductSectionHeader, SectionCard } from "@/ui";
@@ -146,6 +149,16 @@ function renderDashboardContribution(
       return <DashboardRecentActivity key={contribution.id} />;
     case "dashboard.quick-actions":
       return <DashboardQuickActions key={contribution.id} />;
+    case "dashboard.procurement.active-suppliers":
+      return <ProcurementDashboardSection key={contribution.id} />;
+    case "dashboard.sales.orders-to-confirm":
+      return <SalesOperationsDashboardCard key={contribution.id} variant="orders-to-confirm" />;
+    case "dashboard.sales.orders-reserved":
+      return <SalesOperationsDashboardCard key={contribution.id} variant="orders-reserved" />;
+    case "dashboard.sales.deliveries-to-prepare":
+      return <SalesOperationsDashboardCard key={contribution.id} variant="deliveries-to-prepare" />;
+    case "dashboard.sales.shipments":
+      return <ShipmentDashboardSection key={contribution.id} />;
     default:
       return null;
   }

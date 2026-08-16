@@ -10,5 +10,6 @@ export * as SalesQuotes from "./quotes";
 export * as SalesInvoices from "./invoices";
 export * as SalesPayments from "./payments";
 export * as SalesOrders from "./orders";
+export * as SalesShipments from "./shipments";
 export * as SalesSearch from "./search";
 export * as SalesTimeline from "./timeline";

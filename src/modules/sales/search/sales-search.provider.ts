@@ -4,12 +4,14 @@ import { invoiceService } from "@/modules/sales/invoices";
 import { paymentService } from "@/modules/sales/payments";
 import { quoteService, SALES_QUOTES_WORKSPACE_ID } from "@/modules/sales/quotes";
 import { SALES_ORDERS_WORKSPACE_ID, salesOrderService } from "@/modules/sales/orders";
+import { SHIPMENTS_WORKSPACE_ID, shipmentService } from "@/modules/sales/shipments";
 import {
   mapDeliveryNoteToSearchResult,
   mapInvoiceToSearchResult,
   mapPaymentToSearchResult,
   mapQuoteToSearchResult,
-  mapSalesOrderToSearchResult
+  mapSalesOrderToSearchResult,
+  mapShipmentToSearchResult
 } from "./sales-search.mapper";
 
 export const salesSearchProviders: readonly SearchProvider[] = Object.freeze([
@@ -54,6 +56,17 @@ export const salesSearchProviders: readonly SearchProvider[] = Object.freeze([
         deliveryNoteService
           .listDeliveryNotes({ workspaceId: DELIVERY_NOTES_WORKSPACE_ID, includeArchived: false })
           .deliveryNotes.map((note) => mapDeliveryNoteToSearchResult(note, query.text))
+          .filter(isSearchResult)
+      )
+  }),
+  Object.freeze({
+    moduleId: "sales.shipments",
+    label: "Sales Shipments Search Provider",
+    search: async (query: SearchQuery) =>
+      Object.freeze(
+        shipmentService
+          .listShipments({ workspaceId: SHIPMENTS_WORKSPACE_ID })
+          .shipments.map((shipment) => mapShipmentToSearchResult(shipment, query.text))
           .filter(isSearchResult)
       )
   }),

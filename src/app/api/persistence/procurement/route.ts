@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { applySupplierImport, loadProcurementSnapshot, persistProcurementRecord, postGoodsReceipt, type ProcurementPersistenceResource } from "@/server/persistence/procurement-repository";
+import { applySupplierImport, deleteDraftPurchaseOrder, loadProcurementSnapshot, persistProcurementRecord, postGoodsReceipt, type ProcurementPersistenceResource } from "@/server/persistence/procurement-repository";
 import { requirePersistenceTenantScope } from "@/server/persistence/tenant-scope";
-import type { GoodsReceipt, SupplierImportRequest } from "@/modules/procurement";
+import type { GoodsReceipt, PurchaseOrderId, SupplierImportRequest } from "@/modules/procurement";
 
 const resources = new Set<ProcurementPersistenceResource>(["supplier", "purchaseOrder", "goodsReceipt"]);
 
@@ -18,7 +18,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const scope = await requirePersistenceTenantScope();
-    const body = await request.json() as { operation?: "importSuppliers" | "postGoodsReceipt"; payload?: SupplierImportRequest | GoodsReceipt; resource?: ProcurementPersistenceResource; record?: unknown };
+    const body = await request.json() as { operation?: "deleteDraftPurchaseOrder" | "importSuppliers" | "postGoodsReceipt"; payload?: PurchaseOrderId | SupplierImportRequest | GoodsReceipt; resource?: ProcurementPersistenceResource; record?: unknown };
     if (body.operation === "importSuppliers" && body.payload) {
       const result = await applySupplierImport(scope, body.payload as SupplierImportRequest);
       const snapshot = await loadProcurementSnapshot(scope);
@@ -27,6 +27,10 @@ export async function POST(request: Request) {
     if (body.operation === "postGoodsReceipt" && body.payload) {
       const result = await postGoodsReceipt(scope, body.payload as GoodsReceipt);
       return NextResponse.json({ snapshot: result.procurementSnapshot, inventorySnapshot: result.inventorySnapshot });
+    }
+    if (body.operation === "deleteDraftPurchaseOrder" && body.payload) {
+      const snapshot = await deleteDraftPurchaseOrder(scope, body.payload as PurchaseOrderId);
+      return NextResponse.json({ snapshot });
     }
     if (!body.resource || !resources.has(body.resource) || !body.record) {
       return NextResponse.json({ error: "Payload achats invalide." }, { status: 400 });

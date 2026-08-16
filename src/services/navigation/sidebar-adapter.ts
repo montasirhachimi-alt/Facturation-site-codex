@@ -1,6 +1,7 @@
 import type { CoreModuleCategory } from "@/core/constants";
 import type { CoreModuleId } from "@/core/registry";
 import { getCurrentAlphaActivation } from "@/platform/modules/module-activation.current";
+import type { ModuleActivationResult } from "@/platform/modules/module-activation.types";
 import { getActiveModuleNavigationGroups } from "@/platform/modules/module-navigation";
 import type { ModuleId } from "@/platform/modules/module.types";
 import { NavigationService } from "./NavigationService";
@@ -44,10 +45,11 @@ const permissionModuleByActiveModule: Partial<Record<ModuleId, string>> = {
   "sales.payments": "payments"
 };
 
-export function getSidebarGroups(navigationService = new NavigationService()): SidebarNavigationGroup[] {
+export function getSidebarGroups(
+  activation: ModuleActivationResult = getCurrentAlphaActivation(),
+  navigationService = new NavigationService()
+): SidebarNavigationGroup[] {
   void navigationService;
-
-  const activation = getCurrentAlphaActivation();
 
   return getActiveModuleNavigationGroups(activation).map((group) => ({
     label: group.label,

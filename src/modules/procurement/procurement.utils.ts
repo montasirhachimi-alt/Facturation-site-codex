@@ -3,7 +3,7 @@ import {
   formatCommercialDocumentNumber,
   validateDocumentLine
 } from "@/platform/commercial-documents";
-import type { GoodsReceipt, ProcurementSupplier, PurchaseOrder, PurchaseOrderLine } from "./procurement.types";
+import type { GoodsReceipt, GoodsReceiptLine, ProcurementSupplier, PurchaseOrder, PurchaseOrderLine } from "./procurement.types";
 
 export function normalizeProcurementText(value: string | undefined) {
   return (value ?? "").trim();
@@ -73,6 +73,10 @@ export function formatPurchaseOrderNumber(sequence: number) {
 
 export function formatGoodsReceiptNumber(sequence: number) {
   return formatCommercialDocumentNumber({ prefix: "GR", sequence, padding: 6 });
+}
+
+export function createGoodsReceiptLinePersistenceId(goodsReceiptId: string, line: Pick<GoodsReceiptLine, "purchaseOrderLineId">, position: number) {
+  return `${goodsReceiptId}:${line.purchaseOrderLineId}:${position}`;
 }
 
 export function getReceivedQuantityByPurchaseOrderLine(receipts: readonly GoodsReceipt[], purchaseOrderId: string) {

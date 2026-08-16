@@ -40,6 +40,7 @@ import { calculatePurchaseOrderTotals, formatProcurementMoney } from "@/modules/
 import type { ModuleActivationResult } from "@/platform/modules/module-activation.types";
 import type { UniversalSearchItem, UniversalSearchSection } from "./universal-search.types";
 import { DELIVERY_NOTES_WORKSPACE_ID, DELIVERY_NOTE_STATUS_LABELS, deliveryNoteService } from "@/modules/sales/delivery-notes";
+import { SHIPMENTS_WORKSPACE_ID, SHIPMENT_STATUS_LABELS, shipmentService } from "@/modules/sales/shipments";
 
 export type RecordSearchResult = Readonly<{
   id: string;
@@ -101,6 +102,9 @@ export function createRecordSearchRegistry(activation: ModuleActivationResult = 
   if (activation.activeModuleIdSet.has("sales.delivery-notes")) {
     registry.registerMany(buildDeliveryNoteRecords());
   }
+  if (activation.activeModuleIdSet.has("sales.shipments")) {
+    registry.registerMany(buildShipmentRecords());
+  }
   if (activation.activeModuleIdSet.has("inventory.stock")) {
     registry.registerMany(buildWarehouseRecords());
   }
@@ -126,6 +130,18 @@ function buildDeliveryNoteRecords(): readonly RecordSearchResult[] {
     href: `/sales/delivery-notes/${note.id}`,
     icon: Truck,
     keywords: [note.number, note.salesOrderNumber, note.companyName, note.contactName, note.warehouseName, note.status].filter(Boolean) as string[]
+  }));
+}
+
+function buildShipmentRecords(): readonly RecordSearchResult[] {
+  return shipmentService.listShipments({ workspaceId: SHIPMENTS_WORKSPACE_ID }).shipments.map((shipment) => ({
+    id: `record.shipment.${shipment.id}`,
+    title: shipment.number,
+    type: "Expédition",
+    description: `${shipment.companyName} · ${shipment.carrier} · ${SHIPMENT_STATUS_LABELS[shipment.status]}`,
+    href: `/sales/shipments/${shipment.id}`,
+    icon: Truck,
+    keywords: [shipment.number, shipment.deliveryNoteNumber, shipment.salesOrderNumber, shipment.companyName, shipment.contactName, shipment.carrier, shipment.trackingNumber, shipment.status].filter(Boolean) as string[]
   }));
 }
 

@@ -51,17 +51,17 @@ Focus:
 Foundation in progress:
 
 - SPR-406 creates the canonical Product Catalog foundation over one Product model, one Product service and one Product repository.
-- Product remains planned/inactive in Alpha until a later activation sprint.
+- Product remained planned/inactive at foundation time; SPR-422 now activates it as an operational Alpha workspace.
 - SPR-408B adds Product Catalog XLSX/CSV template download, import preview/validation, duplicate policies and exports for all active, filtered or selected Products.
 - SPR-408C extracts Product import/export mechanics into a shared Import/Export Framework so future modules can reuse definitions, mapping, preview, templates, CSV/XLSX helpers, duplicate policies and error reports.
 - SPR-407 creates the Inventory Domain Foundation with warehouses, balances, stock movements, reservations and transaction-safe posting.
-- Inventory remains planned/inactive in Alpha until a later runtime activation sprint.
+- Inventory remained planned/inactive at foundation time; SPR-422 now activates it as an operational Alpha workspace.
 - SPR-408 creates a controlled Inventory workspace for balances, warehouses, movement history and manual receipt/issue/transfer/adjustment posting.
-- Inventory remains inactive in the current Alpha runtime; `/inventory` is available only through an activation result that includes `inventory.stock`.
+- `/inventory` is now available in the current Alpha runtime through active `inventory.stock` module metadata.
 - SPR-409 adds the Reservation & Availability Engine so available stock, reserved stock and future fulfillment checks have one canonical Inventory authority.
 - SPR-409A adds a controlled `Réservations` QA tab inside Inventory for manual reserve/release verification without exposing a commercial reservation lifecycle.
 - SPR-410 adds the Commercial Documents Foundation so Quotes and Invoices consume shared document primitives while Sales Orders, Delivery Notes and Purchasing documents remain future metadata only.
-- SPR-411 adds the Procurement Foundation with Suppliers and Purchase Orders, activation-gated outside Alpha and without Goods Receipt, Supplier Invoice, Accounting, Payments or Inventory posting.
+- SPR-411 adds the Procurement Foundation with Suppliers and Purchase Orders, activation-gated outside Alpha at foundation time and without Goods Receipt, Supplier Invoice, Accounting, Payments or Inventory posting.
 - SPR-412 adds Goods Receipt and Inventory Posting so Purchase Orders can be received partially or fully into Inventory through persistent Goods Receipts and transaction-safe `RECEIPT` stock movements.
 - SPR-413 adds Sales Orders as customer commitment documents with persistent lines, Quote-to-Order conversion, PDF export and optional Inventory reservation/release through the controlled Sales Operations profile.
 - SPR-413A preserves Product identity on Quote and Invoice lines, carries Product-backed lines into Sales Orders, keeps free-form lines non-inventory and adds Draft Sales Order edit for controlled QA.
@@ -79,6 +79,8 @@ Foundation in progress:
 - SPR-419 hardens the Sales Order Timeline UX with semantic rendering, visible statuses, local retry and stale-result protection, and identifies the remaining blocker for authenticated browser QA: `sales-operations` is not runtime-selectable while Alpha remains the default profile.
 - SPR-420 adds the Unified Global Search Foundation as a Runtime-first provider registry, aggregation engine and `SearchService` facade for future Global Search, Command Center, HicoPilot, AI Agents and quick navigation consumers.
 - SPR-421 implements real module-owned Unified Search providers for CRM Companies/Contacts and Sales documents while keeping the Search Runtime module-agnostic and the current Command Center unchanged.
+- SPR-422 activates Products and Inventory as operational Alpha workspaces, adds Product-level reorder points, upgrades the Product Catalog table with stock quantities/status and adds Product details with recent Inventory movements.
+- SPR-423 activates Procurement as an operational Alpha workspace, adds Supplier and Purchase Order detail pages, completes Purchase Order lifecycle actions and keeps stock increases controlled by Goods Receipt posting through the Inventory engine.
 - Supplier Invoice, Purchasing approvals, customer returns/reversal, variants, barcode scanning, valuation and stock movement cancellation remain future work.
 
 ## Milestone 5 — Enterprise AI

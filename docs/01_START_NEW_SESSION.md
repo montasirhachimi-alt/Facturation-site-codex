@@ -10,7 +10,7 @@ This document is the bootstrap checklist for every AI development session on Hic
 | --- | --- |
 | Product | HicoPilot |
 | Type | Business Operating System for SMEs |
-| Current Stage | Pre-Alpha |
+| Current Stage | Alpha preparation |
 | Repository | Next.js, TypeScript, Prisma, Tailwind CSS |
 
 ## Vision
@@ -78,6 +78,7 @@ Recent completed platform sprints:
 - SPR-205 — Workspace Context Foundation
 - SPR-206 — Dashboard Integration Foundation
 - SPR-207 — Widget Runtime Foundation
+- SPR-423 — Procurement Operational Workspace
 
 ## Current Sprint
 

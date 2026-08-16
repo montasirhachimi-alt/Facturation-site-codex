@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
@@ -113,6 +114,7 @@ model Company {
   salesQuotes               SalesQuote[]
   salesOrders               SalesOrder[]
   salesDeliveryNotes        SalesDeliveryNote[]
+  salesShipments            SalesShipment[]
   salesInvoices             SalesInvoice[]
   salesPayments             SalesPayment[]
   procurementSuppliers      ProcurementSupplier[]
@@ -243,6 +245,7 @@ model Product {
   salePrice                     Decimal
   vatRate                       Decimal                        @default(20)
   currency                      String                         @default("MAD")
+  reorderPoint                  Decimal                        @default(0)
   active                        Boolean                        @default(true)
   status                        String                         @default("active")
   notes                         String?
@@ -264,6 +267,7 @@ model Product {
   salesQuoteLines               SalesQuoteLine[]
   salesOrderLines               SalesOrderLine[]
   salesDeliveryNoteLines        SalesDeliveryNoteLine[]
+  salesShipmentLines            SalesShipmentLine[]
   salesInvoiceLines             SalesInvoiceLine[]
   createdAt                     DateTime                       @default(now())
   updatedAt                     DateTime                       @updatedAt
@@ -711,6 +715,7 @@ model CrmCompany {
   salesQuotes        SalesQuote[]
   salesOrders        SalesOrder[]
   salesDeliveryNotes SalesDeliveryNote[]
+  salesShipments     SalesShipment[]
   salesInvoices      SalesInvoice[]
   salesPayments      SalesPayment[]
   createdAt          DateTime            @default(now())
@@ -779,6 +784,7 @@ model CrmContact {
   salesQuotes        SalesQuote[]
   salesOrders        SalesOrder[]
   salesDeliveryNotes SalesDeliveryNote[]
+  salesShipments     SalesShipment[]
   salesInvoices      SalesInvoice[]
   salesPayments      SalesPayment[]
   crmMeetings        CrmMeeting[]
@@ -962,6 +968,7 @@ model SalesOrder {
   archivedAt           DateTime?
   lines                SalesOrderLine[]
   deliveryNotes        SalesDeliveryNote[]
+  shipments            SalesShipment[]
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt
   crmCustomer          CrmCustomer?        @relation(fields: [crmCustomerId], references: [id])
@@ -1031,6 +1038,7 @@ model SalesDeliveryNote {
   postedBy          String?
   archivedAt        DateTime?
   lines             SalesDeliveryNoteLine[]
+  shipment          SalesShipment?
   createdAt         DateTime                @default(now())
   updatedAt         DateTime                @updatedAt
 
@@ -1062,6 +1070,69 @@ model SalesDeliveryNoteLine {
 
   @@index([deliveryNoteId])
   @@index([salesOrderLineId])
+  @@index([productId])
+}
+
+model SalesShipment {
+  id                 String              @id
+  tenantCompanyId    String
+  tenantCompany      Company             @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  workspaceId        String
+  number             String
+  deliveryNoteId     String              @unique
+  deliveryNote       SalesDeliveryNote   @relation(fields: [deliveryNoteId], references: [id], onDelete: Restrict)
+  deliveryNoteNumber String
+  salesOrderId       String
+  salesOrder         SalesOrder          @relation(fields: [salesOrderId], references: [id], onDelete: Restrict)
+  salesOrderNumber   String
+  crmCompanyId       String
+  crmCompany         CrmCompany          @relation(fields: [crmCompanyId], references: [id], onDelete: Restrict)
+  companyName        String
+  crmContactId       String?
+  crmContact         CrmContact?         @relation(fields: [crmContactId], references: [id], onDelete: SetNull)
+  contactName        String?
+  deliveryAddress    String?
+  carrier            String
+  trackingNumber     String?
+  shipmentDate       DateTime
+  expectedDelivery   DateTime?
+  deliveredAt        DateTime?
+  status             String
+  notes              String?
+  ownerId            String?
+  lines              SalesShipmentLine[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  @@unique([tenantCompanyId, number])
+  @@unique([tenantCompanyId, deliveryNoteId])
+  @@index([tenantCompanyId, workspaceId])
+  @@index([tenantCompanyId, salesOrderId])
+  @@index([tenantCompanyId, crmCompanyId])
+  @@index([tenantCompanyId, crmContactId])
+  @@index([tenantCompanyId, status])
+  @@index([tenantCompanyId, carrier])
+  @@index([tenantCompanyId, shipmentDate])
+}
+
+model SalesShipmentLine {
+  id                 String        @id
+  shipmentId         String
+  shipment           SalesShipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  deliveryNoteLineId String
+  productId          String
+  product            Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+  productSku         String?
+  productName        String?
+  description        String
+  unit               String
+  quantity           Decimal
+  position           Int
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@index([shipmentId])
+  @@index([deliveryNoteLineId])
   @@index([productId])
 }
 

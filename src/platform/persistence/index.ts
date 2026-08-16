@@ -5,4 +5,6 @@ export * from "./product-catalog-persistence.client";
 export * from "./inventory-persistence-provider";
 export * from "./inventory-persistence.client";
 export * from "./delivery-note-persistence.client";
+export * from "./shipment-persistence-provider";
+export * from "./shipment-persistence.client";
 export * from "./procurement-persistence.client";

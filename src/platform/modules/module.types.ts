@@ -21,6 +21,7 @@ export type ModuleId =
   | "crm.opportunities"
   | "sales.quotes"
   | "sales.orders"
+  | "sales.shipments"
   | "sales.invoices"
   | "sales.payments"
   | "sales.products"
