@@ -1,5 +1,62 @@
 # HicoPilot Architecture Decision Records
 
+## ADR-051 — Accounting Foundation Is The Next Core ERP Direction
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-08-17 |
+
+### Decision
+
+After SPR-429, the next major BOSIACO product-development direction is Accounting Foundation V1.
+
+The decision is based on the reconciled runtime state: CRM, Sales, Product Catalog, Inventory, Procurement and Sales Operations are now operational in the default Alpha product, while Accounting/Finance remains the largest missing ERP Core capability.
+
+Sales invoices and Sales payments are commercial records. They must not be treated as accounting transactions until a dedicated accounting engine defines ledgers, journals, posting rules, receivables, payables and reconciliation boundaries.
+
+### Motivation
+
+BOSIACO now supports the main commercial and physical operating chain:
+
+```text
+Company
+→ Contact
+→ Quote
+→ Sales Order
+→ Reservation
+→ Delivery Note
+→ Shipment
+→ Invoice
+→ Payment
+```
+
+It also supports the purchasing and stock-receipt chain:
+
+```text
+Supplier
+→ Purchase Order
+→ Goods Receipt
+→ Inventory RECEIPT
+```
+
+The next serious ERP gap is financial truth. Adding another cockpit or visual overview would improve presentation, but would not close the core accounting gap.
+
+### Consequences
+
+The next core-domain sprint should create Accounting Foundation V1 rather than rebuilding Sales, Procurement, Inventory or Product Catalog.
+
+The next sprint must consume existing Sales, Procurement, Inventory and Product Catalog workflows as source-document context. It must not duplicate:
+
+- Product Catalog;
+- Inventory posting;
+- Procurement Purchase Orders or Goods Receipts;
+- Sales Quotes, Sales Orders, Delivery Notes, Shipments, Invoices or Payments;
+- Commercial Documents line/totals foundations;
+- Command Center, Unified Search or Module Activation foundations.
+
+Future Sales cockpit, Procurement cockpit enrichment, supplier invoices, payment allocation, reconciliation, VAT reporting and stock valuation must align with the Accounting Foundation instead of creating parallel financial truth.
+
 ## ADR-050 — Sales Operations Is Promoted To Default Alpha After Authenticated QA
 
 | Field | Value |

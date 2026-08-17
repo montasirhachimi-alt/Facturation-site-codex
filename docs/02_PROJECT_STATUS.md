@@ -13,6 +13,7 @@ This document is the current repository reality. It is intentionally not a sprin
 | Default runtime edition | `alpha.crm-sales` from `src/platform/editions/edition.profiles.ts`. |
 | Current default scope | Dashboard, CRM, Sales quotes/orders/delivery notes/shipments/invoices/payments, Product Catalog, Inventory and Procurement. |
 | Latest completed sprint reflected in code | SPR-428 — Procurement Analytics & Cockpit Enrichment. |
+| Latest roadmap reconciliation | SPR-429 — Post-Procurement Roadmap Reconciliation & Next Core Domain Decision. |
 | Important caveat | Sales Orders, Delivery Notes and Shipments are now enabled in default `alpha.crm-sales` after authenticated end-to-end Sales Operations QA. The internal `sales-operations` profile remains available as a QA compatibility profile, not as the default product gate. |
 
 ## Validation Snapshot
@@ -234,13 +235,28 @@ The cockpit is read-only projection logic over scoped Procurement snapshots. It 
 | Blueprint Layer | Current State |
 | --- | --- |
 | Product Foundation | Largely complete for the current Alpha product. |
-| ERP Core | Operational across CRM, Sales, Product Catalog, Inventory and Procurement; Accounting is not implemented. |
+| ERP Core | Operational across CRM, Sales, Product Catalog, Inventory and Procurement; Accounting is the next major missing core domain. |
 | Zero Friction ERP | Strong foundations exist: Command Center, Quick Create, Smart Picker, inline creation, contextual actions and keyboard support. |
 | Modular Editions Platform | Foundations complete: registry, activation, edition profiles, dynamic navigation/routes and dashboard contributions. No licensing or admin module management UI yet. |
 | Business Platform | Started through Product Catalog, Inventory, Procurement, Sales Orders, Delivery Notes, Shipment foundation and Timeline/Search runtimes. |
 | AI Productivity Platform | Planned only. |
 | Agent-Ready Platform | Planned only. |
 | Business Operating System | Vision exists in `docs/BOSIACO_BLUEPRINT.md`; full BOS graph/workflow/agent layer is not implemented. |
+
+## SPR-429 Roadmap Reconciliation
+
+SPR-429 reconciles the Blueprint, runtime implementation and recent Procurement/Sales Operations work.
+
+Verified conclusion:
+
+- CRM, Sales, Product Catalog, Inventory and Procurement are operational Alpha capabilities.
+- Sales Orders, Delivery Notes and Shipments are active in the default `alpha.crm-sales` profile.
+- `/inventory` already functions as the Stock domain cockpit.
+- `/procurement` already functions as the Procurement cockpit and was enriched in SPR-428.
+- Sales has enough operational data for a future cockpit, but a Sales cockpit is product-experience enrichment rather than the next missing ERP Core domain.
+- Accounting/Finance is not implemented as an ERP accounting engine. Current Sales invoices and payments are commercial records only.
+
+SPR-429 recommends **Accounting Foundation V1** as the next major direction. The next sprint must not rebuild Product Catalog, Inventory, Procurement, Sales Operations, Command Center, Unified Search or platform activation foundations.
 
 ## Known Limitations
 
@@ -259,10 +275,11 @@ The cockpit is read-only projection logic over scoped Procurement snapshots. It 
 
 ## Recommended Candidate Directions
 
-1. Shipment parcel/carrier decision: decide whether future logistics needs one Shipment with package lines or multiple Shipments per Delivery Note.
-2. Accounting Foundation: begin a minimal ledger/accounting architecture only if the product decision is to move beyond commercial invoices/payments into financial accounting.
-3. Sales Operations release monitoring: continue authenticated smoke QA for Quote acceptance, Sales Order reservation, Delivery Note posting, Shipment lifecycle and Inventory reconciliation now that the workflow is visible in Alpha.
+1. Accounting Foundation V1: define chart of accounts, journals, journal entries and posting boundaries so commercial documents can later become accounting transactions without duplicating Sales or Procurement workflows.
+2. Sales Operations release monitoring: continue authenticated smoke QA for Quote acceptance, Sales Order reservation, Delivery Note posting, Shipment lifecycle and Inventory reconciliation now that the workflow is visible in Alpha.
+3. Shipment parcel/carrier decision: decide whether future logistics needs one Shipment with package lines or multiple Shipments per Delivery Note.
 4. Procurement future depth: supplier invoices, approval workflows, supplier payments, returns/reversals and supplier performance remain future work.
+5. Sales Cockpit: useful future Product Experience work, but should not precede the Accounting Foundation decision because the global Dashboard already covers part of the sales operating view.
 
 ## Documentation Guidance
 
