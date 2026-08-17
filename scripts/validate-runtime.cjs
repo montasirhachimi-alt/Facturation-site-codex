@@ -3925,6 +3925,122 @@ test("Procurement Supplier import export uses the shared Import Export framework
   assert(exported["Raison sociale"] === "Atlas Distribution", "Supplier export should use shared exporter definitions.");
 });
 
+test("Procurement cockpit analytics derive deterministic purchasing metrics", () => {
+  const {
+    buildProcurementCockpitAnalytics,
+    PROCUREMENT_WORKSPACE_ID
+  } = load("src/modules/procurement");
+  const supplierA = {
+    id: "supplier-a",
+    workspaceId: PROCUREMENT_WORKSPACE_ID,
+    companyName: "Atlas Distribution",
+    country: "Maroc",
+    currency: "MAD",
+    status: "active",
+    active: true,
+    createdAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-08-01T00:00:00.000Z"
+  };
+  const supplierB = {
+    id: "supplier-b",
+    workspaceId: PROCUREMENT_WORKSPACE_ID,
+    companyName: "Casa Supply",
+    country: "Maroc",
+    currency: "MAD",
+    status: "archived",
+    active: false,
+    createdAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-08-01T00:00:00.000Z"
+  };
+  const line = (id, quantity, unitPrice) => ({
+    id,
+    productId: `product-${id}`,
+    productSku: `SKU-${id}`,
+    productName: `Produit ${id}`,
+    description: `Produit ${id}`,
+    quantity,
+    unit: "piece",
+    unitPrice,
+    discountRate: 0,
+    taxRate: 0
+  });
+  const order = ({ id, supplier = supplierA, status, issueDate, quantity, unitPrice }) => ({
+    id,
+    workspaceId: PROCUREMENT_WORKSPACE_ID,
+    number: id.toUpperCase(),
+    supplierId: supplier.id,
+    supplierName: supplier.companyName,
+    status,
+    issueDate,
+    currency: "MAD",
+    lines: [line(`${id}-line`, quantity, unitPrice)],
+    discountRate: 0,
+    createdAt: issueDate,
+    updatedAt: issueDate
+  });
+  const currentConfirmed = order({ id: "po-current-confirmed", status: "confirmed", issueDate: "2026-08-03T00:00:00.000Z", quantity: 1, unitPrice: 100 });
+  const currentPartial = order({ id: "po-current-partial", status: "partially_received", issueDate: "2026-08-04T00:00:00.000Z", quantity: 1, unitPrice: 200 });
+  const currentReceived = order({ id: "po-current-received", supplier: supplierB, status: "received", issueDate: "2026-08-05T00:00:00.000Z", quantity: 1, unitPrice: 300 });
+  const currentDraft = order({ id: "po-current-draft", status: "draft", issueDate: "2026-08-06T00:00:00.000Z", quantity: 1, unitPrice: 999 });
+  const currentCancelled = order({ id: "po-current-cancelled", status: "cancelled", issueDate: "2026-08-07T00:00:00.000Z", quantity: 1, unitPrice: 500 });
+  const previousSent = order({ id: "po-previous-sent", supplier: supplierB, status: "sent", issueDate: "2026-07-15T00:00:00.000Z", quantity: 1, unitPrice: 80 });
+  const previousConfirmed = order({ id: "po-previous-confirmed", supplier: supplierB, status: "confirmed", issueDate: "2026-07-16T00:00:00.000Z", quantity: 1, unitPrice: 20 });
+  const receipt = {
+    id: "gr-partial",
+    workspaceId: PROCUREMENT_WORKSPACE_ID,
+    number: "GR-TEST",
+    supplierId: supplierA.id,
+    supplierName: supplierA.companyName,
+    purchaseOrderId: currentPartial.id,
+    purchaseOrderNumber: currentPartial.number,
+    warehouseId: "warehouse-main",
+    receiptDate: "2026-08-10T00:00:00.000Z",
+    status: "posted",
+    lines: [{
+      id: "gr-partial-line",
+      purchaseOrderLineId: currentPartial.lines[0].id,
+      productId: currentPartial.lines[0].productId,
+      productSku: currentPartial.lines[0].productSku,
+      productName: currentPartial.lines[0].productName,
+      description: currentPartial.lines[0].description,
+      orderedQuantity: 1,
+      previouslyReceivedQuantity: 0,
+      receivedQuantity: 0.5,
+      unit: "piece"
+    }],
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  };
+
+  const analytics = buildProcurementCockpitAnalytics({
+    purchaseOrders: [currentConfirmed, currentPartial, currentReceived, currentDraft, currentCancelled, previousSent, previousConfirmed],
+    receipts: [receipt],
+    suppliers: [supplierA, supplierB],
+    referenceDate: new Date("2026-08-17T00:00:00.000Z")
+  });
+
+  assert(analytics.monthPurchaseValue === 600, "Current month purchasing value should exclude draft and cancelled orders.");
+  assert(analytics.previousMonthPurchaseValue === 100, "Previous month should include validated July orders only.");
+  assert(analytics.monthPurchaseDeltaPercent === 500, "Month comparison should be deterministic and zero-safe when previous month exists.");
+  assert(analytics.committedAmount === 320, "Committed amount should include confirmed and partially received orders.");
+  assert(analytics.openPurchaseOrders === 4, "Open orders should include sent, confirmed and partially received orders.");
+  assert(analytics.awaitingReceiptOrders === 3, "Awaiting receipt should count open committed orders with remaining quantities.");
+  assert(analytics.partiallyReceivedOrders === 1, "Partial receipt count should use the canonical partially_received status.");
+  assert(analytics.activeSuppliers === 1, "Active suppliers should use existing supplier active/status semantics.");
+  assert(analytics.monthlyTrend.map((point) => point.key).join(",") === "2026-03,2026-04,2026-05,2026-06,2026-07,2026-08", "Monthly trend should return chronological six-month keys.");
+  assert(analytics.monthlyTrend.at(-1).value === 600, "Monthly trend should include current month purchasing value.");
+  assert(analytics.topSuppliers[0].supplierName === "Casa Supply" && analytics.topSuppliers[0].value === 400, "Top suppliers should rank by validated purchase value.");
+
+  const empty = buildProcurementCockpitAnalytics({
+    purchaseOrders: [],
+    receipts: [],
+    suppliers: [],
+    referenceDate: new Date("2026-08-17T00:00:00.000Z")
+  });
+  assert(empty.monthPurchaseValue === 0 && empty.monthPurchaseDeltaPercent === 0, "Empty cockpit analytics should stay zero-safe.");
+  assert(empty.monthlyTrend.length === 6 && empty.monthlyTrend.every((point) => point.value === 0), "Empty trend should preserve ordered zero-value months.");
+});
+
 test("Sales Operations modules are active in Alpha through the canonical profile", () => {
   const { ModuleActivationEngine, bosiacoModuleRegistry, getCurrentAlphaActivation } = load("src/platform/modules");
   const { salesOperationsEditionProfile, editionToActivationRequest } = load("src/platform/editions");

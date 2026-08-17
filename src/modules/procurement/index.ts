@@ -1,4 +1,5 @@
 export * from "./procurement.constants";
+export * from "./procurement.analytics";
 export * from "./procurement.service";
 export * from "./procurement.store";
 export * from "./procurement.types";

@@ -1,6 +1,6 @@
 # BOSIACO Project Status
 
-Last reconciled: 2026-08-16
+Last reconciled: 2026-08-17
 
 This document is the current repository reality. It is intentionally not a sprint history. Historical sprint files remain useful for context, but this status is authoritative when older documents disagree with the current code.
 
@@ -12,17 +12,17 @@ This document is the current repository reality. It is intentionally not a sprin
 | Stage | Alpha product moving from ERP Core into Business Platform foundations. |
 | Default runtime edition | `alpha.crm-sales` from `src/platform/editions/edition.profiles.ts`. |
 | Current default scope | Dashboard, CRM, Sales quotes/orders/delivery notes/shipments/invoices/payments, Product Catalog, Inventory and Procurement. |
-| Latest completed sprint reflected in code | SPR-427 — Sales Operations Profile Activation & Release Hardening. |
+| Latest completed sprint reflected in code | SPR-428 — Procurement Analytics & Cockpit Enrichment. |
 | Important caveat | Sales Orders, Delivery Notes and Shipments are now enabled in default `alpha.crm-sales` after authenticated end-to-end Sales Operations QA. The internal `sales-operations` profile remains available as a QA compatibility profile, not as the default product gate. |
 
 ## Validation Snapshot
 
 | Command | Latest Reconciled Result |
 | --- | --- |
-| `npm run typecheck` | Passed on 2026-08-16. |
-| `npm run validate:runtime` | Passed on 2026-08-16 with 166/166 checks. |
-| `npm run build` | Passed on 2026-08-16; known `src/components/pdf-preview.tsx` `<img>` warning remains. |
-| `git diff --check` | Passed on 2026-08-16. |
+| `npm run typecheck` | Passed on 2026-08-17. |
+| `npm run validate:runtime` | Passed on 2026-08-17 with 167/167 checks. |
+| `npm run build` | Passed on 2026-08-17; known `src/components/pdf-preview.tsx` `<img>` warning remains. |
+| `git diff --check` | Passed on 2026-08-17. |
 
 ## Runtime Architecture Status
 
@@ -169,6 +169,7 @@ Persistent models are present in `prisma/schema.prisma` and backed by repository
 | Procurement Suppliers | Works, active, persisted. |
 | Purchase Orders | Works, active, persisted. |
 | Goods Receipts | Works, active, persisted, posts Inventory `RECEIPT` movements. |
+| Procurement Cockpit | Works, active, derives KPIs and two lightweight analytics from persisted Procurement data. |
 | Sales Orders | Works, active in Alpha, persisted. |
 | Delivery Notes | Works, active in Alpha, persisted, posts Inventory `ISSUE` movements. |
 | Shipments | Works, active in Alpha, persisted, logistics-only and does not post Inventory movements. |
@@ -214,6 +215,20 @@ Shipment persistence exists as of this reconciliation.
 | Sales Search Providers | Quotes, Invoices, Payments, Sales Orders, Delivery Notes and Shipments have mapper/provider support where their modules exist. Results must remain filtered by activation. |
 | Product/Inventory/Procurement Search | Product, Warehouse, Supplier, Purchase Order and Goods Receipt records are included where active. |
 
+## Procurement Cockpit Reality
+
+`/procurement` remains the canonical Procurement overview. It now enriches the existing operational lists with real-data cockpit projections:
+
+- `Achats du mois`: current-month validated Purchase Order value, excluding drafts, cancelled and archived orders.
+- `Montant engagé`: confirmed and partially received Purchase Order value.
+- `Commandes ouvertes`: sent, confirmed and partially received Purchase Orders.
+- `À réceptionner`: confirmed or partially received Purchase Orders with remaining quantities.
+- `Fournisseurs actifs`: suppliers whose existing active/status semantics mark them as active.
+- `Évolution des achats`: six-month validated Purchase Order value trend.
+- `Top fournisseurs`: ranking by validated Purchase Order value.
+
+The cockpit is read-only projection logic over scoped Procurement snapshots. It does not change Procurement workflows, Inventory posting, Prisma, persistence repositories or activation behavior.
+
 ## Blueprint Phase Assessment
 
 | Blueprint Layer | Current State |
@@ -242,13 +257,12 @@ Shipment persistence exists as of this reconciliation.
 - Runtime notification, activity and audit layers are foundations, not complete production observability or compliance systems.
 - Some historical documents from earlier sprints describe modules as inactive that are now active; this status document supersedes those older statements.
 
-## Recommended Candidate Directions For SPR-428
-
-These are evidence-based candidates only. They do not assign SPR-428.
+## Recommended Candidate Directions
 
 1. Shipment parcel/carrier decision: decide whether future logistics needs one Shipment with package lines or multiple Shipments per Delivery Note.
 2. Accounting Foundation: begin a minimal ledger/accounting architecture only if the product decision is to move beyond commercial invoices/payments into financial accounting.
 3. Sales Operations release monitoring: continue authenticated smoke QA for Quote acceptance, Sales Order reservation, Delivery Note posting, Shipment lifecycle and Inventory reconciliation now that the workflow is visible in Alpha.
+4. Procurement future depth: supplier invoices, approval workflows, supplier payments, returns/reversals and supplier performance remain future work.
 
 ## Documentation Guidance
 
