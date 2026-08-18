@@ -1,5 +1,65 @@
 # HicoPilot Architecture Decision Records
 
+## ADR-055 — Accounting Corrections Use Reversal Entries And Period Posting Controls
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-08-18 |
+
+### Decision
+
+SPR-435 establishes the first Accounting correction and period-control policy.
+
+Posted Accounting history is never silently rewritten. A posted mistake is corrected through a new canonical posted reversal entry:
+
+```text
+Original POSTED Entry
+        ↓
+Reversal POSTED Entry
+```
+
+The reversal swaps debit and credit values line-by-line and keeps the same functional currency. Reports continue to derive from posted journal lines, so no separate correction math is introduced.
+
+### Reversal Linkage
+
+Reversal linkage is durable and explicit through Accounting journal entry metadata:
+
+- `reversalOfEntryId`;
+- `correctionReason`;
+- `correctionType`;
+- `sourceType = accounting.reversal`;
+- `sourceId = originalEntryId`.
+
+The same original may have at most one canonical V1 reversal. Duplicate reversal is blocked through repository checks and database uniqueness.
+
+### Source Posting Lifecycle
+
+Sales invoice/payment entries remain source-linked after reversal. A reversed source is shown as `Contrepassé`, not as a plain posted source.
+
+SPR-435 intentionally preserves the existing durable source uniqueness:
+
+```text
+tenantCompanyId + sourceType + sourceId
+```
+
+Controlled re-posting after reversal is deferred until BOSIACO has an explicit source accounting lifecycle. The system does not drop duplicate protection to permit ambiguous second postings.
+
+### Period Control
+
+SPR-435 adds tenant-scoped `AccountingPeriod` records with:
+
+- `open`;
+- `closed`.
+
+Closed periods reject new postings whose accounting date falls inside the closed range. This applies to manual postings, commercial Sales postings and reversal posting dates. Closed periods remain readable in General Ledger, Trial Balance, Profit & Loss and Balance Sheet reports.
+
+Reopening is supported only through an explicit controlled Finance action during Alpha. No statutory fiscal closing, retained-earnings transfer, legal book certification or localization claim is introduced.
+
+### Consequences
+
+BOSIACO Finance can now answer how to correct posted accounting mistakes without rewriting history and how to prevent new postings in a closed accounting period. Procurement/AP accounting, inventory valuation, bank reconciliation, VAT/localization and controlled source reposting remain future work.
+
 ## ADR-054 — Financial Statements Are Derived From Posted Accounting History
 
 | Field | Value |

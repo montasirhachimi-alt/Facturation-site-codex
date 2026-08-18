@@ -3,6 +3,7 @@ export type AccountingAccountId = string & { readonly __brand: "AccountingAccoun
 export type AccountingJournalId = string & { readonly __brand: "AccountingJournalId" };
 export type AccountingJournalEntryId = string & { readonly __brand: "AccountingJournalEntryId" };
 export type AccountingJournalEntryLineId = string & { readonly __brand: "AccountingJournalEntryLineId" };
+export type AccountingPeriodId = string & { readonly __brand: "AccountingPeriodId" };
 export type AccountingUserId = string & { readonly __brand: "AccountingUserId" };
 export type AccountingTenantCompanyId = string & { readonly __brand: "AccountingTenantCompanyId" };
 
@@ -25,9 +26,12 @@ export type AccountingJournalType =
   | "general";
 
 export type AccountingJournalEntryStatus = "draft" | "posted";
+export type AccountingPeriodStatus = "open" | "closed";
 
 export type AccountingSourceType =
   | "manual"
+  | "accounting.reversal"
+  | "accounting.correction"
   | "sales.invoice"
   | "sales.payment"
   | "procurement.supplier-invoice"
@@ -86,6 +90,11 @@ export type AccountingJournalEntry = Readonly<{
   reference?: string;
   sourceType?: AccountingSourceType;
   sourceId?: string;
+  reversalOfEntryId?: AccountingJournalEntryId;
+  reversedByEntryId?: AccountingJournalEntryId;
+  correctionReason?: string;
+  correctionType?: "reversal" | "correction";
+  correctedByEntryId?: AccountingJournalEntryId;
   functionalCurrency: string;
   transactionCurrency?: string;
   exchangeRate?: AccountingAmount;
@@ -100,10 +109,28 @@ export type AccountingJournalEntry = Readonly<{
   updatedAt: string;
 }>;
 
+export type AccountingPeriod = Readonly<{
+  id: AccountingPeriodId;
+  tenantCompanyId: AccountingTenantCompanyId;
+  name: string;
+  startDate: string;
+  endDate: string;
+  status: AccountingPeriodStatus;
+  closedAt?: string;
+  closedBy?: AccountingUserId;
+  reopenedAt?: string;
+  reopenedBy?: AccountingUserId;
+  createdBy?: AccountingUserId;
+  updatedBy?: AccountingUserId;
+  createdAt: string;
+  updatedAt: string;
+}>;
+
 export type AccountingSnapshot = Readonly<{
   accounts: readonly AccountingAccount[];
   journals: readonly AccountingJournal[];
   journalEntries: readonly AccountingJournalEntry[];
+  periods?: readonly AccountingPeriod[];
   commercialPostingSettings?: AccountingCommercialPostingSettings;
   commercialSources?: AccountingCommercialSources;
 }>;
@@ -126,8 +153,9 @@ export type AccountingSourcePostingStatus = Readonly<{
   sourceId: string;
   journalEntryId?: AccountingJournalEntryId;
   journalEntryNumber?: string;
-  status: "not_posted" | "draft" | "posted";
+  status: "not_posted" | "draft" | "posted" | "reversed";
   postedAt?: string;
+  reversedAt?: string;
 }>;
 
 export type AccountingCommercialSources = Readonly<{
@@ -144,8 +172,12 @@ export type AccountingValidationIssue = Readonly<{
     | "invalid-entry"
     | "invalid-journal"
     | "invalid-line"
+    | "invalid-period"
     | "not-balanced"
+    | "period-closed"
+    | "period-overlap"
     | "posted-entry-locked"
+    | "reversal-not-allowed"
     | "tenant-mismatch";
   message: string;
   lineId?: AccountingJournalEntryLineId;
@@ -169,4 +201,9 @@ export type CreateAccountingJournalInput = Readonly<Omit<AccountingJournal, "id"
 export type CreateAccountingJournalEntryInput = Readonly<Omit<AccountingJournalEntry, "id" | "status" | "debitTotal" | "creditTotal" | "postedAt" | "postedBy" | "createdAt" | "updatedAt"> & {
   id?: AccountingJournalEntryId;
   status?: AccountingJournalEntryStatus;
+}>;
+
+export type CreateAccountingPeriodInput = Readonly<Omit<AccountingPeriod, "id" | "status" | "closedAt" | "closedBy" | "reopenedAt" | "reopenedBy" | "createdAt" | "updatedAt"> & {
+  id?: AccountingPeriodId;
+  status?: AccountingPeriodStatus;
 }>;

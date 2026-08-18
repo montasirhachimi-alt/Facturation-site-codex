@@ -5930,6 +5930,156 @@ test("Financial Statements and Dashboard contribution are wired through Accounti
   assert(workspace.includes("Compte de résultat") && workspace.includes("Actif = Dettes + Capitaux propres + Résultat"), "Finance workspace should expose P&L and Balance Sheet UI.");
 });
 
+test("Accounting Corrections create canonical reversal entries without mutating posted history", () => {
+  const { AccountingService, ACCOUNTING_WORKSPACE_ID, createGeneralLedgerReport } = load("src/modules/accounting");
+  const service = new AccountingService({ now: () => "2026-08-18T12:00:00.000Z" });
+  const tenantCompanyId = "tenant-accounting-corrections";
+  const bank = service.createAccount({ id: "correction-bank", tenantCompanyId, code: "512000", name: "Banque", type: "asset", normalBalance: "debit" });
+  const revenue = service.createAccount({ id: "correction-revenue", tenantCompanyId, code: "701000", name: "Ventes", type: "income", normalBalance: "credit" });
+  const journal = service.createJournal({ id: "correction-journal", tenantCompanyId, code: "OD", name: "Operations diverses", type: "general" });
+  const draft = service.createDraftEntry({
+    id: "correction-original",
+    tenantCompanyId,
+    workspaceId: ACCOUNTING_WORKSPACE_ID,
+    journalId: journal.id,
+    number: "JE-435-001",
+    entryDate: "2026-08-18T00:00:00.000Z",
+    functionalCurrency: "MAD",
+    lines: [
+      { id: "correction-line-bank", accountId: bank.id, label: "Banque", debitAmount: "1000.00", creditAmount: "0.00" },
+      { id: "correction-line-revenue", accountId: revenue.id, label: "Ventes", debitAmount: "0.00", creditAmount: "1000.00" }
+    ]
+  });
+  const posted = service.postEntry(draft.id, "accountant-435");
+  const reversal = service.reverseEntry(posted.id, { reversalDate: "2026-08-19T00:00:00.000Z", reason: "Montant incorrect", userId: "accountant-435" });
+  const originalAfter = service.getJournalEntry(posted.id);
+  const ledger = createGeneralLedgerReport({ accounts: service.listAccounts(), journals: service.listJournals(), journalEntries: service.listJournalEntries(), query: { tenantCompanyId, toDate: "2026-08-31" } });
+  const bankLedger = ledger.accounts.find((row) => row.account.id === bank.id);
+
+  assert(reversal.status === "posted", "Reversal should be a posted accounting entry.");
+  assert(reversal.reversalOfEntryId === posted.id && originalAfter?.reversedByEntryId === reversal.id, "Reversal linkage should connect original and reversal.");
+  assert(reversal.correctionReason === "Montant incorrect", "Reversal should preserve an explicit correction reason.");
+  assert(reversal.lines[0].debitAmount === "0.00" && reversal.lines[0].creditAmount === "1000.00", "Reversal should swap debit and credit amounts.");
+  assert(bankLedger?.closing.balanceAmount === "0.00", "Original plus reversal should naturally net to zero in the General Ledger.");
+});
+
+test("Accounting Corrections reject draft and duplicate reversal workflows", () => {
+  const { AccountingDomainError, AccountingService, ACCOUNTING_WORKSPACE_ID } = load("src/modules/accounting");
+  const service = new AccountingService({ now: () => "2026-08-18T12:00:00.000Z" });
+  const tenantCompanyId = "tenant-accounting-correction-rejections";
+  const bank = service.createAccount({ id: "correction-reject-bank", tenantCompanyId, code: "512000", name: "Banque", type: "asset", normalBalance: "debit" });
+  const revenue = service.createAccount({ id: "correction-reject-revenue", tenantCompanyId, code: "701000", name: "Ventes", type: "income", normalBalance: "credit" });
+  const journal = service.createJournal({ id: "correction-reject-journal", tenantCompanyId, code: "OD", name: "Operations diverses", type: "general" });
+  const draft = service.createDraftEntry({
+    id: "correction-reject-entry",
+    tenantCompanyId,
+    workspaceId: ACCOUNTING_WORKSPACE_ID,
+    journalId: journal.id,
+    number: "JE-435-002",
+    entryDate: "2026-08-18T00:00:00.000Z",
+    functionalCurrency: "MAD",
+    lines: [
+      { id: "correction-reject-line-bank", accountId: bank.id, label: "Banque", debitAmount: "500.00", creditAmount: "0.00" },
+      { id: "correction-reject-line-revenue", accountId: revenue.id, label: "Ventes", debitAmount: "0.00", creditAmount: "500.00" }
+    ]
+  });
+
+  let draftRejected = false;
+  try {
+    service.reverseEntry(draft.id, { reversalDate: "2026-08-19T00:00:00.000Z", reason: "Test", userId: "accountant-435" });
+  } catch (error) {
+    draftRejected = error instanceof AccountingDomainError && error.issues.some((issue) => issue.code === "reversal-not-allowed");
+  }
+  assert(draftRejected, "Draft entries should not use reversal workflow.");
+
+  const posted = service.postEntry(draft.id, "accountant-435");
+  service.reverseEntry(posted.id, { reversalDate: "2026-08-19T00:00:00.000Z", reason: "Test", userId: "accountant-435" });
+  let duplicateRejected = false;
+  try {
+    service.reverseEntry(posted.id, { reversalDate: "2026-08-20T00:00:00.000Z", reason: "Test 2", userId: "accountant-435" });
+  } catch (error) {
+    duplicateRejected = error instanceof AccountingDomainError && error.issues.some((issue) => issue.code === "reversal-not-allowed");
+  }
+  assert(duplicateRejected, "The same original should not be reversed twice through the normal V1 workflow.");
+});
+
+test("Accounting Period Control blocks postings in closed periods and allows later reversals", () => {
+  const { AccountingDomainError, AccountingService, ACCOUNTING_WORKSPACE_ID } = load("src/modules/accounting");
+  const service = new AccountingService({ now: () => "2026-08-18T12:00:00.000Z" });
+  const tenantCompanyId = "tenant-accounting-periods";
+  const bank = service.createAccount({ id: "period-bank", tenantCompanyId, code: "512000", name: "Banque", type: "asset", normalBalance: "debit" });
+  const revenue = service.createAccount({ id: "period-revenue", tenantCompanyId, code: "701000", name: "Ventes", type: "income", normalBalance: "credit" });
+  const journal = service.createJournal({ id: "period-journal", tenantCompanyId, code: "OD", name: "Operations diverses", type: "general" });
+  service.createPeriod({ id: "period-august", tenantCompanyId, name: "Août 2026", startDate: "2026-08-01T00:00:00.000Z", endDate: "2026-08-31T23:59:59.999Z", status: "closed" });
+
+  const blockedDraft = service.createDraftEntry({
+    id: "period-blocked-entry",
+    tenantCompanyId,
+    workspaceId: ACCOUNTING_WORKSPACE_ID,
+    journalId: journal.id,
+    number: "JE-435-003",
+    entryDate: "2026-08-18T00:00:00.000Z",
+    functionalCurrency: "MAD",
+    lines: [
+      { id: "period-blocked-bank", accountId: bank.id, label: "Banque", debitAmount: "300.00", creditAmount: "0.00" },
+      { id: "period-blocked-revenue", accountId: revenue.id, label: "Ventes", debitAmount: "0.00", creditAmount: "300.00" }
+    ]
+  });
+  let closedRejected = false;
+  try {
+    service.postEntry(blockedDraft.id, "accountant-435");
+  } catch (error) {
+    closedRejected = error instanceof AccountingDomainError && error.issues.some((issue) => issue.code === "period-closed");
+  }
+  assert(closedRejected, "Posting inside a closed accounting period should be rejected.");
+
+  const outsideDraft = service.createDraftEntry({
+    id: "period-open-entry",
+    tenantCompanyId,
+    workspaceId: ACCOUNTING_WORKSPACE_ID,
+    journalId: journal.id,
+    number: "JE-435-004",
+    entryDate: "2026-09-01T00:00:00.000Z",
+    functionalCurrency: "MAD",
+    lines: [
+      { id: "period-open-bank", accountId: bank.id, label: "Banque", debitAmount: "300.00", creditAmount: "0.00" },
+      { id: "period-open-revenue", accountId: revenue.id, label: "Ventes", debitAmount: "0.00", creditAmount: "300.00" }
+    ]
+  });
+  const posted = service.postEntry(outsideDraft.id, "accountant-435");
+  const reversal = service.reverseEntry(posted.id, { reversalDate: "2026-09-02T00:00:00.000Z", reason: "Correction en période ouverte", userId: "accountant-435" });
+  assert(reversal.status === "posted" && reversal.entryDate.startsWith("2026-09-02"), "A reversal posted in an open period should remain allowed.");
+});
+
+test("Accounting Period Control rejects overlapping periods", () => {
+  const { AccountingDomainError, AccountingService } = load("src/modules/accounting");
+  const service = new AccountingService({ now: () => "2026-08-18T12:00:00.000Z" });
+  const tenantCompanyId = "tenant-accounting-overlap";
+  service.createPeriod({ id: "period-q1", tenantCompanyId, name: "T1", startDate: "2026-01-01T00:00:00.000Z", endDate: "2026-03-31T23:59:59.999Z" });
+  let rejected = false;
+  try {
+    service.createPeriod({ id: "period-overlap", tenantCompanyId, name: "Overlap", startDate: "2026-03-01T00:00:00.000Z", endDate: "2026-06-30T23:59:59.999Z" });
+  } catch (error) {
+    rejected = error instanceof AccountingDomainError && error.issues.some((issue) => issue.code === "period-overlap");
+  }
+  assert(rejected, "Overlapping accounting periods should be rejected deterministically.");
+});
+
+test("Accounting Corrections and Period Control are durable repository-backed capabilities", () => {
+  const schema = read("prisma/schema.prisma");
+  const migration = read("prisma/migrations/20260818100000_accounting_corrections_period_control/migration.sql");
+  const repository = read("src/server/persistence/accounting-repository.ts");
+  const client = read("src/platform/persistence/accounting-persistence.client.ts");
+  const workspace = read("src/modules/accounting/ui/pages/accounting-workspace.tsx");
+
+  assert(schema.includes("model AccountingPeriod") && schema.includes("reversalOfEntryId"), "Schema should persist periods and reversal linkage.");
+  assert(migration.includes('CREATE TABLE "AccountingPeriod"') && migration.includes('"reversalOfEntryId"'), "Migration should create period control and reversal fields.");
+  assert(repository.includes("reverseAccountingEntry") && repository.includes("assertPostingDateIsOpen(posted.entryDate"), "Repository should enforce server-side reversal and closed-period rules.");
+  assert(repository.includes("Cette facture a deja ete contrepassee") && repository.includes("sourceType: \"accounting.reversal\""), "Commercial source state should detect reversed accounting postings.");
+  assert(client.includes("reverseAccountingJournalEntry") && client.includes("closeAccountingPeriod"), "Client adapter should expose accounting control operations without Prisma.");
+  assert(workspace.includes("Périodes") && workspace.includes("Contrepasser l'écriture"), "Finance workspace should expose period control and reversal actions.");
+});
+
 function createRuntimeInvoice(overrides = {}) {
   const invoice = {
     id: "invoice-runtime",

@@ -1,10 +1,11 @@
-import { ACCOUNTING_ACCOUNT_TYPES, ACCOUNTING_AMOUNT_SCALE, ACCOUNTING_JOURNAL_ENTRY_STATUSES, ACCOUNTING_JOURNAL_TYPES } from "./accounting.constants";
+import { ACCOUNTING_ACCOUNT_TYPES, ACCOUNTING_AMOUNT_SCALE, ACCOUNTING_JOURNAL_ENTRY_STATUSES, ACCOUNTING_JOURNAL_TYPES, ACCOUNTING_PERIOD_STATUSES } from "./accounting.constants";
 import type {
   AccountingAccount,
   AccountingAmount,
   AccountingJournal,
   AccountingJournalEntry,
   AccountingJournalEntryLine,
+  AccountingPeriod,
   AccountingUserId,
   AccountingValidationIssue,
   AccountingValidationResult
@@ -113,6 +114,33 @@ export function validateJournal(journal: AccountingJournal): AccountingValidatio
   return freezeValidation(issues);
 }
 
+export function validateAccountingPeriod(period: AccountingPeriod, existingPeriods: readonly AccountingPeriod[] = []): AccountingValidationResult {
+  const issues: AccountingValidationIssue[] = [];
+  if (!period.id || !period.tenantCompanyId || !period.name.trim()) {
+    issues.push({ code: "invalid-period", message: "Periode comptable invalide: identifiant, nom et entreprise sont requis." });
+  }
+  if (!ACCOUNTING_PERIOD_STATUSES.includes(period.status)) {
+    issues.push({ code: "invalid-period", message: "Statut de periode comptable invalide." });
+  }
+  const start = parseAccountingDate(period.startDate);
+  const end = parseAccountingDate(period.endDate);
+  if (!start || !end || start > end) {
+    issues.push({ code: "invalid-period", message: "Les dates de periode comptable sont invalides." });
+  }
+  if (start && end) {
+    existingPeriods
+      .filter((candidate) => candidate.id !== period.id && candidate.tenantCompanyId === period.tenantCompanyId)
+      .forEach((candidate) => {
+        const candidateStart = parseAccountingDate(candidate.startDate);
+        const candidateEnd = parseAccountingDate(candidate.endDate);
+        if (candidateStart && candidateEnd && start <= candidateEnd && end >= candidateStart) {
+          issues.push({ code: "period-overlap", message: "Une periode comptable existe deja sur ces dates." });
+        }
+      });
+  }
+  return freezeValidation(issues);
+}
+
 export function validateJournalEntry(
   entry: AccountingJournalEntry,
   context: { accounts?: readonly AccountingAccount[]; journals?: readonly AccountingJournal[]; requireBalanced?: boolean } = {}
@@ -181,9 +209,104 @@ export function assertCanUpdateJournalEntry(existing: AccountingJournalEntry) {
   }
 }
 
-export function postJournalEntry(entry: AccountingJournalEntry, context: { accounts?: readonly AccountingAccount[]; journals?: readonly AccountingJournal[]; postedBy?: string; now?: () => string } = {}) {
+export function assertPostingDateIsOpen(entryDate: string, periods: readonly AccountingPeriod[]) {
+  const closedPeriod = findAccountingPeriodForDate(entryDate, periods)?.status === "closed"
+    ? findAccountingPeriodForDate(entryDate, periods)
+    : undefined;
+  if (closedPeriod) {
+    throw new AccountingDomainError("La date comptable appartient a une periode fermee.", [
+      { code: "period-closed", message: `La periode "${closedPeriod.name}" est fermee. Choisissez une date comptable ouverte.` }
+    ]);
+  }
+}
+
+export function findAccountingPeriodForDate(entryDate: string, periods: readonly AccountingPeriod[]) {
+  const date = parseAccountingDate(entryDate);
+  if (!date) return undefined;
+  return periods.find((period) => {
+    const start = parseAccountingDate(period.startDate);
+    const end = parseAccountingDate(period.endDate);
+    return Boolean(start && end && start <= date && date <= end);
+  });
+}
+
+export function createReversalJournalEntry(
+  original: AccountingJournalEntry,
+  context: {
+    id: string;
+    number: string;
+    reversalDate: string;
+    reason: string;
+    createdBy?: string;
+    now?: () => string;
+  }
+): AccountingJournalEntry {
+  const normalized = normalizeJournalEntry(original);
+  const reason = context.reason.trim();
+  if (normalized.status !== "posted") {
+    throw new AccountingDomainError("Seule une ecriture comptabilisee peut etre contrepassee.", [
+      { code: "reversal-not-allowed", message: "Les brouillons restent modifiables et ne doivent pas etre contrepasses." }
+    ]);
+  }
+  if (normalized.reversalOfEntryId || normalized.sourceType === "accounting.reversal") {
+    throw new AccountingDomainError("Une ecriture de contrepassation ne peut pas etre contrepassee par ce workflow V1.", [
+      { code: "reversal-not-allowed", message: "Cette ecriture est deja une contrepassation." }
+    ]);
+  }
+  if (normalized.reversedByEntryId) {
+    throw new AccountingDomainError("Cette ecriture a deja ete contrepassee.", [
+      { code: "reversal-not-allowed", message: "Une ecriture comptabilisee ne peut avoir qu'une contrepassation canonique en V1." }
+    ]);
+  }
+  if (!reason) {
+    throw new AccountingDomainError("La raison de contrepassation est obligatoire.", [
+      { code: "reversal-not-allowed", message: "Indiquez une raison claire avant de contrepasser l'ecriture." }
+    ]);
+  }
+
+  const now = context.now?.() ?? new Date().toISOString();
+  const reversal = normalizeJournalEntry({
+    ...normalized,
+    id: context.id as AccountingJournalEntry["id"],
+    number: context.number.trim(),
+    entryDate: context.reversalDate,
+    status: "posted",
+    description: `Contrepassation de ${normalized.number}`,
+    reference: normalized.reference || normalized.number,
+    sourceType: "accounting.reversal",
+    sourceId: normalized.id,
+    reversalOfEntryId: normalized.id,
+    reversedByEntryId: undefined,
+    correctionReason: reason,
+    correctionType: "reversal",
+    postedAt: now,
+    postedBy: context.createdBy as AccountingUserId | undefined,
+    createdBy: context.createdBy as AccountingUserId | undefined,
+    updatedBy: context.createdBy as AccountingUserId | undefined,
+    createdAt: now,
+    updatedAt: now,
+    lines: normalized.lines.map((line, index) => Object.freeze({
+      id: `${context.id}-line-${index + 1}` as AccountingJournalEntryLine["id"],
+      accountId: line.accountId,
+      label: `Contrepassation · ${line.label}`,
+      debitAmount: line.creditAmount,
+      creditAmount: line.debitAmount,
+      metadata: Object.freeze({
+        originalJournalEntryId: normalized.id,
+        originalJournalEntryLineId: line.id,
+        correctionReason: reason
+      })
+    }))
+  });
+  const validation = validateJournalEntry(reversal, { requireBalanced: true });
+  if (!validation.valid) throw new AccountingDomainError("Contrepassation invalide.", validation.issues);
+  return reversal;
+}
+
+export function postJournalEntry(entry: AccountingJournalEntry, context: { accounts?: readonly AccountingAccount[]; journals?: readonly AccountingJournal[]; periods?: readonly AccountingPeriod[]; postedBy?: string; now?: () => string } = {}) {
   const normalized = normalizeJournalEntry(entry);
   if (normalized.status === "posted") return normalized;
+  if (context.periods) assertPostingDateIsOpen(normalized.entryDate, context.periods);
 
   const validation = validateJournalEntry(normalized, { accounts: context.accounts, journals: context.journals, requireBalanced: true });
   if (!validation.valid) {
@@ -212,6 +335,11 @@ function validateCurrency(value: string, issues: AccountingValidationIssue[]) {
   } catch {
     issues.push({ code: "invalid-currency", message: "Devise comptable invalide. Utilisez un code ISO a trois lettres." });
   }
+}
+
+function parseAccountingDate(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
 function freezeValidation(issues: AccountingValidationIssue[]): AccountingValidationResult {

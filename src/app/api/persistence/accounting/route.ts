@@ -10,6 +10,9 @@ import {
   postAccountingEntry,
   postSalesInvoiceToAccounting,
   postSalesPaymentToAccounting,
+  closeAccountingPeriod,
+  reopenAccountingPeriod,
+  reverseAccountingEntry,
   type AccountingPersistenceResource
 } from "@/server/persistence/accounting-repository";
 import { requirePersistenceTenantScope } from "@/server/persistence/tenant-scope";
@@ -20,7 +23,7 @@ import type {
   AccountingReportDateScope
 } from "@/modules/accounting";
 
-const resources = new Set<AccountingPersistenceResource>(["account", "journal", "journalEntryDraft"]);
+const resources = new Set<AccountingPersistenceResource>(["account", "journal", "journalEntryDraft", "period"]);
 
 export async function GET() {
   try {
@@ -36,7 +39,7 @@ export async function POST(request: Request) {
   try {
     const scope = await requirePersistenceTenantScope();
     const body = await request.json() as {
-      operation?: "postJournalEntry" | "getGeneralLedger" | "getTrialBalance" | "getProfitLoss" | "getBalanceSheet" | "saveCommercialPostingSettings" | "postSalesInvoice" | "postSalesPayment";
+      operation?: "postJournalEntry" | "reverseJournalEntry" | "closeAccountingPeriod" | "reopenAccountingPeriod" | "getGeneralLedger" | "getTrialBalance" | "getProfitLoss" | "getBalanceSheet" | "saveCommercialPostingSettings" | "postSalesInvoice" | "postSalesPayment";
       payload?: AccountingJournalEntryId | string | (AccountingReportDateScope & { accountIds?: readonly string[]; journalIds?: readonly string[]; asOfDate?: string }) | unknown;
       resource?: AccountingPersistenceResource;
       record?: unknown;
@@ -64,6 +67,24 @@ export async function POST(request: Request) {
 
     if (body.operation === "postJournalEntry" && body.payload) {
       const record = await postAccountingEntry(scope, body.payload as AccountingJournalEntryId);
+      const snapshot = await loadAccountingSnapshot(scope);
+      return NextResponse.json({ record, snapshot });
+    }
+
+    if (body.operation === "reverseJournalEntry" && isReversalPayload(body.payload)) {
+      const record = await reverseAccountingEntry(scope, body.payload);
+      const snapshot = await loadAccountingSnapshot(scope);
+      return NextResponse.json({ record, snapshot });
+    }
+
+    if (body.operation === "closeAccountingPeriod" && typeof body.payload === "string") {
+      const record = await closeAccountingPeriod(scope, body.payload as never);
+      const snapshot = await loadAccountingSnapshot(scope);
+      return NextResponse.json({ record, snapshot });
+    }
+
+    if (body.operation === "reopenAccountingPeriod" && typeof body.payload === "string") {
+      const record = await reopenAccountingPeriod(scope, body.payload as never);
       const snapshot = await loadAccountingSnapshot(scope);
       return NextResponse.json({ record, snapshot });
     }
@@ -96,6 +117,12 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
+}
+
+function isReversalPayload(payload: unknown): payload is { entryId: AccountingJournalEntryId; reversalDate: string; reason: string } {
+  if (!payload || typeof payload !== "object") return false;
+  const source = payload as { entryId?: unknown; reversalDate?: unknown; reason?: unknown };
+  return typeof source.entryId === "string" && typeof source.reversalDate === "string" && typeof source.reason === "string";
 }
 
 function getErrorMessage(error: unknown) {

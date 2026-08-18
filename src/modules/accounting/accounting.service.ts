@@ -6,31 +6,39 @@ import type {
   AccountingJournalEntry,
   AccountingJournalEntryId,
   AccountingJournalId,
+  AccountingPeriod,
+  AccountingPeriodId,
   CreateAccountingAccountInput,
   CreateAccountingJournalEntryInput,
-  CreateAccountingJournalInput
+  CreateAccountingJournalInput,
+  CreateAccountingPeriodInput
 } from "./accounting.types";
 import {
   AccountingDomainError,
   assertCanUpdateJournalEntry,
+  assertPostingDateIsOpen,
+  createReversalJournalEntry,
   normalizeJournalEntry,
   postJournalEntry,
   validateAccount,
   validateJournal,
-  validateJournalEntry
+  validateJournalEntry,
+  validateAccountingPeriod
 } from "./accounting.utils";
 
 export class AccountingService {
   private readonly accounts = new Map<AccountingAccountId, AccountingAccount>();
   private readonly journals = new Map<AccountingJournalId, AccountingJournal>();
   private readonly entries = new Map<AccountingJournalEntryId, AccountingJournalEntry>();
+  private readonly periods = new Map<AccountingPeriodId, AccountingPeriod>();
   private readonly now: () => string;
 
-  constructor(options: { accounts?: readonly AccountingAccount[]; journals?: readonly AccountingJournal[]; journalEntries?: readonly AccountingJournalEntry[]; now?: () => string } = {}) {
+  constructor(options: { accounts?: readonly AccountingAccount[]; journals?: readonly AccountingJournal[]; journalEntries?: readonly AccountingJournalEntry[]; periods?: readonly AccountingPeriod[]; now?: () => string } = {}) {
     this.now = options.now ?? (() => new Date().toISOString());
     options.accounts?.forEach((account) => this.accounts.set(account.id, freezeAccount(account)));
     options.journals?.forEach((journal) => this.journals.set(journal.id, freezeJournal(journal)));
     options.journalEntries?.forEach((entry) => this.entries.set(entry.id, freezeEntry(normalizeJournalEntry(entry))));
+    options.periods?.forEach((period) => this.periods.set(period.id, freezePeriod(period)));
   }
 
   listAccounts(tenantCompanyId?: string) {
@@ -52,6 +60,13 @@ export class AccountingService {
       .filter((entry) => !tenantCompanyId || entry.tenantCompanyId === tenantCompanyId)
       .sort((left, right) => right.entryDate.localeCompare(left.entryDate));
     return Object.freeze(entries);
+  }
+
+  listPeriods(tenantCompanyId?: string) {
+    const periods = [...this.periods.values()]
+      .filter((period) => !tenantCompanyId || period.tenantCompanyId === tenantCompanyId)
+      .sort((left, right) => left.startDate.localeCompare(right.startDate));
+    return Object.freeze(periods);
   }
 
   getJournalEntry(id: AccountingJournalEntryId) {
@@ -90,6 +105,54 @@ export class AccountingService {
     if (!validation.valid) throw new AccountingDomainError("Journal comptable invalide.", validation.issues);
     this.journals.set(journal.id, journal);
     return journal;
+  }
+
+  createPeriod(input: CreateAccountingPeriodInput) {
+    const timestamp = this.now();
+    const period = freezePeriod({
+      ...input,
+      id: input.id ?? (`period-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` as AccountingPeriodId),
+      name: input.name.trim(),
+      status: input.status ?? "open",
+      createdAt: timestamp,
+      updatedAt: timestamp
+    });
+    const validation = validateAccountingPeriod(period, this.listPeriods(period.tenantCompanyId));
+    if (!validation.valid) throw new AccountingDomainError("Periode comptable invalide.", validation.issues);
+    this.periods.set(period.id, period);
+    return period;
+  }
+
+  closePeriod(id: AccountingPeriodId, closedBy?: string) {
+    const existing = this.periods.get(id);
+    if (!existing) throw new AccountingDomainError("Periode comptable introuvable.", [{ code: "invalid-period", message: "Periode comptable introuvable." }]);
+    const timestamp = this.now();
+    const period = freezePeriod({
+      ...existing,
+      status: "closed",
+      closedAt: timestamp,
+      closedBy: closedBy as AccountingPeriod["closedBy"],
+      updatedBy: closedBy as AccountingPeriod["updatedBy"],
+      updatedAt: timestamp
+    });
+    this.periods.set(id, period);
+    return period;
+  }
+
+  reopenPeriod(id: AccountingPeriodId, reopenedBy?: string) {
+    const existing = this.periods.get(id);
+    if (!existing) throw new AccountingDomainError("Periode comptable introuvable.", [{ code: "invalid-period", message: "Periode comptable introuvable." }]);
+    const timestamp = this.now();
+    const period = freezePeriod({
+      ...existing,
+      status: "open",
+      reopenedAt: timestamp,
+      reopenedBy: reopenedBy as AccountingPeriod["reopenedBy"],
+      updatedBy: reopenedBy as AccountingPeriod["updatedBy"],
+      updatedAt: timestamp
+    });
+    this.periods.set(id, period);
+    return period;
   }
 
   createDraftEntry(input: CreateAccountingJournalEntryInput) {
@@ -135,11 +198,33 @@ export class AccountingService {
     const posted = postJournalEntry(existing, {
       accounts: this.listAccounts(),
       journals: this.listJournals(),
+      periods: this.listPeriods(existing.tenantCompanyId),
       postedBy,
       now: this.now
     });
     this.entries.set(posted.id, freezeEntry(posted));
     return posted;
+  }
+
+  reverseEntry(id: AccountingJournalEntryId, input: { reversalDate: string; reason: string; userId?: string }) {
+    const existing = this.entries.get(id);
+    if (!existing) throw new AccountingDomainError("Ecriture comptable introuvable.", [{ code: "invalid-entry", message: "Ecriture comptable introuvable." }]);
+    if ([...this.entries.values()].some((entry) => entry.reversalOfEntryId === id || (entry.sourceType === "accounting.reversal" && entry.sourceId === id))) {
+      throw new AccountingDomainError("Cette ecriture a deja ete contrepassee.", [{ code: "reversal-not-allowed", message: "Une seule contrepassation canonique est autorisee en V1." }]);
+    }
+    assertPostingDateIsOpen(input.reversalDate, this.listPeriods(existing.tenantCompanyId));
+    const reversal = createReversalJournalEntry(existing, {
+      id: `reversal-${id}`,
+      number: `${existing.number}-REV`,
+      reversalDate: input.reversalDate,
+      reason: input.reason,
+      createdBy: input.userId,
+      now: this.now
+    });
+    const original = freezeEntry({ ...existing, reversedByEntryId: reversal.id, updatedAt: this.now() });
+    this.entries.set(original.id, original);
+    this.entries.set(reversal.id, freezeEntry(reversal));
+    return reversal;
   }
 }
 
@@ -156,4 +241,8 @@ function freezeEntry(entry: AccountingJournalEntry) {
     ...entry,
     lines: Object.freeze(entry.lines.map((line) => Object.freeze({ ...line })))
   });
+}
+
+function freezePeriod(period: AccountingPeriod) {
+  return Object.freeze({ ...period });
 }

@@ -123,6 +123,7 @@ model Company {
   accountingAccounts           AccountingAccount[]
   accountingJournals           AccountingJournal[]
   accountingJournalEntries     AccountingJournalEntry[]
+  accountingPeriods            AccountingPeriod[]
   accountingCommercialSettings AccountingCommercialPostingSettings?
   inventoryWarehouses          InventoryWarehouse[]
   inventoryBalances            InventoryBalance[]
@@ -1439,6 +1440,12 @@ model AccountingJournalEntry {
   reference           String?
   sourceType          String?
   sourceId            String?
+  reversalOfEntryId   String?                      @unique
+  reversalOfEntry     AccountingJournalEntry?      @relation("AccountingEntryReversal", fields: [reversalOfEntryId], references: [id], onDelete: Restrict)
+  reversedByEntry     AccountingJournalEntry?      @relation("AccountingEntryReversal")
+  correctedByEntryId  String?
+  correctionReason    String?
+  correctionType      String?
   functionalCurrency  String
   transactionCurrency String?
   exchangeRate        Decimal?
@@ -1459,6 +1466,8 @@ model AccountingJournalEntry {
   @@index([tenantCompanyId, status])
   @@index([tenantCompanyId, entryDate])
   @@index([tenantCompanyId, sourceType, sourceId])
+  @@index([tenantCompanyId, reversalOfEntryId])
+  @@index([tenantCompanyId, correctionType])
 }
 
 model AccountingJournalEntryLine {
@@ -1502,4 +1511,27 @@ model AccountingCommercialPostingSettings {
   @@index([revenueAccountId])
   @@index([settlementAccountId])
   @@index([taxPayableAccountId])
+}
+
+model AccountingPeriod {
+  id              String    @id
+  tenantCompanyId String
+  tenantCompany   Company   @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  name            String
+  startDate       DateTime
+  endDate         DateTime
+  status          String
+  closedAt        DateTime?
+  closedBy        String?
+  reopenedAt      DateTime?
+  reopenedBy      String?
+  createdBy       String?
+  updatedBy       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([tenantCompanyId, name])
+  @@index([tenantCompanyId])
+  @@index([tenantCompanyId, status])
+  @@index([tenantCompanyId, startDate, endDate])
 }

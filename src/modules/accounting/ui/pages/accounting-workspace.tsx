@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Archive, BookOpen, CheckCircle2, Edit3, FileSpreadsheet, Landmark, Link2, Plus, RefreshCw, Save, Scale, Search, ShieldCheck } from "lucide-react";
+import { Archive, BookOpen, CalendarClock, CheckCircle2, Edit3, FileSpreadsheet, Landmark, Link2, LockKeyhole, Plus, RefreshCw, RotateCcw, Save, Scale, Search, ShieldCheck, Unlock } from "lucide-react";
 import { clsx } from "clsx";
 import { EntityDialog } from "@/ui/dialogs/entity-dialog";
 import {
@@ -14,6 +14,9 @@ import {
   postAccountingJournalEntry,
   postSalesInvoiceToAccounting,
   postSalesPaymentToAccounting,
+  closeAccountingPeriod,
+  reopenAccountingPeriod,
+  reverseAccountingJournalEntry,
   saveCommercialPostingSettings
 } from "@/platform/persistence/accounting-persistence.client";
 import type { CrmSalesPersistenceSnapshot } from "@/platform/persistence/crm-sales-persistence.client";
@@ -36,6 +39,9 @@ import {
   type AccountingJournalId,
   type AccountingJournalType,
   type AccountingNormalBalance,
+  type AccountingPeriod,
+  type AccountingPeriodId,
+  type AccountingPeriodStatus,
   type AccountingSnapshot,
   type BalanceSheetReport,
   type GeneralLedgerReport,
@@ -43,7 +49,7 @@ import {
   type TrialBalanceReport
 } from "@/modules/accounting";
 
-type FinanceTab = "overview" | "accounts" | "journals" | "entries" | "sales-integration" | "ledger" | "trial-balance" | "profit-loss" | "balance-sheet";
+type FinanceTab = "overview" | "accounts" | "journals" | "entries" | "periods" | "sales-integration" | "ledger" | "trial-balance" | "profit-loss" | "balance-sheet";
 type Notice = { tone: "success" | "error"; message: string };
 type AccountForm = {
   id?: AccountingAccountId;
@@ -86,12 +92,25 @@ type CommercialSettingsForm = {
   taxPayableAccountId: string;
   functionalCurrency: string;
 };
+type PeriodForm = {
+  id?: AccountingPeriodId;
+  name: string;
+  startDate: string;
+  endDate: string;
+  status: AccountingPeriodStatus;
+};
+type ReversalForm = {
+  entry?: AccountingJournalEntry;
+  reversalDate: string;
+  reason: string;
+};
 
 const tabs = [
   { id: "overview", label: "Vue d'ensemble" },
   { id: "accounts", label: "Plan comptable" },
   { id: "journals", label: "Journaux" },
   { id: "entries", label: "Écritures" },
+  { id: "periods", label: "Périodes" },
   { id: "sales-integration", label: "Intégration ventes" },
   { id: "ledger", label: "Grand livre" },
   { id: "trial-balance", label: "Balance" },
@@ -145,6 +164,13 @@ const emptyCommercialSettingsForm: CommercialSettingsForm = {
   functionalCurrency: DEFAULT_ACCOUNTING_FUNCTIONAL_CURRENCY
 };
 
+const emptyPeriodForm: PeriodForm = {
+  name: "",
+  startDate: new Date().toISOString().slice(0, 10),
+  endDate: new Date().toISOString().slice(0, 10),
+  status: "open"
+};
+
 export function AccountingWorkspace() {
   const [snapshot, setSnapshot] = useState<AccountingSnapshot>({ accounts: [], journals: [], journalEntries: [] });
   const [activeTab, setActiveTab] = useState<FinanceTab>("overview");
@@ -155,9 +181,13 @@ export function AccountingWorkspace() {
   const [accountDialogOpen, setAccountDialogOpen] = useState(false);
   const [journalDialogOpen, setJournalDialogOpen] = useState(false);
   const [entryDialogOpen, setEntryDialogOpen] = useState(false);
+  const [periodDialogOpen, setPeriodDialogOpen] = useState(false);
+  const [reversalDialogOpen, setReversalDialogOpen] = useState(false);
   const [accountForm, setAccountForm] = useState<AccountForm>(emptyAccountForm);
   const [journalForm, setJournalForm] = useState<JournalForm>(emptyJournalForm);
   const [entryForm, setEntryForm] = useState<EntryForm>(() => createEmptyEntryForm());
+  const [periodForm, setPeriodForm] = useState<PeriodForm>(emptyPeriodForm);
+  const [reversalForm, setReversalForm] = useState<ReversalForm>({ reversalDate: new Date().toISOString().slice(0, 10), reason: "" });
   const [editingEntry, setEditingEntry] = useState<AccountingJournalEntry | null>(null);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -306,6 +336,77 @@ export function AccountingWorkspace() {
     }
   }
 
+  async function savePeriod() {
+    setSaving(true);
+    setNotice(null);
+    try {
+      const now = new Date().toISOString();
+      const existing = periodForm.id ? snapshot.periods?.find((period) => period.id === periodForm.id) : undefined;
+      const period: AccountingPeriod = {
+        id: periodForm.id ?? createId("period") as AccountingPeriodId,
+        tenantCompanyId: "" as AccountingPeriod["tenantCompanyId"],
+        name: periodForm.name.trim(),
+        startDate: periodForm.startDate,
+        endDate: periodForm.endDate,
+        status: periodForm.status,
+        closedAt: existing?.closedAt,
+        closedBy: existing?.closedBy,
+        reopenedAt: existing?.reopenedAt,
+        reopenedBy: existing?.reopenedBy,
+        createdAt: existing?.createdAt ?? now,
+        updatedAt: now
+      };
+      const response = await persistAccountingRecord("period", period);
+      setSnapshot(response.snapshot);
+      setPeriodDialogOpen(false);
+      setNotice({ tone: "success", message: periodForm.id ? "Période comptable enregistrée." : "Période comptable créée." });
+      return true;
+    } catch (caught) {
+      setNotice({ tone: "error", message: caught instanceof Error ? caught.message : "Période comptable non enregistrée." });
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function transitionPeriod(period: AccountingPeriod) {
+    setSaving(true);
+    setNotice(null);
+    try {
+      const response = period.status === "closed" ? await reopenAccountingPeriod(period.id) : await closeAccountingPeriod(period.id);
+      setSnapshot(response.snapshot);
+      setNotice({ tone: "success", message: period.status === "closed" ? "Période comptable rouverte." : "Période comptable clôturée." });
+    } catch (caught) {
+      setNotice({ tone: "error", message: caught instanceof Error ? caught.message : "Changement de période refusé." });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function reverseEntry() {
+    if (!reversalForm.entry) return false;
+    setSaving(true);
+    setNotice(null);
+    try {
+      const response = await reverseAccountingJournalEntry({
+        entryId: reversalForm.entry.id,
+        reversalDate: reversalForm.reversalDate,
+        reason: reversalForm.reason
+      });
+      setSnapshot(response.snapshot);
+      setReversalDialogOpen(false);
+      setReversalForm({ reversalDate: new Date().toISOString().slice(0, 10), reason: "" });
+      setNotice({ tone: "success", message: "Écriture contrepassee." });
+      await refreshReports();
+      return true;
+    } catch (caught) {
+      setNotice({ tone: "error", message: caught instanceof Error ? caught.message : "Contrepassation refusée." });
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function saveCommercialSettings() {
     setSaving(true);
     setNotice(null);
@@ -415,7 +516,8 @@ export function AccountingWorkspace() {
         {activeTab === "overview" && <OverviewSection snapshot={snapshot} ledger={ledger} profitLoss={profitLoss} balanceSheet={balanceSheet} trialBalance={trialBalance} onCreateAccount={() => openAccountDialog()} onCreateJournal={() => openJournalDialog()} onCreateEntry={() => openEntryDialog()} />}
         {activeTab === "accounts" && <AccountsSection accounts={filteredAccounts} query={query} setQuery={setQuery} onCreate={() => openAccountDialog()} onEdit={openAccountDialog} />}
         {activeTab === "journals" && <JournalsSection journals={filteredJournals} query={query} setQuery={setQuery} onCreate={() => openJournalDialog()} onEdit={openJournalDialog} />}
-        {activeTab === "entries" && <EntriesSection entries={filteredEntries} journals={snapshot.journals} accounts={snapshot.accounts} query={query} setQuery={setQuery} saving={saving} onCreate={() => openEntryDialog()} onEdit={openEntryDialog} onPost={postEntry} />}
+        {activeTab === "entries" && <EntriesSection entries={filteredEntries} journals={snapshot.journals} accounts={snapshot.accounts} query={query} setQuery={setQuery} saving={saving} onCreate={() => openEntryDialog()} onEdit={openEntryDialog} onPost={postEntry} onReverse={openReversalDialog} />}
+        {activeTab === "periods" && <PeriodsSection periods={snapshot.periods ?? []} query={query} setQuery={setQuery} saving={saving} onCreate={() => openPeriodDialog()} onEdit={openPeriodDialog} onTransition={transitionPeriod} />}
         {activeTab === "sales-integration" && <SalesIntegrationSection accounts={snapshot.accounts} journals={snapshot.journals} settings={commercialSettingsForm} onSettingsChange={setCommercialSettingsForm} onSaveSettings={saveCommercialSettings} invoices={salesSnapshot.invoices} payments={salesSnapshot.payments} statuses={snapshot.commercialSources} saving={saving} onPost={postCommercialSource} />}
         {activeTab === "ledger" && <LedgerSection accounts={snapshot.accounts} ledger={ledger} fromDate={fromDate} toDate={toDate} accountId={ledgerAccountId} onAccountChange={setLedgerAccountId} onFromDateChange={setFromDate} onToDateChange={setToDate} onRefresh={refreshReports} />}
         {activeTab === "trial-balance" && <TrialBalanceSection trialBalance={trialBalance} fromDate={fromDate} toDate={toDate} onFromDateChange={setFromDate} onToDateChange={setToDate} onRefresh={refreshReports} />}
@@ -464,6 +566,34 @@ export function AccountingWorkspace() {
       >
         <EntryFormFields accounts={snapshot.accounts} journals={snapshot.journals} form={entryForm} onChange={setEntryForm} readOnly={editingEntry?.status === "posted"} totals={entryTotals} />
       </EntityDialog>
+
+      <EntityDialog
+        open={periodDialogOpen}
+        eyebrow="Contrôle des périodes"
+        title={periodForm.id ? "Modifier la période" : "Créer une période"}
+        description="Une période fermée bloque les nouvelles comptabilisations sur ses dates, sans empêcher la lecture des rapports."
+        error={notice?.tone === "error" && periodDialogOpen ? notice.message : null}
+        onClose={() => setPeriodDialogOpen(false)}
+        onSubmit={savePeriod}
+        size="md"
+        footer={<DialogFooter primaryLabel="Enregistrer" onCancel={() => setPeriodDialogOpen(false)} saving={saving} />}
+      >
+        <PeriodFormFields form={periodForm} onChange={setPeriodForm} />
+      </EntityDialog>
+
+      <EntityDialog
+        open={reversalDialogOpen}
+        eyebrow="Contrepassation"
+        title="Contrepasser l'écriture"
+        description="Cette action crée une nouvelle écriture opposée. L'écriture d'origine reste conservée dans l'historique."
+        error={notice?.tone === "error" && reversalDialogOpen ? notice.message : null}
+        onClose={() => setReversalDialogOpen(false)}
+        onSubmit={reverseEntry}
+        size="md"
+        footer={<DialogFooter primaryLabel="Créer la contrepassation" onCancel={() => setReversalDialogOpen(false)} saving={saving} />}
+      >
+        <ReversalFormFields form={reversalForm} onChange={setReversalForm} />
+      </EntityDialog>
     </main>
   );
 
@@ -498,6 +628,24 @@ export function AccountingWorkspace() {
     setEditingEntry(entry ?? null);
     setEntryForm(entry ? recordToEntryForm(entry) : createEmptyEntryForm(snapshot.journals[0]?.id));
     setEntryDialogOpen(true);
+  }
+
+  function openPeriodDialog(period?: AccountingPeriod) {
+    setNotice(null);
+    setPeriodForm(period ? {
+      id: period.id,
+      name: period.name,
+      startDate: period.startDate.slice(0, 10),
+      endDate: period.endDate.slice(0, 10),
+      status: period.status
+    } : emptyPeriodForm);
+    setPeriodDialogOpen(true);
+  }
+
+  function openReversalDialog(entry: AccountingJournalEntry) {
+    setNotice(null);
+    setReversalForm({ entry, reversalDate: new Date().toISOString().slice(0, 10), reason: "" });
+    setReversalDialogOpen(true);
   }
 }
 
@@ -620,13 +768,14 @@ function JournalsSection({ journals, onCreate, onEdit, query, setQuery }: { jour
   );
 }
 
-function EntriesSection({ accounts, entries, journals, onCreate, onEdit, onPost, query, saving, setQuery }: {
+function EntriesSection({ accounts, entries, journals, onCreate, onEdit, onPost, onReverse, query, saving, setQuery }: {
   accounts: readonly AccountingAccount[];
   entries: readonly AccountingJournalEntry[];
   journals: readonly AccountingJournal[];
   onCreate: () => void;
   onEdit: (entry: AccountingJournalEntry) => void;
   onPost: (entry: AccountingJournalEntry) => void;
+  onReverse: (entry: AccountingJournalEntry) => void;
   query: string;
   saving: boolean;
   setQuery: (value: string) => void;
@@ -646,13 +795,55 @@ function EntriesSection({ accounts, entries, journals, onCreate, onEdit, onPost,
               <td className="px-4 py-3"><p className="font-black text-hicotech-navy dark:text-white">{entry.number}</p><p className="text-xs font-semibold text-slate-500">{entry.description || entry.reference || "Écriture manuelle"}</p></td>
               <td className="px-4 py-3">{journalById.get(entry.journalId)?.code ?? "-"}</td>
               <td className="px-4 py-3">{formatDate(entry.entryDate)}</td>
-              <td className="px-4 py-3"><StatusBadge label={statusLabels[entry.status]} tone={entry.status === "posted" ? "ok" : "warning"} /></td>
+              <td className="px-4 py-3"><StatusBadge label={getEntryStatusLabel(entry)} tone={entry.status === "posted" ? entry.reversedByEntryId ? "muted" : "ok" : "warning"} /></td>
               <td className="px-4 py-3 text-right font-bold">{formatAccountingAmount(entry.debitTotal, entry.functionalCurrency)}</td>
               <td className="px-4 py-3 text-right font-bold">{formatAccountingAmount(entry.creditTotal, entry.functionalCurrency)}</td>
               <td className="px-4 py-3">
                 <div className="flex justify-end gap-2">
                   <button type="button" onClick={() => onEdit(entry)} className={iconButtonClassName} title={entry.status === "posted" ? "Consulter l'écriture" : "Modifier le brouillon"} aria-label={entry.status === "posted" ? "Consulter l'écriture" : "Modifier le brouillon"}><Edit3 size={16} /></button>
                   {entry.status === "draft" && <button type="button" onClick={() => onPost(entry)} disabled={saving} className={iconButtonClassName} title="Comptabiliser l'écriture" aria-label="Comptabiliser l'écriture"><CheckCircle2 size={16} /></button>}
+                  {entry.status === "posted" && !entry.reversalOfEntryId && !entry.reversedByEntryId && <button type="button" onClick={() => onReverse(entry)} disabled={saving} className={iconButtonClassName} title="Contrepasser l'écriture" aria-label="Contrepasser l'écriture"><RotateCcw size={16} /></button>}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </TableShell>
+    </section>
+  );
+}
+
+function PeriodsSection({ onCreate, onEdit, onTransition, periods, query, saving, setQuery }: {
+  onCreate: () => void;
+  onEdit: (period: AccountingPeriod) => void;
+  onTransition: (period: AccountingPeriod) => void;
+  periods: readonly AccountingPeriod[];
+  query: string;
+  saving: boolean;
+  setQuery: (value: string) => void;
+}) {
+  const needle = normalizeSearch(query);
+  const filtered = periods.filter((period) => !needle || normalizeSearch(`${period.name} ${period.status}`).includes(needle));
+  return (
+    <section className={panelClassName}>
+      <SectionToolbar title="Périodes comptables" description="Les périodes fermées empêchent toute nouvelle comptabilisation sur leurs dates. Les rapports restent consultables.">
+        <SearchControl value={query} onChange={setQuery} placeholder="Nom, statut..." />
+        <button type="button" onClick={onCreate} className={primaryButtonClassName}><CalendarClock size={16} /> Créer une période</button>
+      </SectionToolbar>
+      <TableShell empty={filtered.length === 0} emptyTitle="Aucune période comptable" emptyDescription="Créez une période pour contrôler les dates de comptabilisation.">
+        <thead className={tableHeadClassName}><tr><th className="px-4 py-3">Période</th><th className="px-4 py-3">Début</th><th className="px-4 py-3">Fin</th><th className="px-4 py-3">Statut</th><th className="px-4 py-3">Audit</th><th className="px-4 py-3 text-right">Actions</th></tr></thead>
+        <tbody className={tableBodyClassName}>
+          {filtered.map((period) => (
+            <tr key={period.id}>
+              <td className="px-4 py-3"><p className="font-black text-hicotech-navy dark:text-white">{period.name}</p></td>
+              <td className="px-4 py-3">{formatDate(period.startDate)}</td>
+              <td className="px-4 py-3">{formatDate(period.endDate)}</td>
+              <td className="px-4 py-3"><StatusBadge label={period.status === "closed" ? "Fermée" : "Ouverte"} tone={period.status === "closed" ? "warning" : "ok"} /></td>
+              <td className="px-4 py-3 text-xs font-semibold text-slate-500">{period.status === "closed" ? `Clôturée ${period.closedAt ? formatDate(period.closedAt) : ""}` : period.reopenedAt ? `Rouverte ${formatDate(period.reopenedAt)}` : "Disponible"}</td>
+              <td className="px-4 py-3">
+                <div className="flex justify-end gap-2">
+                  <button type="button" onClick={() => onEdit(period)} disabled={saving} className={iconButtonClassName} title="Modifier la période" aria-label="Modifier la période"><Edit3 size={16} /></button>
+                  <button type="button" onClick={() => onTransition(period)} disabled={saving} className={iconButtonClassName} title={period.status === "closed" ? "Rouvrir la période" : "Clôturer la période"} aria-label={period.status === "closed" ? "Rouvrir la période" : "Clôturer la période"}>{period.status === "closed" ? <Unlock size={16} /> : <LockKeyhole size={16} />}</button>
                 </div>
               </td>
             </tr>
@@ -940,7 +1131,7 @@ function CommercialSourceTable({ emptyDescription, emptyTitle, rows, saving, tit
     amount: number;
     currency: string;
     status: string;
-    postingStatus?: { status: "not_posted" | "draft" | "posted"; journalEntryNumber?: string };
+    postingStatus?: { status: "not_posted" | "draft" | "posted" | "reversed"; journalEntryNumber?: string };
     actionLabel: string;
     onPost: () => void;
   }[];
@@ -955,17 +1146,18 @@ function CommercialSourceTable({ emptyDescription, emptyTitle, rows, saving, tit
         <tbody className={tableBodyClassName}>
           {rows.map((row) => {
             const posted = row.postingStatus?.status === "posted";
+            const reversed = row.postingStatus?.status === "reversed";
             return (
               <tr key={row.id}>
                 <td className="px-4 py-3"><p className="font-black text-hicotech-navy dark:text-white">{row.number}</p></td>
                 <td className="px-4 py-3">{row.partner}</td>
                 <td className="px-4 py-3">{formatDate(row.date)}</td>
                 <td className="px-4 py-3"><StatusBadge label={row.status} tone="muted" /></td>
-                <td className="px-4 py-3"><StatusBadge label={posted ? `Comptabilisé · ${row.postingStatus?.journalEntryNumber ?? ""}` : "Non comptabilisé"} tone={posted ? "ok" : "warning"} /></td>
+                <td className="px-4 py-3"><StatusBadge label={reversed ? `Contrepassé · ${row.postingStatus?.journalEntryNumber ?? ""}` : posted ? `Comptabilisé · ${row.postingStatus?.journalEntryNumber ?? ""}` : "Non comptabilisé"} tone={posted ? "ok" : reversed ? "muted" : "warning"} /></td>
                 <td className="px-4 py-3 text-right font-black">{formatAccountingAmount(moneyToAmount(row.amount), row.currency)}</td>
                 <td className="px-4 py-3 text-right">
-                  <button type="button" onClick={row.onPost} disabled={saving || posted} className={posted ? secondaryButtonClassName : primaryButtonClassName} title={row.actionLabel} aria-label={row.actionLabel}>
-                    <Link2 size={16} /> {posted ? "Déjà comptabilisé" : "Comptabiliser"}
+                  <button type="button" onClick={row.onPost} disabled={saving || posted || reversed} className={posted || reversed ? secondaryButtonClassName : primaryButtonClassName} title={reversed ? "Source contrepassee, recomptabilisation différée" : row.actionLabel} aria-label={reversed ? "Source contrepassee, recomptabilisation différée" : row.actionLabel}>
+                    <Link2 size={16} /> {reversed ? "Contrepassé" : posted ? "Déjà comptabilisé" : "Comptabiliser"}
                   </button>
                 </td>
               </tr>
@@ -997,6 +1189,30 @@ function JournalFormFields({ form, onChange }: { form: JournalForm; onChange: (f
       <TextField label="Nom" value={form.name} onChange={(name) => onChange({ ...form, name })} required />
       <SelectField label="Type" value={form.type} onChange={(type) => onChange({ ...form, type: type as AccountingJournalType })} options={Object.entries(journalTypeLabels)} />
       <label className="flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold dark:border-hicotech-dark-border"><input type="checkbox" checked={form.active} onChange={(event) => onChange({ ...form, active: event.target.checked })} /> Journal actif</label>
+    </div>
+  );
+}
+
+function PeriodFormFields({ form, onChange }: { form: PeriodForm; onChange: (form: PeriodForm) => void }) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      <TextField label="Nom" value={form.name} onChange={(name) => onChange({ ...form, name })} helper="Exemple : Août 2026 ou Exercice T1." required />
+      <SelectField label="Statut" value={form.status} onChange={(status) => onChange({ ...form, status: status as AccountingPeriodStatus })} options={[["open", "Ouverte"], ["closed", "Fermée"]]} />
+      <TextField label="Date de début" type="date" value={form.startDate} onChange={(startDate) => onChange({ ...form, startDate })} required />
+      <TextField label="Date de fin" type="date" value={form.endDate} onChange={(endDate) => onChange({ ...form, endDate })} required />
+    </div>
+  );
+}
+
+function ReversalFormFields({ form, onChange }: { form: ReversalForm; onChange: (form: ReversalForm) => void }) {
+  return (
+    <div className="grid gap-4">
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-900 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-100">
+        <p className="font-black">{form.entry?.number ?? "Écriture"}</p>
+        <p className="mt-1">La contrepassation inverse les débits et crédits. L&apos;écriture d&apos;origine reste visible et protégée.</p>
+      </div>
+      <TextField label="Date de contrepassation" type="date" value={form.reversalDate} onChange={(reversalDate) => onChange({ ...form, reversalDate })} helper="Choisissez une date appartenant à une période ouverte." required />
+      <TextField label="Raison" value={form.reason} onChange={(reason) => onChange({ ...form, reason })} helper="Exemple : mauvais compte, montant incorrect, document annulé." required />
     </div>
   );
 }
@@ -1094,6 +1310,12 @@ function NoticeBanner({ notice }: { notice: Notice }) {
 
 function StatusBadge({ label, tone }: { label: string; tone: "ok" | "warning" | "muted" }) {
   return <span className={clsx("inline-flex rounded-full px-2.5 py-1 text-xs font-black", tone === "ok" && "bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-200", tone === "warning" && "bg-amber-50 text-amber-700 dark:bg-amber-400/10 dark:text-amber-200", tone === "muted" && "bg-slate-100 text-slate-500 dark:bg-white/10 dark:text-slate-300")}>{label}</span>;
+}
+
+function getEntryStatusLabel(entry: AccountingJournalEntry) {
+  if (entry.reversalOfEntryId || entry.sourceType === "accounting.reversal") return "Contrepassation";
+  if (entry.reversedByEntryId) return "Contrepassée";
+  return statusLabels[entry.status];
 }
 
 function SummaryRow({ label, tone, value }: { label: string; tone?: "ok" | "warning"; value: string }) {

@@ -6,6 +6,8 @@ import type {
   AccountingJournal,
   AccountingJournalEntry,
   AccountingJournalEntryId,
+  AccountingPeriod,
+  AccountingPeriodId,
   AccountingSnapshot,
   BalanceSheetReport,
   GeneralLedgerReport,
@@ -13,7 +15,7 @@ import type {
   TrialBalanceReport
 } from "@/modules/accounting";
 
-export type AccountingPersistenceResource = "account" | "journal" | "journalEntryDraft";
+export type AccountingPersistenceResource = "account" | "journal" | "journalEntryDraft" | "period";
 export type AccountingReportPayload = Readonly<{
   fromDate?: string;
   toDate?: string;
@@ -36,6 +38,7 @@ export async function loadAccountingPersistenceSnapshot() {
 export async function persistAccountingRecord(resource: "account", record: AccountingAccount): Promise<{ record: AccountingAccount; snapshot: AccountingSnapshot }>;
 export async function persistAccountingRecord(resource: "journal", record: AccountingJournal): Promise<{ record: AccountingJournal; snapshot: AccountingSnapshot }>;
 export async function persistAccountingRecord(resource: "journalEntryDraft", record: AccountingJournalEntry): Promise<{ record: AccountingJournalEntry; snapshot: AccountingSnapshot }>;
+export async function persistAccountingRecord(resource: "period", record: AccountingPeriod): Promise<{ record: AccountingPeriod; snapshot: AccountingSnapshot }>;
 export async function persistAccountingRecord(resource: AccountingPersistenceResource, record: unknown) {
   const response = await fetch("/api/persistence/accounting", {
     method: "POST",
@@ -50,6 +53,30 @@ export async function persistAccountingRecord(resource: AccountingPersistenceRes
     throw new Error(body?.error ?? "Sauvegarde comptable impossible.");
   }
   return await response.json() as { record: unknown; snapshot: AccountingSnapshot };
+}
+
+export async function reverseAccountingJournalEntry(payload: { entryId: AccountingJournalEntryId; reversalDate: string; reason: string }) {
+  const response = await fetch("/api/persistence/accounting", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ operation: "reverseJournalEntry", payload })
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => undefined) as { error?: string } | undefined;
+    throw new Error(body?.error ?? "Contrepassation impossible.");
+  }
+  return await response.json() as { record: AccountingJournalEntry; snapshot: AccountingSnapshot };
+}
+
+export async function closeAccountingPeriod(id: AccountingPeriodId) {
+  return transitionAccountingPeriod("closeAccountingPeriod", id);
+}
+
+export async function reopenAccountingPeriod(id: AccountingPeriodId) {
+  return transitionAccountingPeriod("reopenAccountingPeriod", id);
 }
 
 export async function postAccountingJournalEntry(id: AccountingJournalEntryId) {
@@ -174,4 +201,20 @@ async function postCommercialSource(operation: "postSalesInvoice" | "postSalesPa
     throw new Error(body?.error ?? "Comptabilisation commerciale impossible.");
   }
   return await response.json() as { record: AccountingJournalEntry; snapshot: AccountingSnapshot };
+}
+
+async function transitionAccountingPeriod(operation: "closeAccountingPeriod" | "reopenAccountingPeriod", id: AccountingPeriodId) {
+  const response = await fetch("/api/persistence/accounting", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ operation, payload: id })
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => undefined) as { error?: string } | undefined;
+    throw new Error(body?.error ?? "Changement de periode comptable impossible.");
+  }
+  return await response.json() as { record: AccountingPeriod; snapshot: AccountingSnapshot };
 }
