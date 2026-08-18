@@ -3,6 +3,7 @@ export * from "./procurement-dashboard-section";
 export * from "./pages/procurement-overview-page";
 export * from "./pages/goods-receipts-page";
 export * from "./pages/purchase-orders-page";
+export * from "./pages/supplier-bills-page";
 export * from "./pages/purchase-order-details-page";
 export * from "./pages/supplier-details-page";
 export * from "./pages/suppliers-page";

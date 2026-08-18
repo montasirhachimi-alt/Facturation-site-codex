@@ -30,6 +30,7 @@ export type ModuleId =
   | "procurement.suppliers"
   | "procurement.purchase-orders"
   | "procurement.goods-receipts"
+  | "procurement.supplier-bills"
   | "finance.accounting"
   | "purchasing.orders"
   | "purchasing.suppliers"

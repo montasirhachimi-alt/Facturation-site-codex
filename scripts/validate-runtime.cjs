@@ -626,6 +626,7 @@ test("Platform Module Activation resolves the current Alpha profile deterministi
     "procurement.suppliers",
     "procurement.purchase-orders",
     "procurement.goods-receipts",
+    "procurement.supplier-bills",
     "finance.accounting"
   ];
 
@@ -887,6 +888,7 @@ test("Dynamic Navigation preserves exact current Alpha Sidebar parity", () => {
     "/procurement/suppliers",
     "/procurement/purchase-orders",
     "/procurement/goods-receipts",
+    "/procurement/supplier-bills",
     "/accounting",
     "/parametres"
   ];
@@ -6080,6 +6082,102 @@ test("Accounting Corrections and Period Control are durable repository-backed ca
   assert(workspace.includes("Périodes") && workspace.includes("Contrepasser l'écriture"), "Finance workspace should expose period control and reversal actions.");
 });
 
+test("Procurement AP Accounting V1 reconciles legacy PurchaseInvoice without reusing it", () => {
+  const schema = read("prisma/schema.prisma");
+  const migration = read("prisma/migrations/20260818110000_procurement_ap_accounting/migration.sql");
+  const procurementRepository = read("src/server/persistence/procurement-repository.ts");
+  const accountingRepository = read("src/server/persistence/accounting-repository.ts");
+  const apUtils = read("src/modules/accounting/ap-accounting.utils.ts");
+
+  assert(schema.includes("model PurchaseInvoice") && schema.includes("model ProcurementSupplierBill"), "Schema should preserve legacy PurchaseInvoice and add canonical ProcurementSupplierBill.");
+  assert(schema.includes("supplier            ProcurementSupplier") && schema.includes("purchaseOrder       ProcurementPurchaseOrder?") && schema.includes("goodsReceipt        ProcurementGoodsReceipt?"), "Supplier Bill should link to active Procurement supplier, PO and Goods Receipt models.");
+  assert(migration.includes('CREATE TABLE "ProcurementSupplierBill"') && migration.includes('CREATE TABLE "AccountingApPostingSettings"'), "AP migration should create Supplier Bill and AP posting settings tables.");
+  assert(procurementRepository.includes("persistSupplierBill") && procurementRepository.includes("existing?.status === \"accounted\""), "Procurement repository should persist Supplier Bills and protect accounted bills.");
+  assert(accountingRepository.includes("postSupplierBillToAccounting") && accountingRepository.includes("\"procurement.supplier-bill\""), "Accounting repository should post Supplier Bills through canonical source tracing.");
+  assert(apUtils.includes("createSupplierBillAccountingEntry") && apUtils.includes("TVA récupérable"), "AP utility should generate supplier bill accounting entries with recoverable-tax support.");
+});
+
+test("Procurement AP Accounting V1 maps supplier bill accounting formula deterministically", () => {
+  const { createSupplierBillAccountingEntry, ACCOUNTING_WORKSPACE_ID } = load("src/modules/accounting");
+  const tenantCompanyId = "tenant-ap-runtime";
+  const settings = {
+    tenantCompanyId,
+    purchaseJournalId: "journal-purchase",
+    payableAccountId: "account-payable",
+    expenseAccountId: "account-expense",
+    taxRecoverableAccountId: "account-tax-recoverable",
+    functionalCurrency: "MAD",
+    createdAt: "2026-08-18T00:00:00.000Z",
+    updatedAt: "2026-08-18T00:00:00.000Z"
+  };
+  const bill = createRuntimeSupplierBill();
+  const entry = createSupplierBillAccountingEntry(bill, settings, {
+    tenantCompanyId,
+    workspaceId: ACCOUNTING_WORKSPACE_ID,
+    userId: "accountant-ap",
+    now: () => "2026-08-18T12:00:00.000Z"
+  });
+  assert(entry.status === "posted", "AP entry should be posted by the accounting domain.");
+  assert(entry.sourceType === "procurement.supplier-bill" && entry.sourceId === bill.id, "AP entry should preserve supplier bill source traceability.");
+  assert(entry.debitTotal === "1200.00" && entry.creditTotal === "1200.00", "AP entry should balance expense plus recoverable tax against accounts payable.");
+  assert(entry.lines.some((line) => line.accountId === "account-expense" && line.debitAmount === "1000.00"), "AP entry should debit purchase or expense account before tax.");
+  assert(entry.lines.some((line) => line.accountId === "account-tax-recoverable" && line.debitAmount === "200.00"), "AP entry should debit recoverable tax when tax exists.");
+  assert(entry.lines.some((line) => line.accountId === "account-payable" && line.creditAmount === "1200.00"), "AP entry should credit accounts payable for total TTC.");
+});
+
+test("Procurement AP Accounting V1 rejects unsafe supplier bill posting states", () => {
+  const { ApAccountingError, createSupplierBillAccountingEntry, ACCOUNTING_WORKSPACE_ID } = load("src/modules/accounting");
+  const tenantCompanyId = "tenant-ap-runtime";
+  const settings = {
+    tenantCompanyId,
+    purchaseJournalId: "journal-purchase",
+    payableAccountId: "account-payable",
+    expenseAccountId: "account-expense",
+    functionalCurrency: "MAD",
+    createdAt: "2026-08-18T00:00:00.000Z",
+    updatedAt: "2026-08-18T00:00:00.000Z"
+  };
+  const context = { tenantCompanyId, workspaceId: ACCOUNTING_WORKSPACE_ID, userId: "accountant-ap" };
+  let draftRejected = false;
+  try {
+    createSupplierBillAccountingEntry(createRuntimeSupplierBill({ status: "draft" }), settings, context);
+  } catch (error) {
+    draftRejected = error instanceof ApAccountingError;
+  }
+  assert(draftRejected, "Draft supplier bills should not be posted to AP.");
+
+  let currencyRejected = false;
+  try {
+    createSupplierBillAccountingEntry(createRuntimeSupplierBill({ currency: "EUR", lines: [createRuntimeSupplierBillLine({ taxRate: 0 })] }), settings, context);
+  } catch (error) {
+    currencyRejected = error instanceof ApAccountingError;
+  }
+  assert(currencyRejected, "AP V1 should reject supplier bills in a different currency.");
+
+  let missingTaxAccountRejected = false;
+  try {
+    createSupplierBillAccountingEntry(createRuntimeSupplierBill(), settings, context);
+  } catch (error) {
+    missingTaxAccountRejected = error instanceof ApAccountingError;
+  }
+  assert(missingTaxAccountRejected, "AP V1 should require recoverable tax account when supplier bill tax exists.");
+});
+
+test("Procurement AP Accounting V1 is exposed through Procurement and Finance UI without supplier payments", () => {
+  const descriptors = read("src/platform/modules/module.descriptors.ts");
+  const editions = read("src/platform/editions/edition.profiles.ts");
+  const route = read("src/app/(erp)/procurement/supplier-bills/page.tsx");
+  const procurementPage = read("src/modules/procurement/ui/pages/supplier-bills-page.tsx");
+  const accountingWorkspace = read("src/modules/accounting/ui/pages/accounting-workspace.tsx");
+
+  assert(descriptors.includes("procurement.supplier-bills") && descriptors.includes("/procurement/supplier-bills"), "Module Registry should describe Supplier Bills.");
+  assert(editions.includes("\"procurement.supplier-bills\""), "Alpha profile should activate Supplier Bills explicitly.");
+  assert(route.includes("SupplierBillsPage"), "Supplier Bills route should render the operational Procurement page.");
+  assert(procurementPage.includes("Factures fournisseurs") && procurementPage.includes("Finaliser la facture"), "Procurement UI should support supplier bill creation and finalization.");
+  assert(accountingWorkspace.includes("Intégration achats") && accountingWorkspace.includes("postSupplierBillToAccounting"), "Finance UI should expose AP integration for supplier bills.");
+  assert(accountingWorkspace.includes("Les règlements fournisseurs AP sont différés en V1"), "Supplier payment should be explicitly deferred instead of exposing a fake workflow.");
+});
+
 function createRuntimeInvoice(overrides = {}) {
   const invoice = {
     id: "invoice-runtime",
@@ -6101,6 +6199,43 @@ function createRuntimeInvoice(overrides = {}) {
     ...overrides
   };
   return invoice;
+}
+
+function createRuntimeSupplierBill(overrides = {}) {
+  return {
+    id: "supplier-bill-runtime",
+    workspaceId: "procurement-main",
+    number: "FB-RUNTIME",
+    supplierId: "supplier-runtime",
+    supplierName: "Atlas Supply",
+    purchaseOrderId: "po-runtime",
+    purchaseOrderNumber: "PO-RUNTIME",
+    billDate: "2026-08-18T00:00:00.000Z",
+    dueDate: "2026-09-17T00:00:00.000Z",
+    currency: "MAD",
+    status: "finalized",
+    lines: [createRuntimeSupplierBillLine()],
+    discountRate: 0,
+    createdAt: "2026-08-18T00:00:00.000Z",
+    updatedAt: "2026-08-18T00:00:00.000Z",
+    ...overrides
+  };
+}
+
+function createRuntimeSupplierBillLine(overrides = {}) {
+  return {
+    id: "supplier-bill-line-runtime",
+    productId: "product-runtime",
+    productSku: "SKU-RUNTIME",
+    productName: "Produit Runtime",
+    description: "Produit fournisseur",
+    quantity: 1,
+    unit: "piece",
+    unitPrice: 1000,
+    discountRate: 0,
+    taxRate: 20,
+    ...overrides
+  };
 }
 
 function createFinancialStatementFixture() {

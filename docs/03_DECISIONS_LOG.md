@@ -1944,3 +1944,23 @@ Commercial documents and accounting history must stay synchronized without coupl
 ### Consequences
 
 SPR-433 supports controlled posting of Sales invoices and Sales payments. Draft/cancelled sources are rejected, missing account mappings fail explicitly and generated posted entries flow into the existing General Ledger and Trial Balance. Procurement/AP accounting, inventory valuation accounting, localization, tax reporting, automatic background posting and correction/reversal workflows remain future work.
+
+## ADR-036 — Procurement/AP Accounting Uses Supplier Bills, Not Legacy PurchaseInvoice
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+
+### Decision
+
+Procurement/AP Accounting V1 uses a new canonical `ProcurementSupplierBill` model linked to active Procurement suppliers, Purchase Orders and Goods Receipts.
+
+The legacy `PurchaseInvoice` model remains in the schema for compatibility, but it is not reused as the AP source because it is tied to the older legacy `Supplier` and `Product` models rather than the operational Procurement workspace.
+
+### Motivation
+
+BOSIACO now separates operational procurement truth from financial accounting truth. Purchase Orders and Goods Receipts describe purchasing and inventory operations. Supplier Bills represent the received supplier invoice that can be finalized and posted to Accounting through Finance-owned AP settings.
+
+### Consequences
+
+Supplier Bill posting creates a tenant-scoped Accounting entry with `sourceType = procurement.supplier-bill` and `sourceId = ProcurementSupplierBill.id`. The existing unique source constraint preserves idempotency. Posting debits purchases/expenses, optionally debits recoverable tax, and credits Accounts Payable. Closed accounting periods block AP posting. Supplier payments/AP settlement remain deferred because no active, Procurement-linked payment model exists yet.

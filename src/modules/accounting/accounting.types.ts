@@ -34,6 +34,7 @@ export type AccountingSourceType =
   | "accounting.correction"
   | "sales.invoice"
   | "sales.payment"
+  | "procurement.supplier-bill"
   | "procurement.supplier-invoice"
   | "inventory.valuation"
   | (string & {});
@@ -133,6 +134,8 @@ export type AccountingSnapshot = Readonly<{
   periods?: readonly AccountingPeriod[];
   commercialPostingSettings?: AccountingCommercialPostingSettings;
   commercialSources?: AccountingCommercialSources;
+  apPostingSettings?: AccountingApPostingSettings;
+  apSources?: AccountingApSources;
 }>;
 
 export type AccountingCommercialPostingSettings = Readonly<{
@@ -161,6 +164,23 @@ export type AccountingSourcePostingStatus = Readonly<{
 export type AccountingCommercialSources = Readonly<{
   invoices: readonly AccountingSourcePostingStatus[];
   payments: readonly AccountingSourcePostingStatus[];
+}>;
+
+export type AccountingApPostingSettings = Readonly<{
+  tenantCompanyId: AccountingTenantCompanyId;
+  purchaseJournalId?: AccountingJournalId;
+  payableAccountId?: AccountingAccountId;
+  expenseAccountId?: AccountingAccountId;
+  settlementAccountId?: AccountingAccountId;
+  taxRecoverableAccountId?: AccountingAccountId;
+  functionalCurrency: string;
+  updatedBy?: AccountingUserId;
+  createdAt: string;
+  updatedAt: string;
+}>;
+
+export type AccountingApSources = Readonly<{
+  supplierBills: readonly AccountingSourcePostingStatus[];
 }>;
 
 export type AccountingValidationIssue = Readonly<{

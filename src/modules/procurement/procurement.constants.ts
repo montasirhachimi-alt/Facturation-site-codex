@@ -23,6 +23,14 @@ export const GOODS_RECEIPT_STATUS_LABELS = {
   archived: "Archivé"
 } as const;
 
+export const SUPPLIER_BILL_STATUS_LABELS = {
+  draft: "Brouillon",
+  finalized: "Finalisée",
+  accounted: "Comptabilisée",
+  cancelled: "Annulée",
+  archived: "Archivée"
+} as const;
+
 export const SUPPLIER_STATUS_LABELS = {
   active: "Actif",
   archived: "Archivé"

@@ -6,6 +6,7 @@ import {
   AccountingDomainError,
   ACCOUNTING_WORKSPACE_ID,
   assertPostingDateIsOpen,
+  createSupplierBillAccountingEntry,
   createBalanceSheetReport,
   createGeneralLedgerReport,
   createProfitLossReport,
@@ -20,6 +21,7 @@ import {
   validateJournal,
   validateJournalEntry,
   type AccountingAccount,
+  type AccountingApPostingSettings,
   type AccountingAccountId,
   type AccountingCommercialPostingSettings,
   type AccountingReportDateScope,
@@ -34,6 +36,7 @@ import {
   type AccountingPeriodId,
   type AccountingTenantCompanyId
 } from "@/modules/accounting";
+import type { SupplierBill } from "@/modules/procurement";
 import type { Invoice } from "@/modules/sales/invoices";
 import type { Payment } from "@/modules/sales/payments";
 import type { QuoteItem } from "@/modules/sales/quotes";
@@ -44,9 +47,11 @@ type DbAccount = Prisma.AccountingAccountGetPayload<Record<string, never>>;
 type DbJournal = Prisma.AccountingJournalGetPayload<Record<string, never>>;
 type DbEntry = Prisma.AccountingJournalEntryGetPayload<{ include: { lines: { orderBy: { position: "asc" } } } }>;
 type DbCommercialSettings = Prisma.AccountingCommercialPostingSettingsGetPayload<Record<string, never>>;
+type DbApSettings = Prisma.AccountingApPostingSettingsGetPayload<Record<string, never>>;
 type DbPeriod = Prisma.AccountingPeriodGetPayload<Record<string, never>>;
 type DbSalesInvoice = Prisma.SalesInvoiceGetPayload<{ include: { lines: { orderBy: { position: "asc" } } } }>;
 type DbSalesPayment = Prisma.SalesPaymentGetPayload<Record<string, never>>;
+type DbSupplierBill = Prisma.ProcurementSupplierBillGetPayload<{ include: { lines: { orderBy: { position: "asc" } } } }>;
 
 export type AccountingPersistenceResource = "account" | "journal" | "journalEntryDraft" | "period";
 
@@ -56,14 +61,18 @@ export type AccountingPersistenceSnapshot = Readonly<{
   journalEntries: readonly AccountingJournalEntry[];
   periods: readonly AccountingPeriod[];
   commercialPostingSettings?: AccountingCommercialPostingSettings;
+  apPostingSettings?: AccountingApPostingSettings;
   commercialSources: {
     invoices: readonly { sourceType: "sales.invoice"; sourceId: string; journalEntryId?: AccountingJournalEntryId; journalEntryNumber?: string; status: "not_posted" | "draft" | "posted" | "reversed"; postedAt?: string; reversedAt?: string }[];
     payments: readonly { sourceType: "sales.payment"; sourceId: string; journalEntryId?: AccountingJournalEntryId; journalEntryNumber?: string; status: "not_posted" | "draft" | "posted" | "reversed"; postedAt?: string; reversedAt?: string }[];
   };
+  apSources: {
+    supplierBills: readonly { sourceType: "procurement.supplier-bill"; sourceId: string; journalEntryId?: AccountingJournalEntryId; journalEntryNumber?: string; status: "not_posted" | "draft" | "posted" | "reversed"; postedAt?: string; reversedAt?: string }[];
+  };
 }>;
 
 export async function loadAccountingSnapshot(scope: PersistenceTenantScope): Promise<AccountingPersistenceSnapshot> {
-  const [accounts, journals, entries, periods, settings, sourceStatuses] = await Promise.all([
+  const [accounts, journals, entries, periods, settings, apSettings, sourceStatuses, apSourceStatuses] = await Promise.all([
     prisma.accountingAccount.findMany({ where: { tenantCompanyId: scope.companyId }, orderBy: [{ code: "asc" }] }),
     prisma.accountingJournal.findMany({ where: { tenantCompanyId: scope.companyId }, orderBy: [{ code: "asc" }] }),
     prisma.accountingJournalEntry.findMany({
@@ -73,7 +82,9 @@ export async function loadAccountingSnapshot(scope: PersistenceTenantScope): Pro
     }),
     prisma.accountingPeriod.findMany({ where: { tenantCompanyId: scope.companyId }, orderBy: [{ startDate: "asc" }] }),
     prisma.accountingCommercialPostingSettings.findUnique({ where: { tenantCompanyId: scope.companyId } }),
-    loadCommercialSourceStatuses(scope)
+    prisma.accountingApPostingSettings.findUnique({ where: { tenantCompanyId: scope.companyId } }),
+    loadCommercialSourceStatuses(scope),
+    loadApSourceStatuses(scope)
   ]);
   const reversalByOriginal = new Map(entries.filter((entry) => entry.reversalOfEntryId).map((entry) => [entry.reversalOfEntryId, entry.id]));
 
@@ -83,7 +94,9 @@ export async function loadAccountingSnapshot(scope: PersistenceTenantScope): Pro
     journalEntries: Object.freeze(entries.map((entry) => mapDbEntry(entry, reversalByOriginal))),
     periods: Object.freeze(periods.map(mapDbPeriod)),
     commercialPostingSettings: settings ? mapDbCommercialSettings(settings) : undefined,
-    commercialSources: sourceStatuses
+    apPostingSettings: apSettings ? mapDbApSettings(apSettings) : undefined,
+    commercialSources: sourceStatuses,
+    apSources: apSourceStatuses
   });
 }
 
@@ -194,6 +207,27 @@ export async function persistCommercialPostingSettings(scope: PersistenceTenantS
   return mapDbCommercialSettings(saved);
 }
 
+export async function persistApPostingSettings(scope: PersistenceTenantScope, settings: AccountingApPostingSettings) {
+  const scoped = {
+    ...settings,
+    tenantCompanyId: scope.companyId as AccountingTenantCompanyId,
+    functionalCurrency: normalizeCurrency(settings.functionalCurrency)
+  };
+  await assertApPostingSettingsTenant(scope, scoped);
+  const now = new Date().toISOString();
+
+  const saved = await prisma.accountingApPostingSettings.upsert({
+    where: { tenantCompanyId: scope.companyId },
+    update: apSettingsWriteData({ ...scoped, updatedAt: now }, scope),
+    create: {
+      tenantCompanyId: scope.companyId,
+      ...apSettingsWriteData({ ...scoped, createdAt: settings.createdAt || now, updatedAt: now }, scope)
+    }
+  });
+
+  return mapDbApSettings(saved);
+}
+
 export async function postSalesInvoiceToAccounting(scope: PersistenceTenantScope, invoiceId: string) {
   const existing = await findCommercialSourceEntry(scope, "sales.invoice", invoiceId);
   if (existing) {
@@ -250,6 +284,42 @@ export async function postSalesPaymentToAccounting(scope: PersistenceTenantScope
   await insertGeneratedJournalEntry(scope, posted);
   const saved = await findCommercialSourceEntry(scope, "sales.payment", paymentId);
   if (!saved) throw new Error("Ecriture comptable générée introuvable après comptabilisation.");
+  return mapDbEntry(saved);
+}
+
+export async function postSupplierBillToAccounting(scope: PersistenceTenantScope, supplierBillId: string) {
+  const existing = await findCommercialSourceEntry(scope, "procurement.supplier-bill", supplierBillId);
+  if (existing) {
+    if (await findReversalOfEntry(scope, existing.id)) throw new Error("Cette facture fournisseur a deja ete contrepassee. La recomptabilisation controlee est differee.");
+    return mapDbEntry(existing);
+  }
+
+  const [settings, bill, snapshot] = await Promise.all([
+    requireApPostingSettings(scope),
+    prisma.procurementSupplierBill.findFirst({
+      where: { tenantCompanyId: scope.companyId, id: supplierBillId },
+      include: { lines: { orderBy: { position: "asc" } } }
+    }),
+    loadAccountingSnapshot(scope)
+  ]);
+  if (!bill) throw new Error("Facture fournisseur introuvable pour cette entreprise.");
+
+  const supplierBill = mapDbSupplierBill(bill);
+  const posted = createSupplierBillAccountingEntry(supplierBill, settings, {
+    tenantCompanyId: scope.companyId as AccountingTenantCompanyId,
+    workspaceId: ACCOUNTING_WORKSPACE_ID,
+    userId: scope.userId as AccountingJournalEntry["postedBy"],
+    now: () => new Date().toISOString()
+  });
+  assertPostingDateIsOpen(posted.entryDate, snapshot.periods);
+  validateCommercialPostedEntry(posted, snapshot);
+  await insertGeneratedJournalEntry(scope, posted);
+  await prisma.procurementSupplierBill.update({
+    where: { id: supplierBillId },
+    data: { status: "accounted", accountedAt: parseOptionalDate(posted.postedAt), updatedAt: new Date() }
+  });
+  const saved = await findCommercialSourceEntry(scope, "procurement.supplier-bill", supplierBillId);
+  if (!saved) throw new Error("Ecriture fournisseur générée introuvable après comptabilisation.");
   return mapDbEntry(saved);
 }
 
@@ -422,6 +492,14 @@ async function assertCommercialPostingSettingsTenant(scope: PersistenceTenantSco
   if (settings.taxPayableAccountId) await assertAccountTenant(scope, settings.taxPayableAccountId, { requireExisting: true });
 }
 
+async function assertApPostingSettingsTenant(scope: PersistenceTenantScope, settings: AccountingApPostingSettings) {
+  if (settings.purchaseJournalId) await assertJournalTenant(scope, settings.purchaseJournalId, { requireExisting: true });
+  if (settings.payableAccountId) await assertAccountTenant(scope, settings.payableAccountId, { requireExisting: true });
+  if (settings.expenseAccountId) await assertAccountTenant(scope, settings.expenseAccountId, { requireExisting: true });
+  if (settings.settlementAccountId) await assertAccountTenant(scope, settings.settlementAccountId, { requireExisting: true });
+  if (settings.taxRecoverableAccountId) await assertAccountTenant(scope, settings.taxRecoverableAccountId, { requireExisting: true });
+}
+
 function assertTenantOwner(scope: PersistenceTenantScope, tenantCompanyId?: string) {
   if (tenantCompanyId && tenantCompanyId !== scope.companyId) throw new Error("Acces refuse: cet enregistrement comptable appartient a une autre entreprise.");
 }
@@ -530,13 +608,33 @@ function commercialSettingsWriteData(settings: AccountingCommercialPostingSettin
   };
 }
 
+function apSettingsWriteData(settings: AccountingApPostingSettings, scope: PersistenceTenantScope) {
+  return {
+    purchaseJournalId: settings.purchaseJournalId ?? null,
+    payableAccountId: settings.payableAccountId ?? null,
+    expenseAccountId: settings.expenseAccountId ?? null,
+    settlementAccountId: settings.settlementAccountId ?? null,
+    taxRecoverableAccountId: settings.taxRecoverableAccountId ?? null,
+    functionalCurrency: normalizeCurrency(settings.functionalCurrency),
+    updatedBy: settings.updatedBy ?? scope.userId,
+    createdAt: parseDate(settings.createdAt),
+    updatedAt: parseDate(settings.updatedAt)
+  };
+}
+
 async function requireCommercialPostingSettings(scope: PersistenceTenantScope) {
   const settings = await prisma.accountingCommercialPostingSettings.findUnique({ where: { tenantCompanyId: scope.companyId } });
   if (!settings) throw new Error("Configuration de comptabilisation des ventes manquante.");
   return mapDbCommercialSettings(settings);
 }
 
-async function findCommercialSourceEntry(scope: PersistenceTenantScope, sourceType: "sales.invoice" | "sales.payment", sourceId: string) {
+async function requireApPostingSettings(scope: PersistenceTenantScope) {
+  const settings = await prisma.accountingApPostingSettings.findUnique({ where: { tenantCompanyId: scope.companyId } });
+  if (!settings) throw new Error("Configuration de comptabilisation achats manquante.");
+  return mapDbApSettings(settings);
+}
+
+async function findCommercialSourceEntry(scope: PersistenceTenantScope, sourceType: "sales.invoice" | "sales.payment" | "procurement.supplier-bill", sourceId: string) {
   return await prisma.accountingJournalEntry.findFirst({
     where: { tenantCompanyId: scope.companyId, sourceType, sourceId },
     include: { lines: { orderBy: { position: "asc" } } }
@@ -686,6 +784,21 @@ function mapDbCommercialSettings(row: DbCommercialSettings): AccountingCommercia
   });
 }
 
+function mapDbApSettings(row: DbApSettings): AccountingApPostingSettings {
+  return Object.freeze({
+    tenantCompanyId: row.tenantCompanyId as AccountingTenantCompanyId,
+    purchaseJournalId: row.purchaseJournalId as AccountingApPostingSettings["purchaseJournalId"] | undefined,
+    payableAccountId: row.payableAccountId as AccountingApPostingSettings["payableAccountId"] | undefined,
+    expenseAccountId: row.expenseAccountId as AccountingApPostingSettings["expenseAccountId"] | undefined,
+    settlementAccountId: row.settlementAccountId as AccountingApPostingSettings["settlementAccountId"] | undefined,
+    taxRecoverableAccountId: row.taxRecoverableAccountId as AccountingApPostingSettings["taxRecoverableAccountId"] | undefined,
+    functionalCurrency: row.functionalCurrency,
+    updatedBy: row.updatedBy as AccountingApPostingSettings["updatedBy"] | undefined,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString()
+  });
+}
+
 function mapDbSalesInvoice(row: DbSalesInvoice): Invoice {
   return Object.freeze({
     id: row.id as Invoice["id"],
@@ -740,6 +853,46 @@ function mapDbSalesPayment(row: DbSalesPayment): Payment {
   });
 }
 
+function mapDbSupplierBill(row: DbSupplierBill): SupplierBill {
+  return Object.freeze({
+    id: row.id as SupplierBill["id"],
+    workspaceId: row.workspaceId as SupplierBill["workspaceId"],
+    number: row.number,
+    supplierId: row.supplierId as SupplierBill["supplierId"],
+    supplierName: row.supplierName,
+    purchaseOrderId: row.purchaseOrderId as SupplierBill["purchaseOrderId"] | undefined,
+    purchaseOrderNumber: row.purchaseOrderNumber ?? undefined,
+    goodsReceiptId: row.goodsReceiptId as SupplierBill["goodsReceiptId"] | undefined,
+    goodsReceiptNumber: row.goodsReceiptNumber ?? undefined,
+    billDate: row.billDate.toISOString(),
+    dueDate: row.dueDate?.toISOString(),
+    currency: row.currency,
+    reference: row.reference ?? undefined,
+    notes: row.notes ?? undefined,
+    status: row.status as SupplierBill["status"],
+    lines: Object.freeze(row.lines.map((line) => Object.freeze({
+      id: line.id as SupplierBill["lines"][number]["id"],
+      purchaseOrderLineId: line.purchaseOrderLineId as SupplierBill["lines"][number]["purchaseOrderLineId"] | undefined,
+      goodsReceiptLineId: line.goodsReceiptLineId as SupplierBill["lines"][number]["goodsReceiptLineId"] | undefined,
+      productId: line.productId as SupplierBill["lines"][number]["productId"] | undefined,
+      productSku: line.productSku ?? undefined,
+      productName: line.productName ?? undefined,
+      description: line.description,
+      quantity: line.quantity,
+      unit: line.unit,
+      unitPrice: line.unitPrice,
+      discountRate: line.discountRate,
+      taxRate: line.taxRate
+    }))),
+    discountRate: row.discountRate,
+    accountedAt: row.accountedAt?.toISOString(),
+    archivedAt: row.archivedAt?.toISOString(),
+    ownerId: row.ownerId as SupplierBill["ownerId"] | undefined,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString()
+  });
+}
+
 function mapDbSalesLine(row: DbSalesInvoice["lines"][number]): QuoteItem {
   return Object.freeze({
     id: row.id,
@@ -775,7 +928,26 @@ async function loadCommercialSourceStatuses(scope: PersistenceTenantScope): Prom
   });
 }
 
-function mapSourceStatus<TSourceType extends "sales.invoice" | "sales.payment">(
+async function loadApSourceStatuses(scope: PersistenceTenantScope): Promise<AccountingPersistenceSnapshot["apSources"]> {
+  const [supplierBills, entries] = await Promise.all([
+    prisma.procurementSupplierBill.findMany({ where: { tenantCompanyId: scope.companyId }, select: { id: true } }),
+    prisma.accountingJournalEntry.findMany({
+      where: { tenantCompanyId: scope.companyId, sourceType: "procurement.supplier-bill" },
+      select: { id: true, number: true, sourceType: true, sourceId: true, status: true, postedAt: true }
+    })
+  ]);
+  const reversals = entries.length === 0 ? [] : await prisma.accountingJournalEntry.findMany({
+    where: { tenantCompanyId: scope.companyId, sourceType: "accounting.reversal", sourceId: { in: entries.map((entry) => entry.id) } },
+    select: { id: true, sourceId: true, postedAt: true }
+  });
+  const reversalByEntry = new Map(reversals.map((entry) => [entry.sourceId, entry]));
+  const entryBySource = new Map(entries.map((entry) => [`${entry.sourceType}:${entry.sourceId}`, entry]));
+  return Object.freeze({
+    supplierBills: Object.freeze(supplierBills.map((bill) => mapSourceStatus("procurement.supplier-bill", bill.id, entryBySource, reversalByEntry)))
+  });
+}
+
+function mapSourceStatus<TSourceType extends "sales.invoice" | "sales.payment" | "procurement.supplier-bill">(
   sourceType: TSourceType,
   sourceId: string,
   entryBySource: Map<string, { id: string; number: string; status: string; postedAt: Date | null }>,

@@ -38,6 +38,7 @@ export const alphaCrmSalesEditionProfile = Object.freeze({
     "procurement.suppliers",
     "procurement.purchase-orders",
     "procurement.goods-receipts",
+    "procurement.supplier-bills",
     "finance.accounting"
   ]),
   disabledModuleIds: Object.freeze([]),
@@ -199,7 +200,7 @@ export const purchasingEditionProfile = Object.freeze({
   defaultForEnvironment: false,
   commercial: true,
   order: 60,
-  enabledModuleIds: Object.freeze(["core.dashboard", "core.settings", "sales.products", "inventory.stock", "procurement.overview", "procurement.suppliers", "procurement.purchase-orders", "procurement.goods-receipts"]),
+  enabledModuleIds: Object.freeze(["core.dashboard", "core.settings", "sales.products", "inventory.stock", "procurement.overview", "procurement.suppliers", "procurement.purchase-orders", "procurement.goods-receipts", "procurement.supplier-bills", "finance.accounting"]),
   disabledModuleIds: Object.freeze([]),
   tags: Object.freeze(["commercial", "planned", "purchasing"]),
   notes: Object.freeze(["Metadata only. This edition is not selectable in the Alpha runtime."]),

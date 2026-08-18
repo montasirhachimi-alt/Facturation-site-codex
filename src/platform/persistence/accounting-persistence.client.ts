@@ -2,6 +2,7 @@
 
 import type {
   AccountingAccount,
+  AccountingApPostingSettings,
   AccountingCommercialPostingSettings,
   AccountingJournal,
   AccountingJournalEntry,
@@ -111,12 +112,32 @@ export async function saveCommercialPostingSettings(settings: AccountingCommerci
   return await response.json() as { record: AccountingCommercialPostingSettings; snapshot: AccountingSnapshot };
 }
 
+export async function saveApPostingSettings(settings: AccountingApPostingSettings) {
+  const response = await fetch("/api/persistence/accounting", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ operation: "saveApPostingSettings", payload: settings })
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => undefined) as { error?: string } | undefined;
+    throw new Error(body?.error ?? "Configuration achats non enregistrée.");
+  }
+  return await response.json() as { record: AccountingApPostingSettings; snapshot: AccountingSnapshot };
+}
+
 export async function postSalesInvoiceToAccounting(invoiceId: string) {
   return postCommercialSource("postSalesInvoice", invoiceId);
 }
 
 export async function postSalesPaymentToAccounting(paymentId: string) {
   return postCommercialSource("postSalesPayment", paymentId);
+}
+
+export async function postSupplierBillToAccounting(supplierBillId: string) {
+  return postCommercialSource("postSupplierBill", supplierBillId);
 }
 
 export async function getAccountingGeneralLedger(payload: AccountingReportPayload = {}) {
@@ -187,7 +208,7 @@ export async function getAccountingBalanceSheet(payload: AccountingReportPayload
   return body.report;
 }
 
-async function postCommercialSource(operation: "postSalesInvoice" | "postSalesPayment", sourceId: string) {
+async function postCommercialSource(operation: "postSalesInvoice" | "postSalesPayment" | "postSupplierBill", sourceId: string) {
   const response = await fetch("/api/persistence/accounting", {
     method: "POST",
     headers: {

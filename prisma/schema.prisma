@@ -120,11 +120,13 @@ model Company {
   procurementSuppliers         ProcurementSupplier[]
   procurementPurchaseOrders    ProcurementPurchaseOrder[]
   procurementGoodsReceipts     ProcurementGoodsReceipt[]
+  procurementSupplierBills     ProcurementSupplierBill[]
   accountingAccounts           AccountingAccount[]
   accountingJournals           AccountingJournal[]
   accountingJournalEntries     AccountingJournalEntry[]
   accountingPeriods            AccountingPeriod[]
   accountingCommercialSettings AccountingCommercialPostingSettings?
+  accountingApSettings         AccountingApPostingSettings?
   inventoryWarehouses          InventoryWarehouse[]
   inventoryBalances            InventoryBalance[]
   inventoryMovements           InventoryStockMovement[]
@@ -276,6 +278,7 @@ model Product {
   salesInvoiceLines             SalesInvoiceLine[]
   createdAt                     DateTime                       @default(now())
   updatedAt                     DateTime                       @updatedAt
+  procurementSupplierBillLines  ProcurementSupplierBillLine[]
 
   @@unique([companyId, sku])
   @@unique([companyId, barcode])
@@ -1258,6 +1261,7 @@ model ProcurementSupplier {
   archivedAt      DateTime?
   purchaseOrders  ProcurementPurchaseOrder[]
   goodsReceipts   ProcurementGoodsReceipt[]
+  supplierBills   ProcurementSupplierBill[]
   createdAt       DateTime                   @default(now())
   updatedAt       DateTime                   @updatedAt
 
@@ -1287,6 +1291,7 @@ model ProcurementPurchaseOrder {
   ownerId         String?
   lines           ProcurementPurchaseOrderLine[]
   goodsReceipts   ProcurementGoodsReceipt[]
+  supplierBills   ProcurementSupplierBill[]
   createdAt       DateTime                       @default(now())
   updatedAt       DateTime                       @updatedAt
 
@@ -1340,6 +1345,7 @@ model ProcurementGoodsReceipt {
   archivedAt          DateTime?
   ownerId             String?
   lines               ProcurementGoodsReceiptLine[]
+  supplierBills       ProcurementSupplierBill[]
   createdAt           DateTime                      @default(now())
   updatedAt           DateTime                      @updatedAt
 
@@ -1373,6 +1379,67 @@ model ProcurementGoodsReceiptLine {
   @@index([productId])
 }
 
+model ProcurementSupplierBill {
+  id                  String                        @id
+  tenantCompanyId     String
+  tenantCompany       Company                       @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  workspaceId         String
+  number              String
+  supplierId          String
+  supplier            ProcurementSupplier           @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  supplierName        String
+  purchaseOrderId     String?
+  purchaseOrder       ProcurementPurchaseOrder?     @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  purchaseOrderNumber String?
+  goodsReceiptId      String?
+  goodsReceipt        ProcurementGoodsReceipt?      @relation(fields: [goodsReceiptId], references: [id], onDelete: SetNull)
+  goodsReceiptNumber  String?
+  billDate            DateTime
+  dueDate             DateTime?
+  currency            String
+  reference           String?
+  notes               String?
+  status              String
+  discountRate        Float                         @default(0)
+  accountedAt         DateTime?
+  archivedAt          DateTime?
+  ownerId             String?
+  lines               ProcurementSupplierBillLine[]
+  createdAt           DateTime                      @default(now())
+  updatedAt           DateTime                      @updatedAt
+
+  @@unique([tenantCompanyId, number])
+  @@index([tenantCompanyId, workspaceId])
+  @@index([tenantCompanyId, supplierId])
+  @@index([tenantCompanyId, purchaseOrderId])
+  @@index([tenantCompanyId, goodsReceiptId])
+  @@index([tenantCompanyId, status])
+}
+
+model ProcurementSupplierBillLine {
+  id                  String                  @id
+  supplierBillId      String
+  supplierBill        ProcurementSupplierBill @relation(fields: [supplierBillId], references: [id], onDelete: Cascade)
+  purchaseOrderLineId String?
+  goodsReceiptLineId  String?
+  productId           String?
+  product             Product?                @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productSku          String?
+  productName         String?
+  description         String
+  quantity            Float
+  unit                String
+  unitPrice           Float
+  discountRate        Float                   @default(0)
+  taxRate             Float                   @default(0)
+  position            Int
+
+  @@index([supplierBillId])
+  @@index([purchaseOrderLineId])
+  @@index([goodsReceiptLineId])
+  @@index([productId])
+}
+
 model AccountingAccount {
   id                           String                                @id
   tenantCompanyId              String
@@ -1394,6 +1461,10 @@ model AccountingAccount {
   commercialRevenueSettings    AccountingCommercialPostingSettings[] @relation("AccountingCommercialRevenueAccount")
   commercialSettlementSettings AccountingCommercialPostingSettings[] @relation("AccountingCommercialSettlementAccount")
   commercialTaxSettings        AccountingCommercialPostingSettings[] @relation("AccountingCommercialTaxPayableAccount")
+  apPayableSettings            AccountingApPostingSettings[]         @relation("AccountingApPayableAccount")
+  apExpenseSettings            AccountingApPostingSettings[]         @relation("AccountingApExpenseAccount")
+  apSettlementSettings         AccountingApPostingSettings[]         @relation("AccountingApSettlementAccount")
+  apTaxRecoverableSettings     AccountingApPostingSettings[]         @relation("AccountingApTaxRecoverableAccount")
   createdAt                    DateTime                              @default(now())
   updatedAt                    DateTime                              @updatedAt
 
@@ -1417,6 +1488,7 @@ model AccountingJournal {
   updatedBy               String?
   entries                 AccountingJournalEntry[]
   commercialSalesSettings AccountingCommercialPostingSettings[] @relation("AccountingCommercialSalesJournal")
+  apPurchaseSettings      AccountingApPostingSettings[]         @relation("AccountingApPurchaseJournal")
   createdAt               DateTime                              @default(now())
   updatedAt               DateTime                              @updatedAt
 
@@ -1511,6 +1583,31 @@ model AccountingCommercialPostingSettings {
   @@index([revenueAccountId])
   @@index([settlementAccountId])
   @@index([taxPayableAccountId])
+}
+
+model AccountingApPostingSettings {
+  tenantCompanyId         String             @id
+  tenantCompany           Company            @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  purchaseJournalId       String?
+  purchaseJournal         AccountingJournal? @relation("AccountingApPurchaseJournal", fields: [purchaseJournalId], references: [id], onDelete: SetNull)
+  payableAccountId        String?
+  payableAccount          AccountingAccount? @relation("AccountingApPayableAccount", fields: [payableAccountId], references: [id], onDelete: SetNull)
+  expenseAccountId        String?
+  expenseAccount          AccountingAccount? @relation("AccountingApExpenseAccount", fields: [expenseAccountId], references: [id], onDelete: SetNull)
+  settlementAccountId     String?
+  settlementAccount       AccountingAccount? @relation("AccountingApSettlementAccount", fields: [settlementAccountId], references: [id], onDelete: SetNull)
+  taxRecoverableAccountId String?
+  taxRecoverableAccount   AccountingAccount? @relation("AccountingApTaxRecoverableAccount", fields: [taxRecoverableAccountId], references: [id], onDelete: SetNull)
+  functionalCurrency      String             @default("MAD")
+  updatedBy               String?
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+
+  @@index([purchaseJournalId])
+  @@index([payableAccountId])
+  @@index([expenseAccountId])
+  @@index([settlementAccountId])
+  @@index([taxRecoverableAccountId])
 }
 
 model AccountingPeriod {

@@ -12,16 +12,16 @@ This document is the current repository reality. It is intentionally not a sprin
 | Stage | Alpha product moving from ERP Core into Business Platform foundations. |
 | Default runtime edition | `alpha.crm-sales` from `src/platform/editions/edition.profiles.ts`. |
 | Current default scope | Dashboard, CRM, Sales quotes/orders/delivery notes/shipments/invoices/payments, Product Catalog, Inventory, Procurement and Finance Operations. |
-| Latest completed sprint reflected in code | SPR-435 — Accounting Corrections, Period Control & Auditability V1. |
+| Latest completed sprint reflected in code | SPR-436 — Procurement / AP Accounting V1. |
 | Latest roadmap reconciliation | SPR-429 — Post-Procurement Roadmap Reconciliation & Next Core Domain Decision. |
-| Important caveat | Finance Operations is active for manual accounting, controlled Sales invoice/payment posting, derived financial statements, reversal corrections and minimal period posting controls. Procurement/AP, inventory valuation, localization, statutory closing and source reposting after reversal remain future work. |
+| Important caveat | Finance Operations is active for manual accounting, controlled Sales invoice/payment posting, controlled Supplier Bill/AP posting, derived financial statements, reversal corrections and minimal period posting controls. Supplier payments/AP settlement, inventory valuation, localization, statutory closing and source reposting after reversal remain future work. |
 
 ## Validation Snapshot
 
 | Command | Latest Reconciled Result |
 | --- | --- |
 | `npm run typecheck` | Passed on 2026-08-18. |
-| `npm run validate:runtime` | Passed on 2026-08-18 with 191/191 checks. |
+| `npm run validate:runtime` | Passed on 2026-08-18 with 195/195 checks. |
 | `npm run build` | Passed on 2026-08-18; known `src/components/pdf-preview.tsx` `<img>` warning remains. |
 | `git diff --check` | Passed on 2026-08-18. |
 
@@ -70,6 +70,7 @@ The current default edition is `alpha.crm-sales`. It activates these user-facing
 | `procurement.suppliers` | `/procurement/suppliers` | Active |
 | `procurement.purchase-orders` | `/procurement/purchase-orders` | Active |
 | `procurement.goods-receipts` | `/procurement/goods-receipts` | Active |
+| `procurement.supplier-bills` | `/procurement/supplier-bills` | Active |
 | `finance.accounting` | `/accounting` | Active |
 
 Hidden platform dependencies such as `platform.persistence` may be automatically enabled by the activation engine but are not product navigation modules.
@@ -82,7 +83,7 @@ Hidden platform dependencies such as `platform.persistence` may be automatically
 | `sales.delivery-notes` | Active in Alpha | Persistent Delivery Notes are enabled in `alpha.crm-sales`, post Inventory `ISSUE` movements, consume reservations and support partial/final delivery. |
 | `sales.shipments` | Active in Alpha | Persistent Shipment logistics records are enabled in `alpha.crm-sales`; lifecycle changes remain logistics-only and do not post Inventory movements. |
 | `crm.opportunities` | Hidden | Opportunity UI/domain remnants exist, but the route redirects because persistence is not stable. |
-| `finance.accounting` | Active in Alpha | Manual Finance Operations are available for accounts, journals, draft/post journal entries, reversals, period controls, General Ledger, Trial Balance, Profit & Loss and Balance Sheet. Controlled Sales invoice/payment posting is active. |
+| `finance.accounting` | Active in Alpha | Manual Finance Operations are available for accounts, journals, draft/post journal entries, reversals, period controls, General Ledger, Trial Balance, Profit & Loss and Balance Sheet. Controlled Sales invoice/payment posting and Supplier Bill/AP posting are active. |
 | Legacy `purchasing.*`, `finance.*`, `hr.*` | Planned/hidden | Legacy demo-era routes are redirected or hidden from active navigation. |
 
 ## Route Availability
@@ -186,7 +187,7 @@ Persistent models are present in `prisma/schema.prisma` and backed by repository
 | Business Timeline | Foundation plus Sales/Inventory providers; currently integrated on Sales Order details. |
 | Settings | Active but limited to Alpha-safe settings. |
 | HR | Legacy/planned; not production-ready. |
-| Finance/Accounting | Active for accounts, journals, draft/post journal entries, canonical reversal corrections, minimal period posting controls, General Ledger, Trial Balance, controlled Sales invoice/payment posting, Profit & Loss and Balance Sheet. No Procurement/AP accounting, inventory valuation, reconciliation, statutory localization, statutory close or controlled reposting after reversal. |
+| Finance/Accounting | Active for accounts, journals, draft/post journal entries, canonical reversal corrections, minimal period posting controls, General Ledger, Trial Balance, controlled Sales invoice/payment posting, controlled Supplier Bill/AP posting, Profit & Loss and Balance Sheet. No supplier payment/AP settlement, inventory valuation, reconciliation, statutory localization, statutory close or controlled reposting after reversal. |
 | AI Platform | Vision/planned; no AI business feature is implemented. |
 | Workflow Automation | Not implemented as a production workflow engine. |
 
@@ -213,12 +214,15 @@ Known migration folders include:
 - `20260817120000_accounting_foundation`
 - `20260817130000_commercial_accounting_integration`
 - `20260818100000_accounting_corrections_period_control`
+- `20260818110000_procurement_ap_accounting`
 
 Accounting persistence exists as of SPR-430. General Ledger and Trial Balance read models exist as of SPR-431. Finance Operations UI is active as of SPR-432. No additional migration was required by SPR-432.
 
 Commercial Accounting settings and durable source idempotency exist as of SPR-433 through `20260817130000_commercial_accounting_integration`. Profit & Loss and Balance Sheet are derived read models as of SPR-434 and do not add persistence tables or migrations.
 
 SPR-435 adds Accounting correction and period-control persistence through `20260818100000_accounting_corrections_period_control`. It adds durable reversal linkage on `AccountingJournalEntry` and tenant-scoped `AccountingPeriod` records. Closed periods block new postings server-side but remain readable in reports.
+
+SPR-436 adds Procurement/AP accounting persistence through `20260818110000_procurement_ap_accounting`. It keeps legacy `PurchaseInvoice` untouched, introduces canonical `ProcurementSupplierBill` records linked to active Procurement suppliers, Purchase Orders and Goods Receipts, and adds tenant-scoped AP posting settings for controlled Finance posting.
 
 ## Search, Command Center and Productivity
 
@@ -419,11 +423,11 @@ This is posting-period control only. It is not statutory fiscal closing, legal b
 - Product Catalog create persistence now maps duplicate, validation, tenant and stale-category failures to controlled French errors, but full authenticated browser creation QA remains blocked in this environment by a local Prisma connection error during tenant bootstrap.
 - Sales Orders, Delivery Notes and Shipments are active in default Alpha after authenticated end-to-end Sales Operations QA.
 - Shipments are durable and active in Alpha; carrier API integration, parcel split, GPS tracking and notification workflows are not implemented.
-- Procurement is active in Alpha, but supplier invoices, approval workflows, purchasing payments and procurement accounting integration are not implemented.
+- Procurement is active in Alpha, including supplier bills and controlled AP posting. Supplier payments/AP settlement, approval workflows and advanced invoice matching remain future work.
 - Product Catalog import/export handles master data only; it does not import stock quantities or inventory movements.
 - Inventory has posting, reservations and availability, but no barcode scanning, manufacturing, POS, carrier integration or advanced warehouse operations.
 - CRM Opportunities/Pipeline remains hidden until a persistent, company-centric model is completed.
-- Finance Operations is active for manual journal entries, reversal corrections, period posting controls, controlled Sales invoice/payment posting, Profit & Loss and Balance Sheet, but reconciliation, statutory localization, controlled reposting after reversal, fiscal closing and tax reporting are not implemented.
+- Finance Operations is active for manual journal entries, reversal corrections, period posting controls, controlled Sales invoice/payment posting, controlled Supplier Bill/AP posting, Profit & Loss and Balance Sheet, but supplier payments/AP settlement, reconciliation, statutory localization, controlled reposting after reversal, fiscal closing and tax reporting are not implemented.
 - HR and finance legacy pages exist as routes but are hidden or redirected and should not be treated as production modules.
 - Platform profiles are static; there is no tenant edition assignment, licensing engine, feature flag engine, dashboard editor or module admin UI.
 - Runtime notification, activity and audit layers are foundations, not complete production observability or compliance systems.

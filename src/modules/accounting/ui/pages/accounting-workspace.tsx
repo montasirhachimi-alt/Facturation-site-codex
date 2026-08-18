@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Archive, BookOpen, CalendarClock, CheckCircle2, Edit3, FileSpreadsheet, Landmark, Link2, LockKeyhole, Plus, RefreshCw, RotateCcw, Save, Scale, Search, ShieldCheck, Unlock } from "lucide-react";
+import { Archive, BookOpen, CalendarClock, CheckCircle2, Edit3, FileSpreadsheet, Landmark, Link2, LockKeyhole, Plus, RefreshCw, RotateCcw, Save, Scale, Search, ShieldCheck, ShoppingCart, Unlock } from "lucide-react";
 import { clsx } from "clsx";
 import { EntityDialog } from "@/ui/dialogs/entity-dialog";
 import {
@@ -14,20 +14,25 @@ import {
   postAccountingJournalEntry,
   postSalesInvoiceToAccounting,
   postSalesPaymentToAccounting,
+  postSupplierBillToAccounting,
   closeAccountingPeriod,
   reopenAccountingPeriod,
   reverseAccountingJournalEntry,
+  saveApPostingSettings,
   saveCommercialPostingSettings
 } from "@/platform/persistence/accounting-persistence.client";
 import type { CrmSalesPersistenceSnapshot } from "@/platform/persistence/crm-sales-persistence.client";
+import type { ProcurementSnapshot } from "@/platform/persistence/procurement-persistence.client";
 import { getInvoiceTotals, type Invoice } from "@/modules/sales/invoices";
 import type { Payment } from "@/modules/sales/payments";
+import { calculateSupplierBillTotals, type SupplierBill } from "@/modules/procurement";
 import {
   ACCOUNTING_WORKSPACE_ID,
   DEFAULT_ACCOUNTING_FUNCTIONAL_CURRENCY,
   accountingAmountToMinorUnits,
   calculateJournalEntryTotals,
   type AccountingAccount,
+  type AccountingApPostingSettings,
   type AccountingAccountId,
   type AccountingCommercialPostingSettings,
   type AccountingAccountType,
@@ -49,7 +54,7 @@ import {
   type TrialBalanceReport
 } from "@/modules/accounting";
 
-type FinanceTab = "overview" | "accounts" | "journals" | "entries" | "periods" | "sales-integration" | "ledger" | "trial-balance" | "profit-loss" | "balance-sheet";
+type FinanceTab = "overview" | "accounts" | "journals" | "entries" | "periods" | "sales-integration" | "ap-integration" | "ledger" | "trial-balance" | "profit-loss" | "balance-sheet";
 type Notice = { tone: "success" | "error"; message: string };
 type AccountForm = {
   id?: AccountingAccountId;
@@ -92,6 +97,14 @@ type CommercialSettingsForm = {
   taxPayableAccountId: string;
   functionalCurrency: string;
 };
+type ApSettingsForm = {
+  purchaseJournalId: string;
+  payableAccountId: string;
+  expenseAccountId: string;
+  settlementAccountId: string;
+  taxRecoverableAccountId: string;
+  functionalCurrency: string;
+};
 type PeriodForm = {
   id?: AccountingPeriodId;
   name: string;
@@ -112,6 +125,7 @@ const tabs = [
   { id: "entries", label: "Écritures" },
   { id: "periods", label: "Périodes" },
   { id: "sales-integration", label: "Intégration ventes" },
+  { id: "ap-integration", label: "Intégration achats" },
   { id: "ledger", label: "Grand livre" },
   { id: "trial-balance", label: "Balance" },
   { id: "profit-loss", label: "Résultat" },
@@ -164,6 +178,15 @@ const emptyCommercialSettingsForm: CommercialSettingsForm = {
   functionalCurrency: DEFAULT_ACCOUNTING_FUNCTIONAL_CURRENCY
 };
 
+const emptyApSettingsForm: ApSettingsForm = {
+  purchaseJournalId: "",
+  payableAccountId: "",
+  expenseAccountId: "",
+  settlementAccountId: "",
+  taxRecoverableAccountId: "",
+  functionalCurrency: DEFAULT_ACCOUNTING_FUNCTIONAL_CURRENCY
+};
+
 const emptyPeriodForm: PeriodForm = {
   name: "",
   startDate: new Date().toISOString().slice(0, 10),
@@ -197,7 +220,9 @@ export function AccountingWorkspace() {
   const [profitLoss, setProfitLoss] = useState<ProfitLossReport | null>(null);
   const [balanceSheet, setBalanceSheet] = useState<BalanceSheetReport | null>(null);
   const [salesSnapshot, setSalesSnapshot] = useState<Pick<CrmSalesPersistenceSnapshot, "invoices" | "payments">>({ invoices: [], payments: [] });
+  const [procurementSnapshot, setProcurementSnapshot] = useState<Pick<ProcurementSnapshot, "supplierBills">>({ supplierBills: [] });
   const [commercialSettingsForm, setCommercialSettingsForm] = useState<CommercialSettingsForm>(emptyCommercialSettingsForm);
+  const [apSettingsForm, setApSettingsForm] = useState<ApSettingsForm>(emptyApSettingsForm);
 
   const refreshReports = useCallback(async () => {
     const payload = {
@@ -224,7 +249,9 @@ export function AccountingWorkspace() {
       const nextSnapshot = await loadAccountingPersistenceSnapshot();
       setSnapshot(nextSnapshot);
       setCommercialSettingsForm(settingsToForm(nextSnapshot.commercialPostingSettings));
+      setApSettingsForm(apSettingsToForm(nextSnapshot.apPostingSettings));
       setSalesSnapshot(await loadSalesSources());
+      setProcurementSnapshot(await loadProcurementSources());
       await refreshReports();
     } catch (caught) {
       setNotice({ tone: "error", message: caught instanceof Error ? caught.message : "Chargement Finance impossible." });
@@ -436,6 +463,35 @@ export function AccountingWorkspace() {
     }
   }
 
+  async function saveApSettings() {
+    setSaving(true);
+    setNotice(null);
+    try {
+      const now = new Date().toISOString();
+      const existing = snapshot.apPostingSettings;
+      const settings: AccountingApPostingSettings = {
+        tenantCompanyId: "" as AccountingApPostingSettings["tenantCompanyId"],
+        purchaseJournalId: optionalId(apSettingsForm.purchaseJournalId) as AccountingApPostingSettings["purchaseJournalId"] | undefined,
+        payableAccountId: optionalId(apSettingsForm.payableAccountId) as AccountingApPostingSettings["payableAccountId"] | undefined,
+        expenseAccountId: optionalId(apSettingsForm.expenseAccountId) as AccountingApPostingSettings["expenseAccountId"] | undefined,
+        settlementAccountId: optionalId(apSettingsForm.settlementAccountId) as AccountingApPostingSettings["settlementAccountId"] | undefined,
+        taxRecoverableAccountId: optionalId(apSettingsForm.taxRecoverableAccountId) as AccountingApPostingSettings["taxRecoverableAccountId"] | undefined,
+        functionalCurrency: apSettingsForm.functionalCurrency.trim().toUpperCase() || DEFAULT_ACCOUNTING_FUNCTIONAL_CURRENCY,
+        createdAt: existing?.createdAt ?? now,
+        updatedAt: now
+      };
+      const response = await saveApPostingSettings(settings);
+      setSnapshot(response.snapshot);
+      setApSettingsForm(apSettingsToForm(response.record));
+      setNotice({ tone: "success", message: "Configuration achats enregistrée." });
+      await refreshReports();
+    } catch (caught) {
+      setNotice({ tone: "error", message: caught instanceof Error ? caught.message : "Configuration achats non enregistrée." });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function postCommercialSource(kind: "invoice" | "payment", id: string) {
     setSaving(true);
     setNotice(null);
@@ -446,6 +502,22 @@ export function AccountingWorkspace() {
       await refreshReports();
     } catch (caught) {
       setNotice({ tone: "error", message: caught instanceof Error ? caught.message : "Comptabilisation commerciale refusée." });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function postApSource(id: string) {
+    setSaving(true);
+    setNotice(null);
+    try {
+      const response = await postSupplierBillToAccounting(id);
+      setSnapshot(response.snapshot);
+      setProcurementSnapshot(await loadProcurementSources());
+      setNotice({ tone: "success", message: "Facture fournisseur comptabilisée." });
+      await refreshReports();
+    } catch (caught) {
+      setNotice({ tone: "error", message: caught instanceof Error ? caught.message : "Comptabilisation achats refusée." });
     } finally {
       setSaving(false);
     }
@@ -519,6 +591,7 @@ export function AccountingWorkspace() {
         {activeTab === "entries" && <EntriesSection entries={filteredEntries} journals={snapshot.journals} accounts={snapshot.accounts} query={query} setQuery={setQuery} saving={saving} onCreate={() => openEntryDialog()} onEdit={openEntryDialog} onPost={postEntry} onReverse={openReversalDialog} />}
         {activeTab === "periods" && <PeriodsSection periods={snapshot.periods ?? []} query={query} setQuery={setQuery} saving={saving} onCreate={() => openPeriodDialog()} onEdit={openPeriodDialog} onTransition={transitionPeriod} />}
         {activeTab === "sales-integration" && <SalesIntegrationSection accounts={snapshot.accounts} journals={snapshot.journals} settings={commercialSettingsForm} onSettingsChange={setCommercialSettingsForm} onSaveSettings={saveCommercialSettings} invoices={salesSnapshot.invoices} payments={salesSnapshot.payments} statuses={snapshot.commercialSources} saving={saving} onPost={postCommercialSource} />}
+        {activeTab === "ap-integration" && <ApIntegrationSection accounts={snapshot.accounts} journals={snapshot.journals} settings={apSettingsForm} onSettingsChange={setApSettingsForm} onSaveSettings={saveApSettings} supplierBills={procurementSnapshot.supplierBills} statuses={snapshot.apSources} saving={saving} onPost={postApSource} />}
         {activeTab === "ledger" && <LedgerSection accounts={snapshot.accounts} ledger={ledger} fromDate={fromDate} toDate={toDate} accountId={ledgerAccountId} onAccountChange={setLedgerAccountId} onFromDateChange={setFromDate} onToDateChange={setToDate} onRefresh={refreshReports} />}
         {activeTab === "trial-balance" && <TrialBalanceSection trialBalance={trialBalance} fromDate={fromDate} toDate={toDate} onFromDateChange={setFromDate} onToDateChange={setToDate} onRefresh={refreshReports} />}
         {activeTab === "profit-loss" && <ProfitLossSection profitLoss={profitLoss} fromDate={fromDate} toDate={toDate} onFromDateChange={setFromDate} onToDateChange={setToDate} onRefresh={refreshReports} />}
@@ -1169,6 +1242,116 @@ function CommercialSourceTable({ emptyDescription, emptyTitle, rows, saving, tit
   );
 }
 
+function ApIntegrationSection({ accounts, journals, onPost, onSaveSettings, onSettingsChange, saving, settings, statuses, supplierBills }: {
+  accounts: readonly AccountingAccount[];
+  journals: readonly AccountingJournal[];
+  onPost: (id: string) => void;
+  onSaveSettings: () => void;
+  onSettingsChange: (settings: ApSettingsForm) => void;
+  saving: boolean;
+  settings: ApSettingsForm;
+  statuses: AccountingSnapshot["apSources"] | undefined;
+  supplierBills: readonly SupplierBill[];
+}) {
+  const accountOptions = accounts.filter((account) => account.active).map((account) => [account.id, `${account.code} · ${account.name}`] as const);
+  const purchaseJournalOptions = journals.filter((journal) => journal.active && (journal.type === "purchase" || journal.type === "general")).map((journal) => [journal.id, `${journal.code} · ${journal.name}`] as const);
+  const statusByBill = new Map((statuses?.supplierBills ?? []).map((status) => [status.sourceId, status]));
+  const readyBills = supplierBills.filter((bill) => !bill.archivedAt && (bill.status === "finalized" || bill.status === "accounted"));
+
+  return (
+    <section className={panelClassName}>
+      <SectionToolbar title="Intégration achats" description="Comptabilisation contrôlée des factures fournisseurs finalisées en comptes fournisseurs.">
+        <button type="button" onClick={onSaveSettings} disabled={saving} className={primaryButtonClassName}><Save size={16} /> Enregistrer la configuration</button>
+      </SectionToolbar>
+      <div className="grid gap-5 p-4">
+        <div className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/40 md:grid-cols-3">
+          <SelectField label="Journal d'achats" value={settings.purchaseJournalId} onChange={(purchaseJournalId) => onSettingsChange({ ...settings, purchaseJournalId })} options={[["", "Choisir un journal"], ...purchaseJournalOptions]} />
+          <SelectField label="Compte fournisseurs à payer" value={settings.payableAccountId} onChange={(payableAccountId) => onSettingsChange({ ...settings, payableAccountId })} options={[["", "Choisir un compte"], ...accountOptions]} />
+          <SelectField label="Compte achats / charges" value={settings.expenseAccountId} onChange={(expenseAccountId) => onSettingsChange({ ...settings, expenseAccountId })} options={[["", "Choisir un compte"], ...accountOptions]} />
+          <SelectField label="Compte de règlement" value={settings.settlementAccountId} onChange={(settlementAccountId) => onSettingsChange({ ...settings, settlementAccountId })} options={[["", "Optionnel en V1"], ...accountOptions]} />
+          <SelectField label="Compte TVA récupérable" value={settings.taxRecoverableAccountId} onChange={(taxRecoverableAccountId) => onSettingsChange({ ...settings, taxRecoverableAccountId })} options={[["", "Non configuré"], ...accountOptions]} />
+          <TextField label="Devise fonctionnelle" value={settings.functionalCurrency} onChange={(functionalCurrency) => onSettingsChange({ ...settings, functionalCurrency })} helper="Les écritures AP V1 refusent les devises différentes." />
+        </div>
+
+        <ApSourceTable
+          title="Factures fournisseurs à comptabiliser"
+          emptyTitle="Aucune facture fournisseur finalisée"
+          emptyDescription="Les factures fournisseur brouillon restent côté Achats tant qu'elles ne sont pas finalisées."
+          rows={readyBills.map((bill) => {
+            const totals = calculateSupplierBillTotals(bill);
+            return {
+              id: bill.id,
+              number: bill.number,
+              partner: bill.supplierName,
+              date: bill.billDate,
+              amount: totals.total,
+              currency: bill.currency,
+              status: bill.status,
+              postingStatus: statusByBill.get(bill.id),
+              actionLabel: "Comptabiliser la facture fournisseur",
+              onPost: () => onPost(bill.id)
+            };
+          })}
+          saving={saving}
+        />
+
+        <div className="rounded-2xl border border-dashed border-slate-200 p-4 text-sm font-semibold text-slate-500 dark:border-hicotech-dark-border dark:text-slate-300">
+          Les règlements fournisseurs AP sont différés en V1 : le modèle legacy CashEntry n&apos;est pas relié aux factures fournisseurs Procurement.
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ApSourceTable({ emptyDescription, emptyTitle, rows, saving, title }: {
+  emptyDescription: string;
+  emptyTitle: string;
+  rows: readonly {
+    id: string;
+    number: string;
+    partner: string;
+    date: string;
+    amount: number;
+    currency: string;
+    status: string;
+    postingStatus?: { status: "not_posted" | "draft" | "posted" | "reversed"; journalEntryNumber?: string };
+    actionLabel: string;
+    onPost: () => void;
+  }[];
+  saving: boolean;
+  title: string;
+}) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-hicotech-dark-border">
+      <div className="bg-white px-4 py-3 dark:bg-hicotech-dark-card"><h3 className="font-display text-base font-black">{title}</h3></div>
+      <TableShell empty={rows.length === 0} emptyTitle={emptyTitle} emptyDescription={emptyDescription}>
+        <thead className={tableHeadClassName}><tr><th className="px-4 py-3">Source</th><th className="px-4 py-3">Fournisseur</th><th className="px-4 py-3">Date</th><th className="px-4 py-3">Statut source</th><th className="px-4 py-3">Comptabilité</th><th className="px-4 py-3 text-right">Montant</th><th className="px-4 py-3 text-right">Action</th></tr></thead>
+        <tbody className={tableBodyClassName}>
+          {rows.map((row) => {
+            const posted = row.postingStatus?.status === "posted";
+            const reversed = row.postingStatus?.status === "reversed";
+            return (
+              <tr key={row.id}>
+                <td className="px-4 py-3"><p className="font-black text-hicotech-navy dark:text-white">{row.number}</p></td>
+                <td className="px-4 py-3">{row.partner}</td>
+                <td className="px-4 py-3">{formatDate(row.date)}</td>
+                <td className="px-4 py-3"><StatusBadge label={row.status === "finalized" ? "Finalisée" : row.status === "accounted" ? "Comptabilisée" : row.status} tone="muted" /></td>
+                <td className="px-4 py-3"><StatusBadge label={reversed ? `Contrepassé · ${row.postingStatus?.journalEntryNumber ?? ""}` : posted ? `Comptabilisé · ${row.postingStatus?.journalEntryNumber ?? ""}` : "Non comptabilisé"} tone={posted ? "ok" : reversed ? "muted" : "warning"} /></td>
+                <td className="px-4 py-3 text-right font-black">{formatAccountingAmount(moneyToAmount(row.amount), row.currency)}</td>
+                <td className="px-4 py-3 text-right">
+                  <button type="button" onClick={row.onPost} disabled={saving || posted || reversed} className={posted || reversed ? secondaryButtonClassName : primaryButtonClassName} title={reversed ? "Source contrepassee, recomptabilisation différée" : row.actionLabel} aria-label={reversed ? "Source contrepassee, recomptabilisation différée" : row.actionLabel}>
+                    <ShoppingCart size={16} /> {reversed ? "Contrepassé" : posted ? "Déjà comptabilisé" : "Comptabiliser"}
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </TableShell>
+    </div>
+  );
+}
+
 function AccountFormFields({ form, onChange }: { form: AccountForm; onChange: (form: AccountForm) => void }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
@@ -1345,6 +1528,17 @@ function settingsToForm(settings?: AccountingCommercialPostingSettings): Commerc
   };
 }
 
+function apSettingsToForm(settings?: AccountingApPostingSettings): ApSettingsForm {
+  return {
+    purchaseJournalId: settings?.purchaseJournalId ?? "",
+    payableAccountId: settings?.payableAccountId ?? "",
+    expenseAccountId: settings?.expenseAccountId ?? "",
+    settlementAccountId: settings?.settlementAccountId ?? "",
+    taxRecoverableAccountId: settings?.taxRecoverableAccountId ?? "",
+    functionalCurrency: settings?.functionalCurrency ?? DEFAULT_ACCOUNTING_FUNCTIONAL_CURRENCY
+  };
+}
+
 function optionalId(value: string) {
   const trimmed = value.trim();
   return trimmed || undefined;
@@ -1358,6 +1552,16 @@ async function loadSalesSources(): Promise<Pick<CrmSalesPersistenceSnapshot, "in
   if (!response.ok) return { invoices: [], payments: [] };
   const snapshot = await response.json() as CrmSalesPersistenceSnapshot;
   return { invoices: snapshot.invoices ?? [], payments: snapshot.payments ?? [] };
+}
+
+async function loadProcurementSources(): Promise<Pick<ProcurementSnapshot, "supplierBills">> {
+  const response = await fetch("/api/persistence/procurement", {
+    method: "GET",
+    headers: { Accept: "application/json" }
+  });
+  if (!response.ok) return { supplierBills: [] };
+  const snapshot = await response.json() as ProcurementSnapshot;
+  return { supplierBills: snapshot.supplierBills ?? [] };
 }
 
 function createEmptyEntryForm(journalId = ""): EntryForm {

@@ -45,6 +45,10 @@ export function ProcurementOverviewPage() {
     void version;
     return procurementLocalService.listGoodsReceipts({ workspaceId: PROCUREMENT_WORKSPACE_ID, status: "posted", includeArchived: false }).goodsReceipts;
   }, [version]);
+  const supplierBills = useMemo(() => {
+    void version;
+    return procurementLocalService.listSupplierBills({ workspaceId: PROCUREMENT_WORKSPACE_ID, includeArchived: false }).supplierBills;
+  }, [version]);
   const products = useMemo(() => {
     void productVersion;
     return productLocalService.listProducts({ workspaceId: PRODUCTS_WORKSPACE_ID, status: "active" }).products;
@@ -76,6 +80,7 @@ export function ProcurementOverviewPage() {
           <Link href="/procurement/suppliers" className="rounded-xl bg-hicotech-blue px-4 py-2 text-sm font-bold text-white">Fournisseurs</Link>
           <Link href="/procurement/purchase-orders" className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-hicotech-navy dark:border-hicotech-dark-border dark:text-white">Commandes fournisseur</Link>
           <Link href="/procurement/goods-receipts" className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-hicotech-navy dark:border-hicotech-dark-border dark:text-white">Réceptions</Link>
+          <Link href="/procurement/supplier-bills" className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-hicotech-navy dark:border-hicotech-dark-border dark:text-white">Factures fournisseurs</Link>
         </div>
       </section>
 
@@ -85,6 +90,7 @@ export function ProcurementOverviewPage() {
         <MetricCard icon={FileText} label="Commandes ouvertes" value={String(analytics.openPurchaseOrders)} helper="Envoyées, confirmées ou partiellement reçues" />
         <MetricCard icon={PackageCheck} label="À réceptionner" value={String(analytics.awaitingReceiptOrders)} helper="Commandes avec reliquat fournisseur" />
         <MetricCard icon={Building2} label="Fournisseurs actifs" value={String(analytics.activeSuppliers)} helper="Fournisseurs non archivés" />
+        <MetricCard icon={FileText} label="Factures fournisseur" value={String(supplierBills.filter((bill) => bill.status === "finalized").length)} helper="Finalisées à comptabiliser" />
         <MetricCard icon={AlertTriangle} label="Stock faible" value={String(lowStockProducts.length)} helper="Produits à réapprovisionner" />
       </section>
 

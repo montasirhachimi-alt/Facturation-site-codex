@@ -35,8 +35,8 @@ import { SALES_ORDERS_WORKSPACE_ID, salesOrderService, SALES_ORDER_RESERVATION_L
 import { PRODUCTS_WORKSPACE_ID } from "@/modules/products";
 import { productLocalService } from "@/modules/products/ui/product-local-store";
 import { inventoryLocalService } from "@/modules/inventory/inventory-local-store";
-import { GOODS_RECEIPT_STATUS_LABELS, PROCUREMENT_WORKSPACE_ID, procurementLocalService, PURCHASE_ORDER_STATUS_LABELS } from "@/modules/procurement";
-import { calculatePurchaseOrderTotals, formatProcurementMoney } from "@/modules/procurement";
+import { GOODS_RECEIPT_STATUS_LABELS, PROCUREMENT_WORKSPACE_ID, procurementLocalService, PURCHASE_ORDER_STATUS_LABELS, SUPPLIER_BILL_STATUS_LABELS } from "@/modules/procurement";
+import { calculatePurchaseOrderTotals, calculateSupplierBillTotals, formatProcurementMoney } from "@/modules/procurement";
 import type { ModuleActivationResult } from "@/platform/modules/module-activation.types";
 import type { UniversalSearchItem, UniversalSearchSection } from "./universal-search.types";
 import { DELIVERY_NOTES_WORKSPACE_ID, DELIVERY_NOTE_STATUS_LABELS, deliveryNoteService } from "@/modules/sales/delivery-notes";
@@ -117,6 +117,9 @@ export function createRecordSearchRegistry(activation: ModuleActivationResult = 
   if (activation.activeModuleIdSet.has("procurement.goods-receipts")) {
     registry.registerMany(buildGoodsReceiptRecords());
   }
+  if (activation.activeModuleIdSet.has("procurement.supplier-bills")) {
+    registry.registerMany(buildSupplierBillRecords());
+  }
 
   return registry;
 }
@@ -192,6 +195,21 @@ function buildPurchaseOrderRecords(): readonly RecordSearchResult[] {
       href: "/procurement/purchase-orders",
       icon: HandCoins,
       keywords: [order.number, order.supplierName, order.status, order.reference, order.notes, ...order.lines.flatMap((line) => [line.productSku, line.productName, line.description])].filter(Boolean) as string[]
+    };
+  });
+}
+
+function buildSupplierBillRecords(): readonly RecordSearchResult[] {
+  return procurementLocalService.listSupplierBills({ workspaceId: PROCUREMENT_WORKSPACE_ID }).supplierBills.map((bill) => {
+    const totals = calculateSupplierBillTotals(bill);
+    return {
+      id: `record.supplier-bill.${bill.id}`,
+      title: bill.number,
+      type: "Facture fournisseur",
+      description: `${bill.supplierName} · ${formatProcurementMoney(totals.total, bill.currency)} · ${SUPPLIER_BILL_STATUS_LABELS[bill.status]}`,
+      href: "/procurement/supplier-bills",
+      icon: Receipt,
+      keywords: [bill.number, bill.supplierName, bill.purchaseOrderNumber, bill.goodsReceiptNumber, bill.status, bill.reference, bill.notes, ...bill.lines.flatMap((line) => [line.productSku, line.productName, line.description])].filter(Boolean) as string[]
     };
   });
 }

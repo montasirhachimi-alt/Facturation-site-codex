@@ -1,6 +1,6 @@
 "use client";
 
-import type { GoodsReceipt, ProcurementSupplier, PurchaseOrder, PurchaseOrderId } from "@/modules/procurement";
+import type { GoodsReceipt, ProcurementSupplier, PurchaseOrder, PurchaseOrderId, SupplierBill } from "@/modules/procurement";
 import type { SupplierImportRequest, SupplierImportResult } from "@/modules/procurement";
 import { procurementLocalService, notifyProcurementStoreUpdated } from "@/modules/procurement/procurement.store";
 import { applyInventorySnapshot, type InventorySnapshot } from "./inventory-persistence.client";
@@ -9,9 +9,10 @@ export type ProcurementSnapshot = Readonly<{
   suppliers: ProcurementSupplier[];
   purchaseOrders: PurchaseOrder[];
   goodsReceipts: GoodsReceipt[];
+  supplierBills: SupplierBill[];
 }>;
 
-export type ProcurementPersistenceResource = "supplier" | "purchaseOrder" | "goodsReceipt";
+export type ProcurementPersistenceResource = "supplier" | "purchaseOrder" | "goodsReceipt" | "supplierBill";
 
 let hydrationPromise: Promise<void> | null = null;
 
@@ -113,5 +114,6 @@ export function applyProcurementSnapshot(snapshot: ProcurementSnapshot) {
   procurementLocalService.replaceSuppliers(snapshot.suppliers ?? []);
   procurementLocalService.replacePurchaseOrders(snapshot.purchaseOrders ?? []);
   procurementLocalService.replaceGoodsReceipts(snapshot.goodsReceipts ?? []);
+  procurementLocalService.replaceSupplierBills(snapshot.supplierBills ?? []);
   notifyProcurementStoreUpdated();
 }

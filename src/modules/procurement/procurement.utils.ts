@@ -3,7 +3,7 @@ import {
   formatCommercialDocumentNumber,
   validateDocumentLine
 } from "@/platform/commercial-documents";
-import type { GoodsReceipt, GoodsReceiptLine, ProcurementSupplier, PurchaseOrder, PurchaseOrderLine } from "./procurement.types";
+import type { GoodsReceipt, GoodsReceiptLine, ProcurementSupplier, PurchaseOrder, PurchaseOrderLine, SupplierBill, SupplierBillLine } from "./procurement.types";
 
 export function normalizeProcurementText(value: string | undefined) {
   return (value ?? "").trim();
@@ -12,6 +12,18 @@ export function normalizeProcurementText(value: string | undefined) {
 export function createEmptyPurchaseOrderLine(prefix = "po-line"): PurchaseOrderLine {
   return Object.freeze({
     id: `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}` as PurchaseOrderLine["id"],
+    description: "",
+    quantity: 1,
+    unit: "piece",
+    unitPrice: 0,
+    discountRate: 0,
+    taxRate: 20
+  });
+}
+
+export function createEmptySupplierBillLine(prefix = "supplier-bill-line"): SupplierBillLine {
+  return Object.freeze({
+    id: `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}` as SupplierBillLine["id"],
     description: "",
     quantity: 1,
     unit: "piece",
@@ -36,6 +48,24 @@ export function calculatePurchaseOrderTotals(order: Pick<PurchaseOrder, "lines" 
     })),
     order.currency,
     order.discountRate ? { rate: order.discountRate } : undefined
+  );
+}
+
+export function calculateSupplierBillTotals(bill: Pick<SupplierBill, "lines" | "currency" | "discountRate">) {
+  return calculateDocumentTotals(
+    bill.lines.map((line) => ({
+      id: line.id,
+      productId: line.productId,
+      productSku: line.productSku,
+      description: line.description,
+      quantity: line.quantity,
+      unit: line.unit,
+      unitPrice: line.unitPrice,
+      discount: line.discountRate ? { rate: line.discountRate } : undefined,
+      tax: { rate: line.taxRate }
+    })),
+    bill.currency,
+    bill.discountRate ? { rate: bill.discountRate } : undefined
   );
 }
 
@@ -67,12 +97,27 @@ export function normalizePurchaseOrderLines(lines: readonly PurchaseOrderLine[])
   })).filter((line) => line.description && line.quantity > 0 && line.unitPrice >= 0));
 }
 
+export function normalizeSupplierBillLines(lines: readonly SupplierBillLine[]) {
+  return Object.freeze(lines.map((line) => Object.freeze({
+    ...line,
+    description: line.description.trim(),
+    quantity: Number(line.quantity),
+    unitPrice: roundMoney(Number(line.unitPrice)),
+    discountRate: Number(line.discountRate),
+    taxRate: Number(line.taxRate)
+  })).filter((line) => line.description && line.quantity > 0 && line.unitPrice >= 0));
+}
+
 export function formatPurchaseOrderNumber(sequence: number) {
   return formatCommercialDocumentNumber({ prefix: "PO", sequence, padding: 6 });
 }
 
 export function formatGoodsReceiptNumber(sequence: number) {
   return formatCommercialDocumentNumber({ prefix: "GR", sequence, padding: 6 });
+}
+
+export function formatSupplierBillNumber(sequence: number) {
+  return formatCommercialDocumentNumber({ prefix: "FB", sequence, padding: 6 });
 }
 
 export function createGoodsReceiptLinePersistenceId(goodsReceiptId: string, line: Pick<GoodsReceiptLine, "purchaseOrderLineId">, position: number) {
@@ -155,6 +200,21 @@ export function matchesGoodsReceiptSearch(receipt: GoodsReceipt, query: string) 
     receipt.reference,
     receipt.notes,
     receipt.lines.map((line) => [line.productSku, line.productName, line.description].join(" ")).join(" ")
+  ].join(" ").toLowerCase().includes(normalized);
+}
+
+export function matchesSupplierBillSearch(bill: SupplierBill, query: string) {
+  const normalized = normalizeSearch(query);
+  if (!normalized) return true;
+  return [
+    bill.number,
+    bill.supplierName,
+    bill.purchaseOrderNumber,
+    bill.goodsReceiptNumber,
+    bill.status,
+    bill.reference,
+    bill.notes,
+    bill.lines.map((line) => [line.productSku, line.productName, line.description].join(" ")).join(" ")
   ].join(" ").toLowerCase().includes(normalized);
 }
 

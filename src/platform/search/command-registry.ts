@@ -60,6 +60,11 @@ const commandAliases: Record<string, readonly string[]> = {
   "/sales/payments": ["payments", "paiements", "pay", "encaissements"],
   "/sales/products": ["produits", "catalogue", "sku", "articles"],
   "/inventory": ["stock", "inventaire", "entrepôts", "entrepots", "mouvements"],
+  "/procurement": ["procurement", "achats", "fournisseurs", "commandes fournisseur"],
+  "/procurement/suppliers": ["fournisseurs", "suppliers", "vendors", "achats"],
+  "/procurement/purchase-orders": ["commandes fournisseur", "purchase orders", "po", "achats"],
+  "/procurement/goods-receipts": ["réceptions", "receptions", "goods receipts", "bon de réception"],
+  "/procurement/supplier-bills": ["factures fournisseurs", "supplier bills", "ap", "comptes fournisseurs", "achats"],
   "/accounting": ["finance", "comptabilité", "comptabilite", "plan comptable", "journaux", "écritures", "ecritures", "grand livre", "balance"],
   "/parametres": ["settings", "paramètres", "parametres", "configuration"]
 };

@@ -5,11 +5,14 @@ export type PurchaseOrderId = string & { readonly __brand: "PurchaseOrderId" };
 export type PurchaseOrderLineId = string & { readonly __brand: "PurchaseOrderLineId" };
 export type GoodsReceiptId = string & { readonly __brand: "GoodsReceiptId" };
 export type GoodsReceiptLineId = string & { readonly __brand: "GoodsReceiptLineId" };
+export type SupplierBillId = string & { readonly __brand: "SupplierBillId" };
+export type SupplierBillLineId = string & { readonly __brand: "SupplierBillLineId" };
 export type ProcurementUserId = string & { readonly __brand: "ProcurementUserId" };
 
 export type SupplierStatus = "active" | "archived";
 export type PurchaseOrderStatus = "draft" | "sent" | "confirmed" | "partially_received" | "received" | "cancelled" | "archived";
 export type GoodsReceiptStatus = "draft" | "posted" | "cancelled" | "archived";
+export type SupplierBillStatus = "draft" | "finalized" | "accounted" | "cancelled" | "archived";
 
 export type ProcurementSupplier = Readonly<{
   id: ProcurementSupplierId;
@@ -104,6 +107,46 @@ export type GoodsReceipt = Readonly<{
   updatedAt: string;
 }>;
 
+export type SupplierBillLine = Readonly<{
+  id: SupplierBillLineId;
+  purchaseOrderLineId?: PurchaseOrderLineId;
+  goodsReceiptLineId?: GoodsReceiptLineId;
+  productId?: ProductId;
+  productSku?: string;
+  productName?: string;
+  description: string;
+  quantity: number;
+  unit: ProductUnit | string;
+  unitPrice: number;
+  discountRate: number;
+  taxRate: number;
+}>;
+
+export type SupplierBill = Readonly<{
+  id: SupplierBillId;
+  workspaceId: WorkspaceId;
+  number: string;
+  supplierId: ProcurementSupplierId;
+  supplierName: string;
+  purchaseOrderId?: PurchaseOrderId;
+  purchaseOrderNumber?: string;
+  goodsReceiptId?: GoodsReceiptId;
+  goodsReceiptNumber?: string;
+  billDate: string;
+  dueDate?: string;
+  currency: string;
+  reference?: string;
+  notes?: string;
+  status: SupplierBillStatus;
+  lines: readonly SupplierBillLine[];
+  discountRate: number;
+  accountedAt?: string;
+  archivedAt?: string;
+  ownerId?: ProcurementUserId;
+  createdAt: string;
+  updatedAt: string;
+}>;
+
 export type CreateSupplierInput = Readonly<Omit<ProcurementSupplier, "id" | "status" | "active" | "archivedAt" | "createdAt" | "updatedAt">>;
 export type UpdateSupplierInput = Readonly<Partial<Omit<CreateSupplierInput, "workspaceId" | "createdBy">> & {
   id: ProcurementSupplierId;
@@ -155,6 +198,29 @@ export type GoodsReceiptFilters = Readonly<{
   workspaceId: WorkspaceId;
   query?: string;
   status?: GoodsReceiptStatus | "all";
+  supplierId?: ProcurementSupplierId | "all";
+  purchaseOrderId?: PurchaseOrderId | "all";
+  includeArchived?: boolean;
+}>;
+
+export type CreateSupplierBillInput = Readonly<Omit<SupplierBill, "id" | "number" | "status" | "createdAt" | "updatedAt" | "accountedAt" | "supplierName" | "purchaseOrderNumber" | "goodsReceiptNumber"> & {
+  status?: SupplierBillStatus;
+  supplierName?: string;
+  purchaseOrderNumber?: string;
+  goodsReceiptNumber?: string;
+}>;
+
+export type UpdateSupplierBillInput = Readonly<Partial<Omit<CreateSupplierBillInput, "workspaceId" | "ownerId">> & {
+  id: SupplierBillId;
+  workspaceId: WorkspaceId;
+  status?: SupplierBillStatus;
+  accountedAt?: string;
+}>;
+
+export type SupplierBillFilters = Readonly<{
+  workspaceId: WorkspaceId;
+  query?: string;
+  status?: SupplierBillStatus | "all";
   supplierId?: ProcurementSupplierId | "all";
   purchaseOrderId?: PurchaseOrderId | "all";
   includeArchived?: boolean;

@@ -6,10 +6,12 @@ import {
   getAccountingTrialBalance,
   loadAccountingSnapshot,
   persistAccountingRecord,
+  persistApPostingSettings,
   persistCommercialPostingSettings,
   postAccountingEntry,
   postSalesInvoiceToAccounting,
   postSalesPaymentToAccounting,
+  postSupplierBillToAccounting,
   closeAccountingPeriod,
   reopenAccountingPeriod,
   reverseAccountingEntry,
@@ -39,7 +41,7 @@ export async function POST(request: Request) {
   try {
     const scope = await requirePersistenceTenantScope();
     const body = await request.json() as {
-      operation?: "postJournalEntry" | "reverseJournalEntry" | "closeAccountingPeriod" | "reopenAccountingPeriod" | "getGeneralLedger" | "getTrialBalance" | "getProfitLoss" | "getBalanceSheet" | "saveCommercialPostingSettings" | "postSalesInvoice" | "postSalesPayment";
+      operation?: "postJournalEntry" | "reverseJournalEntry" | "closeAccountingPeriod" | "reopenAccountingPeriod" | "getGeneralLedger" | "getTrialBalance" | "getProfitLoss" | "getBalanceSheet" | "saveCommercialPostingSettings" | "saveApPostingSettings" | "postSalesInvoice" | "postSalesPayment" | "postSupplierBill";
       payload?: AccountingJournalEntryId | string | (AccountingReportDateScope & { accountIds?: readonly string[]; journalIds?: readonly string[]; asOfDate?: string }) | unknown;
       resource?: AccountingPersistenceResource;
       record?: unknown;
@@ -95,6 +97,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ record, snapshot });
     }
 
+    if (body.operation === "saveApPostingSettings" && body.payload) {
+      const record = await persistApPostingSettings(scope, body.payload as never);
+      const snapshot = await loadAccountingSnapshot(scope);
+      return NextResponse.json({ record, snapshot });
+    }
+
     if (body.operation === "postSalesInvoice" && typeof body.payload === "string") {
       const record = await postSalesInvoiceToAccounting(scope, body.payload);
       const snapshot = await loadAccountingSnapshot(scope);
@@ -103,6 +111,12 @@ export async function POST(request: Request) {
 
     if (body.operation === "postSalesPayment" && typeof body.payload === "string") {
       const record = await postSalesPaymentToAccounting(scope, body.payload);
+      const snapshot = await loadAccountingSnapshot(scope);
+      return NextResponse.json({ record, snapshot });
+    }
+
+    if (body.operation === "postSupplierBill" && typeof body.payload === "string") {
+      const record = await postSupplierBillToAccounting(scope, body.payload);
       const snapshot = await loadAccountingSnapshot(scope);
       return NextResponse.json({ record, snapshot });
     }

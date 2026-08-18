@@ -2,6 +2,7 @@ import { DEFAULT_PROCUREMENT_CURRENCY, DEFAULT_SUPPLIER_COUNTRY } from "./procur
 import type {
   CreateGoodsReceiptInput,
   CreatePurchaseOrderInput,
+  CreateSupplierBillInput,
   CreateSupplierInput,
   GoodsReceipt,
   GoodsReceiptFilters,
@@ -11,32 +12,41 @@ import type {
   PurchaseOrder,
   PurchaseOrderFilters,
   PurchaseOrderId,
+  SupplierBill,
+  SupplierBillFilters,
+  SupplierBillId,
   SupplierFilters,
   UpdatePurchaseOrderInput,
+  UpdateSupplierBillInput,
   UpdateSupplierInput
 } from "./procurement.types";
 import {
   formatGoodsReceiptNumber,
   formatPurchaseOrderNumber,
+  formatSupplierBillNumber,
   getPurchaseOrderReceiptState,
   matchesGoodsReceiptSearch,
   matchesPurchaseOrderSearch,
+  matchesSupplierBillSearch,
   matchesSupplierSearch,
   normalizeProcurementText,
-  normalizePurchaseOrderLines
+  normalizePurchaseOrderLines,
+  normalizeSupplierBillLines
 } from "./procurement.utils";
 
 export class ProcurementService {
   private readonly suppliers = new Map<ProcurementSupplierId, ProcurementSupplier>();
   private readonly purchaseOrders = new Map<PurchaseOrderId, PurchaseOrder>();
   private readonly goodsReceipts = new Map<GoodsReceiptId, GoodsReceipt>();
+  private readonly supplierBills = new Map<SupplierBillId, SupplierBill>();
   private readonly now: () => string;
 
-  constructor(options: { suppliers?: readonly ProcurementSupplier[]; purchaseOrders?: readonly PurchaseOrder[]; goodsReceipts?: readonly GoodsReceipt[]; now?: () => string } = {}) {
+  constructor(options: { suppliers?: readonly ProcurementSupplier[]; purchaseOrders?: readonly PurchaseOrder[]; goodsReceipts?: readonly GoodsReceipt[]; supplierBills?: readonly SupplierBill[]; now?: () => string } = {}) {
     this.now = options.now ?? (() => new Date().toISOString());
     options.suppliers?.forEach((supplier) => this.suppliers.set(supplier.id, freezeSupplier(supplier)));
     options.purchaseOrders?.forEach((order) => this.purchaseOrders.set(order.id, freezePurchaseOrder(order)));
     options.goodsReceipts?.forEach((receipt) => this.goodsReceipts.set(receipt.id, freezeGoodsReceipt(receipt)));
+    options.supplierBills?.forEach((bill) => this.supplierBills.set(bill.id, freezeSupplierBill(bill)));
   }
 
   replaceSuppliers(suppliers: readonly ProcurementSupplier[]) {
@@ -52,6 +62,11 @@ export class ProcurementService {
   replaceGoodsReceipts(receipts: readonly GoodsReceipt[]) {
     this.goodsReceipts.clear();
     receipts.forEach((receipt) => this.goodsReceipts.set(receipt.id, freezeGoodsReceipt(receipt)));
+  }
+
+  replaceSupplierBills(bills: readonly SupplierBill[]) {
+    this.supplierBills.clear();
+    bills.forEach((bill) => this.supplierBills.set(bill.id, freezeSupplierBill(bill)));
   }
 
   listSuppliers(filters: SupplierFilters) {
@@ -87,6 +102,18 @@ export class ProcurementService {
     return Object.freeze({ goodsReceipts: Object.freeze(receipts), total: receipts.length });
   }
 
+  listSupplierBills(filters: SupplierBillFilters) {
+    const bills = [...this.supplierBills.values()]
+      .filter((bill) => bill.workspaceId === filters.workspaceId)
+      .filter((bill) => filters.includeArchived || bill.status !== "archived")
+      .filter((bill) => !filters.status || filters.status === "all" || bill.status === filters.status)
+      .filter((bill) => !filters.supplierId || filters.supplierId === "all" || bill.supplierId === filters.supplierId)
+      .filter((bill) => !filters.purchaseOrderId || filters.purchaseOrderId === "all" || bill.purchaseOrderId === filters.purchaseOrderId)
+      .filter((bill) => !filters.query || matchesSupplierBillSearch(bill, filters.query))
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+    return Object.freeze({ supplierBills: Object.freeze(bills), total: bills.length });
+  }
+
   getSupplier(id: ProcurementSupplierId, workspaceId: SupplierFilters["workspaceId"]) {
     const supplier = this.suppliers.get(id);
     return supplier?.workspaceId === workspaceId ? supplier : undefined;
@@ -100,6 +127,11 @@ export class ProcurementService {
   getGoodsReceipt(id: GoodsReceiptId, workspaceId: GoodsReceiptFilters["workspaceId"]) {
     const receipt = this.goodsReceipts.get(id);
     return receipt?.workspaceId === workspaceId ? receipt : undefined;
+  }
+
+  getSupplierBill(id: SupplierBillId, workspaceId: SupplierBillFilters["workspaceId"]) {
+    const bill = this.supplierBills.get(id);
+    return bill?.workspaceId === workspaceId ? bill : undefined;
   }
 
   upsertSupplier(supplier: ProcurementSupplier) {
@@ -125,6 +157,12 @@ export class ProcurementService {
   upsertGoodsReceipt(receipt: GoodsReceipt) {
     const frozen = freezeGoodsReceipt(receipt);
     this.goodsReceipts.set(frozen.id, frozen);
+    return frozen;
+  }
+
+  upsertSupplierBill(bill: SupplierBill) {
+    const frozen = freezeSupplierBill(bill);
+    this.supplierBills.set(frozen.id, frozen);
     return frozen;
   }
 
@@ -237,6 +275,48 @@ export class ProcurementService {
     return Object.freeze({ goodsReceipt: receipt });
   }
 
+  createSupplierBill(input: CreateSupplierBillInput) {
+    const supplier = this.getSupplier(input.supplierId, input.workspaceId);
+    if (!supplier && !input.supplierName) return Object.freeze({ supplierBill: undefined, error: "Sélectionnez un fournisseur." });
+    const lines = normalizeSupplierBillLines(input.lines);
+    if (lines.length === 0) return Object.freeze({ supplierBill: undefined, error: "Ajoutez au moins une ligne de facture fournisseur." });
+    const timestamp = this.now();
+    const order = input.purchaseOrderId ? this.getPurchaseOrder(input.purchaseOrderId, input.workspaceId) : undefined;
+    const receipt = input.goodsReceiptId ? this.getGoodsReceipt(input.goodsReceiptId, input.workspaceId) : undefined;
+    const bill = freezeSupplierBill({
+      ...input,
+      id: `supplier-bill-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` as SupplierBillId,
+      number: formatSupplierBillNumber(this.supplierBills.size + 1),
+      supplierName: input.supplierName ?? supplier?.companyName ?? "Fournisseur",
+      purchaseOrderNumber: input.purchaseOrderNumber ?? order?.number,
+      goodsReceiptNumber: input.goodsReceiptNumber ?? receipt?.number,
+      currency: input.currency || supplier?.currency || order?.currency || DEFAULT_PROCUREMENT_CURRENCY,
+      status: input.status ?? "draft",
+      lines,
+      discountRate: input.discountRate ?? 0,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    });
+    this.supplierBills.set(bill.id, bill);
+    return Object.freeze({ supplierBill: bill });
+  }
+
+  updateSupplierBill(input: UpdateSupplierBillInput) {
+    const existing = this.getSupplierBill(input.id, input.workspaceId);
+    if (!existing) return Object.freeze({ supplierBill: undefined, error: "Facture fournisseur introuvable." });
+    if (existing.status === "accounted" && input.status !== "accounted") {
+      return Object.freeze({ supplierBill: undefined, error: "Une facture fournisseur comptabilisée ne peut pas être modifiée silencieusement." });
+    }
+    const updated = freezeSupplierBill({
+      ...existing,
+      ...input,
+      lines: input.lines ? normalizeSupplierBillLines(input.lines) : existing.lines,
+      updatedAt: this.now()
+    });
+    this.supplierBills.set(updated.id, updated);
+    return Object.freeze({ supplierBill: updated });
+  }
+
   markGoodsReceiptPosted(id: GoodsReceiptId, workspaceId: GoodsReceiptFilters["workspaceId"], postedAt = this.now()) {
     const existing = this.getGoodsReceipt(id, workspaceId);
     if (!existing) return Object.freeze({ goodsReceipt: undefined, error: "Réception introuvable." });
@@ -277,6 +357,13 @@ export function freezeGoodsReceipt(receipt: GoodsReceipt): GoodsReceipt {
   return Object.freeze({
     ...receipt,
     lines: Object.freeze(receipt.lines.map((line) => Object.freeze({ ...line })))
+  });
+}
+
+export function freezeSupplierBill(bill: SupplierBill): SupplierBill {
+  return Object.freeze({
+    ...bill,
+    lines: Object.freeze(bill.lines.map((line) => Object.freeze({ ...line })))
   });
 }
 
