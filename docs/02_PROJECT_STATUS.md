@@ -418,6 +418,67 @@ SPR-435 adds correction and period-control foundations around the canonical post
 
 This is posting-period control only. It is not statutory fiscal closing, legal book certification, retained-earnings transfer or Morocco localization.
 
+## SPR-437 Inventory Valuation & COGS Accounting Reality
+
+SPR-437 adds the first durable Inventory valuation and COGS accounting bridge.
+
+Physical Inventory remains owned by posted `InventoryStockMovement` records. Goods Receipts and Delivery Notes continue to post physical stock through the existing Inventory engine.
+
+New valuation truth:
+
+- durable `InventoryValuationEvent` records;
+- one valuation event per physical stock movement through unique `movementId`;
+- V1 method: `moving_average_v1`;
+- inbound valuation from Procurement Purchase Order cost where Goods Receipts are the source;
+- outbound valuation consumption for posted stock `ISSUE` movements;
+- historical COGS stored from valuation events, not recalculated from mutable Product cost.
+
+Finance now supports:
+
+- tenant-scoped Inventory Accounting settings;
+- Inventory journal mapping;
+- Inventory Asset account mapping;
+- COGS account mapping;
+- controlled COGS posting from outbound valuation events;
+- `sourceType = inventory.cogs` and `sourceId = InventoryValuationEvent.id`;
+- canonical source idempotency and Accounting Period controls.
+
+Inventory now exposes operational valuation reporting:
+
+- stock value KPI;
+- average unit cost;
+- total value by Product/Warehouse;
+- manual valuation synchronization.
+
+Inbound GL capitalization is intentionally deferred. Supplier Bills already post AP/purchase expense in SPR-436, and automatic Goods Receipt Stock/GRNI accounting would risk double-recognizing procurement cost without a full GRNI/3-way matching architecture.
+
+Still not implemented:
+
+- FIFO/LIFO;
+- landed cost;
+- standard cost;
+- GRNI clearing;
+- supplier payment settlement;
+- FX conversion;
+- automatic background posting;
+- inventory reversal workflows.
+
+## SPR-437A Inventory Valuation Synchronization Runtime Reality
+
+SPR-437A hardens the runtime path behind Inventory → Stock → `Synchroniser valorisation`.
+
+The original SPR-437 synchronization rebuilt valuation inside one Prisma interactive transaction. Goods Receipt cost resolution could trigger repeated Procurement lookups inside that transaction, causing Prisma's 5000 ms interactive transaction timeout on realistic datasets.
+
+The synchronization now uses a read/precompute/write pattern:
+
+- read posted physical stock movements and existing valuation events;
+- batch preload Product cost references;
+- batch preload Goods Receipt and Purchase Order references;
+- build the moving-average valuation plan in memory;
+- open a short transaction only to insert missing `InventoryValuationEvent` records.
+
+No valuation semantics changed. Goods Receipts still use supplier purchase cost from Purchase Orders, manual inbound movements still require positive Product cost, and legacy/unpriced stock remains explicitly unvalued rather than receiving fabricated cost.
+
 ## Known Limitations
 
 - Product Catalog create persistence now maps duplicate, validation, tenant and stale-category failures to controlled French errors, but full authenticated browser creation QA remains blocked in this environment by a local Prisma connection error during tenant bootstrap.
@@ -427,7 +488,7 @@ This is posting-period control only. It is not statutory fiscal closing, legal b
 - Product Catalog import/export handles master data only; it does not import stock quantities or inventory movements.
 - Inventory has posting, reservations and availability, but no barcode scanning, manufacturing, POS, carrier integration or advanced warehouse operations.
 - CRM Opportunities/Pipeline remains hidden until a persistent, company-centric model is completed.
-- Finance Operations is active for manual journal entries, reversal corrections, period posting controls, controlled Sales invoice/payment posting, controlled Supplier Bill/AP posting, Profit & Loss and Balance Sheet, but supplier payments/AP settlement, reconciliation, statutory localization, controlled reposting after reversal, fiscal closing and tax reporting are not implemented.
+- Finance Operations is active for manual journal entries, reversal corrections, period posting controls, controlled Sales invoice/payment posting, controlled Supplier Bill/AP posting, controlled Inventory COGS posting, Profit & Loss and Balance Sheet, but supplier payments/AP settlement, GRNI clearing, reconciliation, statutory localization, controlled reposting after reversal, fiscal closing and tax reporting are not implemented.
 - HR and finance legacy pages exist as routes but are hidden or redirected and should not be treated as production modules.
 - Platform profiles are static; there is no tenant edition assignment, licensing engine, feature flag engine, dashboard editor or module admin UI.
 - Runtime notification, activity and audit layers are foundations, not complete production observability or compliance systems.
@@ -436,11 +497,11 @@ This is posting-period control only. It is not statutory fiscal closing, legal b
 
 ## Recommended Candidate Directions
 
-1. Procurement/AP Accounting V1: supplier invoices, AP control account, purchase posting and supplier payment boundaries are the next major financial truth gap.
-2. Controlled source reposting after reversal: define a lifecycle for corrected Sales source postings if operationally required.
-3. Sales Operations release monitoring: continue authenticated smoke QA for Quote acceptance, Sales Order reservation, Delivery Note posting, Shipment lifecycle and Inventory reconciliation now that the workflow is visible in Alpha.
-4. Procurement future depth: supplier invoices, approval workflows, supplier payments, returns/reversals and supplier performance remain future work.
-5. Sales Cockpit: useful future Product Experience work, but should align with Accounting semantics before becoming the next major cockpit.
+1. GRNI / 3-way matching: reconcile Goods Receipt valuation with Supplier Bills before enabling inbound Stock/GRNI journal automation.
+2. Supplier payment/AP settlement: complete the AP lifecycle after Supplier Bills.
+3. Controlled source reposting after reversal: define a lifecycle for corrected Sales, AP and Inventory source postings if operationally required.
+4. Sales Operations release monitoring: continue authenticated smoke QA for Quote acceptance, Sales Order reservation, Delivery Note posting, Shipment lifecycle and Inventory reconciliation now that the workflow is visible in Alpha.
+5. Procurement future depth: approval workflows, supplier payments, returns/reversals and supplier performance remain future work.
 
 ## Documentation Guidance
 

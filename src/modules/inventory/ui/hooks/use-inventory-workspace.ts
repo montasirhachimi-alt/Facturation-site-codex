@@ -81,6 +81,7 @@ export function useInventoryWorkspace() {
     const filteredReservationRows = reservationRows.filter((row) => filterReservationRow(row, reservationQuery, reservationWarehouseId, reservationType));
     const trackedProductIds = new Set(stockRows.map((row) => row.balance.productId));
     const productItems = products.filter((product) => product.active && product.flags.trackInventory).map(productToPickerItem);
+    const valuationByStockKey = new Map((snapshot.valuationRows ?? []).map((row) => [`${row.productId}:${row.warehouseId}`, row]));
 
     return {
       activeTab,
@@ -96,6 +97,7 @@ export function useInventoryWorkspace() {
         quantityIncoming: 0,
         quantityOutgoing: 0,
         quantityProjected: sum(stockRows, (row) => row.balance.quantityAvailable),
+        inventoryValue: sum(snapshot.valuationRows ?? [], (row) => row.totalValue),
         lowStock: stockRows.filter((row) => row.status === "low" || row.status === "out").length,
         activeWarehouses: activeWarehouses.length,
         recentMovements: snapshot.movements.slice(0, 5).length
@@ -125,6 +127,9 @@ export function useInventoryWorkspace() {
       stockRows,
       stockWarehouseId,
       version,
+      valuationByStockKey,
+      valuationEvents: snapshot.valuationEvents ?? [],
+      valuationRows: snapshot.valuationRows ?? [],
       warehouses: snapshot.warehouses,
       warehouseById
     };

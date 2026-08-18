@@ -6178,6 +6178,115 @@ test("Procurement AP Accounting V1 is exposed through Procurement and Finance UI
   assert(accountingWorkspace.includes("Les règlements fournisseurs AP sont différés en V1"), "Supplier payment should be explicitly deferred instead of exposing a fake workflow.");
 });
 
+test("Inventory Valuation V1 introduces durable moving-average valuation events", () => {
+  const schema = read("prisma/schema.prisma");
+  const migration = read("prisma/migrations/20260818120000_inventory_valuation_cogs/migration.sql");
+  const inventoryRepository = read("src/server/persistence/inventory-repository.ts");
+
+  assert(schema.includes("model InventoryValuationEvent") && schema.includes("movementId      String                 @unique"), "Inventory valuation should be a durable one-event-per-movement model.");
+  assert(migration.includes('CREATE TABLE "InventoryValuationEvent"') && migration.includes('CREATE UNIQUE INDEX "InventoryValuationEvent_movementId_key"'), "Inventory valuation migration should enforce movement idempotency.");
+  assert(inventoryRepository.includes("valuationMethod: \"moving_average_v1\""), "Inventory valuation should use one deterministic V1 method.");
+  assert(inventoryRepository.includes("resolveInboundCostMinor") && inventoryRepository.includes("consumeOutboundCostMinor"), "Inventory valuation should separate inbound cost creation from outbound consumption.");
+});
+
+test("Inventory Valuation V1 rejects missing cost and insufficient valued stock", () => {
+  const inventoryRepository = read("src/server/persistence/inventory-repository.ts");
+
+  assert(inventoryRepository.includes("Coût d'achat manquant pour la valorisation"), "Inbound valuation should reject missing purchase cost instead of using zero.");
+  assert(inventoryRepository.includes("Coût produit manquant pour la valorisation d'entrée"), "Manual inbound valuation should reject missing product cost.");
+  assert(inventoryRepository.includes("Quantité valorisée insuffisante pour comptabiliser le COGS"), "Outbound valuation should reject insufficient valued quantity.");
+});
+
+test("Inventory COGS Accounting V1 maps outbound valuation to balanced journal entries", () => {
+  const { ACCOUNTING_WORKSPACE_ID, createInventoryCogsAccountingEntry } = load("src/modules/accounting");
+  const tenantCompanyId = "tenant-inventory-cogs";
+  const settings = {
+    tenantCompanyId,
+    inventoryJournalId: "journal-inventory",
+    inventoryAssetAccountId: "account-inventory",
+    cogsAccountId: "account-cogs",
+    functionalCurrency: "MAD",
+    createdAt: "2026-08-18T00:00:00.000Z",
+    updatedAt: "2026-08-18T00:00:00.000Z"
+  };
+  const valuationEvent = createRuntimeValuationEvent();
+  const entry = createInventoryCogsAccountingEntry({
+    valuationEvent,
+    settings,
+    context: {
+      tenantCompanyId,
+      workspaceId: ACCOUNTING_WORKSPACE_ID,
+      userId: "accountant-inventory",
+      now: () => "2026-08-18T12:00:00.000Z"
+    }
+  });
+
+  assert(entry.status === "posted", "Inventory COGS entry should be posted by the accounting bridge.");
+  assert(entry.sourceType === "inventory.cogs" && entry.sourceId === valuationEvent.id, "Inventory COGS should preserve valuation source traceability.");
+  assert(entry.debitTotal === "250.00" && entry.creditTotal === "250.00", "Inventory COGS entry should be balanced.");
+  assert(entry.lines.some((line) => line.accountId === "account-cogs" && line.debitAmount === "250.00"), "Inventory COGS should debit COGS.");
+  assert(entry.lines.some((line) => line.accountId === "account-inventory" && line.creditAmount === "250.00"), "Inventory COGS should credit Inventory Asset.");
+});
+
+test("Inventory COGS Accounting V1 rejects unsafe source states", () => {
+  const { AccountingDomainError, ACCOUNTING_WORKSPACE_ID, createInventoryCogsAccountingEntry } = load("src/modules/accounting");
+  const tenantCompanyId = "tenant-inventory-cogs";
+  const settings = {
+    tenantCompanyId,
+    inventoryJournalId: "journal-inventory",
+    inventoryAssetAccountId: "account-inventory",
+    cogsAccountId: "account-cogs",
+    functionalCurrency: "MAD",
+    createdAt: "2026-08-18T00:00:00.000Z",
+    updatedAt: "2026-08-18T00:00:00.000Z"
+  };
+  const context = { tenantCompanyId, workspaceId: ACCOUNTING_WORKSPACE_ID, userId: "accountant-inventory" };
+
+  let inboundRejected = false;
+  try {
+    createInventoryCogsAccountingEntry({ valuationEvent: createRuntimeValuationEvent({ eventType: "INBOUND" }), settings, context });
+  } catch (error) {
+    inboundRejected = error instanceof AccountingDomainError;
+  }
+  assert(inboundRejected, "Inbound valuation should not create COGS.");
+
+  let currencyRejected = false;
+  try {
+    createInventoryCogsAccountingEntry({ valuationEvent: createRuntimeValuationEvent({ currency: "EUR" }), settings, context });
+  } catch (error) {
+    currencyRejected = error instanceof AccountingDomainError;
+  }
+  assert(currencyRejected, "COGS V1 should reject currency mismatch.");
+});
+
+test("Inventory Valuation V1 is exposed through Inventory and Finance without inbound GL duplication", () => {
+  const accountingWorkspace = read("src/modules/accounting/ui/pages/accounting-workspace.tsx");
+  const inventoryWorkspace = read("src/modules/inventory/ui/pages/inventory-workspace.tsx");
+  const accountingRepository = read("src/server/persistence/accounting-repository.ts");
+  const accountingClient = read("src/platform/persistence/accounting-persistence.client.ts");
+
+  assert(accountingWorkspace.includes("Intégration stock") && accountingWorkspace.includes("postInventoryCogsToAccounting"), "Finance UI should expose controlled stock accounting integration.");
+  assert(inventoryWorkspace.includes("Synchroniser valorisation") && inventoryWorkspace.includes("Valeur stock"), "Inventory UI should expose operational valuation reporting.");
+  assert(accountingRepository.includes("\"inventory.cogs\"") && accountingClient.includes("saveInventoryPostingSettings"), "Accounting adapters should expose inventory COGS and settings operations.");
+  assert(accountingWorkspace.includes("L'écriture d'entrée Stock/GRNI est différée"), "Inbound GL capitalization should be explicitly deferred to avoid duplicating Supplier Bill expense.");
+});
+
+test("Inventory Valuation synchronization precomputes references before short write transaction", () => {
+  const repository = read("src/server/persistence/inventory-repository.ts");
+  const reconcileStart = repository.indexOf("export async function reconcileInventoryValuation");
+  const nextExport = repository.indexOf("\nexport async function createInventoryWarehouse", reconcileStart);
+  const reconcileBody = repository.slice(reconcileStart, nextExport);
+  const transactionStart = reconcileBody.indexOf("prisma.$transaction");
+  const transactionBody = transactionStart >= 0 ? reconcileBody.slice(transactionStart) : "";
+
+  assert(reconcileBody.includes("procurementGoodsReceipt.findMany"), "Valuation sync should batch preload Goods Receipt references before writing.");
+  assert(reconcileBody.includes("product.findMany"), "Valuation sync should batch preload Product cost references before writing.");
+  assert(transactionBody.includes("inventoryValuationEvent.createMany"), "Valuation sync write transaction should only persist planned valuation events.");
+  assert(!transactionBody.includes("procurementGoodsReceipt.findUnique") && !transactionBody.includes("procurementGoodsReceipt.findMany"), "Goods Receipt lookups must not run inside the valuation write transaction.");
+  assert(!transactionBody.includes("product.findUnique") && !transactionBody.includes("product.findMany"), "Product cost lookups must not run inside the valuation write transaction.");
+  assert(repository.includes("buildMissingValuationEventWrite") && repository.includes("goodsReceiptById"), "Valuation plans should be built from preloaded reference maps.");
+});
+
 function createRuntimeInvoice(overrides = {}) {
   const invoice = {
     id: "invoice-runtime",
@@ -6199,6 +6308,28 @@ function createRuntimeInvoice(overrides = {}) {
     ...overrides
   };
   return invoice;
+}
+
+function createRuntimeValuationEvent(overrides = {}) {
+  return {
+    id: "valuation-runtime",
+    companyId: "tenant-inventory-cogs",
+    productId: "product-runtime",
+    warehouseId: "warehouse-runtime",
+    movementId: "movement-runtime",
+    eventType: "OUTBOUND",
+    valuationMethod: "moving_average_v1",
+    quantity: 5,
+    unitCost: 50,
+    totalValue: 250,
+    currency: "MAD",
+    sourceType: "inventory.delivery-note",
+    sourceId: "delivery-runtime",
+    occurredAt: "2026-08-18T00:00:00.000Z",
+    createdAt: "2026-08-18T00:00:00.000Z",
+    updatedAt: "2026-08-18T00:00:00.000Z",
+    ...overrides
+  };
 }
 
 function createRuntimeSupplierBill(overrides = {}) {

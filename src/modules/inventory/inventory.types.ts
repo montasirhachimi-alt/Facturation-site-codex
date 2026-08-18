@@ -15,6 +15,8 @@ export type InventoryMovementType =
   | "RELEASE";
 
 export type InventoryMovementStatus = "DRAFT" | "POSTED" | "CANCELLED";
+export type InventoryValuationEventType = "INBOUND" | "OUTBOUND";
+export type InventoryValuationMethod = "moving_average_v1";
 export type InventoryMovementReferenceType =
   | "MANUAL"
   | "QUOTE"
@@ -88,6 +90,39 @@ export type StockMovement = Readonly<{
   updatedAt: string;
 }>;
 
+export type InventoryValuationEvent = Readonly<{
+  id: string;
+  companyId: InventoryCompanyId;
+  productId: ProductId;
+  warehouseId?: InventoryWarehouseId;
+  movementId: InventoryMovementId;
+  eventType: InventoryValuationEventType;
+  valuationMethod: InventoryValuationMethod;
+  quantity: number;
+  unitCost: number;
+  totalValue: number;
+  currency: string;
+  sourceType: string;
+  sourceId: string;
+  occurredAt: string;
+  createdBy?: InventoryUserId;
+  createdAt: string;
+  updatedAt: string;
+}>;
+
+export type InventoryValuationReportRow = Readonly<{
+  id: string;
+  companyId: InventoryCompanyId;
+  productId: ProductId;
+  warehouseId?: InventoryWarehouseId;
+  quantity: number;
+  valuedQuantity: number;
+  averageUnitCost: number;
+  totalValue: number;
+  currency: string;
+  lastValuationAt?: string;
+}>;
+
 export type CreateWarehouseInput = Readonly<{
   companyId: InventoryCompanyId;
   code: string;
@@ -131,6 +166,8 @@ export type InventorySnapshot = Readonly<{
   warehouses: readonly Warehouse[];
   balances: readonly InventoryBalance[];
   movements: readonly StockMovement[];
+  valuationEvents?: readonly InventoryValuationEvent[];
+  valuationRows?: readonly InventoryValuationReportRow[];
 }>;
 
 export type InventoryValidationIssue = Readonly<{

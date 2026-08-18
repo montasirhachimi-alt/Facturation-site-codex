@@ -127,9 +127,11 @@ model Company {
   accountingPeriods            AccountingPeriod[]
   accountingCommercialSettings AccountingCommercialPostingSettings?
   accountingApSettings         AccountingApPostingSettings?
+  accountingInventorySettings  AccountingInventoryPostingSettings?
   inventoryWarehouses          InventoryWarehouse[]
   inventoryBalances            InventoryBalance[]
   inventoryMovements           InventoryStockMovement[]
+  inventoryValuationEvents     InventoryValuationEvent[]
   createdAt                    DateTime                             @default(now())
   updatedAt                    DateTime                             @updatedAt
 }
@@ -271,6 +273,7 @@ model Product {
   movements                     StockMovement[]
   inventoryBalances             InventoryBalance[]
   inventoryMovements            InventoryStockMovement[]
+  inventoryValuationEvents      InventoryValuationEvent[]
   salesQuoteLines               SalesQuoteLine[]
   salesOrderLines               SalesOrderLine[]
   salesDeliveryNoteLines        SalesDeliveryNoteLine[]
@@ -615,6 +618,7 @@ model InventoryWarehouse {
   balances           InventoryBalance[]
   movementsFrom      InventoryStockMovement[]  @relation("InventoryMovementFromWarehouse")
   movementsTo        InventoryStockMovement[]  @relation("InventoryMovementToWarehouse")
+  valuationEvents    InventoryValuationEvent[]
   goodsReceipts      ProcurementGoodsReceipt[]
   salesDeliveryNotes SalesDeliveryNote[]
   createdAt          DateTime                  @default(now())
@@ -649,17 +653,17 @@ model InventoryBalance {
 }
 
 model InventoryStockMovement {
-  id              String                  @id @default(cuid())
+  id              String                   @id @default(cuid())
   companyId       String
-  company         Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company         Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   productId       String
-  product         Product                 @relation(fields: [productId], references: [id], onDelete: Restrict)
+  product         Product                  @relation(fields: [productId], references: [id], onDelete: Restrict)
   fromWarehouseId String?
-  fromWarehouse   InventoryWarehouse?     @relation("InventoryMovementFromWarehouse", fields: [fromWarehouseId], references: [id], onDelete: Restrict)
+  fromWarehouse   InventoryWarehouse?      @relation("InventoryMovementFromWarehouse", fields: [fromWarehouseId], references: [id], onDelete: Restrict)
   toWarehouseId   String?
-  toWarehouse     InventoryWarehouse?     @relation("InventoryMovementToWarehouse", fields: [toWarehouseId], references: [id], onDelete: Restrict)
+  toWarehouse     InventoryWarehouse?      @relation("InventoryMovementToWarehouse", fields: [toWarehouseId], references: [id], onDelete: Restrict)
   type            InventoryMovementType
-  status          InventoryMovementStatus @default(DRAFT)
+  status          InventoryMovementStatus  @default(DRAFT)
   quantity        Decimal
   reference       String?
   referenceType   String?
@@ -668,8 +672,9 @@ model InventoryStockMovement {
   postedAt        DateTime?
   cancelledAt     DateTime?
   createdBy       String?
-  createdAt       DateTime                @default(now())
-  updatedAt       DateTime                @updatedAt
+  valuationEvent  InventoryValuationEvent?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
 
   @@index([companyId])
   @@index([companyId, productId])
@@ -677,6 +682,37 @@ model InventoryStockMovement {
   @@index([companyId, referenceType, referenceId])
   @@index([companyId, status])
   @@index([companyId, createdAt])
+}
+
+model InventoryValuationEvent {
+  id              String                 @id
+  companyId       String
+  company         Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  productId       String
+  product         Product                @relation(fields: [productId], references: [id], onDelete: Restrict)
+  warehouseId     String?
+  warehouse       InventoryWarehouse?    @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  movementId      String                 @unique
+  movement        InventoryStockMovement @relation(fields: [movementId], references: [id], onDelete: Restrict)
+  eventType       String
+  valuationMethod String
+  quantity        Decimal
+  unitCost        Decimal
+  totalValue      Decimal
+  currency        String
+  sourceType      String
+  sourceId        String
+  occurredAt      DateTime
+  createdBy       String?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  @@index([companyId])
+  @@index([companyId, productId])
+  @@index([companyId, warehouseId])
+  @@index([companyId, eventType])
+  @@index([companyId, sourceType, sourceId])
+  @@index([companyId, occurredAt])
 }
 
 model Reminder {
@@ -1465,6 +1501,8 @@ model AccountingAccount {
   apExpenseSettings            AccountingApPostingSettings[]         @relation("AccountingApExpenseAccount")
   apSettlementSettings         AccountingApPostingSettings[]         @relation("AccountingApSettlementAccount")
   apTaxRecoverableSettings     AccountingApPostingSettings[]         @relation("AccountingApTaxRecoverableAccount")
+  inventoryAssetSettings       AccountingInventoryPostingSettings[]  @relation("AccountingInventoryAssetAccount")
+  inventoryCogsSettings        AccountingInventoryPostingSettings[]  @relation("AccountingInventoryCogsAccount")
   createdAt                    DateTime                              @default(now())
   updatedAt                    DateTime                              @updatedAt
 
@@ -1489,6 +1527,7 @@ model AccountingJournal {
   entries                 AccountingJournalEntry[]
   commercialSalesSettings AccountingCommercialPostingSettings[] @relation("AccountingCommercialSalesJournal")
   apPurchaseSettings      AccountingApPostingSettings[]         @relation("AccountingApPurchaseJournal")
+  inventorySettings       AccountingInventoryPostingSettings[]  @relation("AccountingInventoryJournal")
   createdAt               DateTime                              @default(now())
   updatedAt               DateTime                              @updatedAt
 
@@ -1608,6 +1647,25 @@ model AccountingApPostingSettings {
   @@index([expenseAccountId])
   @@index([settlementAccountId])
   @@index([taxRecoverableAccountId])
+}
+
+model AccountingInventoryPostingSettings {
+  tenantCompanyId         String             @id
+  tenantCompany           Company            @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  inventoryJournalId      String?
+  inventoryJournal        AccountingJournal? @relation("AccountingInventoryJournal", fields: [inventoryJournalId], references: [id], onDelete: SetNull)
+  inventoryAssetAccountId String?
+  inventoryAssetAccount   AccountingAccount? @relation("AccountingInventoryAssetAccount", fields: [inventoryAssetAccountId], references: [id], onDelete: SetNull)
+  cogsAccountId           String?
+  cogsAccount             AccountingAccount? @relation("AccountingInventoryCogsAccount", fields: [cogsAccountId], references: [id], onDelete: SetNull)
+  functionalCurrency      String             @default("MAD")
+  updatedBy               String?
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+
+  @@index([inventoryJournalId])
+  @@index([inventoryAssetAccountId])
+  @@index([cogsAccountId])
 }
 
 model AccountingPeriod {

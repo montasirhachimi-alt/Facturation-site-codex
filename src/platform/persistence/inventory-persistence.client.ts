@@ -34,6 +34,7 @@ export function persistInventoryOperation(operation: "createWarehouse", payload:
 export function persistInventoryOperation(operation: "updateWarehouse", payload: { warehouseId: string; code?: string; name?: string; description?: string; active?: boolean; isDefault?: boolean }): Promise<unknown>;
 export function persistInventoryOperation(operation: "archiveWarehouse", payload: { warehouseId: string }): Promise<unknown>;
 export function persistInventoryOperation(operation: "postMovement", payload: PostMovementInput): Promise<unknown>;
+export function persistInventoryOperation(operation: "reconcileValuation", payload?: undefined): Promise<unknown>;
 export function persistInventoryOperation(operation: "reserve" | "release", payload: ReservationRequest): Promise<unknown>;
 export function persistInventoryOperation(operation: string, payload: unknown) {
   return fetch("/api/persistence/inventory", {

@@ -4,6 +4,7 @@ import {
   createInventoryWarehouse,
   loadInventorySnapshot,
   postInventoryMovement,
+  reconcileInventoryValuation,
   updateInventoryWarehouse
 } from "@/server/persistence/inventory-repository";
 import { requirePersistenceTenantScope } from "@/server/persistence/tenant-scope";
@@ -14,6 +15,7 @@ type InventoryRequest =
   | { operation: "updateWarehouse"; payload: { warehouseId: string } & Parameters<typeof updateInventoryWarehouse>[2] }
   | { operation: "archiveWarehouse"; payload: { warehouseId: string } }
   | { operation: "postMovement"; payload: PostMovementInput }
+  | { operation: "reconcileValuation"; payload?: undefined }
   | { operation: "reserve"; payload: ReservationRequest }
   | { operation: "release"; payload: ReservationRequest };
 
@@ -50,6 +52,11 @@ export async function POST(request: Request) {
     if (body.operation === "postMovement") {
       const record = await postInventoryMovement(scope, body.payload);
       return NextResponse.json({ record, snapshot: await loadInventorySnapshot(scope) });
+    }
+
+    if (body.operation === "reconcileValuation") {
+      const snapshot = await reconcileInventoryValuation(scope);
+      return NextResponse.json({ snapshot });
     }
 
     if (body.operation === "reserve") {

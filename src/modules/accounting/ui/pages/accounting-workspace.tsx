@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Archive, BookOpen, CalendarClock, CheckCircle2, Edit3, FileSpreadsheet, Landmark, Link2, LockKeyhole, Plus, RefreshCw, RotateCcw, Save, Scale, Search, ShieldCheck, ShoppingCart, Unlock } from "lucide-react";
+import { Archive, BookOpen, Boxes, CalendarClock, CheckCircle2, Edit3, FileSpreadsheet, Landmark, Link2, LockKeyhole, Plus, RefreshCw, RotateCcw, Save, Scale, Search, ShieldCheck, ShoppingCart, Unlock } from "lucide-react";
 import { clsx } from "clsx";
 import { EntityDialog } from "@/ui/dialogs/entity-dialog";
 import {
@@ -15,13 +15,16 @@ import {
   postSalesInvoiceToAccounting,
   postSalesPaymentToAccounting,
   postSupplierBillToAccounting,
+  postInventoryCogsToAccounting,
   closeAccountingPeriod,
   reopenAccountingPeriod,
   reverseAccountingJournalEntry,
   saveApPostingSettings,
-  saveCommercialPostingSettings
+  saveCommercialPostingSettings,
+  saveInventoryPostingSettings
 } from "@/platform/persistence/accounting-persistence.client";
 import type { CrmSalesPersistenceSnapshot } from "@/platform/persistence/crm-sales-persistence.client";
+import type { InventorySnapshot } from "@/platform/persistence/inventory-persistence.client";
 import type { ProcurementSnapshot } from "@/platform/persistence/procurement-persistence.client";
 import { getInvoiceTotals, type Invoice } from "@/modules/sales/invoices";
 import type { Payment } from "@/modules/sales/payments";
@@ -35,6 +38,7 @@ import {
   type AccountingApPostingSettings,
   type AccountingAccountId,
   type AccountingCommercialPostingSettings,
+  type AccountingInventoryPostingSettings,
   type AccountingAccountType,
   type AccountingAmount,
   type AccountingJournal,
@@ -54,7 +58,7 @@ import {
   type TrialBalanceReport
 } from "@/modules/accounting";
 
-type FinanceTab = "overview" | "accounts" | "journals" | "entries" | "periods" | "sales-integration" | "ap-integration" | "ledger" | "trial-balance" | "profit-loss" | "balance-sheet";
+type FinanceTab = "overview" | "accounts" | "journals" | "entries" | "periods" | "sales-integration" | "ap-integration" | "inventory-integration" | "ledger" | "trial-balance" | "profit-loss" | "balance-sheet";
 type Notice = { tone: "success" | "error"; message: string };
 type AccountForm = {
   id?: AccountingAccountId;
@@ -105,6 +109,12 @@ type ApSettingsForm = {
   taxRecoverableAccountId: string;
   functionalCurrency: string;
 };
+type InventorySettingsForm = {
+  inventoryJournalId: string;
+  inventoryAssetAccountId: string;
+  cogsAccountId: string;
+  functionalCurrency: string;
+};
 type PeriodForm = {
   id?: AccountingPeriodId;
   name: string;
@@ -126,6 +136,7 @@ const tabs = [
   { id: "periods", label: "Périodes" },
   { id: "sales-integration", label: "Intégration ventes" },
   { id: "ap-integration", label: "Intégration achats" },
+  { id: "inventory-integration", label: "Intégration stock" },
   { id: "ledger", label: "Grand livre" },
   { id: "trial-balance", label: "Balance" },
   { id: "profit-loss", label: "Résultat" },
@@ -187,6 +198,13 @@ const emptyApSettingsForm: ApSettingsForm = {
   functionalCurrency: DEFAULT_ACCOUNTING_FUNCTIONAL_CURRENCY
 };
 
+const emptyInventorySettingsForm: InventorySettingsForm = {
+  inventoryJournalId: "",
+  inventoryAssetAccountId: "",
+  cogsAccountId: "",
+  functionalCurrency: DEFAULT_ACCOUNTING_FUNCTIONAL_CURRENCY
+};
+
 const emptyPeriodForm: PeriodForm = {
   name: "",
   startDate: new Date().toISOString().slice(0, 10),
@@ -221,8 +239,10 @@ export function AccountingWorkspace() {
   const [balanceSheet, setBalanceSheet] = useState<BalanceSheetReport | null>(null);
   const [salesSnapshot, setSalesSnapshot] = useState<Pick<CrmSalesPersistenceSnapshot, "invoices" | "payments">>({ invoices: [], payments: [] });
   const [procurementSnapshot, setProcurementSnapshot] = useState<Pick<ProcurementSnapshot, "supplierBills">>({ supplierBills: [] });
+  const [inventorySnapshot, setInventorySnapshot] = useState<Pick<InventorySnapshot, "valuationEvents" | "valuationRows">>({ valuationEvents: [], valuationRows: [] });
   const [commercialSettingsForm, setCommercialSettingsForm] = useState<CommercialSettingsForm>(emptyCommercialSettingsForm);
   const [apSettingsForm, setApSettingsForm] = useState<ApSettingsForm>(emptyApSettingsForm);
+  const [inventorySettingsForm, setInventorySettingsForm] = useState<InventorySettingsForm>(emptyInventorySettingsForm);
 
   const refreshReports = useCallback(async () => {
     const payload = {
@@ -250,8 +270,10 @@ export function AccountingWorkspace() {
       setSnapshot(nextSnapshot);
       setCommercialSettingsForm(settingsToForm(nextSnapshot.commercialPostingSettings));
       setApSettingsForm(apSettingsToForm(nextSnapshot.apPostingSettings));
+      setInventorySettingsForm(inventorySettingsToForm(nextSnapshot.inventoryPostingSettings));
       setSalesSnapshot(await loadSalesSources());
       setProcurementSnapshot(await loadProcurementSources());
+      setInventorySnapshot(await loadInventorySources());
       await refreshReports();
     } catch (caught) {
       setNotice({ tone: "error", message: caught instanceof Error ? caught.message : "Chargement Finance impossible." });
@@ -492,6 +514,33 @@ export function AccountingWorkspace() {
     }
   }
 
+  async function saveInventorySettings() {
+    setSaving(true);
+    setNotice(null);
+    try {
+      const now = new Date().toISOString();
+      const existing = snapshot.inventoryPostingSettings;
+      const settings: AccountingInventoryPostingSettings = {
+        tenantCompanyId: "" as AccountingInventoryPostingSettings["tenantCompanyId"],
+        inventoryJournalId: optionalId(inventorySettingsForm.inventoryJournalId) as AccountingInventoryPostingSettings["inventoryJournalId"] | undefined,
+        inventoryAssetAccountId: optionalId(inventorySettingsForm.inventoryAssetAccountId) as AccountingInventoryPostingSettings["inventoryAssetAccountId"] | undefined,
+        cogsAccountId: optionalId(inventorySettingsForm.cogsAccountId) as AccountingInventoryPostingSettings["cogsAccountId"] | undefined,
+        functionalCurrency: inventorySettingsForm.functionalCurrency.trim().toUpperCase() || DEFAULT_ACCOUNTING_FUNCTIONAL_CURRENCY,
+        createdAt: existing?.createdAt ?? now,
+        updatedAt: now
+      };
+      const response = await saveInventoryPostingSettings(settings);
+      setSnapshot(response.snapshot);
+      setInventorySettingsForm(inventorySettingsToForm(response.record));
+      setNotice({ tone: "success", message: "Configuration stock enregistrée." });
+      await refreshReports();
+    } catch (caught) {
+      setNotice({ tone: "error", message: caught instanceof Error ? caught.message : "Configuration stock non enregistrée." });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function postCommercialSource(kind: "invoice" | "payment", id: string) {
     setSaving(true);
     setNotice(null);
@@ -518,6 +567,22 @@ export function AccountingWorkspace() {
       await refreshReports();
     } catch (caught) {
       setNotice({ tone: "error", message: caught instanceof Error ? caught.message : "Comptabilisation achats refusée." });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function postInventorySource(id: string) {
+    setSaving(true);
+    setNotice(null);
+    try {
+      const response = await postInventoryCogsToAccounting(id);
+      setSnapshot(response.snapshot);
+      setInventorySnapshot(await loadInventorySources());
+      setNotice({ tone: "success", message: "COGS comptabilisé." });
+      await refreshReports();
+    } catch (caught) {
+      setNotice({ tone: "error", message: caught instanceof Error ? caught.message : "Comptabilisation stock refusée." });
     } finally {
       setSaving(false);
     }
@@ -592,6 +657,7 @@ export function AccountingWorkspace() {
         {activeTab === "periods" && <PeriodsSection periods={snapshot.periods ?? []} query={query} setQuery={setQuery} saving={saving} onCreate={() => openPeriodDialog()} onEdit={openPeriodDialog} onTransition={transitionPeriod} />}
         {activeTab === "sales-integration" && <SalesIntegrationSection accounts={snapshot.accounts} journals={snapshot.journals} settings={commercialSettingsForm} onSettingsChange={setCommercialSettingsForm} onSaveSettings={saveCommercialSettings} invoices={salesSnapshot.invoices} payments={salesSnapshot.payments} statuses={snapshot.commercialSources} saving={saving} onPost={postCommercialSource} />}
         {activeTab === "ap-integration" && <ApIntegrationSection accounts={snapshot.accounts} journals={snapshot.journals} settings={apSettingsForm} onSettingsChange={setApSettingsForm} onSaveSettings={saveApSettings} supplierBills={procurementSnapshot.supplierBills} statuses={snapshot.apSources} saving={saving} onPost={postApSource} />}
+        {activeTab === "inventory-integration" && <InventoryIntegrationSection accounts={snapshot.accounts} journals={snapshot.journals} settings={inventorySettingsForm} onSettingsChange={setInventorySettingsForm} onSaveSettings={saveInventorySettings} valuationEvents={inventorySnapshot.valuationEvents ?? []} statuses={snapshot.inventorySources} saving={saving} onPost={postInventorySource} />}
         {activeTab === "ledger" && <LedgerSection accounts={snapshot.accounts} ledger={ledger} fromDate={fromDate} toDate={toDate} accountId={ledgerAccountId} onAccountChange={setLedgerAccountId} onFromDateChange={setFromDate} onToDateChange={setToDate} onRefresh={refreshReports} />}
         {activeTab === "trial-balance" && <TrialBalanceSection trialBalance={trialBalance} fromDate={fromDate} toDate={toDate} onFromDateChange={setFromDate} onToDateChange={setToDate} onRefresh={refreshReports} />}
         {activeTab === "profit-loss" && <ProfitLossSection profitLoss={profitLoss} fromDate={fromDate} toDate={toDate} onFromDateChange={setFromDate} onToDateChange={setToDate} onRefresh={refreshReports} />}
@@ -1352,6 +1418,113 @@ function ApSourceTable({ emptyDescription, emptyTitle, rows, saving, title }: {
   );
 }
 
+function InventoryIntegrationSection({ accounts, journals, onPost, onSaveSettings, onSettingsChange, saving, settings, statuses, valuationEvents }: {
+  accounts: readonly AccountingAccount[];
+  journals: readonly AccountingJournal[];
+  onPost: (id: string) => void;
+  onSaveSettings: () => void;
+  onSettingsChange: (settings: InventorySettingsForm) => void;
+  saving: boolean;
+  settings: InventorySettingsForm;
+  statuses: AccountingSnapshot["inventorySources"] | undefined;
+  valuationEvents: NonNullable<InventorySnapshot["valuationEvents"]>;
+}) {
+  const accountOptions = accounts.filter((account) => account.active).map((account) => [account.id, `${account.code} · ${account.name}`] as const);
+  const inventoryJournalOptions = journals.filter((journal) => journal.active && journal.type === "general").map((journal) => [journal.id, `${journal.code} · ${journal.name}`] as const);
+  const statusByEvent = new Map((statuses?.cogsEvents ?? []).map((status) => [status.sourceId, status]));
+  const cogsEvents = valuationEvents.filter((event) => event.eventType === "OUTBOUND" && event.totalValue > 0);
+
+  return (
+    <section className={panelClassName}>
+      <SectionToolbar title="Intégration stock" description="Comptabilisation contrôlée du COGS depuis les sorties de stock valorisées.">
+        <button type="button" onClick={onSaveSettings} disabled={saving} className={primaryButtonClassName}><Save size={16} /> Enregistrer la configuration</button>
+      </SectionToolbar>
+      <div className="grid gap-5 p-4">
+        <div className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/40 md:grid-cols-2 xl:grid-cols-4">
+          <SelectField label="Journal stock" value={settings.inventoryJournalId} onChange={(inventoryJournalId) => onSettingsChange({ ...settings, inventoryJournalId })} options={[["", "Choisir un journal"], ...inventoryJournalOptions]} />
+          <SelectField label="Compte Stock" value={settings.inventoryAssetAccountId} onChange={(inventoryAssetAccountId) => onSettingsChange({ ...settings, inventoryAssetAccountId })} options={[["", "Choisir un compte"], ...accountOptions]} />
+          <SelectField label="Compte COGS" value={settings.cogsAccountId} onChange={(cogsAccountId) => onSettingsChange({ ...settings, cogsAccountId })} options={[["", "Choisir un compte"], ...accountOptions]} />
+          <TextField label="Devise fonctionnelle" value={settings.functionalCurrency} onChange={(functionalCurrency) => onSettingsChange({ ...settings, functionalCurrency })} helper="Les sorties valorisées V1 refusent les devises différentes." />
+        </div>
+
+        <InventoryCogsTable
+          title="Sorties valorisées à comptabiliser"
+          emptyTitle="Aucune sortie valorisée"
+          emptyDescription="Synchronisez la valorisation depuis l'inventaire après avoir posté des livraisons client."
+          rows={cogsEvents.map((event) => ({
+            id: event.id,
+            number: event.sourceId,
+            sourceType: event.sourceType,
+            date: event.occurredAt,
+            quantity: event.quantity,
+            unitCost: event.unitCost,
+            amount: event.totalValue,
+            currency: event.currency,
+            postingStatus: statusByEvent.get(event.id),
+            actionLabel: "Comptabiliser le COGS",
+            onPost: () => onPost(event.id)
+          }))}
+          saving={saving}
+        />
+
+        <div className="rounded-2xl border border-dashed border-slate-200 p-4 text-sm font-semibold text-slate-500 dark:border-hicotech-dark-border dark:text-slate-300">
+          {"Les réceptions fournisseur alimentent la valorisation moyenne mobile. L'écriture d'entrée Stock/GRNI est différée tant que le rapprochement GRNI avec les factures fournisseurs n'est pas disponible."}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function InventoryCogsTable({ emptyDescription, emptyTitle, rows, saving, title }: {
+  emptyDescription: string;
+  emptyTitle: string;
+  rows: readonly {
+    id: string;
+    number: string;
+    sourceType: string;
+    date: string;
+    quantity: number;
+    unitCost: number;
+    amount: number;
+    currency: string;
+    postingStatus?: { status: "not_posted" | "draft" | "posted" | "reversed"; journalEntryNumber?: string };
+    actionLabel: string;
+    onPost: () => void;
+  }[];
+  saving: boolean;
+  title: string;
+}) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-hicotech-dark-border">
+      <div className="bg-white px-4 py-3 dark:bg-hicotech-dark-card"><h3 className="font-display text-base font-black">{title}</h3></div>
+      <TableShell empty={rows.length === 0} emptyTitle={emptyTitle} emptyDescription={emptyDescription}>
+        <thead className={tableHeadClassName}><tr><th className="px-4 py-3">Source</th><th className="px-4 py-3">Date</th><th className="px-4 py-3 text-right">Quantité</th><th className="px-4 py-3 text-right">Coût moyen</th><th className="px-4 py-3">Comptabilité</th><th className="px-4 py-3 text-right">COGS</th><th className="px-4 py-3 text-right">Action</th></tr></thead>
+        <tbody className={tableBodyClassName}>
+          {rows.map((row) => {
+            const posted = row.postingStatus?.status === "posted";
+            const reversed = row.postingStatus?.status === "reversed";
+            return (
+              <tr key={row.id}>
+                <td className="px-4 py-3"><p className="font-black text-hicotech-navy dark:text-white">{row.number}</p><p className="text-xs font-semibold text-slate-500">{row.sourceType}</p></td>
+                <td className="px-4 py-3">{formatDate(row.date)}</td>
+                <td className="px-4 py-3 text-right font-bold">{formatNumber(row.quantity)}</td>
+                <td className="px-4 py-3 text-right font-bold">{formatAccountingAmount(moneyToAmount(row.unitCost), row.currency)}</td>
+                <td className="px-4 py-3"><StatusBadge label={reversed ? `Contrepassé · ${row.postingStatus?.journalEntryNumber ?? ""}` : posted ? `Comptabilisé · ${row.postingStatus?.journalEntryNumber ?? ""}` : "Non comptabilisé"} tone={posted ? "ok" : reversed ? "muted" : "warning"} /></td>
+                <td className="px-4 py-3 text-right font-black">{formatAccountingAmount(moneyToAmount(row.amount), row.currency)}</td>
+                <td className="px-4 py-3 text-right">
+                  <button type="button" onClick={row.onPost} disabled={saving || posted || reversed} className={posted || reversed ? secondaryButtonClassName : primaryButtonClassName} title={reversed ? "Source contrepassee, recomptabilisation différée" : row.actionLabel} aria-label={reversed ? "Source contrepassee, recomptabilisation différée" : row.actionLabel}>
+                    <Boxes size={16} /> {reversed ? "Contrepassé" : posted ? "Déjà comptabilisé" : "Comptabiliser"}
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </TableShell>
+    </div>
+  );
+}
+
 function AccountFormFields({ form, onChange }: { form: AccountForm; onChange: (form: AccountForm) => void }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
@@ -1539,6 +1712,15 @@ function apSettingsToForm(settings?: AccountingApPostingSettings): ApSettingsFor
   };
 }
 
+function inventorySettingsToForm(settings?: AccountingInventoryPostingSettings): InventorySettingsForm {
+  return {
+    inventoryJournalId: settings?.inventoryJournalId ?? "",
+    inventoryAssetAccountId: settings?.inventoryAssetAccountId ?? "",
+    cogsAccountId: settings?.cogsAccountId ?? "",
+    functionalCurrency: settings?.functionalCurrency ?? DEFAULT_ACCOUNTING_FUNCTIONAL_CURRENCY
+  };
+}
+
 function optionalId(value: string) {
   const trimmed = value.trim();
   return trimmed || undefined;
@@ -1562,6 +1744,24 @@ async function loadProcurementSources(): Promise<Pick<ProcurementSnapshot, "supp
   if (!response.ok) return { supplierBills: [] };
   const snapshot = await response.json() as ProcurementSnapshot;
   return { supplierBills: snapshot.supplierBills ?? [] };
+}
+
+async function loadInventorySources(): Promise<Pick<InventorySnapshot, "valuationEvents" | "valuationRows">> {
+  await fetch("/api/persistence/inventory", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ operation: "reconcileValuation" })
+  }).catch(() => undefined);
+  const response = await fetch("/api/persistence/inventory", {
+    method: "GET",
+    headers: { Accept: "application/json" }
+  });
+  if (!response.ok) return { valuationEvents: [], valuationRows: [] };
+  const snapshot = await response.json() as InventorySnapshot;
+  return { valuationEvents: snapshot.valuationEvents ?? [], valuationRows: snapshot.valuationRows ?? [] };
 }
 
 function createEmptyEntryForm(journalId = ""): EntryForm {
@@ -1701,6 +1901,10 @@ function formatBalance(balance: { balanceAmount: AccountingAmount; balanceSide: 
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("fr-MA", { dateStyle: "medium" }).format(new Date(value));
+}
+
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("fr-MA", { maximumFractionDigits: 3 }).format(value);
 }
 
 function normalizeSearch(value: string) {

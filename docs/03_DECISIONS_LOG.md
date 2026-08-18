@@ -1964,3 +1964,65 @@ BOSIACO now separates operational procurement truth from financial accounting tr
 ### Consequences
 
 Supplier Bill posting creates a tenant-scoped Accounting entry with `sourceType = procurement.supplier-bill` and `sourceId = ProcurementSupplierBill.id`. The existing unique source constraint preserves idempotency. Posting debits purchases/expenses, optionally debits recoverable tax, and credits Accounts Payable. Closed accounting periods block AP posting. Supplier payments/AP settlement remain deferred because no active, Procurement-linked payment model exists yet.
+
+## ADR-037 — Inventory Valuation Uses Moving Average V1 and Defers Inbound GRNI Posting
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+
+### Decision
+
+Inventory valuation V1 uses one durable method: `moving_average_v1`.
+
+Posted Inventory stock movements remain the physical source of truth. BOSIACO creates durable `InventoryValuationEvent` records to preserve historical cost by movement. Outbound valuation events can be posted by Finance as COGS using `sourceType = inventory.cogs` and `sourceId = InventoryValuationEvent.id`.
+
+Goods Receipt events establish inventory value, but they do not automatically create inbound `Dr Stock / Cr GRNI` journal entries in V1.
+
+### Motivation
+
+`InventoryStockMovement` did not store immutable monetary cost. Recalculating COGS later from mutable Product cost would make historical financial results unstable. Durable valuation events preserve auditability while keeping physical Inventory and Accounting separated.
+
+SPR-436 already lets Supplier Bills post purchase/AP entries. Adding automatic Goods Receipt capitalization without a real GRNI clearing and 3-way matching flow would risk recognizing the same procurement cost twice.
+
+### Consequences
+
+Inventory now owns physical stock truth and valuation calculation. Finance owns account mappings, period controls and official COGS journal entries.
+
+COGS posting debits the configured COGS account and credits the configured Inventory Asset account. The canonical Accounting source uniqueness constraint prevents duplicate COGS entries for the same valuation event.
+
+Inbound Stock/GRNI accounting, supplier-bill clearing, landed costs, FIFO/LIFO and automatic background posting remain future capabilities.
+
+## ADR-038 — Inventory Valuation Synchronization Uses Read/Precompute/Short-Write Transactions
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+
+### Decision
+
+Inventory valuation synchronization must not perform Product or Procurement source lookups inside its Prisma write transaction.
+
+The canonical synchronization pattern is:
+
+```text
+read posted movements and existing valuation events
+        ↓
+batch preload cost-bearing references
+        ↓
+build deterministic valuation plan
+        ↓
+short write transaction for missing InventoryValuationEvent records
+```
+
+### Motivation
+
+The first SPR-437 implementation reconstructed valuation inside one interactive Prisma transaction. Goods Receipt valuation could execute repeated `procurementGoodsReceipt.findUnique()` lookups in that transaction. On realistic datasets this kept the transaction open beyond Prisma's default 5000 ms interactive transaction timeout.
+
+Increasing the timeout would hide the execution-shape problem. Moving source resolution outside the transaction preserves deterministic valuation while making the write boundary short and reliable.
+
+### Consequences
+
+`InventoryStockMovement` remains the physical stock source of truth, `InventoryValuationEvent` remains the durable valuation source, and `moving_average_v1` semantics are unchanged.
+
+Goods Receipt costs are still resolved from Purchase Order lines. Historical stock without reliable purchase cost remains unvalued. The write transaction only persists planned valuation events and does not resolve Procurement or Product references.

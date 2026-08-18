@@ -8,3 +8,5 @@ export * from "./ap-accounting.types";
 export * from "./ap-accounting.utils";
 export * from "./commercial-accounting.types";
 export * from "./commercial-accounting.utils";
+export * from "./inventory-accounting.types";
+export * from "./inventory-accounting.utils";

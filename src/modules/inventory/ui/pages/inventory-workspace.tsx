@@ -8,7 +8,7 @@ import { useInventoryWorkspace, formatInventoryQuantity, movementTypeLabel, type
 import { InventoryOperationDialog } from "../dialogs/inventory-operation-dialog";
 import { ReservationDialog } from "../dialogs/reservation-dialog";
 import { WarehouseDialog } from "../dialogs/warehouse-dialog";
-import type { InventoryMovementType, Warehouse } from "../../inventory.types";
+import type { InventoryMovementType, InventoryValuationReportRow, Warehouse } from "../../inventory.types";
 
 const tabs = [
   { id: "overview", label: "Vue d'ensemble" },
@@ -45,6 +45,19 @@ export function InventoryWorkspace() {
       setNotice({ tone: "success", message: "Stock actualisé." });
     } catch (caught) {
       setNotice({ tone: "error", message: caught instanceof Error ? caught.message : "Actualisation impossible." });
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  async function reconcileValuation() {
+    setRefreshing(true);
+    setNotice(null);
+    try {
+      await persistInventoryOperation("reconcileValuation");
+      setNotice({ tone: "success", message: "Valorisation stock synchronisée." });
+    } catch (caught) {
+      setNotice({ tone: "error", message: caught instanceof Error ? caught.message : "Valorisation impossible." });
     } finally {
       setRefreshing(false);
     }
@@ -109,7 +122,7 @@ export function InventoryWorkspace() {
         )}
 
         {workspace.activeTab === "overview" && <InventoryOverview workspace={workspace} onOperation={setOperationMode} onCreateWarehouse={() => openWarehouseDialog()} />}
-        {workspace.activeTab === "stock" && <StockSection workspace={workspace} />}
+        {workspace.activeTab === "stock" && <StockSection workspace={workspace} onReconcileValuation={reconcileValuation} refreshing={refreshing} />}
         {workspace.activeTab === "warehouses" && <WarehouseSection workspace={workspace} onArchive={archiveWarehouse} onCreate={() => openWarehouseDialog()} onEdit={openWarehouseDialog} />}
         {workspace.activeTab === "movements" && <MovementsSection workspace={workspace} onOperation={setOperationMode} />}
         {workspace.activeTab === "reservations" && <ReservationsSection workspace={workspace} onCreate={() => setReservationDialog({ mode: "reserve" })} onRelease={(row) => setReservationDialog({
@@ -159,6 +172,7 @@ function InventoryOverview({ onCreateWarehouse, onOperation, workspace }: { onCr
     { label: "Produits suivis", value: workspace.kpis.trackedProducts, icon: PackageCheck },
     { label: "En main", value: formatInventoryQuantity(workspace.kpis.quantityOnHand), icon: PackageCheck },
     { label: "Disponible", value: formatInventoryQuantity(workspace.kpis.quantityAvailable), icon: Boxes },
+    { label: "Valeur stock", value: formatMoney(workspace.kpis.inventoryValue, "MAD"), icon: Boxes },
     { label: "Réservé", value: formatInventoryQuantity(workspace.kpis.quantityReserved), icon: ClipboardList },
     { label: "Projeté", value: formatInventoryQuantity(workspace.kpis.quantityProjected), icon: MoveRight },
     { label: "Stock faible", value: workspace.kpis.lowStock, icon: CircleAlert },
@@ -220,12 +234,15 @@ function InventoryOverview({ onCreateWarehouse, onOperation, workspace }: { onCr
   );
 }
 
-function StockSection({ workspace }: { workspace: ReturnType<typeof useInventoryWorkspace> }) {
+function StockSection({ onReconcileValuation, refreshing, workspace }: { onReconcileValuation: () => void; refreshing: boolean; workspace: ReturnType<typeof useInventoryWorkspace> }) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-hicotech-dark-border dark:bg-hicotech-dark-card">
       <SectionToolbar title="Stock disponible" description="Solde par produit et entrepôt.">
         <SearchControl value={workspace.stockQuery} onChange={workspace.setStockQuery} placeholder="Produit, SKU, entrepôt..." />
         <WarehouseFilter value={workspace.stockWarehouseId} onChange={workspace.setStockWarehouseId} warehouses={workspace.warehouses} />
+        <button type="button" onClick={onReconcileValuation} disabled={refreshing} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 transition hover:bg-hicotech-cloud focus:outline-none focus:ring-4 focus:ring-hicotech-blue/10 disabled:opacity-60 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/50 dark:text-slate-200">
+          <RotateCw size={16} className={clsx(refreshing && "animate-spin")} /> Synchroniser valorisation
+        </button>
         <button type="button" onClick={() => workspace.setLowOnly(!workspace.lowOnly)} className={clsx("rounded-xl px-3 py-2 text-sm font-bold transition", workspace.lowOnly ? "bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-100" : "border border-slate-200 text-slate-500 hover:bg-slate-50 dark:border-hicotech-dark-border dark:text-slate-300 dark:hover:bg-white/10")}>
           Stock faible
         </button>
@@ -239,12 +256,14 @@ function StockSection({ workspace }: { workspace: ReturnType<typeof useInventory
               <th className="px-4 py-3 text-right">En main</th>
               <th className="px-4 py-3 text-right">Réservé</th>
               <th className="px-4 py-3 text-right">Disponible</th>
+              <th className="px-4 py-3 text-right">Coût moyen</th>
+              <th className="px-4 py-3 text-right">Valeur</th>
               <th className="px-4 py-3">Seuil</th>
               <th className="px-4 py-3">Statut</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-hicotech-dark-border/70">
-            {workspace.filteredStockRows.map((row) => <StockTableRow key={row.id} row={row} />)}
+            {workspace.filteredStockRows.map((row) => <StockTableRow key={row.id} row={row} valuation={workspace.valuationByStockKey.get(`${row.balance.productId}:${row.balance.warehouseId}`)} />)}
           </tbody>
         </table>
         {workspace.filteredStockRows.length === 0 && <EmptyState title="Aucun solde de stock" description="Postez une réception ou un ajustement pour créer le premier solde." />}
@@ -410,7 +429,7 @@ function WarehouseFilter({ onChange, value, warehouses }: { onChange: (value: st
   );
 }
 
-function StockTableRow({ row }: { row: StockRow }) {
+function StockTableRow({ row, valuation }: { row: StockRow; valuation?: InventoryValuationReportRow }) {
   return (
     <tr className="transition hover:bg-hicotech-cloud/60 dark:hover:bg-white/5">
       <td className="px-4 py-3">
@@ -421,6 +440,8 @@ function StockTableRow({ row }: { row: StockRow }) {
       <td className="px-4 py-3 text-right font-bold">{formatInventoryQuantity(row.balance.quantityOnHand)}</td>
       <td className="px-4 py-3 text-right font-bold">{formatInventoryQuantity(row.balance.quantityReserved)}</td>
       <td className="px-4 py-3 text-right font-black text-hicotech-navy dark:text-white">{formatInventoryQuantity(row.balance.quantityAvailable)}</td>
+      <td className="px-4 py-3 text-right font-bold">{valuation ? formatMoney(valuation.averageUnitCost, valuation.currency) : "-"}</td>
+      <td className="px-4 py-3 text-right font-black">{valuation ? formatMoney(valuation.totalValue, valuation.currency) : "-"}</td>
       <td className="px-4 py-3 font-semibold text-slate-500">{row.balance.reorderPoint > 0 ? formatInventoryQuantity(row.balance.reorderPoint) : "Non défini"}</td>
       <td className="px-4 py-3"><StatusBadge label={row.status === "out" ? "Rupture" : row.status === "low" ? "Stock faible" : "OK"} tone={row.status === "ok" ? "ok" : row.status === "low" ? "warning" : "danger"} /></td>
     </tr>
@@ -534,4 +555,8 @@ function referenceTypeLabel(type: string) {
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("fr-MA", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
+}
+
+function formatMoney(value: number, currency: string) {
+  return new Intl.NumberFormat("fr-MA", { style: "currency", currency, minimumFractionDigits: 2 }).format(value);
 }

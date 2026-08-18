@@ -4,6 +4,7 @@ import type {
   AccountingAccount,
   AccountingApPostingSettings,
   AccountingCommercialPostingSettings,
+  AccountingInventoryPostingSettings,
   AccountingJournal,
   AccountingJournalEntry,
   AccountingJournalEntryId,
@@ -128,6 +129,22 @@ export async function saveApPostingSettings(settings: AccountingApPostingSetting
   return await response.json() as { record: AccountingApPostingSettings; snapshot: AccountingSnapshot };
 }
 
+export async function saveInventoryPostingSettings(settings: AccountingInventoryPostingSettings) {
+  const response = await fetch("/api/persistence/accounting", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ operation: "saveInventoryPostingSettings", payload: settings })
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => undefined) as { error?: string } | undefined;
+    throw new Error(body?.error ?? "Configuration stock non enregistrée.");
+  }
+  return await response.json() as { record: AccountingInventoryPostingSettings; snapshot: AccountingSnapshot };
+}
+
 export async function postSalesInvoiceToAccounting(invoiceId: string) {
   return postCommercialSource("postSalesInvoice", invoiceId);
 }
@@ -138,6 +155,10 @@ export async function postSalesPaymentToAccounting(paymentId: string) {
 
 export async function postSupplierBillToAccounting(supplierBillId: string) {
   return postCommercialSource("postSupplierBill", supplierBillId);
+}
+
+export async function postInventoryCogsToAccounting(valuationEventId: string) {
+  return postCommercialSource("postInventoryCogs", valuationEventId);
 }
 
 export async function getAccountingGeneralLedger(payload: AccountingReportPayload = {}) {
@@ -208,7 +229,7 @@ export async function getAccountingBalanceSheet(payload: AccountingReportPayload
   return body.report;
 }
 
-async function postCommercialSource(operation: "postSalesInvoice" | "postSalesPayment" | "postSupplierBill", sourceId: string) {
+async function postCommercialSource(operation: "postSalesInvoice" | "postSalesPayment" | "postSupplierBill" | "postInventoryCogs", sourceId: string) {
   const response = await fetch("/api/persistence/accounting", {
     method: "POST",
     headers: {

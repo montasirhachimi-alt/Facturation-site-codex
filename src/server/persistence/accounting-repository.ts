@@ -6,6 +6,7 @@ import {
   AccountingDomainError,
   ACCOUNTING_WORKSPACE_ID,
   assertPostingDateIsOpen,
+  createInventoryCogsAccountingEntry,
   createSupplierBillAccountingEntry,
   createBalanceSheetReport,
   createGeneralLedgerReport,
@@ -24,6 +25,7 @@ import {
   type AccountingApPostingSettings,
   type AccountingAccountId,
   type AccountingCommercialPostingSettings,
+  type AccountingInventoryPostingSettings,
   type AccountingReportDateScope,
   type BalanceSheetReport,
   type AccountingJournal,
@@ -36,11 +38,13 @@ import {
   type AccountingPeriodId,
   type AccountingTenantCompanyId
 } from "@/modules/accounting";
+import type { InventoryValuationEvent } from "@/modules/inventory";
 import type { SupplierBill } from "@/modules/procurement";
 import type { Invoice } from "@/modules/sales/invoices";
 import type { Payment } from "@/modules/sales/payments";
 import type { QuoteItem } from "@/modules/sales/quotes";
 import { prisma } from "./prisma";
+import { reconcileInventoryValuation } from "./inventory-repository";
 import type { PersistenceTenantScope } from "./tenant-scope";
 
 type DbAccount = Prisma.AccountingAccountGetPayload<Record<string, never>>;
@@ -48,10 +52,12 @@ type DbJournal = Prisma.AccountingJournalGetPayload<Record<string, never>>;
 type DbEntry = Prisma.AccountingJournalEntryGetPayload<{ include: { lines: { orderBy: { position: "asc" } } } }>;
 type DbCommercialSettings = Prisma.AccountingCommercialPostingSettingsGetPayload<Record<string, never>>;
 type DbApSettings = Prisma.AccountingApPostingSettingsGetPayload<Record<string, never>>;
+type DbInventorySettings = Prisma.AccountingInventoryPostingSettingsGetPayload<Record<string, never>>;
 type DbPeriod = Prisma.AccountingPeriodGetPayload<Record<string, never>>;
 type DbSalesInvoice = Prisma.SalesInvoiceGetPayload<{ include: { lines: { orderBy: { position: "asc" } } } }>;
 type DbSalesPayment = Prisma.SalesPaymentGetPayload<Record<string, never>>;
 type DbSupplierBill = Prisma.ProcurementSupplierBillGetPayload<{ include: { lines: { orderBy: { position: "asc" } } } }>;
+type DbInventoryValuationEvent = Prisma.InventoryValuationEventGetPayload<Record<string, never>>;
 
 export type AccountingPersistenceResource = "account" | "journal" | "journalEntryDraft" | "period";
 
@@ -69,10 +75,14 @@ export type AccountingPersistenceSnapshot = Readonly<{
   apSources: {
     supplierBills: readonly { sourceType: "procurement.supplier-bill"; sourceId: string; journalEntryId?: AccountingJournalEntryId; journalEntryNumber?: string; status: "not_posted" | "draft" | "posted" | "reversed"; postedAt?: string; reversedAt?: string }[];
   };
+  inventorySources: {
+    cogsEvents: readonly { sourceType: "inventory.cogs"; sourceId: string; journalEntryId?: AccountingJournalEntryId; journalEntryNumber?: string; status: "not_posted" | "draft" | "posted" | "reversed"; postedAt?: string; reversedAt?: string }[];
+  };
+  inventoryPostingSettings?: AccountingInventoryPostingSettings;
 }>;
 
 export async function loadAccountingSnapshot(scope: PersistenceTenantScope): Promise<AccountingPersistenceSnapshot> {
-  const [accounts, journals, entries, periods, settings, apSettings, sourceStatuses, apSourceStatuses] = await Promise.all([
+  const [accounts, journals, entries, periods, settings, apSettings, inventorySettings, sourceStatuses, apSourceStatuses, inventorySourceStatuses] = await Promise.all([
     prisma.accountingAccount.findMany({ where: { tenantCompanyId: scope.companyId }, orderBy: [{ code: "asc" }] }),
     prisma.accountingJournal.findMany({ where: { tenantCompanyId: scope.companyId }, orderBy: [{ code: "asc" }] }),
     prisma.accountingJournalEntry.findMany({
@@ -83,8 +93,10 @@ export async function loadAccountingSnapshot(scope: PersistenceTenantScope): Pro
     prisma.accountingPeriod.findMany({ where: { tenantCompanyId: scope.companyId }, orderBy: [{ startDate: "asc" }] }),
     prisma.accountingCommercialPostingSettings.findUnique({ where: { tenantCompanyId: scope.companyId } }),
     prisma.accountingApPostingSettings.findUnique({ where: { tenantCompanyId: scope.companyId } }),
+    prisma.accountingInventoryPostingSettings.findUnique({ where: { tenantCompanyId: scope.companyId } }),
     loadCommercialSourceStatuses(scope),
-    loadApSourceStatuses(scope)
+    loadApSourceStatuses(scope),
+    loadInventorySourceStatuses(scope)
   ]);
   const reversalByOriginal = new Map(entries.filter((entry) => entry.reversalOfEntryId).map((entry) => [entry.reversalOfEntryId, entry.id]));
 
@@ -95,8 +107,10 @@ export async function loadAccountingSnapshot(scope: PersistenceTenantScope): Pro
     periods: Object.freeze(periods.map(mapDbPeriod)),
     commercialPostingSettings: settings ? mapDbCommercialSettings(settings) : undefined,
     apPostingSettings: apSettings ? mapDbApSettings(apSettings) : undefined,
+    inventoryPostingSettings: inventorySettings ? mapDbInventorySettings(inventorySettings) : undefined,
     commercialSources: sourceStatuses,
-    apSources: apSourceStatuses
+    apSources: apSourceStatuses,
+    inventorySources: inventorySourceStatuses
   });
 }
 
@@ -228,6 +242,27 @@ export async function persistApPostingSettings(scope: PersistenceTenantScope, se
   return mapDbApSettings(saved);
 }
 
+export async function persistInventoryPostingSettings(scope: PersistenceTenantScope, settings: AccountingInventoryPostingSettings) {
+  const scoped = {
+    ...settings,
+    tenantCompanyId: scope.companyId as AccountingTenantCompanyId,
+    functionalCurrency: normalizeCurrency(settings.functionalCurrency)
+  };
+  await assertInventoryPostingSettingsTenant(scope, scoped);
+  const now = new Date().toISOString();
+
+  const saved = await prisma.accountingInventoryPostingSettings.upsert({
+    where: { tenantCompanyId: scope.companyId },
+    update: inventorySettingsWriteData({ ...scoped, updatedAt: now }, scope),
+    create: {
+      tenantCompanyId: scope.companyId,
+      ...inventorySettingsWriteData({ ...scoped, createdAt: settings.createdAt || now, updatedAt: now }, scope)
+    }
+  });
+
+  return mapDbInventorySettings(saved);
+}
+
 export async function postSalesInvoiceToAccounting(scope: PersistenceTenantScope, invoiceId: string) {
   const existing = await findCommercialSourceEntry(scope, "sales.invoice", invoiceId);
   if (existing) {
@@ -320,6 +355,38 @@ export async function postSupplierBillToAccounting(scope: PersistenceTenantScope
   });
   const saved = await findCommercialSourceEntry(scope, "procurement.supplier-bill", supplierBillId);
   if (!saved) throw new Error("Ecriture fournisseur générée introuvable après comptabilisation.");
+  return mapDbEntry(saved);
+}
+
+export async function postInventoryCogsToAccounting(scope: PersistenceTenantScope, valuationEventId: string) {
+  const existing = await findCommercialSourceEntry(scope, "inventory.cogs", valuationEventId);
+  if (existing) {
+    if (await findReversalOfEntry(scope, existing.id)) throw new Error("Ce COGS a deja ete contrepasse. La recomptabilisation controlee est differee.");
+    return mapDbEntry(existing);
+  }
+
+  await reconcileInventoryValuation(scope);
+  const [settings, valuationEvent, snapshot] = await Promise.all([
+    requireInventoryPostingSettings(scope),
+    prisma.inventoryValuationEvent.findFirst({ where: { companyId: scope.companyId, id: valuationEventId } }),
+    loadAccountingSnapshot(scope)
+  ]);
+  if (!valuationEvent) throw new Error("Evenement de valorisation introuvable pour cette entreprise.");
+  const posted = createInventoryCogsAccountingEntry({
+    valuationEvent: mapDbInventoryValuationEvent(valuationEvent),
+    settings,
+    context: {
+      tenantCompanyId: scope.companyId as AccountingTenantCompanyId,
+      workspaceId: ACCOUNTING_WORKSPACE_ID,
+      userId: scope.userId as AccountingJournalEntry["postedBy"],
+      now: () => new Date().toISOString()
+    }
+  });
+  assertPostingDateIsOpen(posted.entryDate, snapshot.periods);
+  validateCommercialPostedEntry(posted, snapshot);
+  await insertGeneratedJournalEntry(scope, posted);
+  const saved = await findCommercialSourceEntry(scope, "inventory.cogs", valuationEventId);
+  if (!saved) throw new Error("Ecriture COGS générée introuvable après comptabilisation.");
   return mapDbEntry(saved);
 }
 
@@ -500,6 +567,12 @@ async function assertApPostingSettingsTenant(scope: PersistenceTenantScope, sett
   if (settings.taxRecoverableAccountId) await assertAccountTenant(scope, settings.taxRecoverableAccountId, { requireExisting: true });
 }
 
+async function assertInventoryPostingSettingsTenant(scope: PersistenceTenantScope, settings: AccountingInventoryPostingSettings) {
+  if (settings.inventoryJournalId) await assertJournalTenant(scope, settings.inventoryJournalId, { requireExisting: true });
+  if (settings.inventoryAssetAccountId) await assertAccountTenant(scope, settings.inventoryAssetAccountId, { requireExisting: true });
+  if (settings.cogsAccountId) await assertAccountTenant(scope, settings.cogsAccountId, { requireExisting: true });
+}
+
 function assertTenantOwner(scope: PersistenceTenantScope, tenantCompanyId?: string) {
   if (tenantCompanyId && tenantCompanyId !== scope.companyId) throw new Error("Acces refuse: cet enregistrement comptable appartient a une autre entreprise.");
 }
@@ -622,6 +695,18 @@ function apSettingsWriteData(settings: AccountingApPostingSettings, scope: Persi
   };
 }
 
+function inventorySettingsWriteData(settings: AccountingInventoryPostingSettings, scope: PersistenceTenantScope) {
+  return {
+    inventoryJournalId: settings.inventoryJournalId ?? null,
+    inventoryAssetAccountId: settings.inventoryAssetAccountId ?? null,
+    cogsAccountId: settings.cogsAccountId ?? null,
+    functionalCurrency: normalizeCurrency(settings.functionalCurrency),
+    updatedBy: settings.updatedBy ?? scope.userId,
+    createdAt: parseDate(settings.createdAt),
+    updatedAt: parseDate(settings.updatedAt)
+  };
+}
+
 async function requireCommercialPostingSettings(scope: PersistenceTenantScope) {
   const settings = await prisma.accountingCommercialPostingSettings.findUnique({ where: { tenantCompanyId: scope.companyId } });
   if (!settings) throw new Error("Configuration de comptabilisation des ventes manquante.");
@@ -634,7 +719,13 @@ async function requireApPostingSettings(scope: PersistenceTenantScope) {
   return mapDbApSettings(settings);
 }
 
-async function findCommercialSourceEntry(scope: PersistenceTenantScope, sourceType: "sales.invoice" | "sales.payment" | "procurement.supplier-bill", sourceId: string) {
+async function requireInventoryPostingSettings(scope: PersistenceTenantScope) {
+  const settings = await prisma.accountingInventoryPostingSettings.findUnique({ where: { tenantCompanyId: scope.companyId } });
+  if (!settings) throw new Error("Configuration de comptabilisation stock manquante.");
+  return mapDbInventorySettings(settings);
+}
+
+async function findCommercialSourceEntry(scope: PersistenceTenantScope, sourceType: "sales.invoice" | "sales.payment" | "procurement.supplier-bill" | "inventory.cogs", sourceId: string) {
   return await prisma.accountingJournalEntry.findFirst({
     where: { tenantCompanyId: scope.companyId, sourceType, sourceId },
     include: { lines: { orderBy: { position: "asc" } } }
@@ -799,6 +890,41 @@ function mapDbApSettings(row: DbApSettings): AccountingApPostingSettings {
   });
 }
 
+function mapDbInventorySettings(row: DbInventorySettings): AccountingInventoryPostingSettings {
+  return Object.freeze({
+    tenantCompanyId: row.tenantCompanyId as AccountingTenantCompanyId,
+    inventoryJournalId: row.inventoryJournalId as AccountingInventoryPostingSettings["inventoryJournalId"] | undefined,
+    inventoryAssetAccountId: row.inventoryAssetAccountId as AccountingInventoryPostingSettings["inventoryAssetAccountId"] | undefined,
+    cogsAccountId: row.cogsAccountId as AccountingInventoryPostingSettings["cogsAccountId"] | undefined,
+    functionalCurrency: row.functionalCurrency,
+    updatedBy: row.updatedBy as AccountingInventoryPostingSettings["updatedBy"] | undefined,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString()
+  });
+}
+
+function mapDbInventoryValuationEvent(row: DbInventoryValuationEvent): InventoryValuationEvent {
+  return Object.freeze({
+    id: row.id,
+    companyId: row.companyId as InventoryValuationEvent["companyId"],
+    productId: row.productId as InventoryValuationEvent["productId"],
+    warehouseId: row.warehouseId as InventoryValuationEvent["warehouseId"] | undefined,
+    movementId: row.movementId as InventoryValuationEvent["movementId"],
+    eventType: row.eventType as InventoryValuationEvent["eventType"],
+    valuationMethod: row.valuationMethod as InventoryValuationEvent["valuationMethod"],
+    quantity: decimalToNumber(row.quantity),
+    unitCost: decimalToNumber(row.unitCost),
+    totalValue: decimalToNumber(row.totalValue),
+    currency: row.currency,
+    sourceType: row.sourceType,
+    sourceId: row.sourceId,
+    occurredAt: row.occurredAt.toISOString(),
+    createdBy: row.createdBy as InventoryValuationEvent["createdBy"] | undefined,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString()
+  });
+}
+
 function mapDbSalesInvoice(row: DbSalesInvoice): Invoice {
   return Object.freeze({
     id: row.id as Invoice["id"],
@@ -947,7 +1073,26 @@ async function loadApSourceStatuses(scope: PersistenceTenantScope): Promise<Acco
   });
 }
 
-function mapSourceStatus<TSourceType extends "sales.invoice" | "sales.payment" | "procurement.supplier-bill">(
+async function loadInventorySourceStatuses(scope: PersistenceTenantScope): Promise<AccountingPersistenceSnapshot["inventorySources"]> {
+  const [cogsEvents, entries] = await Promise.all([
+    prisma.inventoryValuationEvent.findMany({ where: { companyId: scope.companyId, eventType: "OUTBOUND" }, select: { id: true } }),
+    prisma.accountingJournalEntry.findMany({
+      where: { tenantCompanyId: scope.companyId, sourceType: "inventory.cogs" },
+      select: { id: true, number: true, sourceType: true, sourceId: true, status: true, postedAt: true }
+    })
+  ]);
+  const reversals = entries.length === 0 ? [] : await prisma.accountingJournalEntry.findMany({
+    where: { tenantCompanyId: scope.companyId, sourceType: "accounting.reversal", sourceId: { in: entries.map((entry) => entry.id) } },
+    select: { id: true, sourceId: true, postedAt: true }
+  });
+  const reversalByEntry = new Map(reversals.map((entry) => [entry.sourceId, entry]));
+  const entryBySource = new Map(entries.map((entry) => [`${entry.sourceType}:${entry.sourceId}`, entry]));
+  return Object.freeze({
+    cogsEvents: Object.freeze(cogsEvents.map((event) => mapSourceStatus("inventory.cogs", event.id, entryBySource, reversalByEntry)))
+  });
+}
+
+function mapSourceStatus<TSourceType extends "sales.invoice" | "sales.payment" | "procurement.supplier-bill" | "inventory.cogs">(
   sourceType: TSourceType,
   sourceId: string,
   entryBySource: Map<string, { id: string; number: string; status: string; postedAt: Date | null }>,
@@ -984,6 +1129,10 @@ function parseDate(value: string) {
 
 function parseOptionalDate(value?: string) {
   return value ? new Date(value) : null;
+}
+
+function decimalToNumber(value: Prisma.Decimal | number) {
+  return typeof value === "number" ? value : value.toNumber();
 }
 
 function normalizeCurrency(value: string) {

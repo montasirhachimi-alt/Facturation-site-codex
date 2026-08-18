@@ -33,6 +33,8 @@ export class InventoryService {
   private readonly warehouses = new Map<InventoryWarehouseId, Warehouse>();
   private readonly balances = new Map<string, InventoryBalance>();
   private readonly movements = new Map<InventoryMovementId, StockMovement>();
+  private valuationEvents: InventorySnapshot["valuationEvents"] = Object.freeze([]);
+  private valuationRows: InventorySnapshot["valuationRows"] = Object.freeze([]);
   private readonly now: () => string;
   private readonly createWarehouseId: () => InventoryWarehouseId;
   private readonly createMovementId: () => InventoryMovementId;
@@ -57,6 +59,8 @@ export class InventoryService {
     snapshot.warehouses.forEach((warehouse) => this.warehouses.set(warehouse.id, freezeWarehouse(warehouse)));
     snapshot.balances.forEach((balance) => this.balances.set(balanceKey(balance.companyId, balance.productId, balance.warehouseId), freezeBalance(balance)));
     snapshot.movements.forEach((movement) => this.movements.set(movement.id, freezeMovement(movement)));
+    this.valuationEvents = Object.freeze([...(snapshot.valuationEvents ?? [])]);
+    this.valuationRows = Object.freeze([...(snapshot.valuationRows ?? [])]);
   }
 
   getSnapshot(companyId?: InventoryCompanyId): InventorySnapshot {
@@ -66,7 +70,9 @@ export class InventoryService {
     return Object.freeze({
       warehouses: Object.freeze(warehouses),
       balances: Object.freeze(balances),
-      movements: Object.freeze(movements)
+      movements: Object.freeze(movements),
+      valuationEvents: Object.freeze((this.valuationEvents ?? []).filter((event) => !companyId || event.companyId === companyId)),
+      valuationRows: Object.freeze((this.valuationRows ?? []).filter((row) => !companyId || row.companyId === companyId))
     });
   }
 
