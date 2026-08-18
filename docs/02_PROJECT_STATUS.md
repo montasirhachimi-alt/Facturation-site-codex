@@ -11,17 +11,17 @@ This document is the current repository reality. It is intentionally not a sprin
 | Product | BOSIACO, still using some HicoPilot naming in legacy files and code comments. |
 | Stage | Alpha product moving from ERP Core into Business Platform foundations. |
 | Default runtime edition | `alpha.crm-sales` from `src/platform/editions/edition.profiles.ts`. |
-| Current default scope | Dashboard, CRM, Sales quotes/orders/delivery notes/shipments/invoices/payments, Product Catalog, Inventory and Procurement. |
-| Latest completed sprint reflected in code | SPR-428 — Procurement Analytics & Cockpit Enrichment. |
+| Current default scope | Dashboard, CRM, Sales quotes/orders/delivery notes/shipments/invoices/payments, Product Catalog, Inventory, Procurement and Finance Operations. |
+| Latest completed sprint reflected in code | SPR-434 — Financial Statements & Finance Intelligence V1. |
 | Latest roadmap reconciliation | SPR-429 — Post-Procurement Roadmap Reconciliation & Next Core Domain Decision. |
-| Important caveat | Sales Orders, Delivery Notes and Shipments are now enabled in default `alpha.crm-sales` after authenticated end-to-end Sales Operations QA. The internal `sales-operations` profile remains available as a QA compatibility profile, not as the default product gate. |
+| Important caveat | Finance Operations is active for manual accounting, controlled Sales invoice/payment posting and derived financial statements. Procurement/AP, inventory valuation, localization and correction workflows remain future work. |
 
 ## Validation Snapshot
 
 | Command | Latest Reconciled Result |
 | --- | --- |
 | `npm run typecheck` | Passed on 2026-08-17. |
-| `npm run validate:runtime` | Passed on 2026-08-17 with 167/167 checks. |
+| `npm run validate:runtime` | Passed on 2026-08-17 with 186/186 checks. |
 | `npm run build` | Passed on 2026-08-17; known `src/components/pdf-preview.tsx` `<img>` warning remains. |
 | `git diff --check` | Passed on 2026-08-17. |
 
@@ -59,6 +59,9 @@ The current default edition is `alpha.crm-sales`. It activates these user-facing
 | `crm.tasks` | `/crm/tasks` | Active |
 | `crm.notes` | `/crm/notes` | Active |
 | `sales.quotes` | `/sales/quotes` | Active |
+| `sales.orders` | `/sales/orders` | Active |
+| `sales.delivery-notes` | `/sales/delivery-notes` | Active |
+| `sales.shipments` | `/sales/shipments` | Active |
 | `sales.invoices` | `/sales/invoices` | Active |
 | `sales.payments` | `/sales/payments` | Active |
 | `sales.products` | `/sales/products` | Active |
@@ -67,6 +70,7 @@ The current default edition is `alpha.crm-sales`. It activates these user-facing
 | `procurement.suppliers` | `/procurement/suppliers` | Active |
 | `procurement.purchase-orders` | `/procurement/purchase-orders` | Active |
 | `procurement.goods-receipts` | `/procurement/goods-receipts` | Active |
+| `finance.accounting` | `/accounting` | Active |
 
 Hidden platform dependencies such as `platform.persistence` may be automatically enabled by the activation engine but are not product navigation modules.
 
@@ -78,6 +82,7 @@ Hidden platform dependencies such as `platform.persistence` may be automatically
 | `sales.delivery-notes` | Active in Alpha | Persistent Delivery Notes are enabled in `alpha.crm-sales`, post Inventory `ISSUE` movements, consume reservations and support partial/final delivery. |
 | `sales.shipments` | Active in Alpha | Persistent Shipment logistics records are enabled in `alpha.crm-sales`; lifecycle changes remain logistics-only and do not post Inventory movements. |
 | `crm.opportunities` | Hidden | Opportunity UI/domain remnants exist, but the route redirects because persistence is not stable. |
+| `finance.accounting` | Active in Alpha | Manual Finance Operations are available for accounts, journals, draft/post journal entries, General Ledger and Trial Balance. No automatic business posting is active. |
 | Legacy `purchasing.*`, `finance.*`, `hr.*` | Planned/hidden | Legacy demo-era routes are redirected or hidden from active navigation. |
 
 ## Route Availability
@@ -149,6 +154,8 @@ Persistent models are present in `prisma/schema.prisma` and backed by repository
 | Purchase Orders | Persisted as `ProcurementPurchaseOrder` and `ProcurementPurchaseOrderLine`. |
 | Goods Receipts | Persisted as `ProcurementGoodsReceipt` and `ProcurementGoodsReceiptLine`. |
 | Shipments | Persisted as `SalesShipment` and `SalesShipmentLine`; active in Alpha. |
+| Accounting Core | Persisted as `AccountingAccount`, `AccountingJournal`, `AccountingJournalEntry` and `AccountingJournalEntryLine`; active Finance Operations UI consumes General Ledger, Trial Balance, Profit & Loss and Balance Sheet derived read models. |
+| Commercial Accounting Settings | Persisted as `AccountingCommercialPostingSettings`; controls Sales invoice/payment posting mappings and functional currency safety. |
 
 ## Operational Capability Matrix
 
@@ -179,7 +186,7 @@ Persistent models are present in `prisma/schema.prisma` and backed by repository
 | Business Timeline | Foundation plus Sales/Inventory providers; currently integrated on Sales Order details. |
 | Settings | Active but limited to Alpha-safe settings. |
 | HR | Legacy/planned; not production-ready. |
-| Finance/Accounting | Not implemented beyond invoice/payment business records; no ledger, journals, reconciliation or accounting engine. |
+| Finance/Accounting | Active for accounts, journals, draft/post journal entries, General Ledger, Trial Balance, controlled Sales invoice/payment posting, Profit & Loss and Balance Sheet. No Procurement/AP accounting, inventory valuation, reconciliation, statutory localization or correction workflow. |
 | AI Platform | Vision/planned; no AI business feature is implemented. |
 | Workflow Automation | Not implemented as a production workflow engine. |
 
@@ -203,8 +210,11 @@ Known migration folders include:
 - `20260715171406_delivery_notes_physical_issue`
 - `20260724110000_product_operational_reorder_point`
 - `20260813120000_shipment_persistence`
+- `20260817120000_accounting_foundation`
 
-Shipment persistence exists as of this reconciliation.
+Accounting persistence exists as of SPR-430. General Ledger and Trial Balance read models exist as of SPR-431. Finance Operations UI is active as of SPR-432. No additional migration was required by SPR-432.
+
+Commercial Accounting settings and durable source idempotency exist as of SPR-433 through `20260817130000_commercial_accounting_integration`. Profit & Loss and Balance Sheet are derived read models as of SPR-434 and do not add persistence tables or migrations.
 
 ## Search, Command Center and Productivity
 
@@ -235,7 +245,7 @@ The cockpit is read-only projection logic over scoped Procurement snapshots. It 
 | Blueprint Layer | Current State |
 | --- | --- |
 | Product Foundation | Largely complete for the current Alpha product. |
-| ERP Core | Operational across CRM, Sales, Product Catalog, Inventory and Procurement; Accounting is the next major missing core domain. |
+| ERP Core | Operational across CRM, Sales, Product Catalog, Inventory and Procurement; Accounting Core foundation now exists but is not yet a user-facing Finance application. |
 | Zero Friction ERP | Strong foundations exist: Command Center, Quick Create, Smart Picker, inline creation, contextual actions and keyboard support. |
 | Modular Editions Platform | Foundations complete: registry, activation, edition profiles, dynamic navigation/routes and dashboard contributions. No licensing or admin module management UI yet. |
 | Business Platform | Started through Product Catalog, Inventory, Procurement, Sales Orders, Delivery Notes, Shipment foundation and Timeline/Search runtimes. |
@@ -258,28 +268,153 @@ Verified conclusion:
 
 SPR-429 recommends **Accounting Foundation V1** as the next major direction. The next sprint must not rebuild Product Catalog, Inventory, Procurement, Sales Operations, Command Center, Unified Search or platform activation foundations.
 
+## SPR-430 Accounting Foundation Reality
+
+SPR-430 creates the first canonical Global Accounting Core:
+
+- `AccountingAccount`;
+- `AccountingJournal`;
+- `AccountingJournalEntry`;
+- `AccountingJournalEntryLine`.
+
+Accounting is tenant-scoped through the existing `Company` ownership model and `requirePersistenceTenantScope()`.
+
+The domain enforces:
+
+- canonical decimal-string accounting amounts;
+- debit and credit totals calculated deterministically;
+- `draft -> posted` journal entry lifecycle;
+- `TOTAL DEBIT = TOTAL CREDIT` before posting;
+- cross-tenant account/journal rejection;
+- posted-entry mutation restriction through the draft persistence path.
+
+Accounting remains country-agnostic. No Moroccan, French, Spanish or other localization pack is implemented. Company country and functional currency remain separate concepts. Journal entries store functional currency and optional transaction-currency/exchange-rate readiness, but full multi-currency accounting is not implemented.
+
+`finance.accounting` was initially registered as a hidden planned module in SPR-430. SPR-432 promotes it to an active Alpha module after the operational workflow became usable.
+
+## SPR-431 General Ledger and Trial Balance Reality
+
+SPR-431 adds derived Accounting report foundations without adding new persistence tables:
+
+- `GeneralLedgerReport`;
+- `TrialBalanceReport`;
+- deterministic report date scope with opening, period and closing balances;
+- server-side report query helpers on the existing Accounting repository/API boundary.
+
+Official reports derive only from posted `AccountingJournalEntryLine` records. Draft entries are excluded. Totals use functional/base currency amounts and the existing integer minor-unit calculation utilities.
+
+No General Ledger table, Trial Balance table, stored balance aggregate, Finance UI, route, Command Center item or automatic source-document posting was introduced.
+
+## SPR-432 Finance Operations Reality
+
+SPR-432 creates the first user-facing Finance Operations workspace:
+
+- canonical route `/accounting`;
+- Plan comptable tab for accounts;
+- Journaux tab for journals;
+- Écritures tab for manual draft/post journal entries;
+- Grand livre tab consuming the server-derived report;
+- Balance tab consuming the server-derived report.
+
+`finance.accounting` is now active in default `alpha.crm-sales` and appears under the Finance navigation group.
+
+Manual posting uses the canonical Accounting domain and repository. React does not calculate official Ledger or Trial Balance balances. The server scopes UI-created Accounting records to the authenticated tenant/company.
+
+Still not implemented:
+
+- automatic posting from Sales, Procurement, Inventory or Payments;
+- VAT/tax reporting;
+- bank reconciliation;
+- AP/AR workflows;
+- localization packs;
+- fiscal periods.
+
+## SPR-433 Commercial Accounting Integration Reality
+
+SPR-433 introduces controlled Sales-to-Accounting posting for the first commercial sources:
+
+- Sales Invoices;
+- Sales Payments.
+
+The integration is explicit and Finance-owned. Sales records remain commercial documents; Accounting owns the posting configuration, generated journal entries and report impact.
+
+Commercial posting now uses:
+
+- tenant-scoped `AccountingCommercialPostingSettings`;
+- configurable Sales journal;
+- configurable receivable, revenue, settlement and optional tax-payable accounts;
+- `AccountingJournalEntry.sourceType/sourceId` for source traceability;
+- a durable uniqueness constraint on `(tenantCompanyId, sourceType, sourceId)` for idempotency;
+- canonical double-entry validation before a generated entry is persisted as posted.
+
+Supported V1 entries:
+
+- Invoice: debit receivable, credit revenue, credit tax only when an explicit tax account is configured.
+- Payment: debit settlement/bank, credit receivable.
+
+Draft or cancelled invoices/payments are rejected. Currency conversion is not implemented; V1 refuses posting when the source currency differs from the configured functional currency. Generated entries flow naturally into the existing General Ledger and Trial Balance read models.
+
+Still not implemented:
+
+- Procurement/AP accounting;
+- supplier invoices;
+- inventory valuation accounting;
+- automatic background posting;
+- correction/reversal workflows;
+- bank reconciliation;
+- fiscal localization and VAT reports;
+- full accounts receivable aging.
+
+## SPR-434 Financial Statements Reality
+
+SPR-434 adds Finance statement read models derived from canonical posted Accounting history:
+
+- Profit & Loss / Compte de résultat;
+- Balance Sheet / Bilan;
+- small Finance Overview enrichment;
+- one activation-aware Global Dashboard Finance contribution.
+
+Account classification reuses the existing global account types:
+
+- `asset`;
+- `liability`;
+- `equity`;
+- `income`;
+- `expense`.
+
+P&L is period-based and includes only posted `income` and `expense` account movements inside the selected `fromDate` to `toDate` range. Revenue is calculated as credit minus debit on `income` accounts. Expenses are calculated as debit minus credit on `expense` accounts. Net result is revenue minus expenses.
+
+Balance Sheet is derived as of `asOfDate` from cumulative posted account balances. Assets use debit-side balances. Liabilities and equity use credit-side balances. Because BOSIACO does not yet implement fiscal closing or retained earnings transfer, the selected-period net result is shown as a separate derived component:
+
+```text
+Assets = Liabilities + Equity + Current Period Result
+```
+
+No financial statement tables, stored snapshots, fiscal closing system, localization pack or statutory report was added.
+
 ## Known Limitations
 
 - Product Catalog create persistence now maps duplicate, validation, tenant and stale-category failures to controlled French errors, but full authenticated browser creation QA remains blocked in this environment by a local Prisma connection error during tenant bootstrap.
 - Sales Orders, Delivery Notes and Shipments are active in default Alpha after authenticated end-to-end Sales Operations QA.
 - Shipments are durable and active in Alpha; carrier API integration, parcel split, GPS tracking and notification workflows are not implemented.
-- Procurement is active in Alpha, but supplier invoices, approval workflows, purchasing payments and accounting integration are not implemented.
+- Procurement is active in Alpha, but supplier invoices, approval workflows, purchasing payments and procurement accounting integration are not implemented.
 - Product Catalog import/export handles master data only; it does not import stock quantities or inventory movements.
 - Inventory has posting, reservations and availability, but no barcode scanning, manufacturing, POS, carrier integration or advanced warehouse operations.
 - CRM Opportunities/Pipeline remains hidden until a persistent, company-centric model is completed.
-- Accounting is not implemented beyond Sales invoices/payments as commercial records.
+- Finance Operations is active for manual journal entries, controlled Sales invoice/payment posting, Profit & Loss and Balance Sheet, but reconciliation, statutory localization, correction workflows, fiscal closing and tax reporting are not implemented.
 - HR and finance legacy pages exist as routes but are hidden or redirected and should not be treated as production modules.
 - Platform profiles are static; there is no tenant edition assignment, licensing engine, feature flag engine, dashboard editor or module admin UI.
 - Runtime notification, activity and audit layers are foundations, not complete production observability or compliance systems.
+- Local migration application was not executed during SPR-430 because the current `.env` points at a remote Supabase PostgreSQL host; destructive or development migration commands must not be run against non-local databases without an explicit deployment plan.
 - Some historical documents from earlier sprints describe modules as inactive that are now active; this status document supersedes those older statements.
 
 ## Recommended Candidate Directions
 
-1. Accounting Foundation V1: define chart of accounts, journals, journal entries and posting boundaries so commercial documents can later become accounting transactions without duplicating Sales or Procurement workflows.
-2. Sales Operations release monitoring: continue authenticated smoke QA for Quote acceptance, Sales Order reservation, Delivery Note posting, Shipment lifecycle and Inventory reconciliation now that the workflow is visible in Alpha.
-3. Shipment parcel/carrier decision: decide whether future logistics needs one Shipment with package lines or multiple Shipments per Delivery Note.
+1. Accounting Corrections & Period Control: add reversal/correction entries, source edit protection indicators and minimum period controls before broader accounting automation.
+2. Procurement/AP Accounting V1: supplier invoices, AP control account, purchase posting and supplier payment boundaries are the next major financial truth gap.
+3. Sales Operations release monitoring: continue authenticated smoke QA for Quote acceptance, Sales Order reservation, Delivery Note posting, Shipment lifecycle and Inventory reconciliation now that the workflow is visible in Alpha.
 4. Procurement future depth: supplier invoices, approval workflows, supplier payments, returns/reversals and supplier performance remain future work.
-5. Sales Cockpit: useful future Product Experience work, but should not precede the Accounting Foundation decision because the global Dashboard already covers part of the sales operating view.
+5. Sales Cockpit: useful future Product Experience work, but should align with Accounting semantics before becoming the next major cockpit.
 
 ## Documentation Guidance
 

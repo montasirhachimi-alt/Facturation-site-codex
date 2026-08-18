@@ -625,7 +625,8 @@ test("Platform Module Activation resolves the current Alpha profile deterministi
     "procurement.overview",
     "procurement.suppliers",
     "procurement.purchase-orders",
-    "procurement.goods-receipts"
+    "procurement.goods-receipts",
+    "finance.accounting"
   ];
 
   assert(first.errors.length === 0, `Alpha activation should resolve without errors: ${first.errors.map((issue) => issue.message).join("; ")}`);
@@ -634,6 +635,7 @@ test("Platform Module Activation resolves the current Alpha profile deterministi
   assert(!visibleIds.includes("crm.opportunities"), "Hidden opportunities module should not become visible.");
   assert(visibleIds.includes("inventory.stock"), "Inventory should be visible in Alpha once the operational workspace is ready.");
   assert(visibleIds.includes("procurement.purchase-orders"), "Procurement should be visible in Alpha once the operational workspace is ready.");
+  assert(visibleIds.includes("finance.accounting"), "Finance Accounting should be visible in Alpha once the operational workspace is ready.");
   assert(first.activeModuleIds.includes("platform.persistence"), "Required hidden platform dependencies may activate as non-visible foundations.");
   assert(first.automaticallyEnabledModuleIds.includes("platform.persistence"), "Required dependencies should auto-enable deterministically.");
   assert(getCurrentAlphaActivation().profileKey === "alpha.crm-sales", "Current Alpha activation should expose the current Edition profile key.");
@@ -660,6 +662,7 @@ test("Edition Profiles validate the default Alpha Edition and future metadata", 
   assert(alphaActivation.activeModuleIds.includes("sales.payments"), "Current Edition should activate stable Sales payments.");
   assert(alphaActivation.activeModuleIds.includes("sales.products"), "Current Edition should activate the operational Product Catalog.");
   assert(alphaActivation.activeModuleIds.includes("inventory.stock"), "Current Edition should activate the operational Inventory workspace.");
+  assert(alphaActivation.activeModuleIds.includes("finance.accounting"), "Current Edition should activate the operational Finance workspace.");
   assert(commercialEditionIds.includes("basic"), "Basic should exist as commercial metadata.");
   assert(commercialEditionIds.includes("crm"), "CRM should exist as commercial metadata.");
   assert(commercialEditionIds.includes("sales"), "Sales should exist as commercial metadata.");
@@ -884,6 +887,7 @@ test("Dynamic Navigation preserves exact current Alpha Sidebar parity", () => {
     "/procurement/suppliers",
     "/procurement/purchase-orders",
     "/procurement/goods-receipts",
+    "/accounting",
     "/parametres"
   ];
   const sidebarHrefs = getSidebarGroups().flatMap((group) => group.items.map((item) => item.href));
@@ -1054,6 +1058,7 @@ test("Dashboard Contribution Resolver preserves Alpha layout and filters inactiv
     "dashboard.performance",
     "dashboard.recent-activity",
     "dashboard.quick-actions",
+    "dashboard.finance.statements",
     "dashboard.sales.orders-to-confirm",
     "dashboard.sales.orders-reserved",
     "dashboard.sales.deliveries-to-prepare",
@@ -1066,7 +1071,7 @@ test("Dashboard Contribution Resolver preserves Alpha layout and filters inactiv
 
   assert(JSON.stringify(alphaRenderKeys) === JSON.stringify(expectedRenderKeys), `Alpha dashboard render keys should remain deterministic. Received: ${alphaRenderKeys.join(", ")}`);
   assert(alphaLayout.zones.hero.length === 1, "Alpha dashboard should resolve one hero contribution.");
-  assert(alphaLayout.zones.secondary.length === 8, "Alpha dashboard should resolve CRM/Sales, Sales Operations, Inventory and Procurement secondary widgets.");
+  assert(alphaLayout.zones.secondary.length === 9, "Alpha dashboard should resolve CRM/Sales, Finance, Sales Operations, Inventory and Procurement secondary widgets.");
   assert(!basicRenderKeys.includes("dashboard.performance"), "Basic-style activation should filter Sales-owned dashboard contribution.");
   assert(basicRenderKeys.includes("dashboard.hero"), "Basic-style activation should keep Core dashboard contribution.");
 });
@@ -5276,6 +5281,738 @@ test("Timeline shared UI remains domain agnostic and link-safe after Sales Order
   assert(!uiSource.includes("event.metadata") && !uiSource.includes("providerId"), "Shared Timeline UI should not render raw metadata or provider ids.");
   assert(!integrationSource.includes("useEffect(() => ensureDefaultTimelineProvidersRegistered"), "Timeline provider registration should not happen inside React rendering.");
 });
+
+test("Accounting Foundation creates accounts journals and balanced draft entries deterministically", () => {
+  const {
+    AccountingService,
+    ACCOUNTING_WORKSPACE_ID,
+    calculateJournalEntryTotals,
+    isJournalEntryBalanced
+  } = load("src/modules/accounting");
+  const service = new AccountingService({ now: () => "2026-08-17T12:00:00.000Z" });
+  const tenantCompanyId = "tenant-accounting-a";
+
+  const cash = service.createAccount({
+    id: "account-cash",
+    tenantCompanyId,
+    code: "1000",
+    name: "Cash",
+    type: "asset",
+    normalBalance: "debit",
+    createdBy: "user-accounting"
+  });
+  const capital = service.createAccount({
+    id: "account-capital",
+    tenantCompanyId,
+    code: "3000",
+    name: "Capital",
+    type: "equity",
+    normalBalance: "credit",
+    createdBy: "user-accounting"
+  });
+  const journal = service.createJournal({
+    id: "journal-general",
+    tenantCompanyId,
+    code: "GEN",
+    name: "General",
+    type: "general",
+    createdBy: "user-accounting"
+  });
+  const entry = service.createDraftEntry({
+    id: "entry-opening",
+    tenantCompanyId,
+    workspaceId: ACCOUNTING_WORKSPACE_ID,
+    journalId: journal.id,
+    number: "JE-000001",
+    entryDate: "2026-08-17T00:00:00.000Z",
+    description: "Opening entry",
+    sourceType: "manual",
+    functionalCurrency: "MAD",
+    lines: [
+      { id: "line-debit", accountId: cash.id, label: "Cash contribution", debitAmount: "1000.00", creditAmount: "0.00" },
+      { id: "line-credit", accountId: capital.id, label: "Capital", debitAmount: "0.00", creditAmount: "1000.00" }
+    ],
+    createdBy: "user-accounting"
+  });
+
+  const totals = calculateJournalEntryTotals(entry.lines);
+  assert(totals.debitTotal === "1000.00", "Accounting entry should calculate debit total from canonical amounts.");
+  assert(totals.creditTotal === "1000.00", "Accounting entry should calculate credit total from canonical amounts.");
+  assert(entry.debitTotal === "1000.00" && entry.creditTotal === "1000.00", "Draft entry should store computed totals.");
+  assert(isJournalEntryBalanced(entry), "Balanced accounting entry should pass the double-entry check.");
+});
+
+test("Accounting Foundation rejects unbalanced and cross-tenant posting", () => {
+  const { AccountingService, ACCOUNTING_WORKSPACE_ID, AccountingDomainError } = load("src/modules/accounting");
+  const service = new AccountingService({ now: () => "2026-08-17T12:00:00.000Z" });
+  const tenantCompanyId = "tenant-accounting-a";
+
+  const accountA = service.createAccount({ id: "account-a", tenantCompanyId, code: "1000", name: "Bank", type: "asset", normalBalance: "debit" });
+  const accountB = service.createAccount({ id: "account-b", tenantCompanyId, code: "7000", name: "Revenue", type: "income", normalBalance: "credit" });
+  const externalAccount = service.createAccount({ id: "account-external", tenantCompanyId: "tenant-accounting-b", code: "1000", name: "External bank", type: "asset", normalBalance: "debit" });
+  const journal = service.createJournal({ id: "journal-sales", tenantCompanyId, code: "SAL", name: "Sales", type: "sales" });
+
+  const unbalanced = service.createDraftEntry({
+    id: "entry-unbalanced",
+    tenantCompanyId,
+    workspaceId: ACCOUNTING_WORKSPACE_ID,
+    journalId: journal.id,
+    number: "JE-000002",
+    entryDate: "2026-08-17T00:00:00.000Z",
+    functionalCurrency: "MAD",
+    lines: [
+      { id: "line-a", accountId: accountA.id, label: "Debit", debitAmount: "500.00", creditAmount: "0.00" },
+      { id: "line-b", accountId: accountB.id, label: "Credit", debitAmount: "0.00", creditAmount: "499.00" }
+    ]
+  });
+
+  let rejected = false;
+  try {
+    service.postEntry(unbalanced.id, "user-accounting");
+  } catch (error) {
+    rejected = error instanceof AccountingDomainError && error.issues.some((issue) => issue.code === "not-balanced");
+  }
+  assert(rejected, "Unbalanced accounting entry should be rejected before posting.");
+
+  rejected = false;
+  try {
+    service.createDraftEntry({
+      id: "entry-cross-tenant",
+      tenantCompanyId,
+      workspaceId: ACCOUNTING_WORKSPACE_ID,
+      journalId: journal.id,
+      number: "JE-000003",
+      entryDate: "2026-08-17T00:00:00.000Z",
+      functionalCurrency: "MAD",
+      lines: [
+        { id: "line-c", accountId: externalAccount.id, label: "Wrong tenant debit", debitAmount: "10.00", creditAmount: "0.00" },
+        { id: "line-d", accountId: accountB.id, label: "Credit", debitAmount: "0.00", creditAmount: "10.00" }
+      ]
+    });
+  } catch (error) {
+    rejected = error instanceof AccountingDomainError && error.issues.some((issue) => issue.code === "tenant-mismatch");
+  }
+  assert(rejected, "Accounting entries should reject cross-tenant account references.");
+});
+
+test("Accounting Foundation posts balanced entries and locks posted history", () => {
+  const { AccountingService, ACCOUNTING_WORKSPACE_ID, AccountingDomainError } = load("src/modules/accounting");
+  const service = new AccountingService({ now: () => "2026-08-17T12:00:00.000Z" });
+  const tenantCompanyId = "tenant-accounting-a";
+  const debitAccount = service.createAccount({ id: "account-debit", tenantCompanyId, code: "1000", name: "Bank", type: "asset", normalBalance: "debit" });
+  const creditAccount = service.createAccount({ id: "account-credit", tenantCompanyId, code: "7010", name: "Services", type: "income", normalBalance: "credit" });
+  const journal = service.createJournal({ id: "journal-general-post", tenantCompanyId, code: "GEN", name: "General", type: "general" });
+  const draft = service.createDraftEntry({
+    id: "entry-balanced",
+    tenantCompanyId,
+    workspaceId: ACCOUNTING_WORKSPACE_ID,
+    journalId: journal.id,
+    number: "JE-000004",
+    entryDate: "2026-08-17T00:00:00.000Z",
+    functionalCurrency: "MAD",
+    lines: [
+      { id: "line-1", accountId: debitAccount.id, label: "Debit", debitAmount: "750.00", creditAmount: "0.00" },
+      { id: "line-2", accountId: creditAccount.id, label: "Credit", debitAmount: "0.00", creditAmount: "750.00" }
+    ]
+  });
+
+  const posted = service.postEntry(draft.id, "accountant-1");
+  assert(posted.status === "posted", "Balanced accounting entry should become posted.");
+  assert(posted.postedAt === "2026-08-17T12:00:00.000Z", "Posted accounting entry should receive deterministic postedAt.");
+  assert(posted.postedBy === "accountant-1", "Posted accounting entry should preserve posting actor.");
+
+  let locked = false;
+  try {
+    service.updateDraftEntry(posted);
+  } catch (error) {
+    locked = error instanceof AccountingDomainError && error.issues.some((issue) => issue.code === "posted-entry-locked");
+  }
+  assert(locked, "Posted accounting entry should not be silently mutable through draft update.");
+});
+
+test("Accounting Operations is active and visible in Alpha once the workflow is usable", () => {
+  const { bosiacoModuleRegistry } = load("src/platform/modules");
+  const { getCurrentAlphaActivation } = load("src/platform/modules/module-activation.current");
+  const { getActiveModuleNavigationItems } = load("src/platform/modules/module-navigation");
+  const schema = read("prisma/schema.prisma");
+  const migration = read("prisma/migrations/20260817120000_accounting_foundation/migration.sql");
+  const repositorySource = read("src/server/persistence/accounting-repository.ts");
+  const workspaceSource = read("src/modules/accounting/ui/pages/accounting-workspace.tsx");
+  const routeSource = read("src/app/(erp)/accounting/page.tsx");
+
+  const descriptor = bosiacoModuleRegistry.get("finance.accounting");
+  const alpha = getCurrentAlphaActivation();
+  const hrefs = getActiveModuleNavigationItems(alpha).map((item) => item.href);
+
+  assert(descriptor?.status === "alpha" && descriptor.hidden === false && descriptor.route === "/accounting", "Accounting module should be promoted to the canonical Alpha Finance route.");
+  assert(alpha.activeModuleIdSet.has("finance.accounting"), "Accounting should be active in the current Alpha profile.");
+  assert(hrefs.includes("/accounting") && !hrefs.includes("/finance"), "Accounting should add one canonical visible Alpha navigation route.");
+  assert(schema.includes("model AccountingAccount") && schema.includes("model AccountingJournalEntryLine"), "Prisma schema should contain canonical Accounting models.");
+  assert(migration.includes('CREATE TABLE "AccountingJournalEntry"') && migration.includes('FOREIGN KEY ("tenantCompanyId") REFERENCES "Company"'), "Accounting migration should create tenant-scoped journal entries.");
+  assert(repositorySource.includes("scope.companyId as AccountingTenantCompanyId") && repositorySource.includes("Une ecriture comptable postee ne peut pas etre modifiee silencieusement"), "Accounting repository should enforce server-side tenant ownership and posted-history boundaries.");
+  assert(routeSource.includes("<AccountingWorkspace />"), "The canonical Accounting route should render the Finance Operations workspace.");
+  assert(workspaceSource.includes("getAccountingGeneralLedger") && workspaceSource.includes("getAccountingTrialBalance"), "Finance UI should consume server-derived Ledger and Trial Balance reports.");
+  assert(!workspaceSource.includes("@prisma/client"), "Finance UI should not import Prisma directly.");
+});
+
+test("Accounting reports derive a simple General Ledger and Trial Balance from posted entries", () => {
+  const { AccountingService, ACCOUNTING_WORKSPACE_ID, createGeneralLedgerReport, createTrialBalanceReport } = load("src/modules/accounting");
+  const service = new AccountingService({ now: () => "2026-08-17T12:00:00.000Z" });
+  const tenantCompanyId = "tenant-ledger-simple";
+  const cash = service.createAccount({ id: "ledger-simple-cash", tenantCompanyId, code: "1000", name: "Banque", type: "asset", normalBalance: "debit" });
+  const revenue = service.createAccount({ id: "ledger-simple-revenue", tenantCompanyId, code: "7000", name: "Ventes", type: "income", normalBalance: "credit" });
+  const journal = service.createJournal({ id: "ledger-simple-journal", tenantCompanyId, code: "GEN", name: "Operations diverses", type: "general" });
+  const draft = service.createDraftEntry({
+    id: "ledger-simple-entry",
+    tenantCompanyId,
+    workspaceId: ACCOUNTING_WORKSPACE_ID,
+    journalId: journal.id,
+    number: "JE-431-001",
+    entryDate: "2026-08-01T00:00:00.000Z",
+    functionalCurrency: "MAD",
+    lines: [
+      { id: "ledger-simple-line-debit", accountId: cash.id, label: "Encaissement", debitAmount: "1000.00", creditAmount: "0.00" },
+      { id: "ledger-simple-line-credit", accountId: revenue.id, label: "Produit", debitAmount: "0.00", creditAmount: "1000.00" }
+    ]
+  });
+  service.postEntry(draft.id, "accountant-431");
+
+  const query = { tenantCompanyId };
+  const ledger = createGeneralLedgerReport({ accounts: service.listAccounts(), journals: service.listJournals(), journalEntries: service.listJournalEntries(), query });
+  const trial = createTrialBalanceReport({ accounts: service.listAccounts(), journals: service.listJournals(), journalEntries: service.listJournalEntries(), query });
+  const cashLedger = ledger.accounts.find((account) => account.account.id === cash.id);
+  const revenueLedger = ledger.accounts.find((account) => account.account.id === revenue.id);
+
+  assert(cashLedger?.periodDebit === "1000.00" && cashLedger?.closing.debitAmount === "1000.00", "General Ledger should show the posted debit on the cash account.");
+  assert(revenueLedger?.periodCredit === "1000.00" && revenueLedger?.closing.creditAmount === "1000.00", "General Ledger should show the posted credit on the revenue account.");
+  assert(ledger.periodDebitTotal === "1000.00" && ledger.periodCreditTotal === "1000.00", "General Ledger should preserve posted entry balance.");
+  assert(trial.periodDebitTotal === "1000.00" && trial.periodCreditTotal === "1000.00", "Trial Balance should total posted debit and credit movements.");
+  assert(trial.closingDebitTotal === "1000.00" && trial.closingCreditTotal === "1000.00" && trial.balanced, "Trial Balance grand totals should reconcile.");
+});
+
+test("Accounting reports include multiple posted entries without decimal precision drift", () => {
+  const { AccountingService, ACCOUNTING_WORKSPACE_ID, createTrialBalanceReport, createGeneralLedgerReport } = load("src/modules/accounting");
+  const service = new AccountingService({ now: () => "2026-08-17T12:00:00.000Z" });
+  const tenantCompanyId = "tenant-ledger-decimal";
+  const cash = service.createAccount({ id: "ledger-decimal-cash", tenantCompanyId, code: "1000", name: "Banque", type: "asset", normalBalance: "debit" });
+  const revenue = service.createAccount({ id: "ledger-decimal-revenue", tenantCompanyId, code: "7000", name: "Ventes", type: "income", normalBalance: "credit" });
+  const expense = service.createAccount({ id: "ledger-decimal-expense", tenantCompanyId, code: "6000", name: "Achats", type: "expense", normalBalance: "debit" });
+  const journal = service.createJournal({ id: "ledger-decimal-journal", tenantCompanyId, code: "GEN", name: "Operations diverses", type: "general" });
+
+  [
+    ["entry-decimal-010", "0.10", cash.id, revenue.id],
+    ["entry-decimal-020", "0.20", cash.id, revenue.id],
+    ["entry-decimal-030", "0.30", expense.id, cash.id]
+  ].forEach(([entryId, amount, debitAccountId, creditAccountId], index) => {
+    const draft = service.createDraftEntry({
+      id: entryId,
+      tenantCompanyId,
+      workspaceId: ACCOUNTING_WORKSPACE_ID,
+      journalId: journal.id,
+      number: `JE-431-D${index + 1}`,
+      entryDate: `2026-08-0${index + 1}T00:00:00.000Z`,
+      functionalCurrency: "MAD",
+      lines: [
+        { id: `${entryId}-debit`, accountId: debitAccountId, label: "Debit", debitAmount: amount, creditAmount: "0.00" },
+        { id: `${entryId}-credit`, accountId: creditAccountId, label: "Credit", debitAmount: "0.00", creditAmount: amount }
+      ]
+    });
+    service.postEntry(draft.id, "accountant-431");
+  });
+
+  const query = { tenantCompanyId };
+  const ledger = createGeneralLedgerReport({ accounts: service.listAccounts(), journals: service.listJournals(), journalEntries: service.listJournalEntries(), query });
+  const trial = createTrialBalanceReport({ accounts: service.listAccounts(), journals: service.listJournals(), journalEntries: service.listJournalEntries(), query });
+  const cashLedger = ledger.accounts.find((account) => account.account.id === cash.id);
+
+  assert(cashLedger?.periodDebit === "0.30" && cashLedger?.periodCredit === "0.30", "General Ledger should add 0.10 + 0.20 and subtract 0.30 exactly.");
+  assert(cashLedger?.closing.balanceAmount === "0.00" && cashLedger?.closing.balanceSide === "zero", "General Ledger should not leave floating-point residue.");
+  assert(trial.periodDebitTotal === "0.60" && trial.periodCreditTotal === "0.60", "Trial Balance should preserve decimal movement totals exactly.");
+  assert(trial.closingDebitTotal === "0.30" && trial.closingCreditTotal === "0.30" && trial.balanced, "Trial Balance should reconcile after decimal entries.");
+});
+
+test("Accounting reports exclude draft entries from official balances", () => {
+  const { AccountingService, ACCOUNTING_WORKSPACE_ID, createTrialBalanceReport } = load("src/modules/accounting");
+  const service = new AccountingService({ now: () => "2026-08-17T12:00:00.000Z" });
+  const tenantCompanyId = "tenant-ledger-draft";
+  const cash = service.createAccount({ id: "ledger-draft-cash", tenantCompanyId, code: "1000", name: "Banque", type: "asset", normalBalance: "debit" });
+  const revenue = service.createAccount({ id: "ledger-draft-revenue", tenantCompanyId, code: "7000", name: "Ventes", type: "income", normalBalance: "credit" });
+  const journal = service.createJournal({ id: "ledger-draft-journal", tenantCompanyId, code: "GEN", name: "Operations diverses", type: "general" });
+
+  service.createDraftEntry({
+    id: "ledger-draft-entry",
+    tenantCompanyId,
+    workspaceId: ACCOUNTING_WORKSPACE_ID,
+    journalId: journal.id,
+    number: "JE-431-DRAFT",
+    entryDate: "2026-08-01T00:00:00.000Z",
+    functionalCurrency: "MAD",
+    lines: [
+      { id: "ledger-draft-line-debit", accountId: cash.id, label: "Debit brouillon", debitAmount: "999.00", creditAmount: "0.00" },
+      { id: "ledger-draft-line-credit", accountId: revenue.id, label: "Credit brouillon", debitAmount: "0.00", creditAmount: "999.00" }
+    ]
+  });
+
+  const trial = createTrialBalanceReport({
+    accounts: service.listAccounts(),
+    journals: service.listJournals(),
+    journalEntries: service.listJournalEntries(),
+    query: { tenantCompanyId }
+  });
+
+  assert(trial.periodDebitTotal === "0.00" && trial.periodCreditTotal === "0.00", "Draft journal entries should be excluded from official Trial Balance movements.");
+  assert(trial.rows.every((row) => row.closing.balanceAmount === "0.00"), "Draft journal entries should not affect closing balances.");
+});
+
+test("Accounting reports preserve tenant isolation", () => {
+  const { AccountingService, ACCOUNTING_WORKSPACE_ID, createTrialBalanceReport } = load("src/modules/accounting");
+  const service = new AccountingService({ now: () => "2026-08-17T12:00:00.000Z" });
+  const tenants = ["tenant-ledger-a", "tenant-ledger-b"];
+
+  tenants.forEach((tenantCompanyId, tenantIndex) => {
+    const cash = service.createAccount({ id: `ledger-tenant-cash-${tenantIndex}`, tenantCompanyId, code: `10${tenantIndex}0`, name: "Banque", type: "asset", normalBalance: "debit" });
+    const revenue = service.createAccount({ id: `ledger-tenant-revenue-${tenantIndex}`, tenantCompanyId, code: `70${tenantIndex}0`, name: "Ventes", type: "income", normalBalance: "credit" });
+    const journal = service.createJournal({ id: `ledger-tenant-journal-${tenantIndex}`, tenantCompanyId, code: `G${tenantIndex}`, name: "Operations diverses", type: "general" });
+    const amount = tenantIndex === 0 ? "125.00" : "500.00";
+    const draft = service.createDraftEntry({
+      id: `ledger-tenant-entry-${tenantIndex}`,
+      tenantCompanyId,
+      workspaceId: ACCOUNTING_WORKSPACE_ID,
+      journalId: journal.id,
+      number: `JE-431-T${tenantIndex}`,
+      entryDate: "2026-08-01T00:00:00.000Z",
+      functionalCurrency: "MAD",
+      lines: [
+        { id: `ledger-tenant-line-debit-${tenantIndex}`, accountId: cash.id, label: "Debit", debitAmount: amount, creditAmount: "0.00" },
+        { id: `ledger-tenant-line-credit-${tenantIndex}`, accountId: revenue.id, label: "Credit", debitAmount: "0.00", creditAmount: amount }
+      ]
+    });
+    service.postEntry(draft.id, "accountant-431");
+  });
+
+  const trial = createTrialBalanceReport({
+    accounts: service.listAccounts(),
+    journals: service.listJournals(),
+    journalEntries: service.listJournalEntries(),
+    query: { tenantCompanyId: tenants[0] }
+  });
+
+  assert(trial.periodDebitTotal === "125.00" && trial.periodCreditTotal === "125.00", "Trial Balance should include only the requested tenant.");
+  assert(!trial.rows.some((row) => row.account.id.includes("tenant-revenue-1") || row.periodCredit === "500.00"), "Trial Balance should not leak another tenant's accounts or movements.");
+});
+
+test("Accounting reports support opening balance period movement and closing balance date scopes", () => {
+  const { AccountingService, ACCOUNTING_WORKSPACE_ID, createGeneralLedgerReport } = load("src/modules/accounting");
+  const service = new AccountingService({ now: () => "2026-08-17T12:00:00.000Z" });
+  const tenantCompanyId = "tenant-ledger-dates";
+  const cash = service.createAccount({ id: "ledger-date-cash", tenantCompanyId, code: "1000", name: "Banque", type: "asset", normalBalance: "debit" });
+  const revenue = service.createAccount({ id: "ledger-date-revenue", tenantCompanyId, code: "7000", name: "Ventes", type: "income", normalBalance: "credit" });
+  const journal = service.createJournal({ id: "ledger-date-journal", tenantCompanyId, code: "GEN", name: "Operations diverses", type: "general" });
+
+  [
+    ["ledger-date-before", "2026-07-31T12:00:00.000Z", "100.00"],
+    ["ledger-date-inside", "2026-08-10T12:00:00.000Z", "25.00"],
+    ["ledger-date-after", "2026-09-01T12:00:00.000Z", "75.00"]
+  ].forEach(([entryId, entryDate, amount], index) => {
+    const draft = service.createDraftEntry({
+      id: entryId,
+      tenantCompanyId,
+      workspaceId: ACCOUNTING_WORKSPACE_ID,
+      journalId: journal.id,
+      number: `JE-431-F${index}`,
+      entryDate,
+      functionalCurrency: "MAD",
+      lines: [
+        { id: `${entryId}-debit`, accountId: cash.id, label: "Debit", debitAmount: amount, creditAmount: "0.00" },
+        { id: `${entryId}-credit`, accountId: revenue.id, label: "Credit", debitAmount: "0.00", creditAmount: amount }
+      ]
+    });
+    service.postEntry(draft.id, "accountant-431");
+  });
+
+  const ledger = createGeneralLedgerReport({
+    accounts: service.listAccounts(),
+    journals: service.listJournals(),
+    journalEntries: service.listJournalEntries(),
+    query: { tenantCompanyId, fromDate: "2026-08-01", toDate: "2026-08-31" }
+  });
+  const cashLedger = ledger.accounts.find((account) => account.account.id === cash.id);
+
+  assert(cashLedger?.opening.debitAmount === "100.00", "General Ledger should classify entries before fromDate as opening balance.");
+  assert(cashLedger?.periodDebit === "25.00" && cashLedger?.movements.length === 1, "General Ledger should include only period movements inside the date scope.");
+  assert(cashLedger?.closing.debitAmount === "125.00", "General Ledger closing balance should equal opening plus period movement.");
+  assert(ledger.periodDebitTotal === "25.00" && ledger.periodCreditTotal === "25.00", "Scoped General Ledger movement totals should reconcile inside the selected period.");
+});
+
+test("Finance Operations V1 supports account journal draft post ledger and trial balance workflow", () => {
+  const {
+    AccountingDomainError,
+    AccountingService,
+    ACCOUNTING_WORKSPACE_ID,
+    createGeneralLedgerReport,
+    createTrialBalanceReport
+  } = load("src/modules/accounting");
+  const service = new AccountingService({ now: () => "2026-08-17T12:00:00.000Z" });
+  const tenantCompanyId = "tenant-finance-operations";
+
+  const bank = service.createAccount({ id: "finance-ops-bank", tenantCompanyId, code: "512000", name: "Banque", type: "asset", normalBalance: "debit" });
+  const customer = service.createAccount({ id: "finance-ops-customer", tenantCompanyId, code: "411000", name: "Client", type: "asset", normalBalance: "debit" });
+  const journal = service.createJournal({ id: "finance-ops-journal", tenantCompanyId, code: "OD", name: "Operations diverses", type: "general" });
+  const draft = service.createDraftEntry({
+    id: "finance-ops-entry",
+    tenantCompanyId,
+    workspaceId: ACCOUNTING_WORKSPACE_ID,
+    journalId: journal.id,
+    number: "JE-432-001",
+    entryDate: "2026-08-17T00:00:00.000Z",
+    reference: "MANUAL-432",
+    description: "Encaissement manuel",
+    functionalCurrency: "MAD",
+    lines: [
+      { id: "finance-ops-line-bank", accountId: bank.id, label: "Banque", debitAmount: "1000.00", creditAmount: "0.00" },
+      { id: "finance-ops-line-customer", accountId: customer.id, label: "Client", debitAmount: "0.00", creditAmount: "1000.00" }
+    ]
+  });
+
+  let ledger = createGeneralLedgerReport({ accounts: service.listAccounts(), journals: service.listJournals(), journalEntries: service.listJournalEntries(), query: { tenantCompanyId } });
+  let trial = createTrialBalanceReport({ accounts: service.listAccounts(), journals: service.listJournals(), journalEntries: service.listJournalEntries(), query: { tenantCompanyId } });
+  assert(ledger.periodDebitTotal === "0.00" && trial.periodDebitTotal === "0.00", "Draft entries should not affect Finance reports before posting.");
+
+  const posted = service.postEntry(draft.id, "finance-user");
+  ledger = createGeneralLedgerReport({ accounts: service.listAccounts(), journals: service.listJournals(), journalEntries: service.listJournalEntries(), query: { tenantCompanyId, fromDate: "2026-08-01", toDate: "2026-08-31" } });
+  trial = createTrialBalanceReport({ accounts: service.listAccounts(), journals: service.listJournals(), journalEntries: service.listJournalEntries(), query: { tenantCompanyId, fromDate: "2026-08-01", toDate: "2026-08-31" } });
+
+  const bankLedger = ledger.accounts.find((account) => account.account.id === bank.id);
+  const customerLedger = ledger.accounts.find((account) => account.account.id === customer.id);
+  assert(posted.status === "posted", "Balanced manual Finance entry should post through the canonical Accounting service.");
+  assert(bankLedger?.movements.length === 1 && bankLedger.closing.debitAmount === "1000.00", "General Ledger should expose the posted debit movement.");
+  assert(customerLedger?.movements.length === 1 && customerLedger.closing.creditAmount === "1000.00", "General Ledger should expose the posted credit movement.");
+  assert(trial.periodDebitTotal === "1000.00" && trial.periodCreditTotal === "1000.00" && trial.balanced, "Trial Balance should reconcile after manual posting.");
+
+  let unbalancedRejected = false;
+  const unbalanced = service.createDraftEntry({
+    id: "finance-ops-unbalanced",
+    tenantCompanyId,
+    workspaceId: ACCOUNTING_WORKSPACE_ID,
+    journalId: journal.id,
+    number: "JE-432-002",
+    entryDate: "2026-08-17T00:00:00.000Z",
+    functionalCurrency: "MAD",
+    lines: [
+      { id: "finance-ops-unbalanced-debit", accountId: bank.id, label: "Debit", debitAmount: "1000.00", creditAmount: "0.00" },
+      { id: "finance-ops-unbalanced-credit", accountId: customer.id, label: "Credit", debitAmount: "0.00", creditAmount: "900.00" }
+    ]
+  });
+  try {
+    service.postEntry(unbalanced.id, "finance-user");
+  } catch (error) {
+    unbalancedRejected = error instanceof AccountingDomainError && error.issues.some((issue) => issue.code === "not-balanced");
+  }
+  assert(unbalancedRejected, "Finance Operations should reject unbalanced posting through the canonical domain.");
+
+  let postedProtected = false;
+  try {
+    service.updateDraftEntry(posted);
+  } catch (error) {
+    postedProtected = error instanceof AccountingDomainError && error.issues.some((issue) => issue.code === "posted-entry-locked");
+  }
+  assert(postedProtected, "Posted Finance entries should remain protected from silent mutation.");
+});
+
+test("Commercial Accounting maps issued Sales invoices into posted balanced source-linked entries", () => {
+  const {
+    ACCOUNTING_WORKSPACE_ID,
+    createGeneralLedgerReport,
+    createSalesInvoiceAccountingEntry,
+    createTrialBalanceReport
+  } = load("src/modules/accounting");
+  const tenantCompanyId = "tenant-commercial-accounting";
+  const accounts = [
+    { id: "ar", tenantCompanyId, code: "411000", name: "Clients", type: "asset", normalBalance: "debit", active: true, createdAt: "2026-08-17T00:00:00.000Z", updatedAt: "2026-08-17T00:00:00.000Z" },
+    { id: "rev", tenantCompanyId, code: "701000", name: "Ventes", type: "income", normalBalance: "credit", active: true, createdAt: "2026-08-17T00:00:00.000Z", updatedAt: "2026-08-17T00:00:00.000Z" },
+    { id: "tax", tenantCompanyId, code: "445700", name: "TVA collectee", type: "liability", normalBalance: "credit", active: true, createdAt: "2026-08-17T00:00:00.000Z", updatedAt: "2026-08-17T00:00:00.000Z" }
+  ];
+  const journals = [{ id: "sales-journal", tenantCompanyId, code: "VT", name: "Ventes", type: "sales", active: true, createdAt: "2026-08-17T00:00:00.000Z", updatedAt: "2026-08-17T00:00:00.000Z" }];
+  const settings = { tenantCompanyId, salesJournalId: "sales-journal", receivableAccountId: "ar", revenueAccountId: "rev", settlementAccountId: "ar", taxPayableAccountId: "tax", functionalCurrency: "MAD", createdAt: "2026-08-17T00:00:00.000Z", updatedAt: "2026-08-17T00:00:00.000Z" };
+  const invoice = createRuntimeInvoice({ id: "invoice-433", number: "FAC-433-001", status: "issued", items: [{ id: "line-1", description: "Service", quantity: 1, unitPrice: 1000, taxRate: 20 }] });
+
+  const entry = createSalesInvoiceAccountingEntry(invoice, settings, { tenantCompanyId, workspaceId: ACCOUNTING_WORKSPACE_ID, userId: "accountant", now: () => "2026-08-17T10:00:00.000Z" });
+  const ledger = createGeneralLedgerReport({ accounts, journals, journalEntries: [entry], query: { tenantCompanyId } });
+  const trial = createTrialBalanceReport({ accounts, journals, journalEntries: [entry], query: { tenantCompanyId } });
+
+  assert(entry.status === "posted", "Commercial invoice posting should create a posted entry.");
+  assert(entry.sourceType === "sales.invoice" && entry.sourceId === "invoice-433", "Commercial invoice posting should preserve source identity.");
+  assert(entry.debitTotal === "1200.00" && entry.creditTotal === "1200.00", "Commercial invoice posting should balance receivable against revenue and tax.");
+  assert(ledger.periodDebitTotal === "1200.00" && ledger.periodCreditTotal === "1200.00", "Generated invoice entries should feed the General Ledger.");
+  assert(trial.balanced && trial.periodDebitTotal === "1200.00", "Generated invoice entries should feed the Trial Balance.");
+});
+
+test("Commercial Accounting rejects draft invoices missing tax mapping and currency mismatch", () => {
+  const { ACCOUNTING_WORKSPACE_ID, CommercialAccountingError, createSalesInvoiceAccountingEntry } = load("src/modules/accounting");
+  const tenantCompanyId = "tenant-commercial-accounting";
+  const settings = { tenantCompanyId, salesJournalId: "sales-journal", receivableAccountId: "ar", revenueAccountId: "rev", settlementAccountId: "bank", functionalCurrency: "MAD", createdAt: "2026-08-17T00:00:00.000Z", updatedAt: "2026-08-17T00:00:00.000Z" };
+  const context = { tenantCompanyId, workspaceId: ACCOUNTING_WORKSPACE_ID, userId: "accountant", now: () => "2026-08-17T10:00:00.000Z" };
+
+  let draftRejected = false;
+  try {
+    createSalesInvoiceAccountingEntry(createRuntimeInvoice({ id: "draft-invoice", status: "draft" }), settings, context);
+  } catch (error) {
+    draftRejected = error instanceof CommercialAccountingError;
+  }
+  assert(draftRejected, "Draft Sales invoices should not create official accounting history.");
+
+  let missingTaxRejected = false;
+  try {
+    createSalesInvoiceAccountingEntry(createRuntimeInvoice({ id: "taxed-invoice", status: "issued", items: [{ id: "line-1", description: "Service", quantity: 1, unitPrice: 1000, taxRate: 20 }] }), settings, context);
+  } catch (error) {
+    missingTaxRejected = error instanceof CommercialAccountingError && error.message.includes("TVA");
+  }
+  assert(missingTaxRejected, "Taxable invoices should require an explicit tax account mapping.");
+
+  let currencyRejected = false;
+  try {
+    createSalesInvoiceAccountingEntry(createRuntimeInvoice({ id: "eur-invoice", status: "issued", currency: "EUR", items: [{ id: "line-1", description: "Service", quantity: 1, unitPrice: 1000, taxRate: 0 }] }), settings, context);
+  } catch (error) {
+    currencyRejected = error instanceof CommercialAccountingError && error.message.includes("devise");
+  }
+  assert(currencyRejected, "Commercial posting V1 should reject unsupported currency conversion.");
+});
+
+test("Commercial Accounting maps Sales payments into balanced receivable settlement entries", () => {
+  const { ACCOUNTING_WORKSPACE_ID, createSalesPaymentAccountingEntry } = load("src/modules/accounting");
+  const tenantCompanyId = "tenant-commercial-accounting";
+  const settings = { tenantCompanyId, salesJournalId: "sales-journal", receivableAccountId: "ar", revenueAccountId: "rev", settlementAccountId: "bank", functionalCurrency: "MAD", createdAt: "2026-08-17T00:00:00.000Z", updatedAt: "2026-08-17T00:00:00.000Z" };
+  const payment = {
+    id: "payment-433",
+    workspaceId: "workspace-sales",
+    number: "REG-433-001",
+    invoiceId: "invoice-433",
+    invoiceNumber: "FAC-433-001",
+    customerName: "Atlas",
+    companyId: "company-atlas",
+    status: "recorded",
+    method: "bank_transfer",
+    amount: 500,
+    currency: "MAD",
+    receivedAt: "2026-08-18T00:00:00.000Z",
+    ownerId: "owner",
+    createdAt: "2026-08-18T00:00:00.000Z",
+    updatedAt: "2026-08-18T00:00:00.000Z"
+  };
+
+  const entry = createSalesPaymentAccountingEntry(payment, settings, { tenantCompanyId, workspaceId: ACCOUNTING_WORKSPACE_ID, userId: "accountant", now: () => "2026-08-18T10:00:00.000Z" });
+  assert(entry.status === "posted", "Commercial payment posting should create a posted entry.");
+  assert(entry.sourceType === "sales.payment" && entry.sourceId === "payment-433", "Commercial payment posting should preserve source identity.");
+  assert(entry.debitTotal === "500.00" && entry.creditTotal === "500.00", "Commercial payment posting should balance settlement and receivable.");
+});
+
+test("Commercial Accounting repository enforces durable source idempotency and tenant-scoped settings", () => {
+  const schema = read("prisma/schema.prisma");
+  const migration = read("prisma/migrations/20260817130000_commercial_accounting_integration/migration.sql");
+  const repository = read("src/server/persistence/accounting-repository.ts");
+  const workspace = read("src/modules/accounting/ui/pages/accounting-workspace.tsx");
+
+  assert(schema.includes("model AccountingCommercialPostingSettings"), "Commercial posting settings should be durable and tenant-scoped.");
+  assert(schema.includes("@@unique([tenantCompanyId, sourceType, sourceId])"), "Accounting journal entries should enforce one entry per tenant/source.");
+  assert(migration.includes('CREATE UNIQUE INDEX "AccountingJournalEntry_tenantCompanyId_sourceType_sourceId_key"'), "Migration should add durable source idempotency.");
+  assert(repository.includes("findCommercialSourceEntry") && repository.includes("sourceType: entry.sourceType, sourceId: entry.sourceId"), "Repository should check existing source entries before inserting generated entries.");
+  assert(repository.includes("assertCommercialPostingSettingsTenant"), "Repository should validate configured journals and accounts in the current tenant.");
+  assert(workspace.includes("Intégration ventes") && workspace.includes("Comptabiliser la facture") && workspace.includes("Comptabiliser le règlement"), "Finance UI should expose controlled commercial accounting actions.");
+});
+
+test("Financial Statements derive Profit and Loss from posted income and expense period movements", () => {
+  const { createProfitLossReport } = load("src/modules/accounting");
+  const fixture = createFinancialStatementFixture();
+  const report = createProfitLossReport({
+    accounts: fixture.accounts,
+    journals: fixture.journals,
+    journalEntries: [
+      createRuntimeAccountingEntry({ id: "before", tenantCompanyId: fixture.tenantA, journalId: fixture.journal.id, entryDate: "2026-07-31T12:00:00.000Z", lines: [
+        line("before-bank", fixture.bank.id, "Bank", "100.00", "0.00"),
+        line("before-revenue", fixture.revenue.id, "Revenue before", "0.00", "100.00")
+      ] }),
+      createRuntimeAccountingEntry({ id: "inside-revenue", tenantCompanyId: fixture.tenantA, journalId: fixture.journal.id, entryDate: "2026-08-10T12:00:00.000Z", lines: [
+        line("inside-bank", fixture.bank.id, "Bank", "10000.00", "0.00"),
+        line("inside-revenue", fixture.revenue.id, "Revenue", "0.00", "10000.00")
+      ] }),
+      createRuntimeAccountingEntry({ id: "inside-expense", tenantCompanyId: fixture.tenantA, journalId: fixture.journal.id, entryDate: "2026-08-11T12:00:00.000Z", lines: [
+        line("inside-expense", fixture.expense.id, "Expense", "4000.00", "0.00"),
+        line("inside-bank-credit", fixture.bank.id, "Bank", "0.00", "4000.00")
+      ] }),
+      createRuntimeAccountingEntry({ id: "after", tenantCompanyId: fixture.tenantA, journalId: fixture.journal.id, entryDate: "2026-09-01T12:00:00.000Z", lines: [
+        line("after-bank", fixture.bank.id, "Bank", "900.00", "0.00"),
+        line("after-revenue", fixture.revenue.id, "Revenue after", "0.00", "900.00")
+      ] })
+    ],
+    query: { tenantCompanyId: fixture.tenantA, fromDate: "2026-08-01", toDate: "2026-08-31" }
+  });
+
+  assert(report.revenue.total === "10000.00", "P&L should include only revenue movements inside the selected period.");
+  assert(report.expenses.total === "4000.00", "P&L should include only expense movements inside the selected period.");
+  assert(report.netResult === "6000.00" && report.netResultSide === "profit", "P&L net result should be revenue minus expenses.");
+});
+
+test("Financial Statements derive Balance Sheet with explicit current period result", () => {
+  const { createBalanceSheetReport } = load("src/modules/accounting");
+  const fixture = createFinancialStatementFixture();
+  const report = createBalanceSheetReport({
+    accounts: fixture.accounts,
+    journals: fixture.journals,
+    journalEntries: [
+      createRuntimeAccountingEntry({ id: "balance", tenantCompanyId: fixture.tenantA, journalId: fixture.journal.id, entryDate: "2026-08-17T12:00:00.000Z", lines: [
+        line("balance-bank", fixture.bank.id, "Bank", "20000.00", "0.00"),
+        line("balance-debt", fixture.debt.id, "Debt", "0.00", "8000.00"),
+        line("balance-equity", fixture.equity.id, "Equity", "0.00", "6000.00"),
+        line("balance-revenue", fixture.revenue.id, "Revenue", "0.00", "6000.00")
+      ] })
+    ],
+    query: { tenantCompanyId: fixture.tenantA, fromDate: "2026-08-01", asOfDate: "2026-08-31" }
+  });
+
+  assert(report.totalAssets === "20000.00", "Balance Sheet should total asset account balances.");
+  assert(report.liabilities.total === "8000.00", "Balance Sheet should total liability account balances.");
+  assert(report.equity.total === "6000.00", "Balance Sheet should total equity account balances separately.");
+  assert(report.currentPeriodResult === "6000.00" && report.currentPeriodResultSide === "profit", "Balance Sheet should expose current period result separately.");
+  assert(report.totalLiabilitiesAndEquity === "20000.00" && report.reconciled, "Balance Sheet should reconcile assets to liabilities plus equity plus current result.");
+});
+
+test("Financial Statements exclude draft entries and preserve tenant isolation", () => {
+  const { createProfitLossReport, createBalanceSheetReport } = load("src/modules/accounting");
+  const fixture = createFinancialStatementFixture();
+  const entries = [
+    createRuntimeAccountingEntry({ id: "tenant-a-posted", tenantCompanyId: fixture.tenantA, journalId: fixture.journal.id, entryDate: "2026-08-17T12:00:00.000Z", lines: [
+      line("tenant-a-bank", fixture.bank.id, "Bank", "1000.00", "0.00"),
+      line("tenant-a-revenue", fixture.revenue.id, "Revenue", "0.00", "1000.00")
+    ] }),
+    createRuntimeAccountingEntry({ id: "tenant-a-draft", tenantCompanyId: fixture.tenantA, journalId: fixture.journal.id, status: "draft", entryDate: "2026-08-17T13:00:00.000Z", lines: [
+      line("tenant-a-draft-bank", fixture.bank.id, "Bank", "9000.00", "0.00"),
+      line("tenant-a-draft-revenue", fixture.revenue.id, "Draft Revenue", "0.00", "9000.00")
+    ] }),
+    createRuntimeAccountingEntry({ id: "tenant-b-posted", tenantCompanyId: fixture.tenantB, journalId: fixture.externalJournal.id, entryDate: "2026-08-17T14:00:00.000Z", lines: [
+      line("tenant-b-bank", fixture.externalBank.id, "Bank", "5000.00", "0.00"),
+      line("tenant-b-revenue", fixture.externalRevenue.id, "Revenue", "0.00", "5000.00")
+    ] })
+  ];
+  const profitLoss = createProfitLossReport({ accounts: fixture.accounts, journals: fixture.journals, journalEntries: entries, query: { tenantCompanyId: fixture.tenantA, fromDate: "2026-08-01", toDate: "2026-08-31" } });
+  const balanceSheet = createBalanceSheetReport({ accounts: fixture.accounts, journals: fixture.journals, journalEntries: entries, query: { tenantCompanyId: fixture.tenantA, fromDate: "2026-08-01", asOfDate: "2026-08-31" } });
+
+  assert(profitLoss.revenue.total === "1000.00", "P&L should exclude draft entries and other tenants.");
+  assert(balanceSheet.totalAssets === "1000.00", "Balance Sheet should exclude draft entries and other tenants.");
+});
+
+test("Financial Statements consume SPR-433 Sales invoice and payment postings without Sales-specific shortcuts", () => {
+  const { ACCOUNTING_WORKSPACE_ID, createProfitLossReport, createBalanceSheetReport, createSalesInvoiceAccountingEntry, createSalesPaymentAccountingEntry } = load("src/modules/accounting");
+  const fixture = createFinancialStatementFixture();
+  const settings = { tenantCompanyId: fixture.tenantA, salesJournalId: fixture.journal.id, receivableAccountId: fixture.receivable.id, revenueAccountId: fixture.revenue.id, settlementAccountId: fixture.bank.id, functionalCurrency: "MAD", createdAt: "2026-08-17T00:00:00.000Z", updatedAt: "2026-08-17T00:00:00.000Z" };
+  const invoiceEntry = createSalesInvoiceAccountingEntry(createRuntimeInvoice({ id: "invoice-statement", number: "FAC-STMT", status: "issued", items: [{ id: "line-1", description: "Service", quantity: 1, unitPrice: 1000, taxRate: 0 }] }), settings, { tenantCompanyId: fixture.tenantA, workspaceId: ACCOUNTING_WORKSPACE_ID, userId: "accountant", now: () => "2026-08-17T10:00:00.000Z" });
+  const paymentEntry = createSalesPaymentAccountingEntry({ id: "payment-statement", workspaceId: "workspace-sales", number: "REG-STMT", invoiceId: "invoice-statement", invoiceNumber: "FAC-STMT", customerName: "Atlas", companyId: "company-atlas", status: "recorded", method: "bank_transfer", amount: 500, currency: "MAD", receivedAt: "2026-08-18T00:00:00.000Z", ownerId: "owner", createdAt: "2026-08-18T00:00:00.000Z", updatedAt: "2026-08-18T00:00:00.000Z" }, settings, { tenantCompanyId: fixture.tenantA, workspaceId: ACCOUNTING_WORKSPACE_ID, userId: "accountant", now: () => "2026-08-18T10:00:00.000Z" });
+  const profitLoss = createProfitLossReport({ accounts: fixture.accounts, journals: fixture.journals, journalEntries: [invoiceEntry, paymentEntry], query: { tenantCompanyId: fixture.tenantA, fromDate: "2026-08-01", toDate: "2026-08-31" } });
+  const balanceSheet = createBalanceSheetReport({ accounts: fixture.accounts, journals: fixture.journals, journalEntries: [invoiceEntry, paymentEntry], query: { tenantCompanyId: fixture.tenantA, fromDate: "2026-08-01", asOfDate: "2026-08-31" } });
+
+  assert(profitLoss.revenue.total === "1000.00", "Sales invoice postings should flow into P&L through canonical revenue accounts.");
+  assert(balanceSheet.assets.total === "1000.00", "Sales invoice and payment postings should flow into Balance Sheet asset accounts.");
+  assert(invoiceEntry.sourceType === "sales.invoice" && paymentEntry.sourceType === "sales.payment", "Statements should preserve commercial source traceability through journal entries.");
+});
+
+test("Financial Statements and Dashboard contribution are wired through Accounting read models", () => {
+  const reportTypes = read("src/modules/accounting/accounting-reports.types.ts");
+  const reportUtils = read("src/modules/accounting/accounting-reports.utils.ts");
+  const repository = read("src/server/persistence/accounting-repository.ts");
+  const dashboardContributions = read("src/platform/dashboard/dashboard-contributions.ts");
+  const dashboardPage = read("src/app/(erp)/dashboard/page.tsx");
+  const workspace = read("src/modules/accounting/ui/pages/accounting-workspace.tsx");
+
+  assert(reportTypes.includes("ProfitLossReport") && reportTypes.includes("BalanceSheetReport"), "Accounting should expose typed P&L and Balance Sheet read models.");
+  assert(reportUtils.includes("createProfitLossReport") && reportUtils.includes("createBalanceSheetReport"), "Financial statements should be pure derived read models.");
+  assert(repository.includes("getAccountingProfitLoss") && repository.includes("getAccountingBalanceSheet"), "Repository should expose server-side financial statement queries.");
+  assert(dashboardContributions.includes("finance.accounting.statements"), "Finance dashboard contribution should be registered by module metadata.");
+  assert(dashboardPage.includes("getAccountingProfitLoss") && dashboardPage.includes("Indicateurs issus uniquement des écritures comptabilisées"), "Dashboard Finance contribution should derive from Accounting reports.");
+  assert(workspace.includes("Compte de résultat") && workspace.includes("Actif = Dettes + Capitaux propres + Résultat"), "Finance workspace should expose P&L and Balance Sheet UI.");
+});
+
+function createRuntimeInvoice(overrides = {}) {
+  const invoice = {
+    id: "invoice-runtime",
+    workspaceId: "workspace-sales",
+    number: "FAC-RUNTIME",
+    customerName: "Atlas",
+    companyId: "company-atlas",
+    companyName: "Atlas",
+    status: "issued",
+    issueDate: "2026-08-17T00:00:00.000Z",
+    dueDate: "2026-09-16T00:00:00.000Z",
+    currency: "MAD",
+    items: [{ id: "line-runtime", description: "Service", quantity: 1, unitPrice: 1000, taxRate: 0 }],
+    discountRate: 0,
+    ownerId: "owner",
+    paidAmount: 0,
+    createdAt: "2026-08-17T00:00:00.000Z",
+    updatedAt: "2026-08-17T00:00:00.000Z",
+    ...overrides
+  };
+  return invoice;
+}
+
+function createFinancialStatementFixture() {
+  const tenantA = "tenant-financial-statements-a";
+  const tenantB = "tenant-financial-statements-b";
+  const baseDate = "2026-08-17T00:00:00.000Z";
+  const bank = account("account-bank", tenantA, "512000", "Banque", "asset", "debit");
+  const receivable = account("account-receivable", tenantA, "411000", "Clients", "asset", "debit");
+  const debt = account("account-debt", tenantA, "164000", "Emprunts", "liability", "credit");
+  const equity = account("account-equity", tenantA, "101000", "Capital", "equity", "credit");
+  const revenue = account("account-revenue", tenantA, "701000", "Ventes", "income", "credit");
+  const expense = account("account-expense", tenantA, "606000", "Charges", "expense", "debit");
+  const externalBank = account("account-bank-b", tenantB, "512000", "Banque B", "asset", "debit");
+  const externalRevenue = account("account-revenue-b", tenantB, "701000", "Ventes B", "income", "credit");
+  const journal = { id: "journal-sales", tenantCompanyId: tenantA, code: "VT", name: "Ventes", type: "sales", active: true, createdAt: baseDate, updatedAt: baseDate };
+  const externalJournal = { id: "journal-sales-b", tenantCompanyId: tenantB, code: "VT", name: "Ventes B", type: "sales", active: true, createdAt: baseDate, updatedAt: baseDate };
+  return {
+    tenantA,
+    tenantB,
+    bank,
+    receivable,
+    debt,
+    equity,
+    revenue,
+    expense,
+    externalBank,
+    externalRevenue,
+    journal,
+    externalJournal,
+    accounts: [bank, receivable, debt, equity, revenue, expense, externalBank, externalRevenue],
+    journals: [journal, externalJournal]
+  };
+}
+
+function account(id, tenantCompanyId, code, name, type, normalBalance) {
+  return { id, tenantCompanyId, code, name, type, normalBalance, active: true, createdAt: "2026-08-17T00:00:00.000Z", updatedAt: "2026-08-17T00:00:00.000Z" };
+}
+
+function createRuntimeAccountingEntry({ id, tenantCompanyId, journalId, entryDate, lines, status = "posted" }) {
+  const debit = lines.reduce((sum, item) => sum + Number(item.debitAmount), 0).toFixed(2);
+  const credit = lines.reduce((sum, item) => sum + Number(item.creditAmount), 0).toFixed(2);
+  return {
+    id,
+    tenantCompanyId,
+    workspaceId: "accounting-main",
+    journalId,
+    number: `JE-${id}`,
+    entryDate,
+    status,
+    functionalCurrency: "MAD",
+    debitTotal: debit,
+    creditTotal: credit,
+    lines,
+    createdAt: entryDate,
+    updatedAt: entryDate,
+    postedAt: status === "posted" ? entryDate : undefined
+  };
+}
+
+function line(id, accountId, label, debitAmount, creditAmount) {
+  return { id, accountId, label, debitAmount, creditAmount };
+}
 
 async function runValidation() {
   for (const run of scheduledTests) {

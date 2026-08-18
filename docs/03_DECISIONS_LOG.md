@@ -1,5 +1,176 @@
 # HicoPilot Architecture Decision Records
 
+## ADR-054 — Financial Statements Are Derived From Posted Accounting History
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-08-17 |
+
+### Decision
+
+SPR-434 introduces Profit & Loss and Balance Sheet as derived read models over canonical posted Accounting history.
+
+No financial statement balances, snapshots, closing balances, P&L tables or Balance Sheet tables are persisted.
+
+Financial statement source of truth remains:
+
+```text
+AccountingJournalEntry(status = posted)
+→ AccountingJournalEntryLine
+→ General Ledger / Trial Balance
+→ Profit & Loss / Balance Sheet
+```
+
+### Account Classification
+
+Statements reuse the global account classification introduced by the Accounting Core:
+
+- `asset`
+- `liability`
+- `equity`
+- `income`
+- `expense`
+
+No Moroccan PCG, French PCG, Spanish statutory grouping or localization-specific chart logic is introduced in the global core.
+
+### Period Semantics
+
+Profit & Loss is period-based and uses the selected `fromDate` and `toDate`.
+
+Balance Sheet is cumulative as of `asOfDate`. Because BOSIACO does not yet implement fiscal closing, retained earnings transfer or period locks, the selected-period result is represented explicitly in Balance Sheet reconciliation:
+
+```text
+Assets = Liabilities + Equity + Current Period Result
+```
+
+### Dashboard Source of Truth
+
+Finance Dashboard KPIs must derive from Accounting read models, not from Sales UI totals. Commercial Sales values and Accounting financial values remain separate truths until a Sales source is deliberately posted into Accounting.
+
+### Consequences
+
+The Finance workspace can now answer company performance and position questions from posted accounting history. The Global Dashboard may show a small Finance contribution only when `finance.accounting` is active. Procurement/AP accounting, inventory valuation accounting, statutory localization, financial export packages, fiscal closing and correction workflows remain future work.
+
+## ADR-053 — Finance Operations Activates Manual Accounting Before Source-Document Posting
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-08-17 |
+
+### Decision
+
+SPR-432 activates `finance.accounting` in the default Alpha profile through the canonical route `/accounting`.
+
+The first operational Finance capability is manual accounting:
+
+```text
+Account
+→ Journal
+→ Manual Journal Entry
+→ Draft
+→ Post
+→ General Ledger
+→ Trial Balance
+```
+
+Sales, Procurement, Inventory and Payment records remain operational source documents. They do not automatically create Accounting entries in SPR-432.
+
+### Motivation
+
+The Accounting Core and reporting read models are now stable enough for a user-facing manual Finance workflow. Manual accounting proves accounts, journals, entry lines, posting protection, General Ledger and Trial Balance before cross-domain automated posting rules are introduced.
+
+### Consequences
+
+Finance navigation is module-driven and appears only through `finance.accounting` activation. `/accounting` is the canonical route; no parallel `/finance` or `/comptabilite` route is introduced.
+
+The UI consumes the existing Accounting persistence API and server-derived reports. React does not become the official ledger calculation layer.
+
+Future source-document posting must be explicit and mapped:
+
+- Sales Invoice;
+- Sales Payment;
+- Procurement Supplier Invoice;
+- Inventory valuation;
+- reversal/correction workflows.
+
+Automatic posting remains out of scope until those mappings are defined.
+
+## ADR-052 — Global Accounting Core Is Country-Agnostic And Double-Entry Based
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-08-17 |
+
+### Decision
+
+SPR-430 establishes the first canonical Accounting Core as a global, tenant-scoped, double-entry foundation.
+
+The canonical persisted concepts are:
+
+- `AccountingAccount`;
+- `AccountingJournal`;
+- `AccountingJournalEntry`;
+- `AccountingJournalEntryLine`.
+
+Accounting is registered as hidden planned module `finance.accounting`. It is not activated in default Alpha, and it does not add visible navigation, routes, Command Center entries or Dashboard widgets.
+
+### Commercial Documents Are Not Accounting Entries
+
+Sales invoices, Sales payments, Procurement purchase orders, Goods Receipts, Delivery Notes, Shipments and Inventory movements remain operational source documents.
+
+They do not automatically create Accounting journal entries in SPR-430.
+
+Future integrations must follow this direction:
+
+```text
+Operational source document
+→ Accounting mapping
+→ Journal Entry
+→ Posting
+→ Ledger
+```
+
+### Double-Entry Invariant
+
+Every posted Accounting journal entry must satisfy:
+
+```text
+TOTAL DEBIT = TOTAL CREDIT
+```
+
+This invariant is enforced by the Accounting domain/service boundary, not by UI validation alone.
+
+Unbalanced entries may exist only as drafts. They cannot be posted.
+
+### Posted History Boundary
+
+Posted Accounting entries are accounting history. They must not be silently mutated through ordinary draft update paths.
+
+Future corrections should use explicit reversal, correction or adjustment workflows rather than editing posted history in place.
+
+### Global Core And Localization
+
+The Accounting Core remains country-agnostic.
+
+It does not hardcode Moroccan, French, Spanish or other statutory accounting rules. Country-specific chart templates, tax rules, VAT declarations, fiscal conventions and reports must be introduced later through localization-specific work.
+
+Morocco remains commercially important, but Moroccan accounting compliance is not implemented by SPR-430.
+
+### Currency Boundary
+
+Company country and functional/base currency are distinct concepts.
+
+SPR-430 stores functional currency and prepares optional transaction-currency/exchange-rate fields on journal entries, but does not implement FX revaluation, exchange gains/losses, historical rates, foreign-currency reconciliation or multi-currency reporting.
+
+### Consequences
+
+Future Finance work must build on the Accounting Core rather than reusing legacy `CashEntry`, `PurchaseInvoice` or commercial Sales document tables as ledger authority.
+
+Sales, Procurement and Inventory must remain operational sources of truth. Accounting becomes the financial ledger truth only after deliberate posting integrations are introduced.
+
 ## ADR-051 — Accounting Foundation Is The Next Core ERP Direction
 
 | Field | Value |
@@ -1673,3 +1844,43 @@ After Product Catalog and Inventory became operational in Alpha, Procurement nee
 ### Consequences
 
 Procurement modules are `alpha` and `alphaReady`, visible through activation-driven navigation and Command Center metadata. Draft Purchase Orders can be edited, duplicated and safely deleted. Confirmed and partially received Purchase Orders can receive goods. Supplier invoices, accounting, supplier payments, approvals, returns and receipt reversal remain future work.
+
+## ADR-034 — General Ledger and Trial Balance Are Derived Read Models
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+
+### Decision
+
+The General Ledger and Trial Balance are derived from posted `AccountingJournalEntryLine` records. BOSIACO must not persist separate General Ledger rows, Trial Balance rows or duplicated balance aggregates for V1.
+
+Only `AccountingJournalEntry.status = posted` contributes to official balances. Draft entries remain excluded.
+
+### Motivation
+
+The canonical accounting source of truth is the double-entry journal. Storing duplicate balances before the Accounting workspace, posting integrations and correction workflows are mature would create reconciliation risk and multiple authorities for the same financial truth.
+
+### Consequences
+
+SPR-431 introduces pure read models and server-side report query helpers. Reports calculate opening, period and closing balances from posted journal lines using functional/base currency amounts and integer minor-unit arithmetic. Future performance optimization may introduce controlled projections or caches, but those must remain derived from the posted journal and must not become independent accounting truth.
+
+## ADR-035 — Commercial Accounting Posting Is Finance-Owned and Source-Idempotent
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+
+### Decision
+
+Sales invoices and Sales payments may create Accounting journal entries only through the Finance-owned commercial posting boundary.
+
+The posting boundary uses tenant-scoped commercial posting settings and persists generated entries with `sourceType` and `sourceId`. A unique constraint on `(tenantCompanyId, sourceType, sourceId)` guarantees that one commercial source creates at most one Accounting journal entry per tenant.
+
+### Motivation
+
+Commercial documents and accounting history must stay synchronized without coupling Sales repositories or UI components to Accounting table structure. Users also need explicit control over account mappings before source documents affect the official ledger.
+
+### Consequences
+
+SPR-433 supports controlled posting of Sales invoices and Sales payments. Draft/cancelled sources are rejected, missing account mappings fail explicitly and generated posted entries flow into the existing General Ledger and Trial Balance. Procurement/AP accounting, inventory valuation accounting, localization, tax reporting, automatic background posting and correction/reversal workflows remain future work.

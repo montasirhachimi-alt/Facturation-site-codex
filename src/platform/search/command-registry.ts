@@ -4,6 +4,7 @@ import {
   CalendarCheck,
   ContactRound,
   FileText,
+  Landmark,
   LayoutDashboard,
   PackageCheck,
   Receipt,
@@ -36,6 +37,7 @@ const iconByName: Record<string, LucideIcon> = {
   ContactRound,
   FileText,
   HandCoins: WalletCards,
+  Landmark,
   LayoutDashboard,
   PackageCheck,
   Receipt,
@@ -58,6 +60,7 @@ const commandAliases: Record<string, readonly string[]> = {
   "/sales/payments": ["payments", "paiements", "pay", "encaissements"],
   "/sales/products": ["produits", "catalogue", "sku", "articles"],
   "/inventory": ["stock", "inventaire", "entrepôts", "entrepots", "mouvements"],
+  "/accounting": ["finance", "comptabilité", "comptabilite", "plan comptable", "journaux", "écritures", "ecritures", "grand livre", "balance"],
   "/parametres": ["settings", "paramètres", "parametres", "configuration"]
 };
 
@@ -170,6 +173,7 @@ function commandIconKey(href: string) {
   if (href.includes("dashboard")) return "dashboard";
   if (href.includes("sales") || href.includes("ventes")) return "sales";
   if (href.includes("stock") || href.includes("inventory")) return "product";
+  if (href.includes("accounting")) return "analytics";
   if (href.includes("statistiques")) return "analytics";
   if (href.includes("param")) return "settings";
   if (href.includes("crm")) return "company";

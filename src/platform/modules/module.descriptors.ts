@@ -475,6 +475,24 @@ export const bosiacoModuleDescriptors = Object.freeze([
     order: 340
   },
   {
+    id: "finance.accounting",
+    name: "Comptabilité",
+    description: "Opérations comptables globales: comptes, journaux, écritures manuelles, Grand livre et Balance.",
+    category: "finance",
+    iconKey: "Landmark",
+    route: "/accounting",
+    status: "alpha",
+    version: "0.2.0",
+    dependencies: ["platform.persistence"],
+    features: ["accounts", "journals", "journalEntries", "doubleEntry", "posting", "generalLedger", "trialBalance"],
+    navigation: { label: "Comptabilité", href: "/accounting", iconKey: "Landmark", group: "Finance", order: 500, searchKeywords: ["finance", "comptabilité", "comptabilite", "grand livre", "balance"] },
+    commandCenter: { navigationKeywords: ["finance", "comptabilité", "comptabilite", "plan comptable", "journaux", "écritures", "ecritures", "grand livre", "balance"] },
+    hidden: false,
+    defaultEnabled: false,
+    alphaReady: true,
+    order: 345
+  },
+  {
     id: "finance.cash",
     name: "Caisse",
     description: "Journal de caisse futur.",

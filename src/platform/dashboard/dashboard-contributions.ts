@@ -92,6 +92,21 @@ export const bosiacoDashboardContributions = Object.freeze([
     metadata: { section: "quick-actions" }
   },
   {
+    id: "finance.accounting.statements",
+    moduleId: "finance.accounting",
+    widgetId: "dashboard.finance.statements",
+    title: "Lecture financière",
+    priority: 63,
+    order: 63,
+    zone: "secondary",
+    size: "md",
+    status: "alpha",
+    defaultVisible: true,
+    alphaReady: true,
+    renderKey: "dashboard.finance.statements",
+    metadata: { section: "finance-statements" }
+  },
+  {
     id: "sales.orders.to-confirm",
     moduleId: "sales.orders",
     widgetId: "dashboard.sales.orders-to-confirm",

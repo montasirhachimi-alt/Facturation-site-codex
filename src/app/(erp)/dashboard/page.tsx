@@ -10,6 +10,7 @@ import {
   FileText,
   HandCoins,
   Receipt,
+  Scale,
   Sparkles,
   WalletCards
 } from "lucide-react";
@@ -18,11 +19,14 @@ import { DashboardWorkspaceBridge } from "@/components/dashboard-workspace-bridg
 import { dashboardStats } from "@/lib/demo-data";
 import { formatCurrency } from "@/lib/format";
 import { getCurrentUser } from "@/lib/auth";
+import { getAccountingBalanceSheet, getAccountingProfitLoss } from "@/server/persistence/accounting-repository";
+import { requirePersistenceTenantScope } from "@/server/persistence/tenant-scope";
 import { ProcurementDashboardSection } from "@/modules/procurement/ui";
 import { SalesOperationsDashboardCard } from "@/modules/sales/orders/ui";
 import { ShipmentDashboardSection } from "@/modules/sales/shipments/ui";
 import { resolveDashboardContributions } from "@/platform/dashboard";
 import type { DashboardContribution } from "@/platform/dashboard";
+import type { ProfitLossReport } from "@/modules/accounting";
 import { MetricCard, ProductHero, ProductSectionHeader, SectionCard } from "@/ui";
 
 const quickActions: QuickActionCardProps[] = [
@@ -115,16 +119,20 @@ export default async function DashboardPage() {
   const userFirstName = user?.name.split(" ")[0] ?? "Administrateur";
   const dashboardLayout = resolveDashboardContributions();
   const renderContext = { userFirstName };
+  const hero = await renderDashboardZone(dashboardLayout.zones.hero, renderContext);
+  const summary = await renderDashboardZone(dashboardLayout.zones.summary, renderContext);
+  const primary = await renderDashboardZone(dashboardLayout.zones.primary, renderContext);
+  const secondary = await renderDashboardZone(dashboardLayout.zones.secondary, renderContext);
 
   return (
     <DashboardWorkspaceBridge>
       <div className="space-y-4 2xl:space-y-5">
-        {dashboardLayout.zones.hero.map((contribution) => renderDashboardContribution(contribution, renderContext))}
-        {dashboardLayout.zones.summary.map((contribution) => renderDashboardContribution(contribution, renderContext))}
-        {dashboardLayout.zones.primary.map((contribution) => renderDashboardContribution(contribution, renderContext))}
-        {dashboardLayout.zones.secondary.length > 0 && (
+        {hero}
+        {summary}
+        {primary}
+        {secondary.length > 0 && (
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(340px,0.95fr)]">
-            {dashboardLayout.zones.secondary.map((contribution) => renderDashboardContribution(contribution, renderContext))}
+            {secondary}
           </div>
         )}
       </div>
@@ -132,7 +140,11 @@ export default async function DashboardPage() {
   );
 }
 
-function renderDashboardContribution(
+async function renderDashboardZone(contributions: readonly DashboardContribution[], context: { userFirstName: string }) {
+  return await Promise.all(contributions.map((contribution) => renderDashboardContribution(contribution, context)));
+}
+
+async function renderDashboardContribution(
   contribution: DashboardContribution,
   context: { userFirstName: string }
 ) {
@@ -149,6 +161,8 @@ function renderDashboardContribution(
       return <DashboardRecentActivity key={contribution.id} />;
     case "dashboard.quick-actions":
       return <DashboardQuickActions key={contribution.id} />;
+    case "dashboard.finance.statements":
+      return <DashboardFinanceStatements key={contribution.id} />;
     case "dashboard.procurement.active-suppliers":
       return <ProcurementDashboardSection key={contribution.id} />;
     case "dashboard.sales.orders-to-confirm":
@@ -162,6 +176,35 @@ function renderDashboardContribution(
     default:
       return null;
   }
+}
+
+async function DashboardFinanceStatements() {
+  const report = await loadDashboardFinanceReport();
+  const hasData = report && (
+    report.profitLoss.revenue.rows.length > 0 ||
+    report.profitLoss.expenses.rows.length > 0 ||
+    report.balanceSheet.assets.rows.length > 0 ||
+    report.balanceSheet.liabilities.rows.length > 0 ||
+    report.balanceSheet.equity.rows.length > 0
+  );
+
+  return (
+    <SectionCard className="p-4">
+      <ProductSectionHeader icon={Scale} title="Lecture financière" description="Indicateurs issus uniquement des écritures comptabilisées." />
+      {!hasData ? (
+        <p className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-500 dark:border-hicotech-dark-border dark:bg-white/5 dark:text-slate-300">
+          Aucune donnée comptable postée disponible pour produire une lecture financière.
+        </p>
+      ) : (
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <PerformanceCard icon={BadgeDollarSign} label="Chiffre d'affaires — période actuelle" value={formatAccountingAmount(report.profitLoss.revenue.total, report.profitLoss.functionalCurrency)} helper="Somme des comptes de produits comptabilisés." />
+          <PerformanceCard icon={WalletCards} label="Résultat net — période actuelle" value={formatDashboardResult(report.profitLoss)} helper="Produits moins charges comptabilisés." />
+          <PerformanceCard icon={Receipt} label="Charges — période actuelle" value={formatAccountingAmount(report.profitLoss.expenses.total, report.profitLoss.functionalCurrency)} helper="Somme des comptes de charges comptabilisés." />
+          <PerformanceCard icon={Scale} label="Équilibre bilan" value={report.balanceSheet.reconciled ? "Équilibré" : "À vérifier"} helper="Actif = dettes + capitaux + résultat." />
+        </div>
+      )}
+    </SectionCard>
+  );
 }
 
 function DashboardHero({ userFirstName }: { userFirstName: string }) {
@@ -337,6 +380,28 @@ function PerformanceCard({ helper, icon: Icon, label, value }: { helper: string;
       <p className="mt-4 text-sm leading-6 text-slate-500 dark:text-slate-300">{helper}</p>
     </article>
   );
+}
+
+async function loadDashboardFinanceReport() {
+  try {
+    const scope = await requirePersistenceTenantScope();
+    const [profitLoss, balanceSheet] = await Promise.all([
+      getAccountingProfitLoss(scope),
+      getAccountingBalanceSheet(scope)
+    ]);
+    return { profitLoss, balanceSheet };
+  } catch {
+    return null;
+  }
+}
+
+function formatAccountingAmount(amount: string, currency: string) {
+  return new Intl.NumberFormat("fr-MA", { style: "currency", currency, minimumFractionDigits: 2 }).format(Number(amount));
+}
+
+function formatDashboardResult(report: ProfitLossReport) {
+  const value = formatAccountingAmount(report.netResult, report.functionalCurrency);
+  return report.netResultSide === "loss" ? `-${value}` : value;
 }
 
 function CompactAction({ description, href, icon: Icon, label }: QuickActionCardProps) {

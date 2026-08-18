@@ -74,57 +74,61 @@ enum InventoryMovementStatus {
 }
 
 model Company {
-  id                        String                     @id @default(cuid())
-  name                      String
-  ice                       String?
-  taxId                     String?
-  rc                        String?
-  phone                     String?
-  email                     String?
-  address                   String?
-  city                      String?
-  logoUrl                   String?
-  stampUrl                  String?
-  signUrl                   String?
-  users                     User[]
-  clients                   Client[]
-  suppliers                 Supplier[]
-  products                  Product[]
-  productCategories         ProductCategory[]
-  documents                 Document[]
-  deliveryNotes             DeliveryNote[]
-  purchases                 PurchaseInvoice[]
-  cashEntries               CashEntry[]
-  employees                 Employee[]
-  employeeContracts         EmployeeContract[]
-  attendances               Attendance[]
-  hrLeaves                  HrLeave[]
-  salarySlips               SalarySlip[]
-  salaryAdvances            SalaryAdvance[]
-  hrDocuments               HrDocument[]
-  expenses                  Expense[]
-  categories                Category[]
-  movements                 StockMovement[]
-  crmCompanies              CrmCompany[]
-  crmCustomers              CrmCustomer[]
-  crmContacts               CrmContact[]
-  crmMeetings               CrmMeeting[]
-  crmTasks                  CrmTask[]
-  crmNotes                  CrmNote[]
-  salesQuotes               SalesQuote[]
-  salesOrders               SalesOrder[]
-  salesDeliveryNotes        SalesDeliveryNote[]
-  salesShipments            SalesShipment[]
-  salesInvoices             SalesInvoice[]
-  salesPayments             SalesPayment[]
-  procurementSuppliers      ProcurementSupplier[]
-  procurementPurchaseOrders ProcurementPurchaseOrder[]
-  procurementGoodsReceipts  ProcurementGoodsReceipt[]
-  inventoryWarehouses       InventoryWarehouse[]
-  inventoryBalances         InventoryBalance[]
-  inventoryMovements        InventoryStockMovement[]
-  createdAt                 DateTime                   @default(now())
-  updatedAt                 DateTime                   @updatedAt
+  id                           String                               @id @default(cuid())
+  name                         String
+  ice                          String?
+  taxId                        String?
+  rc                           String?
+  phone                        String?
+  email                        String?
+  address                      String?
+  city                         String?
+  logoUrl                      String?
+  stampUrl                     String?
+  signUrl                      String?
+  users                        User[]
+  clients                      Client[]
+  suppliers                    Supplier[]
+  products                     Product[]
+  productCategories            ProductCategory[]
+  documents                    Document[]
+  deliveryNotes                DeliveryNote[]
+  purchases                    PurchaseInvoice[]
+  cashEntries                  CashEntry[]
+  employees                    Employee[]
+  employeeContracts            EmployeeContract[]
+  attendances                  Attendance[]
+  hrLeaves                     HrLeave[]
+  salarySlips                  SalarySlip[]
+  salaryAdvances               SalaryAdvance[]
+  hrDocuments                  HrDocument[]
+  expenses                     Expense[]
+  categories                   Category[]
+  movements                    StockMovement[]
+  crmCompanies                 CrmCompany[]
+  crmCustomers                 CrmCustomer[]
+  crmContacts                  CrmContact[]
+  crmMeetings                  CrmMeeting[]
+  crmTasks                     CrmTask[]
+  crmNotes                     CrmNote[]
+  salesQuotes                  SalesQuote[]
+  salesOrders                  SalesOrder[]
+  salesDeliveryNotes           SalesDeliveryNote[]
+  salesShipments               SalesShipment[]
+  salesInvoices                SalesInvoice[]
+  salesPayments                SalesPayment[]
+  procurementSuppliers         ProcurementSupplier[]
+  procurementPurchaseOrders    ProcurementPurchaseOrder[]
+  procurementGoodsReceipts     ProcurementGoodsReceipt[]
+  accountingAccounts           AccountingAccount[]
+  accountingJournals           AccountingJournal[]
+  accountingJournalEntries     AccountingJournalEntry[]
+  accountingCommercialSettings AccountingCommercialPostingSettings?
+  inventoryWarehouses          InventoryWarehouse[]
+  inventoryBalances            InventoryBalance[]
+  inventoryMovements           InventoryStockMovement[]
+  createdAt                    DateTime                             @default(now())
+  updatedAt                    DateTime                             @updatedAt
 }
 
 model User {
@@ -1366,4 +1370,136 @@ model ProcurementGoodsReceiptLine {
   @@index([goodsReceiptId])
   @@index([purchaseOrderLineId])
   @@index([productId])
+}
+
+model AccountingAccount {
+  id                           String                                @id
+  tenantCompanyId              String
+  tenantCompany                Company                               @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  code                         String
+  name                         String
+  type                         String
+  normalBalance                String
+  parentAccountId              String?
+  parentAccount                AccountingAccount?                    @relation("AccountingAccountHierarchy", fields: [parentAccountId], references: [id], onDelete: Restrict)
+  childAccounts                AccountingAccount[]                   @relation("AccountingAccountHierarchy")
+  currency                     String?
+  active                       Boolean                               @default(true)
+  archivedAt                   DateTime?
+  createdBy                    String?
+  updatedBy                    String?
+  journalEntryLines            AccountingJournalEntryLine[]
+  commercialReceivableSettings AccountingCommercialPostingSettings[] @relation("AccountingCommercialReceivableAccount")
+  commercialRevenueSettings    AccountingCommercialPostingSettings[] @relation("AccountingCommercialRevenueAccount")
+  commercialSettlementSettings AccountingCommercialPostingSettings[] @relation("AccountingCommercialSettlementAccount")
+  commercialTaxSettings        AccountingCommercialPostingSettings[] @relation("AccountingCommercialTaxPayableAccount")
+  createdAt                    DateTime                              @default(now())
+  updatedAt                    DateTime                              @updatedAt
+
+  @@unique([tenantCompanyId, code])
+  @@index([tenantCompanyId])
+  @@index([tenantCompanyId, type])
+  @@index([tenantCompanyId, active])
+  @@index([parentAccountId])
+}
+
+model AccountingJournal {
+  id                      String                                @id
+  tenantCompanyId         String
+  tenantCompany           Company                               @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  code                    String
+  name                    String
+  type                    String
+  active                  Boolean                               @default(true)
+  archivedAt              DateTime?
+  createdBy               String?
+  updatedBy               String?
+  entries                 AccountingJournalEntry[]
+  commercialSalesSettings AccountingCommercialPostingSettings[] @relation("AccountingCommercialSalesJournal")
+  createdAt               DateTime                              @default(now())
+  updatedAt               DateTime                              @updatedAt
+
+  @@unique([tenantCompanyId, code])
+  @@index([tenantCompanyId])
+  @@index([tenantCompanyId, type])
+  @@index([tenantCompanyId, active])
+}
+
+model AccountingJournalEntry {
+  id                  String                       @id
+  tenantCompanyId     String
+  tenantCompany       Company                      @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  workspaceId         String
+  journalId           String
+  journal             AccountingJournal            @relation(fields: [journalId], references: [id], onDelete: Restrict)
+  number              String
+  entryDate           DateTime
+  status              String
+  description         String?
+  reference           String?
+  sourceType          String?
+  sourceId            String?
+  functionalCurrency  String
+  transactionCurrency String?
+  exchangeRate        Decimal?
+  debitTotal          Decimal                      @default(0)
+  creditTotal         Decimal                      @default(0)
+  postedAt            DateTime?
+  postedBy            String?
+  createdBy           String?
+  updatedBy           String?
+  lines               AccountingJournalEntryLine[]
+  createdAt           DateTime                     @default(now())
+  updatedAt           DateTime                     @updatedAt
+
+  @@unique([tenantCompanyId, number])
+  @@unique([tenantCompanyId, sourceType, sourceId])
+  @@index([tenantCompanyId, workspaceId])
+  @@index([tenantCompanyId, journalId])
+  @@index([tenantCompanyId, status])
+  @@index([tenantCompanyId, entryDate])
+  @@index([tenantCompanyId, sourceType, sourceId])
+}
+
+model AccountingJournalEntryLine {
+  id             String                 @id
+  journalEntryId String
+  journalEntry   AccountingJournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  accountId      String
+  account        AccountingAccount      @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  label          String
+  debitAmount    Decimal                @default(0)
+  creditAmount   Decimal                @default(0)
+  position       Int
+  metadata       Json?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  @@index([journalEntryId])
+  @@index([accountId])
+}
+
+model AccountingCommercialPostingSettings {
+  tenantCompanyId     String             @id
+  tenantCompany       Company            @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  salesJournalId      String?
+  salesJournal        AccountingJournal? @relation("AccountingCommercialSalesJournal", fields: [salesJournalId], references: [id], onDelete: SetNull)
+  receivableAccountId String?
+  receivableAccount   AccountingAccount? @relation("AccountingCommercialReceivableAccount", fields: [receivableAccountId], references: [id], onDelete: SetNull)
+  revenueAccountId    String?
+  revenueAccount      AccountingAccount? @relation("AccountingCommercialRevenueAccount", fields: [revenueAccountId], references: [id], onDelete: SetNull)
+  settlementAccountId String?
+  settlementAccount   AccountingAccount? @relation("AccountingCommercialSettlementAccount", fields: [settlementAccountId], references: [id], onDelete: SetNull)
+  taxPayableAccountId String?
+  taxPayableAccount   AccountingAccount? @relation("AccountingCommercialTaxPayableAccount", fields: [taxPayableAccountId], references: [id], onDelete: SetNull)
+  functionalCurrency  String             @default("MAD")
+  updatedBy           String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([salesJournalId])
+  @@index([receivableAccountId])
+  @@index([revenueAccountId])
+  @@index([settlementAccountId])
+  @@index([taxPayableAccountId])
 }

@@ -8,3 +8,4 @@ export * from "./delivery-note-persistence.client";
 export * from "./shipment-persistence-provider";
 export * from "./shipment-persistence.client";
 export * from "./procurement-persistence.client";
+export * from "./accounting-persistence.client";

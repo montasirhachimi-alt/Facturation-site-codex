@@ -37,11 +37,12 @@ export const alphaCrmSalesEditionProfile = Object.freeze({
     "procurement.overview",
     "procurement.suppliers",
     "procurement.purchase-orders",
-    "procurement.goods-receipts"
+    "procurement.goods-receipts",
+    "finance.accounting"
   ]),
   disabledModuleIds: Object.freeze([]),
   tags: Object.freeze(["alpha", "crm", "sales"]),
-  notes: Object.freeze(["Current runtime default. Products, Inventory, Procurement and validated Sales Operations are active once operational workspaces are available."]),
+  notes: Object.freeze(["Current runtime default. Products, Inventory, Procurement, validated Sales Operations and manual Finance Operations are active once operational workspaces are available."]),
   futureLicenseKey: "edition.alpha.crm-sales",
   futurePlanCode: "ALPHA_CRM_SALES"
 } satisfies EditionProfile);
