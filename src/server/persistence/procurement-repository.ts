@@ -120,9 +120,10 @@ export async function postGoodsReceipt(scope: PersistenceTenantScope, receipt: G
       data: cleanLines.map((line, index) => goodsReceiptLineWriteData(receipt.id, line, index))
     });
 
-    for (const line of cleanLines) {
+    for (const [index, line] of cleanLines.entries()) {
+      const persistedLineId = createGoodsReceiptLinePersistenceId(receipt.id, line, index);
       await postInventoryMovementInTransaction(tx, scope, {
-        id: `movement-${receipt.id}-${line.id}` as never,
+        id: `movement-${receipt.id}-${persistedLineId}` as never,
         companyId: scope.companyId as InventoryCompanyId,
         type: "RECEIPT",
         productId: line.productId,

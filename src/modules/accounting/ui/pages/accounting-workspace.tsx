@@ -16,6 +16,7 @@ import {
   postSalesPaymentToAccounting,
   postSupplierBillToAccounting,
   postInventoryCogsToAccounting,
+  postInventoryReceiptToAccounting,
   closeAccountingPeriod,
   reopenAccountingPeriod,
   reverseAccountingJournalEntry,
@@ -113,6 +114,7 @@ type InventorySettingsForm = {
   inventoryJournalId: string;
   inventoryAssetAccountId: string;
   cogsAccountId: string;
+  grniClearingAccountId: string;
   functionalCurrency: string;
 };
 type PeriodForm = {
@@ -202,6 +204,7 @@ const emptyInventorySettingsForm: InventorySettingsForm = {
   inventoryJournalId: "",
   inventoryAssetAccountId: "",
   cogsAccountId: "",
+  grniClearingAccountId: "",
   functionalCurrency: DEFAULT_ACCOUNTING_FUNCTIONAL_CURRENCY
 };
 
@@ -525,6 +528,7 @@ export function AccountingWorkspace() {
         inventoryJournalId: optionalId(inventorySettingsForm.inventoryJournalId) as AccountingInventoryPostingSettings["inventoryJournalId"] | undefined,
         inventoryAssetAccountId: optionalId(inventorySettingsForm.inventoryAssetAccountId) as AccountingInventoryPostingSettings["inventoryAssetAccountId"] | undefined,
         cogsAccountId: optionalId(inventorySettingsForm.cogsAccountId) as AccountingInventoryPostingSettings["cogsAccountId"] | undefined,
+        grniClearingAccountId: optionalId(inventorySettingsForm.grniClearingAccountId) as AccountingInventoryPostingSettings["grniClearingAccountId"] | undefined,
         functionalCurrency: inventorySettingsForm.functionalCurrency.trim().toUpperCase() || DEFAULT_ACCOUNTING_FUNCTIONAL_CURRENCY,
         createdAt: existing?.createdAt ?? now,
         updatedAt: now
@@ -572,14 +576,14 @@ export function AccountingWorkspace() {
     }
   }
 
-  async function postInventorySource(id: string) {
+  async function postInventorySource(kind: "receipt" | "cogs", id: string) {
     setSaving(true);
     setNotice(null);
     try {
-      const response = await postInventoryCogsToAccounting(id);
+      const response = kind === "receipt" ? await postInventoryReceiptToAccounting(id) : await postInventoryCogsToAccounting(id);
       setSnapshot(response.snapshot);
       setInventorySnapshot(await loadInventorySources());
-      setNotice({ tone: "success", message: "COGS comptabilisé." });
+      setNotice({ tone: "success", message: kind === "receipt" ? "Réception stock comptabilisée." : "COGS comptabilisé." });
       await refreshReports();
     } catch (caught) {
       setNotice({ tone: "error", message: caught instanceof Error ? caught.message : "Comptabilisation stock refusée." });
@@ -1353,6 +1357,7 @@ function ApIntegrationSection({ accounts, journals, onPost, onSaveSettings, onSe
               amount: totals.total,
               currency: bill.currency,
               status: bill.status,
+              treatment: getSupplierBillTreatment(bill),
               postingStatus: statusByBill.get(bill.id),
               actionLabel: "Comptabiliser la facture fournisseur",
               onPost: () => onPost(bill.id)
@@ -1380,6 +1385,7 @@ function ApSourceTable({ emptyDescription, emptyTitle, rows, saving, title }: {
     amount: number;
     currency: string;
     status: string;
+    treatment: string;
     postingStatus?: { status: "not_posted" | "draft" | "posted" | "reversed"; journalEntryNumber?: string };
     actionLabel: string;
     onPost: () => void;
@@ -1391,7 +1397,7 @@ function ApSourceTable({ emptyDescription, emptyTitle, rows, saving, title }: {
     <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-hicotech-dark-border">
       <div className="bg-white px-4 py-3 dark:bg-hicotech-dark-card"><h3 className="font-display text-base font-black">{title}</h3></div>
       <TableShell empty={rows.length === 0} emptyTitle={emptyTitle} emptyDescription={emptyDescription}>
-        <thead className={tableHeadClassName}><tr><th className="px-4 py-3">Source</th><th className="px-4 py-3">Fournisseur</th><th className="px-4 py-3">Date</th><th className="px-4 py-3">Statut source</th><th className="px-4 py-3">Comptabilité</th><th className="px-4 py-3 text-right">Montant</th><th className="px-4 py-3 text-right">Action</th></tr></thead>
+        <thead className={tableHeadClassName}><tr><th className="px-4 py-3">Source</th><th className="px-4 py-3">Fournisseur</th><th className="px-4 py-3">Date</th><th className="px-4 py-3">Traitement</th><th className="px-4 py-3">Statut source</th><th className="px-4 py-3">Comptabilité</th><th className="px-4 py-3 text-right">Montant</th><th className="px-4 py-3 text-right">Action</th></tr></thead>
         <tbody className={tableBodyClassName}>
           {rows.map((row) => {
             const posted = row.postingStatus?.status === "posted";
@@ -1401,6 +1407,7 @@ function ApSourceTable({ emptyDescription, emptyTitle, rows, saving, title }: {
                 <td className="px-4 py-3"><p className="font-black text-hicotech-navy dark:text-white">{row.number}</p></td>
                 <td className="px-4 py-3">{row.partner}</td>
                 <td className="px-4 py-3">{formatDate(row.date)}</td>
+                <td className="px-4 py-3"><StatusBadge label={row.treatment} tone={row.treatment === "Stock / GRNI" ? "ok" : row.treatment === "Non rapproché" ? "warning" : "muted"} /></td>
                 <td className="px-4 py-3"><StatusBadge label={row.status === "finalized" ? "Finalisée" : row.status === "accounted" ? "Comptabilisée" : row.status} tone="muted" /></td>
                 <td className="px-4 py-3"><StatusBadge label={reversed ? `Contrepassé · ${row.postingStatus?.journalEntryNumber ?? ""}` : posted ? `Comptabilisé · ${row.postingStatus?.journalEntryNumber ?? ""}` : "Non comptabilisé"} tone={posted ? "ok" : reversed ? "muted" : "warning"} /></td>
                 <td className="px-4 py-3 text-right font-black">{formatAccountingAmount(moneyToAmount(row.amount), row.currency)}</td>
@@ -1418,10 +1425,16 @@ function ApSourceTable({ emptyDescription, emptyTitle, rows, saving, title }: {
   );
 }
 
+function getSupplierBillTreatment(bill: SupplierBill) {
+  if (bill.lines.some((line) => line.goodsReceiptLineId && line.productId)) return "Stock / GRNI";
+  if (bill.goodsReceiptId && bill.lines.some((line) => line.purchaseOrderLineId && line.productId)) return "Non rapproché";
+  return "Charges";
+}
+
 function InventoryIntegrationSection({ accounts, journals, onPost, onSaveSettings, onSettingsChange, saving, settings, statuses, valuationEvents }: {
   accounts: readonly AccountingAccount[];
   journals: readonly AccountingJournal[];
-  onPost: (id: string) => void;
+  onPost: (kind: "receipt" | "cogs", id: string) => void;
   onSaveSettings: () => void;
   onSettingsChange: (settings: InventorySettingsForm) => void;
   saving: boolean;
@@ -1431,21 +1444,44 @@ function InventoryIntegrationSection({ accounts, journals, onPost, onSaveSetting
 }) {
   const accountOptions = accounts.filter((account) => account.active).map((account) => [account.id, `${account.code} · ${account.name}`] as const);
   const inventoryJournalOptions = journals.filter((journal) => journal.active && journal.type === "general").map((journal) => [journal.id, `${journal.code} · ${journal.name}`] as const);
-  const statusByEvent = new Map((statuses?.cogsEvents ?? []).map((status) => [status.sourceId, status]));
+  const receiptStatusByEvent = new Map((statuses?.receiptEvents ?? []).map((status) => [status.sourceId, status]));
+  const cogsStatusByEvent = new Map((statuses?.cogsEvents ?? []).map((status) => [status.sourceId, status]));
+  const receiptEvents = valuationEvents.filter((event) => event.eventType === "INBOUND" && event.totalValue > 0);
   const cogsEvents = valuationEvents.filter((event) => event.eventType === "OUTBOUND" && event.totalValue > 0);
 
   return (
     <section className={panelClassName}>
-      <SectionToolbar title="Intégration stock" description="Comptabilisation contrôlée du COGS depuis les sorties de stock valorisées.">
+      <SectionToolbar title="Intégration stock" description="Comptabilisation contrôlée des réceptions valorisées, du GRNI et du COGS.">
         <button type="button" onClick={onSaveSettings} disabled={saving} className={primaryButtonClassName}><Save size={16} /> Enregistrer la configuration</button>
       </SectionToolbar>
       <div className="grid gap-5 p-4">
-        <div className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/40 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-hicotech-dark-border dark:bg-hicotech-dark-page/40 md:grid-cols-2 xl:grid-cols-5">
           <SelectField label="Journal stock" value={settings.inventoryJournalId} onChange={(inventoryJournalId) => onSettingsChange({ ...settings, inventoryJournalId })} options={[["", "Choisir un journal"], ...inventoryJournalOptions]} />
           <SelectField label="Compte Stock" value={settings.inventoryAssetAccountId} onChange={(inventoryAssetAccountId) => onSettingsChange({ ...settings, inventoryAssetAccountId })} options={[["", "Choisir un compte"], ...accountOptions]} />
+          <SelectField label="Compte GRNI" value={settings.grniClearingAccountId} onChange={(grniClearingAccountId) => onSettingsChange({ ...settings, grniClearingAccountId })} options={[["", "Choisir un compte"], ...accountOptions]} />
           <SelectField label="Compte COGS" value={settings.cogsAccountId} onChange={(cogsAccountId) => onSettingsChange({ ...settings, cogsAccountId })} options={[["", "Choisir un compte"], ...accountOptions]} />
-          <TextField label="Devise fonctionnelle" value={settings.functionalCurrency} onChange={(functionalCurrency) => onSettingsChange({ ...settings, functionalCurrency })} helper="Les sorties valorisées V1 refusent les devises différentes." />
+          <TextField label="Devise fonctionnelle" value={settings.functionalCurrency} onChange={(functionalCurrency) => onSettingsChange({ ...settings, functionalCurrency })} helper="Les écritures stock V1 refusent les devises différentes." />
         </div>
+
+        <InventoryCogsTable
+          title="Réceptions valorisées à capitaliser"
+          emptyTitle="Aucune réception valorisée"
+          emptyDescription="Synchronisez la valorisation depuis l'inventaire après avoir posté des réceptions fournisseur."
+          rows={receiptEvents.map((event) => ({
+            id: event.id,
+            number: event.sourceId,
+            sourceType: event.sourceType,
+            date: event.occurredAt,
+            quantity: event.quantity,
+            unitCost: event.unitCost,
+            amount: event.totalValue,
+            currency: event.currency,
+            postingStatus: receiptStatusByEvent.get(event.id),
+            actionLabel: "Comptabiliser la réception stock",
+            onPost: () => onPost("receipt", event.id)
+          }))}
+          saving={saving}
+        />
 
         <InventoryCogsTable
           title="Sorties valorisées à comptabiliser"
@@ -1460,15 +1496,15 @@ function InventoryIntegrationSection({ accounts, journals, onPost, onSaveSetting
             unitCost: event.unitCost,
             amount: event.totalValue,
             currency: event.currency,
-            postingStatus: statusByEvent.get(event.id),
+            postingStatus: cogsStatusByEvent.get(event.id),
             actionLabel: "Comptabiliser le COGS",
-            onPost: () => onPost(event.id)
+            onPost: () => onPost("cogs", event.id)
           }))}
           saving={saving}
         />
 
         <div className="rounded-2xl border border-dashed border-slate-200 p-4 text-sm font-semibold text-slate-500 dark:border-hicotech-dark-border dark:text-slate-300">
-          {"Les réceptions fournisseur alimentent la valorisation moyenne mobile. L'écriture d'entrée Stock/GRNI est différée tant que le rapprochement GRNI avec les factures fournisseurs n'est pas disponible."}
+          {"Les réceptions valorisées débitent Stock et créditent GRNI. Les factures fournisseurs stockées débitent GRNI au lieu de débiter Charges, afin d'éviter toute double reconnaissance."}
         </div>
       </div>
     </section>
@@ -1717,6 +1753,7 @@ function inventorySettingsToForm(settings?: AccountingInventoryPostingSettings):
     inventoryJournalId: settings?.inventoryJournalId ?? "",
     inventoryAssetAccountId: settings?.inventoryAssetAccountId ?? "",
     cogsAccountId: settings?.cogsAccountId ?? "",
+    grniClearingAccountId: settings?.grniClearingAccountId ?? "",
     functionalCurrency: settings?.functionalCurrency ?? DEFAULT_ACCOUNTING_FUNCTIONAL_CURRENCY
   };
 }

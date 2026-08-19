@@ -13,6 +13,7 @@ export type ApAccountingPostingSettings = Readonly<{
   purchaseJournalId?: AccountingJournalId;
   payableAccountId?: AccountingAccountId;
   expenseAccountId?: AccountingAccountId;
+  grniClearingAccountId?: AccountingAccountId;
   settlementAccountId?: AccountingAccountId;
   taxRecoverableAccountId?: AccountingAccountId;
   functionalCurrency: string;

@@ -1,5 +1,53 @@
 # HicoPilot Architecture Decision Records
 
+## ADR-056 — GRNI Matching Requires Line-Level Receipt Linkage And Actual Valuation Movement Resolution
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-08-18 |
+
+### Decision
+
+Supplier Bill GRNI clearing is not inferred from a header-level Goods Receipt link.
+
+A Supplier Bill is stock-backed only when its lines preserve explicit business identity:
+
+- `goodsReceiptLineId`;
+- `purchaseOrderLineId`;
+- `productId`.
+
+Receipt capitalization and Supplier Bill clearing must resolve the actual posted Inventory movement behind a Goods Receipt line. Future Goods Receipt postings create movement ids from the persisted Goods Receipt line identity. Existing legacy movements may be matched only when a single unambiguous movement exists for the same Goods Receipt, Product and received quantity.
+
+### Motivation
+
+Manual QA after SPR-438 found a bill whose header referenced a Goods Receipt while its line had `goodsReceiptLineId = null`. Finance displayed it as `Charges`, even though the underlying Product was stock-tracked and receipt valuation existed.
+
+Header-only linkage is not enough for GRNI because accounting must prove which received quantity and which valued movement is being cleared.
+
+### Consequences
+
+Procurement forms now map Supplier Bill lines from selected Goods Receipt lines when the user links a receipt.
+
+Finance displays header-only receipt links as `Non rapproché` rather than silently treating them as normal expenses.
+
+Supplier Bill GRNI posting still requires prior receipt capitalization:
+
+```text
+Dr Inventory Asset
+Cr GRNI
+```
+
+Only after that can the Supplier Bill clear GRNI:
+
+```text
+Dr GRNI
+Dr Recoverable Tax
+Cr Accounts Payable
+```
+
+Full 3-way matching persistence, price variance accounting, landed costs and supplier payment settlement remain future capabilities.
+
 ## ADR-055 — Accounting Corrections Use Reversal Entries And Period Posting Controls
 
 | Field | Value |
@@ -2026,3 +2074,43 @@ Increasing the timeout would hide the execution-shape problem. Moving source res
 `InventoryStockMovement` remains the physical stock source of truth, `InventoryValuationEvent` remains the durable valuation source, and `moving_average_v1` semantics are unchanged.
 
 Goods Receipt costs are still resolved from Purchase Order lines. Historical stock without reliable purchase cost remains unvalued. The write transaction only persists planned valuation events and does not resolve Procurement or Product references.
+
+## ADR-039 — GRNI Clears Stocked Supplier Bills Without Double Expense
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+
+### Decision
+
+BOSIACO now supports controlled inbound inventory capitalization and GRNI clearing for stocked purchases.
+
+Valued inbound receipt events may be posted as:
+
+```text
+Dr Inventory Asset
+Cr GRNI
+```
+
+Supplier Bills use conditional posting:
+
+- stock-backed receipt-linked lines debit GRNI;
+- non-stock or unlinked lines debit the configured Purchase/Expense account;
+- recoverable tax remains separate;
+- Accounts Payable is credited for the Supplier Bill total.
+
+### Motivation
+
+SPR-436 correctly introduced Supplier Bill/AP accounting, but its original formula debited purchase/expense. SPR-437 introduced durable inventory valuation and outbound COGS. Once inbound stock can be capitalized, posting the same stocked acquisition as an expense would double-recognize cost.
+
+GRNI provides the accounting bridge between physical receipt, durable inventory valuation and supplier invoice liability.
+
+### Consequences
+
+Finance owns GRNI configuration through `AccountingInventoryPostingSettings.grniClearingAccountId`.
+
+Receipt capitalization uses `sourceType = inventory.receipt-valuation`. Supplier Bill clearing keeps `sourceType = procurement.supplier-bill`. Source idempotency remains enforced by canonical Accounting source uniqueness.
+
+V1 stock-backed classification is conservative and link-based: the Supplier Bill line must reference a Goods Receipt line for the same stock-tracked Product, backed by a durable inbound valuation event that has already been capitalized. Price variance is detected and rejected instead of silently rewriting inventory valuation or posting variance accounts.
+
+Full matching persistence, price variance accounting, landed cost and supplier payment settlement remain future capabilities.

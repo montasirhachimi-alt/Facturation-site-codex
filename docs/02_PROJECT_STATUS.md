@@ -12,7 +12,7 @@ This document is the current repository reality. It is intentionally not a sprin
 | Stage | Alpha product moving from ERP Core into Business Platform foundations. |
 | Default runtime edition | `alpha.crm-sales` from `src/platform/editions/edition.profiles.ts`. |
 | Current default scope | Dashboard, CRM, Sales quotes/orders/delivery notes/shipments/invoices/payments, Product Catalog, Inventory, Procurement and Finance Operations. |
-| Latest completed sprint reflected in code | SPR-436 — Procurement / AP Accounting V1. |
+| Latest completed sprint reflected in code | SPR-438A — GRNI Line-Linkage & Valuation Identity Hardening. |
 | Latest roadmap reconciliation | SPR-429 — Post-Procurement Roadmap Reconciliation & Next Core Domain Decision. |
 | Important caveat | Finance Operations is active for manual accounting, controlled Sales invoice/payment posting, controlled Supplier Bill/AP posting, derived financial statements, reversal corrections and minimal period posting controls. Supplier payments/AP settlement, inventory valuation, localization, statutory closing and source reposting after reversal remain future work. |
 
@@ -21,7 +21,7 @@ This document is the current repository reality. It is intentionally not a sprin
 | Command | Latest Reconciled Result |
 | --- | --- |
 | `npm run typecheck` | Passed on 2026-08-18. |
-| `npm run validate:runtime` | Passed on 2026-08-18 with 195/195 checks. |
+| `npm run validate:runtime` | Passed on 2026-08-18 with 206/206 checks. |
 | `npm run build` | Passed on 2026-08-18; known `src/components/pdf-preview.tsx` `<img>` warning remains. |
 | `git diff --check` | Passed on 2026-08-18. |
 
@@ -479,6 +479,64 @@ The synchronization now uses a read/precompute/write pattern:
 
 No valuation semantics changed. Goods Receipts still use supplier purchase cost from Purchase Orders, manual inbound movements still require positive Product cost, and legacy/unpriced stock remains explicitly unvalued rather than receiving fabricated cost.
 
+## SPR-438 Goods Receipt / Supplier Bill / GRNI Reality
+
+SPR-438 adds the first coherent inbound inventory accounting flow.
+
+Finance can now post valued inbound receipt events as:
+
+```text
+Dr Inventory Asset
+Cr GRNI
+```
+
+Supplier Bill posting is now conditional:
+
+- stock-backed bill lines linked to valued and capitalized Goods Receipt lines debit GRNI;
+- non-stock or unlinked expense lines debit the configured Purchase/Expense account;
+- recoverable tax remains separate;
+- Accounts Payable is credited for the Supplier Bill total.
+
+V1 stock/expense classification is link-based and conservative. A Supplier Bill line is stock-backed only when it references a Goods Receipt line, references the same stock-tracked Product, has a durable inbound `InventoryValuationEvent`, and that receipt valuation has already been posted to GRNI.
+
+Price variance is detected but not accounted automatically. If the tax-exclusive Supplier Bill amount differs from proportional receipt valuation by 0.01 or more, posting is rejected for explicit future review.
+
+No new dashboard KPI was added. General Ledger, Trial Balance, Profit & Loss and Balance Sheet consume the canonical posted journal entries naturally.
+
+## SPR-438A GRNI Line-Linkage Runtime Reality
+
+SPR-438A hardens the Supplier Bill to GRNI flow discovered during manual QA and is now manually E2E verified.
+
+The verified QA case `FB-2026-000001` had a Supplier Bill header linked to `PO-2026-000006` and `GR-2026-000009`, but its line did not persist `goodsReceiptLineId`. Finance therefore classified the bill as `Charges` even though the underlying purchase was a stock-backed receipt.
+
+The corrected flow is now line-level:
+
+- selecting a Goods Receipt in the Supplier Bill dialog maps bill lines from Goods Receipt lines;
+- Supplier Bill lines preserve `goodsReceiptLineId`, `purchaseOrderLineId` and `productId`;
+- future Goods Receipt stock movements use the persisted Goods Receipt line identity;
+- GRNI reconciliation resolves actual posted receipt movements so legacy movement ids can be matched safely when unambiguous;
+- Finance displays header-only receipt links as `Non rapproché`, not `Charges`.
+
+The existing QA bill was safely normalized because it was not accounted and matched the same tenant, Purchase Order, Goods Receipt, Product and quantity. Receipt capitalization is still a required precondition before the Supplier Bill can clear GRNI.
+
+Manual E2E QA passed on 2026-08-19 for tenant `company-hicotech` using `PO-2026-000006`, `GR-2026-000009`, `FB-2026-000001`, supplier `Fournisseur Test GRNI` and Product `Honor76`.
+
+The verified accounting chain is:
+
+```text
+Goods Receipt
+  -> Inventory Valuation
+  -> Receipt Capitalization
+  -> Dr Inventory / Cr GRNI
+  -> Supplier Bill Stock / GRNI classification
+  -> AP-FB-2026-000001
+  -> Dr GRNI 25000 MAD
+  -> Dr Recoverable VAT 5000 MAD
+  -> Cr Accounts Payable 30000 MAD
+```
+
+The canonical Supplier Bill entry was balanced with `30000 MAD` debit, `30000 MAD` credit and `0 MAD` difference. The verified stock-backed amount did not debit `PURCHASE · Achats / Charges`, confirming that GRNI clearing is operational rather than only a display classification.
+
 ## Known Limitations
 
 - Product Catalog create persistence now maps duplicate, validation, tenant and stale-category failures to controlled French errors, but full authenticated browser creation QA remains blocked in this environment by a local Prisma connection error during tenant bootstrap.
@@ -488,7 +546,7 @@ No valuation semantics changed. Goods Receipts still use supplier purchase cost 
 - Product Catalog import/export handles master data only; it does not import stock quantities or inventory movements.
 - Inventory has posting, reservations and availability, but no barcode scanning, manufacturing, POS, carrier integration or advanced warehouse operations.
 - CRM Opportunities/Pipeline remains hidden until a persistent, company-centric model is completed.
-- Finance Operations is active for manual journal entries, reversal corrections, period posting controls, controlled Sales invoice/payment posting, controlled Supplier Bill/AP posting, controlled Inventory COGS posting, Profit & Loss and Balance Sheet, but supplier payments/AP settlement, GRNI clearing, reconciliation, statutory localization, controlled reposting after reversal, fiscal closing and tax reporting are not implemented.
+- Finance Operations is active for manual journal entries, reversal corrections, period posting controls, controlled Sales invoice/payment posting, controlled Supplier Bill/AP posting, controlled Inventory receipt capitalization, controlled Supplier Bill GRNI clearing, controlled Inventory COGS posting, Profit & Loss and Balance Sheet, but supplier payments/AP settlement, advanced GRNI reporting, price variance accounting, statutory localization, controlled reposting after reversal, fiscal closing and tax reporting are not implemented.
 - HR and finance legacy pages exist as routes but are hidden or redirected and should not be treated as production modules.
 - Platform profiles are static; there is no tenant edition assignment, licensing engine, feature flag engine, dashboard editor or module admin UI.
 - Runtime notification, activity and audit layers are foundations, not complete production observability or compliance systems.
@@ -497,11 +555,11 @@ No valuation semantics changed. Goods Receipts still use supplier purchase cost 
 
 ## Recommended Candidate Directions
 
-1. GRNI / 3-way matching: reconcile Goods Receipt valuation with Supplier Bills before enabling inbound Stock/GRNI journal automation.
-2. Supplier payment/AP settlement: complete the AP lifecycle after Supplier Bills.
+1. Supplier payment/AP settlement: complete the AP lifecycle after Supplier Bills.
+2. GRNI maturity: add advanced GRNI reporting, durable match records and controlled price variance accounting.
 3. Controlled source reposting after reversal: define a lifecycle for corrected Sales, AP and Inventory source postings if operationally required.
 4. Sales Operations release monitoring: continue authenticated smoke QA for Quote acceptance, Sales Order reservation, Delivery Note posting, Shipment lifecycle and Inventory reconciliation now that the workflow is visible in Alpha.
-5. Procurement future depth: approval workflows, supplier payments, returns/reversals and supplier performance remain future work.
+5. Procurement future depth: approval workflows, returns/reversals and supplier performance remain future work.
 
 ## Documentation Guidance
 

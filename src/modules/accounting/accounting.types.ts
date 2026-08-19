@@ -37,6 +37,7 @@ export type AccountingSourceType =
   | "procurement.supplier-bill"
   | "procurement.supplier-invoice"
   | "inventory.valuation"
+  | "inventory.receipt-valuation"
   | "inventory.cogs"
   | (string & {});
 
@@ -174,6 +175,7 @@ export type AccountingApPostingSettings = Readonly<{
   purchaseJournalId?: AccountingJournalId;
   payableAccountId?: AccountingAccountId;
   expenseAccountId?: AccountingAccountId;
+  grniClearingAccountId?: AccountingAccountId;
   settlementAccountId?: AccountingAccountId;
   taxRecoverableAccountId?: AccountingAccountId;
   functionalCurrency: string;
@@ -191,6 +193,7 @@ export type AccountingInventoryPostingSettings = Readonly<{
   inventoryJournalId?: AccountingJournalId;
   inventoryAssetAccountId?: AccountingAccountId;
   cogsAccountId?: AccountingAccountId;
+  grniClearingAccountId?: AccountingAccountId;
   functionalCurrency: string;
   updatedBy?: AccountingUserId;
   createdAt: string;
@@ -198,6 +201,7 @@ export type AccountingInventoryPostingSettings = Readonly<{
 }>;
 
 export type AccountingInventorySources = Readonly<{
+  receiptEvents: readonly AccountingSourcePostingStatus[];
   cogsEvents: readonly AccountingSourcePostingStatus[];
 }>;
 

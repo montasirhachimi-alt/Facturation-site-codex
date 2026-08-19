@@ -18,15 +18,28 @@ export class ApAccountingError extends Error {
   }
 }
 
-export function createSupplierBillAccountingEntry(bill: SupplierBill, settings: ApAccountingPostingSettings, context: ApAccountingPostingContext) {
+export function createSupplierBillAccountingEntry(
+  bill: SupplierBill,
+  settings: ApAccountingPostingSettings,
+  context: ApAccountingPostingContext,
+  reconciliation: { stockClearingAmount?: number; priceVarianceAmount?: number } = {}
+) {
   assertFinalSupplierBill(bill);
   assertCurrencyMatches(bill.currency, settings.functionalCurrency);
   assertRequiredSetting(settings.purchaseJournalId, "Journal d'achats non configuré.");
   assertRequiredSetting(settings.payableAccountId, "Compte fournisseurs à payer non configuré.");
-  assertRequiredSetting(settings.expenseAccountId, "Compte d'achat ou de charge non configuré.");
 
   const totals = calculateSupplierBillTotals(bill);
-  const subtotal = moneyToAccountingAmount(totals.subtotal - totals.discount);
+  const netSubtotalAmount = Math.max(0, roundMoney(totals.subtotal - totals.discount));
+  const stockClearingAmount = Math.min(netSubtotalAmount, Math.max(0, roundMoney(reconciliation.stockClearingAmount ?? 0)));
+  const expenseAmount = roundMoney(netSubtotalAmount - stockClearingAmount);
+  if (stockClearingAmount > 0) assertRequiredSetting(settings.grniClearingAccountId, "Compte GRNI / réception à recevoir requis pour une facture fournisseur stockée.");
+  if (expenseAmount > 0) assertRequiredSetting(settings.expenseAccountId, "Compte d'achat ou de charge non configuré.");
+  if (Math.abs(reconciliation.priceVarianceAmount ?? 0) >= 0.01) {
+    throw new ApAccountingError("Écart de prix détecté entre réception valorisée et facture fournisseur. Le traitement des écarts de prix est différé en V1.");
+  }
+  const stockClearing = moneyToAccountingAmount(stockClearingAmount);
+  const expense = moneyToAccountingAmount(expenseAmount);
   const tax = moneyToAccountingAmount(totals.tax);
   const total = moneyToAccountingAmount(totals.total);
   if (accountingAmountToMinorUnits(total) <= BigInt(0)) throw new ApAccountingError("La facture fournisseur ne porte aucun montant à comptabiliser.");
@@ -36,8 +49,11 @@ export function createSupplierBillAccountingEntry(bill: SupplierBill, settings: 
 
   const label = `Facture fournisseur ${bill.number} · ${bill.supplierName}`;
   const lines: AccountingJournalEntryLine[] = [];
-  if (accountingAmountToMinorUnits(subtotal) > BigInt(0)) {
-    lines.push(createLine(bill.id, "expense", settings.expenseAccountId, label, subtotal, "0.00" as AccountingAmount));
+  if (accountingAmountToMinorUnits(stockClearing) > BigInt(0) && settings.grniClearingAccountId) {
+    lines.push(createLine(bill.id, "grni", settings.grniClearingAccountId, `Apurement GRNI · ${bill.number}`, stockClearing, "0.00" as AccountingAmount));
+  }
+  if (accountingAmountToMinorUnits(expense) > BigInt(0) && settings.expenseAccountId) {
+    lines.push(createLine(bill.id, "expense", settings.expenseAccountId, label, expense, "0.00" as AccountingAmount));
   }
   if (accountingAmountToMinorUnits(tax) > BigInt(0) && settings.taxRecoverableAccountId) {
     lines.push(createLine(bill.id, "tax", settings.taxRecoverableAccountId, `TVA récupérable · ${bill.number}`, tax, "0.00" as AccountingAmount));
@@ -58,6 +74,10 @@ export function createSupplierBillAccountingEntry(bill: SupplierBill, settings: 
     lines,
     context
   });
+}
+
+function roundMoney(value: number) {
+  return Math.round(value * 100) / 100;
 }
 
 function postApEntry(input: {

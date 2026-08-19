@@ -7,6 +7,7 @@ import {
   ACCOUNTING_WORKSPACE_ID,
   assertPostingDateIsOpen,
   createInventoryCogsAccountingEntry,
+  createInventoryReceiptAccountingEntry,
   createSupplierBillAccountingEntry,
   createBalanceSheetReport,
   createGeneralLedgerReport,
@@ -76,6 +77,7 @@ export type AccountingPersistenceSnapshot = Readonly<{
     supplierBills: readonly { sourceType: "procurement.supplier-bill"; sourceId: string; journalEntryId?: AccountingJournalEntryId; journalEntryNumber?: string; status: "not_posted" | "draft" | "posted" | "reversed"; postedAt?: string; reversedAt?: string }[];
   };
   inventorySources: {
+    receiptEvents: readonly { sourceType: "inventory.receipt-valuation"; sourceId: string; journalEntryId?: AccountingJournalEntryId; journalEntryNumber?: string; status: "not_posted" | "draft" | "posted" | "reversed"; postedAt?: string; reversedAt?: string }[];
     cogsEvents: readonly { sourceType: "inventory.cogs"; sourceId: string; journalEntryId?: AccountingJournalEntryId; journalEntryNumber?: string; status: "not_posted" | "draft" | "posted" | "reversed"; postedAt?: string; reversedAt?: string }[];
   };
   inventoryPostingSettings?: AccountingInventoryPostingSettings;
@@ -329,8 +331,9 @@ export async function postSupplierBillToAccounting(scope: PersistenceTenantScope
     return mapDbEntry(existing);
   }
 
-  const [settings, bill, snapshot] = await Promise.all([
+  const [settings, inventorySettings, bill, snapshot] = await Promise.all([
     requireApPostingSettings(scope),
+    prisma.accountingInventoryPostingSettings.findUnique({ where: { tenantCompanyId: scope.companyId } }),
     prisma.procurementSupplierBill.findFirst({
       where: { tenantCompanyId: scope.companyId, id: supplierBillId },
       include: { lines: { orderBy: { position: "asc" } } }
@@ -340,12 +343,16 @@ export async function postSupplierBillToAccounting(scope: PersistenceTenantScope
   if (!bill) throw new Error("Facture fournisseur introuvable pour cette entreprise.");
 
   const supplierBill = mapDbSupplierBill(bill);
-  const posted = createSupplierBillAccountingEntry(supplierBill, settings, {
+  const grniReconciliation = await resolveSupplierBillGrniReconciliation(scope, supplierBill);
+  const posted = createSupplierBillAccountingEntry(supplierBill, {
+    ...settings,
+    grniClearingAccountId: inventorySettings?.grniClearingAccountId as AccountingApPostingSettings["grniClearingAccountId"] | undefined
+  }, {
     tenantCompanyId: scope.companyId as AccountingTenantCompanyId,
     workspaceId: ACCOUNTING_WORKSPACE_ID,
     userId: scope.userId as AccountingJournalEntry["postedBy"],
     now: () => new Date().toISOString()
-  });
+  }, grniReconciliation);
   assertPostingDateIsOpen(posted.entryDate, snapshot.periods);
   validateCommercialPostedEntry(posted, snapshot);
   await insertGeneratedJournalEntry(scope, posted);
@@ -356,6 +363,127 @@ export async function postSupplierBillToAccounting(scope: PersistenceTenantScope
   const saved = await findCommercialSourceEntry(scope, "procurement.supplier-bill", supplierBillId);
   if (!saved) throw new Error("Ecriture fournisseur générée introuvable après comptabilisation.");
   return mapDbEntry(saved);
+}
+
+export async function postInventoryReceiptValuationToAccounting(scope: PersistenceTenantScope, valuationEventId: string) {
+  const existing = await findCommercialSourceEntry(scope, "inventory.receipt-valuation", valuationEventId);
+  if (existing) {
+    if (await findReversalOfEntry(scope, existing.id)) throw new Error("Cette réception stock a deja ete contrepassee. La recomptabilisation controlee est differee.");
+    return mapDbEntry(existing);
+  }
+
+  await reconcileInventoryValuation(scope);
+  const [settings, valuationEvent, snapshot] = await Promise.all([
+    requireInventoryPostingSettings(scope),
+    prisma.inventoryValuationEvent.findFirst({ where: { companyId: scope.companyId, id: valuationEventId } }),
+    loadAccountingSnapshot(scope)
+  ]);
+  if (!valuationEvent) throw new Error("Evenement de réception valorisée introuvable pour cette entreprise.");
+  const posted = createInventoryReceiptAccountingEntry({
+    valuationEvent: mapDbInventoryValuationEvent(valuationEvent),
+    settings,
+    context: {
+      tenantCompanyId: scope.companyId as AccountingTenantCompanyId,
+      workspaceId: ACCOUNTING_WORKSPACE_ID,
+      userId: scope.userId as AccountingJournalEntry["postedBy"],
+      now: () => new Date().toISOString()
+    }
+  });
+  assertPostingDateIsOpen(posted.entryDate, snapshot.periods);
+  validateCommercialPostedEntry(posted, snapshot);
+  await insertGeneratedJournalEntry(scope, posted);
+  const saved = await findCommercialSourceEntry(scope, "inventory.receipt-valuation", valuationEventId);
+  if (!saved) throw new Error("Ecriture réception stock générée introuvable après comptabilisation.");
+  return mapDbEntry(saved);
+}
+
+async function resolveSupplierBillGrniReconciliation(scope: PersistenceTenantScope, bill: SupplierBill) {
+  const linkedLines = bill.lines.filter((line) => line.goodsReceiptLineId && line.productId);
+  if (linkedLines.length === 0) return Object.freeze({ stockClearingAmount: 0, priceVarianceAmount: 0 });
+
+  const receiptLineIds = [...new Set(linkedLines.map((line) => line.goodsReceiptLineId!))];
+  const receiptLines = await prisma.procurementGoodsReceiptLine.findMany({
+    where: { id: { in: receiptLineIds }, goodsReceipt: { tenantCompanyId: scope.companyId } },
+    include: { goodsReceipt: { select: { id: true, tenantCompanyId: true } }, product: { select: { id: true, trackInventory: true, companyId: true } } }
+  });
+  const previouslyAccountedLines = await prisma.procurementSupplierBillLine.findMany({
+    where: {
+      goodsReceiptLineId: { in: receiptLineIds },
+      supplierBillId: { not: bill.id },
+      supplierBill: { tenantCompanyId: scope.companyId, status: "accounted" }
+    },
+    select: { goodsReceiptLineId: true, quantity: true }
+  });
+  const accountedQuantityByReceiptLineId = new Map<string, number>();
+  previouslyAccountedLines.forEach((line) => {
+    if (!line.goodsReceiptLineId) return;
+    accountedQuantityByReceiptLineId.set(line.goodsReceiptLineId, roundMoney((accountedQuantityByReceiptLineId.get(line.goodsReceiptLineId) ?? 0) + line.quantity));
+  });
+  const receiptLineById = new Map(receiptLines.map((line) => [line.id, line]));
+  const receiptIds = [...new Set(receiptLines.map((line) => line.goodsReceiptId))];
+  const receiptMovements = receiptIds.length === 0 ? [] : await prisma.inventoryStockMovement.findMany({
+    where: { companyId: scope.companyId, status: "POSTED", referenceType: "GOODS_RECEIPT", referenceId: { in: receiptIds } },
+    select: { id: true, productId: true, quantity: true, referenceId: true }
+  });
+  const movementByReceiptLine = new Map<string, string>();
+  for (const receiptLine of receiptLines) {
+    const canonicalMovementId = `movement-${receiptLine.goodsReceiptId}-${receiptLine.id}`;
+    const canonical = receiptMovements.find((movement) => movement.id === canonicalMovementId);
+    if (canonical) {
+      movementByReceiptLine.set(receiptLine.id, canonical.id);
+      continue;
+    }
+    const candidates = receiptMovements.filter((movement) =>
+      movement.referenceId === receiptLine.goodsReceiptId &&
+      movement.productId === receiptLine.productId &&
+      decimalToNumber(movement.quantity) === decimalToNumber(receiptLine.receivedQuantity)
+    );
+    if (candidates.length === 1) movementByReceiptLine.set(receiptLine.id, candidates[0].id);
+  }
+  const movementIds = [...new Set([...movementByReceiptLine.values()])];
+  const valuationEvents = movementIds.length === 0 ? [] : await prisma.inventoryValuationEvent.findMany({
+    where: { companyId: scope.companyId, eventType: "INBOUND", movementId: { in: movementIds } }
+  });
+  const valuationByMovement = new Map(valuationEvents.map((event) => [event.movementId, event]));
+  const receiptAccountingEntries = valuationEvents.length === 0 ? [] : await prisma.accountingJournalEntry.findMany({
+    where: { tenantCompanyId: scope.companyId, sourceType: "inventory.receipt-valuation", sourceId: { in: valuationEvents.map((event) => event.id) } },
+    select: { sourceId: true, status: true, id: true }
+  });
+  const reversedReceiptEntries = receiptAccountingEntries.length === 0 ? [] : await prisma.accountingJournalEntry.findMany({
+    where: { tenantCompanyId: scope.companyId, sourceType: "accounting.reversal", sourceId: { in: receiptAccountingEntries.map((entry) => entry.id) } },
+    select: { sourceId: true }
+  });
+  const reversedReceiptEntryIds = new Set(reversedReceiptEntries.map((entry) => entry.sourceId));
+  const accountedReceiptValuationIds = new Set(receiptAccountingEntries
+    .filter((entry) => entry.status === "posted" && !reversedReceiptEntryIds.has(entry.id))
+    .map((entry) => entry.sourceId));
+
+  let stockClearingAmount = 0;
+  let priceVarianceAmount = 0;
+  const globalDiscountFactor = 1 - Math.max(0, bill.discountRate) / 100;
+  for (const line of linkedLines) {
+    const receiptLine = receiptLineById.get(line.goodsReceiptLineId!);
+    if (!receiptLine || receiptLine.goodsReceipt.tenantCompanyId !== scope.companyId) throw new Error("Ligne de réception fournisseur introuvable pour le rapprochement GRNI.");
+    if (!receiptLine.product || receiptLine.product.companyId !== scope.companyId || !receiptLine.product.trackInventory) continue;
+    if (receiptLine.productId !== line.productId) throw new Error("La facture fournisseur référence un produit différent de la réception.");
+    const alreadyClearedQuantity = accountedQuantityByReceiptLineId.get(line.goodsReceiptLineId!) ?? 0;
+    if (roundMoney(alreadyClearedQuantity + line.quantity) > receiptLine.receivedQuantity) throw new Error("La quantité facturée dépasse le solde reçu disponible pour une ligne stockée.");
+
+    const movementId = movementByReceiptLine.get(receiptLine.id);
+    const valuation = movementId ? valuationByMovement.get(movementId) : undefined;
+    if (!valuation) throw new Error("La réception fournisseur doit être valorisée avant comptabilisation GRNI.");
+    if (!accountedReceiptValuationIds.has(valuation.id)) throw new Error("La réception stock doit être comptabilisée en GRNI avant la facture fournisseur.");
+    if (valuation.currency !== bill.currency) throw new Error("Devise de réception valorisée incompatible avec la facture fournisseur.");
+
+    const valuationUnitCost = decimalToNumber(valuation.unitCost);
+    const valuationAmount = roundMoney(valuationUnitCost * line.quantity);
+    const billNetAmount = roundMoney(line.quantity * line.unitPrice * (1 - Math.max(0, line.discountRate) / 100) * globalDiscountFactor);
+    const variance = roundMoney(billNetAmount - valuationAmount);
+    if (Math.abs(variance) >= 0.01) priceVarianceAmount = roundMoney(priceVarianceAmount + variance);
+    stockClearingAmount = roundMoney(stockClearingAmount + valuationAmount);
+  }
+
+  return Object.freeze({ stockClearingAmount, priceVarianceAmount });
 }
 
 export async function postInventoryCogsToAccounting(scope: PersistenceTenantScope, valuationEventId: string) {
@@ -700,6 +828,7 @@ function inventorySettingsWriteData(settings: AccountingInventoryPostingSettings
     inventoryJournalId: settings.inventoryJournalId ?? null,
     inventoryAssetAccountId: settings.inventoryAssetAccountId ?? null,
     cogsAccountId: settings.cogsAccountId ?? null,
+    grniClearingAccountId: settings.grniClearingAccountId ?? null,
     functionalCurrency: normalizeCurrency(settings.functionalCurrency),
     updatedBy: settings.updatedBy ?? scope.userId,
     createdAt: parseDate(settings.createdAt),
@@ -725,7 +854,7 @@ async function requireInventoryPostingSettings(scope: PersistenceTenantScope) {
   return mapDbInventorySettings(settings);
 }
 
-async function findCommercialSourceEntry(scope: PersistenceTenantScope, sourceType: "sales.invoice" | "sales.payment" | "procurement.supplier-bill" | "inventory.cogs", sourceId: string) {
+async function findCommercialSourceEntry(scope: PersistenceTenantScope, sourceType: "sales.invoice" | "sales.payment" | "procurement.supplier-bill" | "inventory.receipt-valuation" | "inventory.cogs", sourceId: string) {
   return await prisma.accountingJournalEntry.findFirst({
     where: { tenantCompanyId: scope.companyId, sourceType, sourceId },
     include: { lines: { orderBy: { position: "asc" } } }
@@ -896,6 +1025,7 @@ function mapDbInventorySettings(row: DbInventorySettings): AccountingInventoryPo
     inventoryJournalId: row.inventoryJournalId as AccountingInventoryPostingSettings["inventoryJournalId"] | undefined,
     inventoryAssetAccountId: row.inventoryAssetAccountId as AccountingInventoryPostingSettings["inventoryAssetAccountId"] | undefined,
     cogsAccountId: row.cogsAccountId as AccountingInventoryPostingSettings["cogsAccountId"] | undefined,
+    grniClearingAccountId: row.grniClearingAccountId as AccountingInventoryPostingSettings["grniClearingAccountId"] | undefined,
     functionalCurrency: row.functionalCurrency,
     updatedBy: row.updatedBy as AccountingInventoryPostingSettings["updatedBy"] | undefined,
     createdAt: row.createdAt.toISOString(),
@@ -1074,10 +1204,11 @@ async function loadApSourceStatuses(scope: PersistenceTenantScope): Promise<Acco
 }
 
 async function loadInventorySourceStatuses(scope: PersistenceTenantScope): Promise<AccountingPersistenceSnapshot["inventorySources"]> {
-  const [cogsEvents, entries] = await Promise.all([
+  const [receiptEvents, cogsEvents, entries] = await Promise.all([
+    prisma.inventoryValuationEvent.findMany({ where: { companyId: scope.companyId, eventType: "INBOUND" }, select: { id: true } }),
     prisma.inventoryValuationEvent.findMany({ where: { companyId: scope.companyId, eventType: "OUTBOUND" }, select: { id: true } }),
     prisma.accountingJournalEntry.findMany({
-      where: { tenantCompanyId: scope.companyId, sourceType: "inventory.cogs" },
+      where: { tenantCompanyId: scope.companyId, sourceType: { in: ["inventory.receipt-valuation", "inventory.cogs"] } },
       select: { id: true, number: true, sourceType: true, sourceId: true, status: true, postedAt: true }
     })
   ]);
@@ -1088,11 +1219,12 @@ async function loadInventorySourceStatuses(scope: PersistenceTenantScope): Promi
   const reversalByEntry = new Map(reversals.map((entry) => [entry.sourceId, entry]));
   const entryBySource = new Map(entries.map((entry) => [`${entry.sourceType}:${entry.sourceId}`, entry]));
   return Object.freeze({
+    receiptEvents: Object.freeze(receiptEvents.map((event) => mapSourceStatus("inventory.receipt-valuation", event.id, entryBySource, reversalByEntry))),
     cogsEvents: Object.freeze(cogsEvents.map((event) => mapSourceStatus("inventory.cogs", event.id, entryBySource, reversalByEntry)))
   });
 }
 
-function mapSourceStatus<TSourceType extends "sales.invoice" | "sales.payment" | "procurement.supplier-bill" | "inventory.cogs">(
+function mapSourceStatus<TSourceType extends "sales.invoice" | "sales.payment" | "procurement.supplier-bill" | "inventory.receipt-valuation" | "inventory.cogs">(
   sourceType: TSourceType,
   sourceId: string,
   entryBySource: Map<string, { id: string; number: string; status: string; postedAt: Date | null }>,
@@ -1133,6 +1265,10 @@ function parseOptionalDate(value?: string) {
 
 function decimalToNumber(value: Prisma.Decimal | number) {
   return typeof value === "number" ? value : value.toNumber();
+}
+
+function roundMoney(value: number) {
+  return Math.round(value * 100) / 100;
 }
 
 function normalizeCurrency(value: string) {

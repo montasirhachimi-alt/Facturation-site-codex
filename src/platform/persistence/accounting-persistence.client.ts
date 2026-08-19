@@ -161,6 +161,10 @@ export async function postInventoryCogsToAccounting(valuationEventId: string) {
   return postCommercialSource("postInventoryCogs", valuationEventId);
 }
 
+export async function postInventoryReceiptToAccounting(valuationEventId: string) {
+  return postCommercialSource("postInventoryReceipt", valuationEventId);
+}
+
 export async function getAccountingGeneralLedger(payload: AccountingReportPayload = {}) {
   const response = await fetch("/api/persistence/accounting", {
     method: "POST",
@@ -229,7 +233,7 @@ export async function getAccountingBalanceSheet(payload: AccountingReportPayload
   return body.report;
 }
 
-async function postCommercialSource(operation: "postSalesInvoice" | "postSalesPayment" | "postSupplierBill" | "postInventoryCogs", sourceId: string) {
+async function postCommercialSource(operation: "postSalesInvoice" | "postSalesPayment" | "postSupplierBill" | "postInventoryReceipt" | "postInventoryCogs", sourceId: string) {
   const response = await fetch("/api/persistence/accounting", {
     method: "POST",
     headers: {

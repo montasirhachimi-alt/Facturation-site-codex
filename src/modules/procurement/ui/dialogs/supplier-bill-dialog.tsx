@@ -97,6 +97,40 @@ export function SupplierBillDialog({
     });
   }
 
+  function selectReceipt(goodsReceiptId: string) {
+    const receipt = goodsReceipts.find((item) => item.id === goodsReceiptId);
+    if (!receipt) {
+      onChange({ ...form, goodsReceiptId: "" });
+      return;
+    }
+    const order = purchaseOrders.find((item) => item.id === receipt.purchaseOrderId);
+    onChange({
+      ...form,
+      supplierId: receipt.supplierId,
+      purchaseOrderId: receipt.purchaseOrderId,
+      goodsReceiptId: receipt.id,
+      currency: order?.currency ?? form.currency,
+      lines: receipt.lines.map((line) => {
+        const orderLine = order?.lines.find((item) => item.id === line.purchaseOrderLineId);
+        const product = products.find((item) => item.id === line.productId);
+        return {
+          id: createEmptySupplierBillLine("supplier-bill-gr").id,
+          goodsReceiptLineId: line.id,
+          purchaseOrderLineId: line.purchaseOrderLineId,
+          productId: line.productId,
+          productSku: line.productSku,
+          productName: line.productName,
+          description: line.description,
+          quantity: line.receivedQuantity,
+          unit: line.unit,
+          unitPrice: orderLine?.unitPrice ?? product?.purchasePrice ?? 0,
+          discountRate: orderLine?.discountRate ?? 0,
+          taxRate: orderLine?.taxRate ?? product?.vatRate ?? 20
+        } satisfies SupplierBillLine;
+      })
+    });
+  }
+
   return (
     <EntityDialog
       description="Enregistrez une facture fournisseur liée à une commande ou une réception existante."
@@ -124,7 +158,7 @@ export function SupplierBillDialog({
             </select>
           </FormField>
           <FormField label="Réception fournisseur">
-            <select className={entityInputClassName} value={form.goodsReceiptId} onChange={(event) => update("goodsReceiptId", event.target.value)}>
+            <select className={entityInputClassName} value={form.goodsReceiptId} onChange={(event) => selectReceipt(event.target.value)}>
               <option value="">Sans réception liée</option>
               {relatedReceipts.map((receipt) => <option key={receipt.id} value={receipt.id}>{receipt.number} · {receipt.purchaseOrderNumber}</option>)}
             </select>

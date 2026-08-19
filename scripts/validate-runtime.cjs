@@ -6125,6 +6125,33 @@ test("Procurement AP Accounting V1 maps supplier bill accounting formula determi
   assert(entry.lines.some((line) => line.accountId === "account-payable" && line.creditAmount === "1200.00"), "AP entry should credit accounts payable for total TTC.");
 });
 
+test("Procurement AP Accounting V1 clears GRNI for stocked supplier bills without double expense", () => {
+  const { createSupplierBillAccountingEntry, ACCOUNTING_WORKSPACE_ID } = load("src/modules/accounting");
+  const tenantCompanyId = "tenant-ap-grni-runtime";
+  const settings = {
+    tenantCompanyId,
+    purchaseJournalId: "journal-purchase",
+    payableAccountId: "account-payable",
+    expenseAccountId: "account-expense",
+    grniClearingAccountId: "account-grni",
+    functionalCurrency: "MAD",
+    createdAt: "2026-08-18T00:00:00.000Z",
+    updatedAt: "2026-08-18T00:00:00.000Z"
+  };
+  const bill = createRuntimeSupplierBill({ lines: [createRuntimeSupplierBillLine({ taxRate: 0 })] });
+  const entry = createSupplierBillAccountingEntry(bill, settings, {
+    tenantCompanyId,
+    workspaceId: ACCOUNTING_WORKSPACE_ID,
+    userId: "accountant-ap",
+    now: () => "2026-08-18T12:00:00.000Z"
+  }, { stockClearingAmount: 1000 });
+
+  assert(entry.debitTotal === "1000.00" && entry.creditTotal === "1000.00", "Stocked AP entry should balance GRNI clearing against AP.");
+  assert(entry.lines.some((line) => line.accountId === "account-grni" && line.debitAmount === "1000.00"), "Stocked supplier bill should debit GRNI.");
+  assert(!entry.lines.some((line) => line.accountId === "account-expense" && line.debitAmount !== "0.00"), "Stocked supplier bill should not double-debit expense.");
+  assert(entry.lines.some((line) => line.accountId === "account-payable" && line.creditAmount === "1000.00"), "Stocked supplier bill should credit AP.");
+});
+
 test("Procurement AP Accounting V1 rejects unsafe supplier bill posting states", () => {
   const { ApAccountingError, createSupplierBillAccountingEntry, ACCOUNTING_WORKSPACE_ID } = load("src/modules/accounting");
   const tenantCompanyId = "tenant-ap-runtime";
@@ -6228,6 +6255,38 @@ test("Inventory COGS Accounting V1 maps outbound valuation to balanced journal e
   assert(entry.lines.some((line) => line.accountId === "account-inventory" && line.creditAmount === "250.00"), "Inventory COGS should credit Inventory Asset.");
 });
 
+test("Inventory Receipt Accounting V1 maps inbound valuation to GRNI entries", () => {
+  const { ACCOUNTING_WORKSPACE_ID, createInventoryReceiptAccountingEntry } = load("src/modules/accounting");
+  const tenantCompanyId = "tenant-inventory-receipt";
+  const settings = {
+    tenantCompanyId,
+    inventoryJournalId: "journal-inventory",
+    inventoryAssetAccountId: "account-inventory",
+    cogsAccountId: "account-cogs",
+    grniClearingAccountId: "account-grni",
+    functionalCurrency: "MAD",
+    createdAt: "2026-08-18T00:00:00.000Z",
+    updatedAt: "2026-08-18T00:00:00.000Z"
+  };
+  const valuationEvent = createRuntimeValuationEvent({ eventType: "INBOUND", totalValue: 1000, unitCost: 100, quantity: 10 });
+  const entry = createInventoryReceiptAccountingEntry({
+    valuationEvent,
+    settings,
+    context: {
+      tenantCompanyId,
+      workspaceId: ACCOUNTING_WORKSPACE_ID,
+      userId: "accountant-inventory",
+      now: () => "2026-08-18T12:00:00.000Z"
+    }
+  });
+
+  assert(entry.status === "posted", "Inventory receipt entry should be posted by the accounting bridge.");
+  assert(entry.sourceType === "inventory.receipt-valuation" && entry.sourceId === valuationEvent.id, "Inventory receipt accounting should preserve valuation source traceability.");
+  assert(entry.debitTotal === "1000.00" && entry.creditTotal === "1000.00", "Inventory receipt entry should be balanced.");
+  assert(entry.lines.some((line) => line.accountId === "account-inventory" && line.debitAmount === "1000.00"), "Inventory receipt should debit Inventory Asset.");
+  assert(entry.lines.some((line) => line.accountId === "account-grni" && line.creditAmount === "1000.00"), "Inventory receipt should credit GRNI.");
+});
+
 test("Inventory COGS Accounting V1 rejects unsafe source states", () => {
   const { AccountingDomainError, ACCOUNTING_WORKSPACE_ID, createInventoryCogsAccountingEntry } = load("src/modules/accounting");
   const tenantCompanyId = "tenant-inventory-cogs";
@@ -6259,16 +6318,49 @@ test("Inventory COGS Accounting V1 rejects unsafe source states", () => {
   assert(currencyRejected, "COGS V1 should reject currency mismatch.");
 });
 
-test("Inventory Valuation V1 is exposed through Inventory and Finance without inbound GL duplication", () => {
+test("Inventory Valuation V1 is exposed through Inventory and Finance with controlled GRNI accounting", () => {
   const accountingWorkspace = read("src/modules/accounting/ui/pages/accounting-workspace.tsx");
   const inventoryWorkspace = read("src/modules/inventory/ui/pages/inventory-workspace.tsx");
   const accountingRepository = read("src/server/persistence/accounting-repository.ts");
   const accountingClient = read("src/platform/persistence/accounting-persistence.client.ts");
 
-  assert(accountingWorkspace.includes("Intégration stock") && accountingWorkspace.includes("postInventoryCogsToAccounting"), "Finance UI should expose controlled stock accounting integration.");
+  assert(accountingWorkspace.includes("Intégration stock") && accountingWorkspace.includes("postInventoryCogsToAccounting") && accountingWorkspace.includes("postInventoryReceiptToAccounting"), "Finance UI should expose controlled stock and receipt accounting integration.");
   assert(inventoryWorkspace.includes("Synchroniser valorisation") && inventoryWorkspace.includes("Valeur stock"), "Inventory UI should expose operational valuation reporting.");
-  assert(accountingRepository.includes("\"inventory.cogs\"") && accountingClient.includes("saveInventoryPostingSettings"), "Accounting adapters should expose inventory COGS and settings operations.");
-  assert(accountingWorkspace.includes("L'écriture d'entrée Stock/GRNI est différée"), "Inbound GL capitalization should be explicitly deferred to avoid duplicating Supplier Bill expense.");
+  assert(accountingRepository.includes("\"inventory.cogs\"") && accountingRepository.includes("\"inventory.receipt-valuation\"") && accountingClient.includes("saveInventoryPostingSettings"), "Accounting adapters should expose inventory COGS, receipt valuation and settings operations.");
+  assert(accountingRepository.includes("La réception stock doit être comptabilisée en GRNI avant la facture fournisseur"), "Supplier Bill GRNI clearing should require prior receipt capitalization.");
+  assert(accountingRepository.includes("previouslyAccountedLines") && accountingRepository.includes("solde reçu disponible"), "Supplier Bill GRNI clearing should protect cumulative partial receipt quantities.");
+  assert(accountingWorkspace.includes("Compte GRNI") && accountingWorkspace.includes("Réceptions valorisées à capitaliser"), "Finance UI should expose the GRNI account and receipt capitalization queue.");
+  assert(accountingWorkspace.includes("afin d'éviter toute double reconnaissance"), "Finance UI should explain the no-double-recognition rule.");
+});
+
+test("SPR-438A links supplier bill lines to selected Goods Receipt lines", () => {
+  const dialog = read("src/modules/procurement/ui/dialogs/supplier-bill-dialog.tsx");
+  const page = read("src/modules/procurement/ui/pages/supplier-bills-page.tsx");
+  const repository = read("src/server/persistence/procurement-repository.ts");
+
+  assert(dialog.includes("function selectReceipt") && dialog.includes("goodsReceiptLineId: line.id"), "Supplier Bill receipt selection should copy the selected Goods Receipt line identity.");
+  assert(dialog.includes("purchaseOrderLineId: line.purchaseOrderLineId") && dialog.includes("quantity: line.receivedQuantity"), "Supplier Bill receipt selection should preserve PO line identity and received quantity.");
+  assert(dialog.includes("onChange={(event) => selectReceipt(event.target.value)}"), "Goods Receipt selector should use the receipt-aware line mapper, not a header-only update.");
+  assert(page.includes("lines: form.lines"), "Supplier Bill submission should persist the mapped line-level receipt links.");
+  assert(repository.includes("goodsReceiptLineId: line.goodsReceiptLineId ?? null"), "Procurement persistence should retain Supplier Bill line Goods Receipt links.");
+});
+
+test("SPR-438A hardens Goods Receipt valuation identity for GRNI resolution", () => {
+  const procurementRepository = read("src/server/persistence/procurement-repository.ts");
+  const accountingRepository = read("src/server/persistence/accounting-repository.ts");
+
+  assert(procurementRepository.includes("const persistedLineId = createGoodsReceiptLinePersistenceId(receipt.id, line, index)") && procurementRepository.includes("id: `movement-${receipt.id}-${persistedLineId}`"), "Goods Receipt posting should create future stock movements from the persisted receipt line identity.");
+  assert(accountingRepository.includes("inventoryStockMovement.findMany") && accountingRepository.includes("movementByReceiptLine"), "GRNI reconciliation should resolve receipt valuation through actual posted stock movements.");
+  assert(accountingRepository.includes("candidates.length === 1") && accountingRepository.includes("decimalToNumber(movement.quantity) === decimalToNumber(receiptLine.receivedQuantity)"), "GRNI reconciliation should support one safe legacy movement match without guessing ambiguous lines.");
+  assert(accountingRepository.includes("La réception stock doit être comptabilisée en GRNI avant la facture fournisseur"), "Pending receipt capitalization should remain an explicit blocked accounting reason.");
+});
+
+test("SPR-438A avoids misleading AP treatment labels for header-only receipt links", () => {
+  const accountingWorkspace = read("src/modules/accounting/ui/pages/accounting-workspace.tsx");
+
+  assert(accountingWorkspace.includes("function getSupplierBillTreatment"), "AP integration should centralize Supplier Bill treatment classification.");
+  assert(accountingWorkspace.includes("\"Non rapproché\""), "A header-only Goods Receipt link should be displayed as unmatched instead of Charges.");
+  assert(accountingWorkspace.includes("row.treatment === \"Non rapproché\" ? \"warning\""), "Unmatched stock-link candidates should have a visible warning treatment.");
 });
 
 test("Inventory Valuation synchronization precomputes references before short write transaction", () => {

@@ -1503,6 +1503,7 @@ model AccountingAccount {
   apTaxRecoverableSettings     AccountingApPostingSettings[]         @relation("AccountingApTaxRecoverableAccount")
   inventoryAssetSettings       AccountingInventoryPostingSettings[]  @relation("AccountingInventoryAssetAccount")
   inventoryCogsSettings        AccountingInventoryPostingSettings[]  @relation("AccountingInventoryCogsAccount")
+  inventoryGrniSettings        AccountingInventoryPostingSettings[]  @relation("AccountingInventoryGrniAccount")
   createdAt                    DateTime                              @default(now())
   updatedAt                    DateTime                              @updatedAt
 
@@ -1658,6 +1659,8 @@ model AccountingInventoryPostingSettings {
   inventoryAssetAccount   AccountingAccount? @relation("AccountingInventoryAssetAccount", fields: [inventoryAssetAccountId], references: [id], onDelete: SetNull)
   cogsAccountId           String?
   cogsAccount             AccountingAccount? @relation("AccountingInventoryCogsAccount", fields: [cogsAccountId], references: [id], onDelete: SetNull)
+  grniClearingAccountId   String?
+  grniClearingAccount     AccountingAccount? @relation("AccountingInventoryGrniAccount", fields: [grniClearingAccountId], references: [id], onDelete: SetNull)
   functionalCurrency      String             @default("MAD")
   updatedBy               String?
   createdAt               DateTime           @default(now())
@@ -1666,6 +1669,7 @@ model AccountingInventoryPostingSettings {
   @@index([inventoryJournalId])
   @@index([inventoryAssetAccountId])
   @@index([cogsAccountId])
+  @@index([grniClearingAccountId])
 }
 
 model AccountingPeriod {
