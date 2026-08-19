@@ -35,6 +35,7 @@ export type AccountingSourceType =
   | "sales.invoice"
   | "sales.payment"
   | "procurement.supplier-bill"
+  | "procurement.supplier-payment"
   | "procurement.supplier-invoice"
   | "inventory.valuation"
   | "inventory.receipt-valuation"
@@ -186,6 +187,7 @@ export type AccountingApPostingSettings = Readonly<{
 
 export type AccountingApSources = Readonly<{
   supplierBills: readonly AccountingSourcePostingStatus[];
+  supplierPayments: readonly AccountingSourcePostingStatus[];
 }>;
 
 export type AccountingInventoryPostingSettings = Readonly<{

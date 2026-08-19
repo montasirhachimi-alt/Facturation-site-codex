@@ -15,6 +15,7 @@ import {
   postSalesInvoiceToAccounting,
   postSalesPaymentToAccounting,
   postSupplierBillToAccounting,
+  postSupplierPaymentToAccounting,
   closeAccountingPeriod,
   reopenAccountingPeriod,
   reverseAccountingEntry,
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
   try {
     const scope = await requirePersistenceTenantScope();
     const body = await request.json() as {
-      operation?: "postJournalEntry" | "reverseJournalEntry" | "closeAccountingPeriod" | "reopenAccountingPeriod" | "getGeneralLedger" | "getTrialBalance" | "getProfitLoss" | "getBalanceSheet" | "saveCommercialPostingSettings" | "saveApPostingSettings" | "saveInventoryPostingSettings" | "postSalesInvoice" | "postSalesPayment" | "postSupplierBill" | "postInventoryReceipt" | "postInventoryCogs";
+      operation?: "postJournalEntry" | "reverseJournalEntry" | "closeAccountingPeriod" | "reopenAccountingPeriod" | "getGeneralLedger" | "getTrialBalance" | "getProfitLoss" | "getBalanceSheet" | "saveCommercialPostingSettings" | "saveApPostingSettings" | "saveInventoryPostingSettings" | "postSalesInvoice" | "postSalesPayment" | "postSupplierBill" | "postSupplierPayment" | "postInventoryReceipt" | "postInventoryCogs";
       payload?: AccountingJournalEntryId | string | (AccountingReportDateScope & { accountIds?: readonly string[]; journalIds?: readonly string[]; asOfDate?: string }) | unknown;
       resource?: AccountingPersistenceResource;
       record?: unknown;
@@ -126,6 +127,12 @@ export async function POST(request: Request) {
 
     if (body.operation === "postSupplierBill" && typeof body.payload === "string") {
       const record = await postSupplierBillToAccounting(scope, body.payload);
+      const snapshot = await loadAccountingSnapshot(scope);
+      return NextResponse.json({ record, snapshot });
+    }
+
+    if (body.operation === "postSupplierPayment" && typeof body.payload === "string") {
+      const record = await postSupplierPaymentToAccounting(scope, body.payload);
       const snapshot = await loadAccountingSnapshot(scope);
       return NextResponse.json({ record, snapshot });
     }

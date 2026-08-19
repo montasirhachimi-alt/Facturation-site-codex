@@ -3,7 +3,7 @@ import { applySupplierImport, deleteDraftPurchaseOrder, loadProcurementSnapshot,
 import { requirePersistenceTenantScope } from "@/server/persistence/tenant-scope";
 import type { GoodsReceipt, PurchaseOrderId, SupplierImportRequest } from "@/modules/procurement";
 
-const resources = new Set<ProcurementPersistenceResource>(["supplier", "purchaseOrder", "goodsReceipt", "supplierBill"]);
+const resources = new Set<ProcurementPersistenceResource>(["supplier", "purchaseOrder", "goodsReceipt", "supplierBill", "supplierPayment"]);
 
 export async function GET() {
   try {

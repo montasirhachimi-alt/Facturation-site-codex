@@ -2113,4 +2113,37 @@ Receipt capitalization uses `sourceType = inventory.receipt-valuation`. Supplier
 
 V1 stock-backed classification is conservative and link-based: the Supplier Bill line must reference a Goods Receipt line for the same stock-tracked Product, backed by a durable inbound valuation event that has already been capitalized. Price variance is detected and rejected instead of silently rewriting inventory valuation or posting variance accounts.
 
-Full matching persistence, price variance accounting, landed cost and supplier payment settlement remain future capabilities.
+Full matching persistence, price variance accounting and landed cost remain future capabilities. Supplier payment settlement is now covered by ADR-040.
+
+## ADR-040 — Supplier Payments Are Procurement-Owned AP Settlement Sources
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+
+### Decision
+
+BOSIACO uses a canonical `ProcurementSupplierPayment` model for Supplier Payment / AP Settlement V1.
+
+Each Supplier Payment links to one `ProcurementSupplierBill`, one `ProcurementSupplier`, and one tenant Company. One Supplier Bill may receive multiple Supplier Payments until its outstanding balance reaches zero. Supplier Payments are posted to Accounting with `sourceType = procurement.supplier-payment` and the existing source idempotency constraint.
+
+Accounting entry:
+
+```text
+Dr Accounts Payable
+Cr Settlement Account
+```
+
+### Motivation
+
+The legacy `CashEntry` model is not linked to Procurement Supplier Bills and cannot preserve AP source traceability safely. `SalesPayment` is intentionally scoped to customer invoice settlement and must not be reused for supplier liabilities.
+
+Supplier Bills already create the AP liability. Supplier Payments should only settle that liability; they must not re-post expense, tax, stock, GRNI or COGS lines.
+
+### Consequences
+
+Supplier Bills now expose paid/outstanding/payment status in Procurement. Multiple partial supplier payments are allowed until the Supplier Bill balance reaches zero. Overpayments, currency mismatches, non-positive amounts and payments against non-accounted Supplier Bills are rejected.
+
+Finance posts finalized Supplier Payments through the AP integration workspace. The AP settlement account is required for payment posting. Accounted Supplier Payments cannot be silently mutated through Procurement persistence.
+
+Advanced payment allocation, one payment covering multiple Supplier Bills, bank reconciliation, supplier remittance documents and controlled reposting after reversal remain future capabilities.

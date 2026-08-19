@@ -2,9 +2,9 @@ import "server-only";
 
 import type { Prisma } from "@prisma/client";
 import type { InventoryCompanyId, InventoryUserId } from "@/modules/inventory";
-import type { GoodsReceipt, GoodsReceiptId, GoodsReceiptLine, ProcurementSupplier, ProcurementSupplierId, ProcurementUserId, PurchaseOrder, PurchaseOrderId, PurchaseOrderLine, SupplierBill, SupplierBillId, SupplierBillLine } from "@/modules/procurement";
+import type { GoodsReceipt, GoodsReceiptId, GoodsReceiptLine, ProcurementSupplier, ProcurementSupplierId, ProcurementUserId, PurchaseOrder, PurchaseOrderId, PurchaseOrderLine, SupplierBill, SupplierBillId, SupplierBillLine, SupplierPayment, SupplierPaymentId } from "@/modules/procurement";
 import type { SupplierImportRequest, SupplierImportResult, SupplierImportValues } from "@/modules/procurement";
-import { createGoodsReceiptLinePersistenceId, getPurchaseOrderReceiptState, validateSupplierImportRows } from "@/modules/procurement";
+import { calculateSupplierBillPaymentState, createGoodsReceiptLinePersistenceId, getPurchaseOrderReceiptState, validateSupplierImportRows } from "@/modules/procurement";
 import { loadInventorySnapshot, postInventoryMovementInTransaction } from "./inventory-repository";
 import { prisma } from "./prisma";
 import type { PersistenceTenantScope } from "./tenant-scope";
@@ -13,18 +13,20 @@ type DbSupplier = Prisma.ProcurementSupplierGetPayload<Record<string, never>>;
 type DbPurchaseOrder = Prisma.ProcurementPurchaseOrderGetPayload<{ include: { lines: true } }>;
 type DbGoodsReceipt = Prisma.ProcurementGoodsReceiptGetPayload<{ include: { lines: true } }>;
 type DbSupplierBill = Prisma.ProcurementSupplierBillGetPayload<{ include: { lines: { orderBy: { position: "asc" } } } }>;
+type DbSupplierPayment = Prisma.ProcurementSupplierPaymentGetPayload<Record<string, never>>;
 
 export type ProcurementSnapshot = Readonly<{
   suppliers: ProcurementSupplier[];
   purchaseOrders: PurchaseOrder[];
   goodsReceipts: GoodsReceipt[];
   supplierBills: SupplierBill[];
+  supplierPayments: SupplierPayment[];
 }>;
 
-export type ProcurementPersistenceResource = "supplier" | "purchaseOrder" | "goodsReceipt" | "supplierBill";
+export type ProcurementPersistenceResource = "supplier" | "purchaseOrder" | "goodsReceipt" | "supplierBill" | "supplierPayment";
 
 export async function loadProcurementSnapshot(scope: PersistenceTenantScope): Promise<ProcurementSnapshot> {
-  const [suppliers, purchaseOrders, goodsReceipts, supplierBills] = await Promise.all([
+  const [suppliers, purchaseOrders, goodsReceipts, supplierBills, supplierPayments] = await Promise.all([
     prisma.procurementSupplier.findMany({ where: { tenantCompanyId: scope.companyId }, orderBy: { updatedAt: "desc" } }),
     prisma.procurementPurchaseOrder.findMany({
       where: { tenantCompanyId: scope.companyId },
@@ -40,6 +42,10 @@ export async function loadProcurementSnapshot(scope: PersistenceTenantScope): Pr
       where: { tenantCompanyId: scope.companyId },
       include: { lines: { orderBy: { position: "asc" } } },
       orderBy: { updatedAt: "desc" }
+    }),
+    prisma.procurementSupplierPayment.findMany({
+      where: { tenantCompanyId: scope.companyId },
+      orderBy: { updatedAt: "desc" }
     })
   ]);
 
@@ -47,7 +53,8 @@ export async function loadProcurementSnapshot(scope: PersistenceTenantScope): Pr
     suppliers: suppliers.map(mapDbSupplier),
     purchaseOrders: purchaseOrders.map(mapDbPurchaseOrder),
     goodsReceipts: goodsReceipts.map(mapDbGoodsReceipt),
-    supplierBills: supplierBills.map(mapDbSupplierBill)
+    supplierBills: supplierBills.map(mapDbSupplierBill),
+    supplierPayments: supplierPayments.map(mapDbSupplierPayment)
   };
 }
 
@@ -56,6 +63,7 @@ export async function persistProcurementRecord(scope: PersistenceTenantScope, re
   if (resource === "purchaseOrder") return persistPurchaseOrder(scope, record as PurchaseOrder);
   if (resource === "goodsReceipt") return persistGoodsReceipt(scope, record as GoodsReceipt);
   if (resource === "supplierBill") return persistSupplierBill(scope, record as SupplierBill);
+  if (resource === "supplierPayment") return persistSupplierPayment(scope, record as SupplierPayment);
   throw new Error("Ressource achats inconnue.");
 }
 
@@ -295,6 +303,45 @@ async function persistSupplierBill(scope: PersistenceTenantScope, bill: Supplier
   return bill;
 }
 
+async function persistSupplierPayment(scope: PersistenceTenantScope, payment: SupplierPayment) {
+  await assertSupplierTenant(scope, payment.supplierId);
+  const bill = await prisma.procurementSupplierBill.findFirst({
+    where: { tenantCompanyId: scope.companyId, id: payment.supplierBillId },
+    include: { lines: { orderBy: { position: "asc" } } }
+  });
+  if (!bill) throw new Error("Facture fournisseur introuvable pour ce règlement.");
+  if (bill.status !== "accounted") throw new Error("La facture fournisseur doit être comptabilisée avant règlement.");
+  if (payment.currency.trim().toUpperCase() !== bill.currency.trim().toUpperCase()) throw new Error("La devise du règlement doit correspondre à la facture fournisseur.");
+  if (!Number.isFinite(payment.amount) || payment.amount <= 0) throw new Error("Le montant du règlement doit être supérieur à zéro.");
+
+  const existing = await prisma.procurementSupplierPayment.findUnique({
+    where: { id: payment.id },
+    select: { tenantCompanyId: true, status: true }
+  });
+  assertTenantOwner(scope, existing?.tenantCompanyId);
+  if (!existing && payment.status === "accounted") throw new Error("Comptabilisez le règlement fournisseur depuis Finance après son enregistrement.");
+  if (existing?.status === "accounted") throw new Error("Un règlement fournisseur comptabilisé ne peut pas être modifié silencieusement.");
+
+  const previousPayments = await prisma.procurementSupplierPayment.findMany({
+    where: {
+      tenantCompanyId: scope.companyId,
+      supplierBillId: bill.id,
+      id: { not: payment.id },
+      status: { in: ["finalized", "accounted"] },
+      archivedAt: null
+    }
+  });
+  const paymentState = calculateSupplierBillPaymentState(mapDbSupplierBill(bill), previousPayments.map(mapDbSupplierPayment));
+  if (payment.amount > paymentState.outstandingAmount) throw new Error("Le règlement dépasse le solde fournisseur à payer.");
+
+  const saved = await prisma.procurementSupplierPayment.upsert({
+    where: { id: payment.id },
+    update: supplierPaymentWriteData(payment),
+    create: { id: payment.id, tenantCompanyId: scope.companyId, ...supplierPaymentWriteData(payment) }
+  });
+  return mapDbSupplierPayment(saved);
+}
+
 async function assertSupplierTenant(scope: PersistenceTenantScope, id: string) {
   const existing = await prisma.procurementSupplier.findUnique({ where: { id }, select: { tenantCompanyId: true } });
   assertTenantOwner(scope, existing?.tenantCompanyId);
@@ -491,6 +538,30 @@ function supplierBillLineWriteData(supplierBillId: string, line: SupplierBillLin
   };
 }
 
+function supplierPaymentWriteData(payment: SupplierPayment) {
+  return {
+    workspaceId: payment.workspaceId,
+    number: payment.number,
+    supplierId: payment.supplierId,
+    supplierName: payment.supplierName,
+    supplierBillId: payment.supplierBillId,
+    supplierBillNumber: payment.supplierBillNumber,
+    paymentDate: parseDate(payment.paymentDate),
+    amount: payment.amount,
+    currency: payment.currency,
+    method: payment.method,
+    reference: payment.reference ?? null,
+    notes: payment.notes ?? null,
+    status: payment.status,
+    finalizedAt: parseOptionalDate(payment.finalizedAt),
+    accountedAt: parseOptionalDate(payment.accountedAt),
+    archivedAt: parseOptionalDate(payment.archivedAt),
+    ownerId: payment.ownerId ?? null,
+    createdAt: parseDate(payment.createdAt),
+    updatedAt: parseDate(payment.updatedAt)
+  };
+}
+
 function mapDbSupplier(row: DbSupplier): ProcurementSupplier {
   return {
     id: row.id as ProcurementSupplierId,
@@ -619,6 +690,31 @@ function mapDbSupplierBill(row: DbSupplierBill): SupplierBill {
     accountedAt: row.accountedAt?.toISOString(),
     archivedAt: row.archivedAt?.toISOString(),
     ownerId: row.ownerId as ProcurementUserId | undefined,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString()
+  };
+}
+
+function mapDbSupplierPayment(row: DbSupplierPayment): SupplierPayment {
+  return {
+    id: row.id as SupplierPaymentId,
+    workspaceId: row.workspaceId as SupplierPayment["workspaceId"],
+    number: row.number,
+    supplierId: row.supplierId as SupplierPayment["supplierId"],
+    supplierName: row.supplierName,
+    supplierBillId: row.supplierBillId as SupplierPayment["supplierBillId"],
+    supplierBillNumber: row.supplierBillNumber,
+    paymentDate: row.paymentDate.toISOString(),
+    amount: row.amount,
+    currency: row.currency,
+    method: row.method as SupplierPayment["method"],
+    reference: row.reference ?? undefined,
+    notes: row.notes ?? undefined,
+    status: row.status as SupplierPayment["status"],
+    finalizedAt: row.finalizedAt?.toISOString(),
+    accountedAt: row.accountedAt?.toISOString(),
+    archivedAt: row.archivedAt?.toISOString(),
+    ownerId: row.ownerId as SupplierPayment["ownerId"] | undefined,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString()
   };

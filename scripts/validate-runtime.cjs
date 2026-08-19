@@ -6190,19 +6190,135 @@ test("Procurement AP Accounting V1 rejects unsafe supplier bill posting states",
   assert(missingTaxAccountRejected, "AP V1 should require recoverable tax account when supplier bill tax exists.");
 });
 
-test("Procurement AP Accounting V1 is exposed through Procurement and Finance UI without supplier payments", () => {
+test("Supplier Payment AP Settlement V1 maps payment accounting formula deterministically", () => {
+  const { ACCOUNTING_WORKSPACE_ID, ApAccountingError, createSupplierPaymentAccountingEntry } = load("src/modules/accounting");
+  const tenantCompanyId = "tenant-ap-payment-runtime";
+  const settings = {
+    tenantCompanyId,
+    purchaseJournalId: "journal-purchase",
+    payableAccountId: "account-payable",
+    settlementAccountId: "account-bank",
+    functionalCurrency: "MAD",
+    createdAt: "2026-08-19T00:00:00.000Z",
+    updatedAt: "2026-08-19T00:00:00.000Z"
+  };
+  const payment = createRuntimeSupplierPayment();
+  const entry = createSupplierPaymentAccountingEntry(payment, settings, {
+    tenantCompanyId,
+    workspaceId: ACCOUNTING_WORKSPACE_ID,
+    userId: "accountant-ap",
+    now: () => "2026-08-19T12:00:00.000Z"
+  });
+
+  assert(entry.status === "posted", "Supplier payment AP entry should be posted by the accounting domain.");
+  assert(entry.sourceType === "procurement.supplier-payment" && entry.sourceId === payment.id, "Supplier payment AP entry should preserve source traceability.");
+  assert(entry.debitTotal === "600.00" && entry.creditTotal === "600.00", "Supplier payment AP entry should balance AP clearing against settlement.");
+  assert(entry.lines.some((line) => line.accountId === "account-payable" && line.debitAmount === "600.00"), "Supplier payment should debit accounts payable.");
+  assert(entry.lines.some((line) => line.accountId === "account-bank" && line.creditAmount === "600.00"), "Supplier payment should credit the configured settlement account.");
+  assert(!entry.lines.some((line) => ["account-expense", "account-tax", "account-stock", "account-cogs"].includes(line.accountId)), "Supplier payment should not touch expense, tax, stock or COGS accounts.");
+
+  let draftRejected = false;
+  try {
+    createSupplierPaymentAccountingEntry(createRuntimeSupplierPayment({ status: "draft" }), settings, { tenantCompanyId, workspaceId: ACCOUNTING_WORKSPACE_ID, userId: "accountant-ap" });
+  } catch (error) {
+    draftRejected = error instanceof ApAccountingError;
+  }
+  assert(draftRejected, "Draft supplier payments should not be posted to AP.");
+
+  let missingSettlementRejected = false;
+  try {
+    createSupplierPaymentAccountingEntry(payment, { ...settings, settlementAccountId: undefined }, { tenantCompanyId, workspaceId: ACCOUNTING_WORKSPACE_ID, userId: "accountant-ap" });
+  } catch (error) {
+    missingSettlementRejected = error instanceof ApAccountingError;
+  }
+  assert(missingSettlementRejected, "Supplier payment posting should require a settlement account.");
+});
+
+test("Supplier Payment AP Settlement V1 protects cumulative outstanding amount", () => {
+  const { PROCUREMENT_WORKSPACE_ID, ProcurementService } = load("src/modules/procurement");
+  const service = new ProcurementService({ now: () => "2026-08-19T12:00:00.000Z" });
+  const supplier = service.createSupplier({
+    workspaceId: PROCUREMENT_WORKSPACE_ID,
+    companyName: "Atlas Supply",
+    status: "active",
+    ownerId: "procurement-user",
+    contactName: "Nadia",
+    phone: "",
+    email: "",
+    address: "",
+    vatNumber: "",
+    notes: ""
+  }).supplier;
+  assert(supplier, "Supplier fixture should be created.");
+  const bill = service.createSupplierBill({
+    workspaceId: PROCUREMENT_WORKSPACE_ID,
+    supplierId: supplier.id,
+    supplierName: supplier.companyName,
+    billDate: "2026-08-19T00:00:00.000Z",
+    currency: "MAD",
+    status: "accounted",
+    accountedAt: "2026-08-19T01:00:00.000Z",
+    lines: [createRuntimeSupplierBillLine({ unitPrice: 1000, taxRate: 20 })],
+    discountRate: 0,
+    ownerId: "procurement-user"
+  }).supplierBill;
+  assert(bill, "Supplier bill fixture should be created.");
+  const first = service.createSupplierPayment({
+    workspaceId: PROCUREMENT_WORKSPACE_ID,
+    supplierId: supplier.id,
+    supplierBillId: bill.id,
+    paymentDate: "2026-08-20T00:00:00.000Z",
+    amount: 700,
+    currency: "MAD",
+    method: "bank_transfer",
+    status: "finalized",
+    ownerId: "procurement-user"
+  });
+  assert(first.supplierPayment, "First partial supplier payment should be accepted.");
+  const second = service.createSupplierPayment({
+    workspaceId: PROCUREMENT_WORKSPACE_ID,
+    supplierId: supplier.id,
+    supplierBillId: bill.id,
+    paymentDate: "2026-08-21T00:00:00.000Z",
+    amount: 500,
+    currency: "MAD",
+    method: "cheque",
+    status: "finalized",
+    ownerId: "procurement-user"
+  });
+  assert(second.supplierPayment, "Second partial supplier payment should settle the remaining supplier bill balance.");
+  const overpayment = service.createSupplierPayment({
+    workspaceId: PROCUREMENT_WORKSPACE_ID,
+    supplierId: supplier.id,
+    supplierBillId: bill.id,
+    paymentDate: "2026-08-22T00:00:00.000Z",
+    amount: 1,
+    currency: "MAD",
+    method: "cash",
+    status: "finalized",
+    ownerId: "procurement-user"
+  });
+  assert(!overpayment.supplierPayment && String(overpayment.error).includes("dépasse"), "Overpayment should be rejected against cumulative finalized supplier payments.");
+});
+
+test("Supplier Payment AP Settlement V1 is exposed through Procurement and Finance UI", () => {
   const descriptors = read("src/platform/modules/module.descriptors.ts");
   const editions = read("src/platform/editions/edition.profiles.ts");
   const route = read("src/app/(erp)/procurement/supplier-bills/page.tsx");
   const procurementPage = read("src/modules/procurement/ui/pages/supplier-bills-page.tsx");
   const accountingWorkspace = read("src/modules/accounting/ui/pages/accounting-workspace.tsx");
+  const schema = read("prisma/schema.prisma");
+  const migration = read("prisma/migrations/20260819100000_supplier_payment_ap_settlement/migration.sql");
+  const accountingRepository = read("src/server/persistence/accounting-repository.ts");
 
   assert(descriptors.includes("procurement.supplier-bills") && descriptors.includes("/procurement/supplier-bills"), "Module Registry should describe Supplier Bills.");
   assert(editions.includes("\"procurement.supplier-bills\""), "Alpha profile should activate Supplier Bills explicitly.");
   assert(route.includes("SupplierBillsPage"), "Supplier Bills route should render the operational Procurement page.");
-  assert(procurementPage.includes("Factures fournisseurs") && procurementPage.includes("Finaliser la facture"), "Procurement UI should support supplier bill creation and finalization.");
-  assert(accountingWorkspace.includes("Intégration achats") && accountingWorkspace.includes("postSupplierBillToAccounting"), "Finance UI should expose AP integration for supplier bills.");
-  assert(accountingWorkspace.includes("Les règlements fournisseurs AP sont différés en V1"), "Supplier payment should be explicitly deferred instead of exposing a fake workflow.");
+  assert(schema.includes("model ProcurementSupplierPayment") && schema.includes("supplierBill        ProcurementSupplierBill"), "Schema should persist Procurement-owned supplier payments linked to Supplier Bills.");
+  assert(migration.includes('CREATE TABLE "ProcurementSupplierPayment"') && migration.includes('"supplierBillId"'), "Migration should create Supplier Payment persistence with Supplier Bill linkage.");
+  assert(procurementPage.includes("Enregistrer un règlement") && procurementPage.includes("Reste à payer"), "Procurement UI should expose supplier payment recording from accounted supplier bills.");
+  assert(accountingWorkspace.includes("Règlements fournisseurs à comptabiliser") && accountingWorkspace.includes("postSupplierPaymentToAccounting"), "Finance UI should expose AP integration for supplier payments.");
+  assert(accountingRepository.includes("\"procurement.supplier-payment\"") && accountingRepository.includes("findReversalOfEntry"), "Accounting repository should post supplier payments idempotently by source.");
 });
 
 test("Inventory Valuation V1 introduces durable moving-average valuation events", () => {
@@ -6457,6 +6573,27 @@ function createRuntimeSupplierBillLine(overrides = {}) {
     unitPrice: 1000,
     discountRate: 0,
     taxRate: 20,
+    ...overrides
+  };
+}
+
+function createRuntimeSupplierPayment(overrides = {}) {
+  return {
+    id: "supplier-payment-runtime",
+    workspaceId: "procurement-main",
+    number: "SP-RUNTIME",
+    supplierId: "supplier-runtime",
+    supplierName: "Atlas Supply",
+    supplierBillId: "supplier-bill-runtime",
+    supplierBillNumber: "FB-RUNTIME",
+    paymentDate: "2026-08-19T00:00:00.000Z",
+    amount: 600,
+    currency: "MAD",
+    method: "bank_transfer",
+    status: "finalized",
+    finalizedAt: "2026-08-19T00:00:00.000Z",
+    createdAt: "2026-08-19T00:00:00.000Z",
+    updatedAt: "2026-08-19T00:00:00.000Z",
     ...overrides
   };
 }

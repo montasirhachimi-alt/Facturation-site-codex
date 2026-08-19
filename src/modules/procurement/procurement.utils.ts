@@ -3,7 +3,7 @@ import {
   formatCommercialDocumentNumber,
   validateDocumentLine
 } from "@/platform/commercial-documents";
-import type { GoodsReceipt, GoodsReceiptLine, ProcurementSupplier, PurchaseOrder, PurchaseOrderLine, SupplierBill, SupplierBillLine } from "./procurement.types";
+import type { GoodsReceipt, GoodsReceiptLine, ProcurementSupplier, PurchaseOrder, PurchaseOrderLine, SupplierBill, SupplierBillLine, SupplierPayment } from "./procurement.types";
 
 export function normalizeProcurementText(value: string | undefined) {
   return (value ?? "").trim();
@@ -69,6 +69,16 @@ export function calculateSupplierBillTotals(bill: Pick<SupplierBill, "lines" | "
   );
 }
 
+export function calculateSupplierBillPaymentState(bill: Pick<SupplierBill, "id" | "lines" | "currency" | "discountRate">, payments: readonly SupplierPayment[]) {
+  const totals = calculateSupplierBillTotals(bill);
+  const paidAmount = roundMoney(payments
+    .filter((payment) => payment.supplierBillId === bill.id && !payment.archivedAt && payment.status !== "draft" && payment.status !== "cancelled" && payment.status !== "archived")
+    .reduce((total, payment) => total + payment.amount, 0));
+  const outstandingAmount = Math.max(0, roundMoney(totals.total - paidAmount));
+  const paymentStatus = paidAmount <= 0 ? "unpaid" : outstandingAmount > 0 ? "partially_paid" : "paid";
+  return Object.freeze({ totalAmount: totals.total, paidAmount, outstandingAmount, paymentStatus });
+}
+
 export function validatePurchaseOrderLines(lines: readonly PurchaseOrderLine[]) {
   const errors: string[] = [];
   if (lines.length === 0) errors.push("Ajoutez au moins une ligne d'achat.");
@@ -118,6 +128,10 @@ export function formatGoodsReceiptNumber(sequence: number) {
 
 export function formatSupplierBillNumber(sequence: number) {
   return formatCommercialDocumentNumber({ prefix: "FB", sequence, padding: 6 });
+}
+
+export function formatSupplierPaymentNumber(sequence: number) {
+  return formatCommercialDocumentNumber({ prefix: "SP", sequence, padding: 6 });
 }
 
 export function createGoodsReceiptLinePersistenceId(goodsReceiptId: string, line: Pick<GoodsReceiptLine, "purchaseOrderLineId">, position: number) {
@@ -218,6 +232,20 @@ export function matchesSupplierBillSearch(bill: SupplierBill, query: string) {
   ].join(" ").toLowerCase().includes(normalized);
 }
 
+export function matchesSupplierPaymentSearch(payment: SupplierPayment, query: string) {
+  const normalized = normalizeSearch(query);
+  if (!normalized) return true;
+  return [
+    payment.number,
+    payment.supplierName,
+    payment.supplierBillNumber,
+    payment.status,
+    payment.method,
+    payment.reference,
+    payment.notes
+  ].join(" ").toLowerCase().includes(normalized);
+}
+
 export function formatProcurementMoney(amount: number, currency = "MAD") {
   return new Intl.NumberFormat("fr-MA", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount);
 }
@@ -226,6 +254,6 @@ function normalizeSearch(value: string) {
   return value.trim().toLowerCase();
 }
 
-function roundMoney(value: number) {
+export function roundMoney(value: number) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }

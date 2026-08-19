@@ -537,16 +537,47 @@ Goods Receipt
 
 The canonical Supplier Bill entry was balanced with `30000 MAD` debit, `30000 MAD` credit and `0 MAD` difference. The verified stock-backed amount did not debit `PURCHASE · Achats / Charges`, confirming that GRNI clearing is operational rather than only a display classification.
 
+## SPR-439 Supplier Payment / AP Settlement V1
+
+SPR-439 completes the first canonical AP settlement loop.
+
+BOSIACO now has a Procurement-owned `ProcurementSupplierPayment` model for supplier payments linked to `ProcurementSupplierBill`. Supplier payments are not represented by the legacy `CashEntry` model and are not sales payments.
+
+The V1 workflow is:
+
+```text
+Supplier Bill
+  -> AP accounting
+  -> Supplier Payment
+  -> Supplier Payment accounting
+  -> Dr Accounts Payable / Cr Settlement Account
+```
+
+Supplier Bills now expose paid amount, outstanding amount and payment status in the Procurement workspace. A supplier payment can be recorded only from an accounted Supplier Bill with a remaining balance. Partial payments are supported and cumulative overpayment is rejected.
+
+Finance now lists finalized Supplier Payments under `Intégration achats` and posts them as canonical source-linked Accounting entries using `sourceType = procurement.supplier-payment`. Posting is idempotent by source and requires the AP settlement account.
+
+Authenticated Manual E2E QA passed on 2026-08-19 for tenant `company-hicotech`.
+
+The verified Supplier Bill `FB-2026-000001` from supplier `Fournisseur Test GRNI` was fully settled through two separate Supplier Payments:
+
+- `SP-2026-000001` for `10,000 MAD`, posted as `AP-SP-2026-000001`;
+- `SP-2026-000002` for `20,000 MAD`, posted as `AP-SP-2026-000002`.
+
+Both entries debited `AP · Fournisseurs à payer`, credited `BANK · Banque`, balanced with `0 MAD` difference, and left the Supplier Bill at `30,000 MAD` paid, `0 MAD` remaining and payment status `Payé`.
+
+Repository reconciliation confirms the actual V1 capability: each Supplier Payment belongs to one Supplier Bill, and one Supplier Bill may receive multiple Supplier Payments until the outstanding balance reaches zero. Multi-bill payment allocation remains deferred.
+
 ## Known Limitations
 
 - Product Catalog create persistence now maps duplicate, validation, tenant and stale-category failures to controlled French errors, but full authenticated browser creation QA remains blocked in this environment by a local Prisma connection error during tenant bootstrap.
 - Sales Orders, Delivery Notes and Shipments are active in default Alpha after authenticated end-to-end Sales Operations QA.
 - Shipments are durable and active in Alpha; carrier API integration, parcel split, GPS tracking and notification workflows are not implemented.
-- Procurement is active in Alpha, including supplier bills and controlled AP posting. Supplier payments/AP settlement, approval workflows and advanced invoice matching remain future work.
+- Procurement is active in Alpha, including supplier bills, controlled AP posting and supplier payment/AP settlement. Approval workflows and advanced invoice matching remain future work.
 - Product Catalog import/export handles master data only; it does not import stock quantities or inventory movements.
 - Inventory has posting, reservations and availability, but no barcode scanning, manufacturing, POS, carrier integration or advanced warehouse operations.
 - CRM Opportunities/Pipeline remains hidden until a persistent, company-centric model is completed.
-- Finance Operations is active for manual journal entries, reversal corrections, period posting controls, controlled Sales invoice/payment posting, controlled Supplier Bill/AP posting, controlled Inventory receipt capitalization, controlled Supplier Bill GRNI clearing, controlled Inventory COGS posting, Profit & Loss and Balance Sheet, but supplier payments/AP settlement, advanced GRNI reporting, price variance accounting, statutory localization, controlled reposting after reversal, fiscal closing and tax reporting are not implemented.
+- Finance Operations is active for manual journal entries, reversal corrections, period posting controls, controlled Sales invoice/payment posting, controlled Supplier Bill/AP posting, controlled Supplier Payment/AP settlement posting, controlled Inventory receipt capitalization, controlled Supplier Bill GRNI clearing, controlled Inventory COGS posting, Profit & Loss and Balance Sheet, but advanced GRNI reporting, price variance accounting, statutory localization, controlled reposting after reversal, fiscal closing and tax reporting are not implemented.
 - HR and finance legacy pages exist as routes but are hidden or redirected and should not be treated as production modules.
 - Platform profiles are static; there is no tenant edition assignment, licensing engine, feature flag engine, dashboard editor or module admin UI.
 - Runtime notification, activity and audit layers are foundations, not complete production observability or compliance systems.
@@ -555,11 +586,10 @@ The canonical Supplier Bill entry was balanced with `30000 MAD` debit, `30000 MA
 
 ## Recommended Candidate Directions
 
-1. Supplier payment/AP settlement: complete the AP lifecycle after Supplier Bills.
-2. GRNI maturity: add advanced GRNI reporting, durable match records and controlled price variance accounting.
-3. Controlled source reposting after reversal: define a lifecycle for corrected Sales, AP and Inventory source postings if operationally required.
-4. Sales Operations release monitoring: continue authenticated smoke QA for Quote acceptance, Sales Order reservation, Delivery Note posting, Shipment lifecycle and Inventory reconciliation now that the workflow is visible in Alpha.
-5. Procurement future depth: approval workflows, returns/reversals and supplier performance remain future work.
+1. GRNI maturity: add advanced GRNI reporting, durable match records and controlled price variance accounting.
+2. Controlled source reposting after reversal: define a lifecycle for corrected Sales, AP and Inventory source postings if operationally required.
+3. Sales Operations release monitoring: continue authenticated smoke QA for Quote acceptance, Sales Order reservation, Delivery Note posting, Shipment lifecycle and Inventory reconciliation now that the workflow is visible in Alpha.
+4. Procurement future depth: approval workflows, returns/reversals and supplier performance remain future work.
 
 ## Documentation Guidance
 

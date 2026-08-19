@@ -15,6 +15,7 @@ import {
   postSalesInvoiceToAccounting,
   postSalesPaymentToAccounting,
   postSupplierBillToAccounting,
+  postSupplierPaymentToAccounting,
   postInventoryCogsToAccounting,
   postInventoryReceiptToAccounting,
   closeAccountingPeriod,
@@ -29,7 +30,7 @@ import type { InventorySnapshot } from "@/platform/persistence/inventory-persist
 import type { ProcurementSnapshot } from "@/platform/persistence/procurement-persistence.client";
 import { getInvoiceTotals, type Invoice } from "@/modules/sales/invoices";
 import type { Payment } from "@/modules/sales/payments";
-import { calculateSupplierBillTotals, type SupplierBill } from "@/modules/procurement";
+import { calculateSupplierBillTotals, type SupplierBill, type SupplierPayment } from "@/modules/procurement";
 import {
   ACCOUNTING_WORKSPACE_ID,
   DEFAULT_ACCOUNTING_FUNCTIONAL_CURRENCY,
@@ -241,7 +242,7 @@ export function AccountingWorkspace() {
   const [profitLoss, setProfitLoss] = useState<ProfitLossReport | null>(null);
   const [balanceSheet, setBalanceSheet] = useState<BalanceSheetReport | null>(null);
   const [salesSnapshot, setSalesSnapshot] = useState<Pick<CrmSalesPersistenceSnapshot, "invoices" | "payments">>({ invoices: [], payments: [] });
-  const [procurementSnapshot, setProcurementSnapshot] = useState<Pick<ProcurementSnapshot, "supplierBills">>({ supplierBills: [] });
+  const [procurementSnapshot, setProcurementSnapshot] = useState<Pick<ProcurementSnapshot, "supplierBills" | "supplierPayments">>({ supplierBills: [], supplierPayments: [] });
   const [inventorySnapshot, setInventorySnapshot] = useState<Pick<InventorySnapshot, "valuationEvents" | "valuationRows">>({ valuationEvents: [], valuationRows: [] });
   const [commercialSettingsForm, setCommercialSettingsForm] = useState<CommercialSettingsForm>(emptyCommercialSettingsForm);
   const [apSettingsForm, setApSettingsForm] = useState<ApSettingsForm>(emptyApSettingsForm);
@@ -560,14 +561,14 @@ export function AccountingWorkspace() {
     }
   }
 
-  async function postApSource(id: string) {
+  async function postApSource(kind: "supplierBill" | "supplierPayment", id: string) {
     setSaving(true);
     setNotice(null);
     try {
-      const response = await postSupplierBillToAccounting(id);
+      const response = kind === "supplierBill" ? await postSupplierBillToAccounting(id) : await postSupplierPaymentToAccounting(id);
       setSnapshot(response.snapshot);
       setProcurementSnapshot(await loadProcurementSources());
-      setNotice({ tone: "success", message: "Facture fournisseur comptabilisée." });
+      setNotice({ tone: "success", message: kind === "supplierBill" ? "Facture fournisseur comptabilisée." : "Règlement fournisseur comptabilisé." });
       await refreshReports();
     } catch (caught) {
       setNotice({ tone: "error", message: caught instanceof Error ? caught.message : "Comptabilisation achats refusée." });
@@ -660,7 +661,7 @@ export function AccountingWorkspace() {
         {activeTab === "entries" && <EntriesSection entries={filteredEntries} journals={snapshot.journals} accounts={snapshot.accounts} query={query} setQuery={setQuery} saving={saving} onCreate={() => openEntryDialog()} onEdit={openEntryDialog} onPost={postEntry} onReverse={openReversalDialog} />}
         {activeTab === "periods" && <PeriodsSection periods={snapshot.periods ?? []} query={query} setQuery={setQuery} saving={saving} onCreate={() => openPeriodDialog()} onEdit={openPeriodDialog} onTransition={transitionPeriod} />}
         {activeTab === "sales-integration" && <SalesIntegrationSection accounts={snapshot.accounts} journals={snapshot.journals} settings={commercialSettingsForm} onSettingsChange={setCommercialSettingsForm} onSaveSettings={saveCommercialSettings} invoices={salesSnapshot.invoices} payments={salesSnapshot.payments} statuses={snapshot.commercialSources} saving={saving} onPost={postCommercialSource} />}
-        {activeTab === "ap-integration" && <ApIntegrationSection accounts={snapshot.accounts} journals={snapshot.journals} settings={apSettingsForm} onSettingsChange={setApSettingsForm} onSaveSettings={saveApSettings} supplierBills={procurementSnapshot.supplierBills} statuses={snapshot.apSources} saving={saving} onPost={postApSource} />}
+        {activeTab === "ap-integration" && <ApIntegrationSection accounts={snapshot.accounts} journals={snapshot.journals} settings={apSettingsForm} onSettingsChange={setApSettingsForm} onSaveSettings={saveApSettings} supplierBills={procurementSnapshot.supplierBills} supplierPayments={procurementSnapshot.supplierPayments} statuses={snapshot.apSources} saving={saving} onPost={postApSource} />}
         {activeTab === "inventory-integration" && <InventoryIntegrationSection accounts={snapshot.accounts} journals={snapshot.journals} settings={inventorySettingsForm} onSettingsChange={setInventorySettingsForm} onSaveSettings={saveInventorySettings} valuationEvents={inventorySnapshot.valuationEvents ?? []} statuses={snapshot.inventorySources} saving={saving} onPost={postInventorySource} />}
         {activeTab === "ledger" && <LedgerSection accounts={snapshot.accounts} ledger={ledger} fromDate={fromDate} toDate={toDate} accountId={ledgerAccountId} onAccountChange={setLedgerAccountId} onFromDateChange={setFromDate} onToDateChange={setToDate} onRefresh={refreshReports} />}
         {activeTab === "trial-balance" && <TrialBalanceSection trialBalance={trialBalance} fromDate={fromDate} toDate={toDate} onFromDateChange={setFromDate} onToDateChange={setToDate} onRefresh={refreshReports} />}
@@ -1312,25 +1313,28 @@ function CommercialSourceTable({ emptyDescription, emptyTitle, rows, saving, tit
   );
 }
 
-function ApIntegrationSection({ accounts, journals, onPost, onSaveSettings, onSettingsChange, saving, settings, statuses, supplierBills }: {
+function ApIntegrationSection({ accounts, journals, onPost, onSaveSettings, onSettingsChange, saving, settings, statuses, supplierBills, supplierPayments }: {
   accounts: readonly AccountingAccount[];
   journals: readonly AccountingJournal[];
-  onPost: (id: string) => void;
+  onPost: (kind: "supplierBill" | "supplierPayment", id: string) => void;
   onSaveSettings: () => void;
   onSettingsChange: (settings: ApSettingsForm) => void;
   saving: boolean;
   settings: ApSettingsForm;
   statuses: AccountingSnapshot["apSources"] | undefined;
   supplierBills: readonly SupplierBill[];
+  supplierPayments: readonly SupplierPayment[];
 }) {
   const accountOptions = accounts.filter((account) => account.active).map((account) => [account.id, `${account.code} · ${account.name}`] as const);
   const purchaseJournalOptions = journals.filter((journal) => journal.active && (journal.type === "purchase" || journal.type === "general")).map((journal) => [journal.id, `${journal.code} · ${journal.name}`] as const);
   const statusByBill = new Map((statuses?.supplierBills ?? []).map((status) => [status.sourceId, status]));
+  const statusByPayment = new Map((statuses?.supplierPayments ?? []).map((status) => [status.sourceId, status]));
   const readyBills = supplierBills.filter((bill) => !bill.archivedAt && (bill.status === "finalized" || bill.status === "accounted"));
+  const readyPayments = supplierPayments.filter((payment) => !payment.archivedAt && (payment.status === "finalized" || payment.status === "accounted"));
 
   return (
     <section className={panelClassName}>
-      <SectionToolbar title="Intégration achats" description="Comptabilisation contrôlée des factures fournisseurs finalisées en comptes fournisseurs.">
+      <SectionToolbar title="Intégration achats" description="Comptabilisation contrôlée des factures fournisseurs et des règlements AP finalisés.">
         <button type="button" onClick={onSaveSettings} disabled={saving} className={primaryButtonClassName}><Save size={16} /> Enregistrer la configuration</button>
       </SectionToolbar>
       <div className="grid gap-5 p-4">
@@ -1338,7 +1342,7 @@ function ApIntegrationSection({ accounts, journals, onPost, onSaveSettings, onSe
           <SelectField label="Journal d'achats" value={settings.purchaseJournalId} onChange={(purchaseJournalId) => onSettingsChange({ ...settings, purchaseJournalId })} options={[["", "Choisir un journal"], ...purchaseJournalOptions]} />
           <SelectField label="Compte fournisseurs à payer" value={settings.payableAccountId} onChange={(payableAccountId) => onSettingsChange({ ...settings, payableAccountId })} options={[["", "Choisir un compte"], ...accountOptions]} />
           <SelectField label="Compte achats / charges" value={settings.expenseAccountId} onChange={(expenseAccountId) => onSettingsChange({ ...settings, expenseAccountId })} options={[["", "Choisir un compte"], ...accountOptions]} />
-          <SelectField label="Compte de règlement" value={settings.settlementAccountId} onChange={(settlementAccountId) => onSettingsChange({ ...settings, settlementAccountId })} options={[["", "Optionnel en V1"], ...accountOptions]} />
+          <SelectField label="Compte de règlement" value={settings.settlementAccountId} onChange={(settlementAccountId) => onSettingsChange({ ...settings, settlementAccountId })} options={[["", "Requis pour règlements"], ...accountOptions]} />
           <SelectField label="Compte TVA récupérable" value={settings.taxRecoverableAccountId} onChange={(taxRecoverableAccountId) => onSettingsChange({ ...settings, taxRecoverableAccountId })} options={[["", "Non configuré"], ...accountOptions]} />
           <TextField label="Devise fonctionnelle" value={settings.functionalCurrency} onChange={(functionalCurrency) => onSettingsChange({ ...settings, functionalCurrency })} helper="Les écritures AP V1 refusent les devises différentes." />
         </div>
@@ -1360,15 +1364,31 @@ function ApIntegrationSection({ accounts, journals, onPost, onSaveSettings, onSe
               treatment: getSupplierBillTreatment(bill),
               postingStatus: statusByBill.get(bill.id),
               actionLabel: "Comptabiliser la facture fournisseur",
-              onPost: () => onPost(bill.id)
+              onPost: () => onPost("supplierBill", bill.id)
             };
           })}
           saving={saving}
         />
 
-        <div className="rounded-2xl border border-dashed border-slate-200 p-4 text-sm font-semibold text-slate-500 dark:border-hicotech-dark-border dark:text-slate-300">
-          Les règlements fournisseurs AP sont différés en V1 : le modèle legacy CashEntry n&apos;est pas relié aux factures fournisseurs Procurement.
-        </div>
+        <ApSourceTable
+          title="Règlements fournisseurs à comptabiliser"
+          emptyTitle="Aucun règlement fournisseur finalisé"
+          emptyDescription="Les règlements apparaissent ici après enregistrement depuis une facture fournisseur comptabilisée."
+          rows={readyPayments.map((payment) => ({
+            id: payment.id,
+            number: payment.number,
+            partner: payment.supplierName,
+            date: payment.paymentDate,
+            amount: payment.amount,
+            currency: payment.currency,
+            status: payment.status,
+            treatment: "Apurement AP",
+            postingStatus: statusByPayment.get(payment.id),
+            actionLabel: "Comptabiliser le règlement fournisseur",
+            onPost: () => onPost("supplierPayment", payment.id)
+          }))}
+          saving={saving}
+        />
       </div>
     </section>
   );
@@ -1773,14 +1793,14 @@ async function loadSalesSources(): Promise<Pick<CrmSalesPersistenceSnapshot, "in
   return { invoices: snapshot.invoices ?? [], payments: snapshot.payments ?? [] };
 }
 
-async function loadProcurementSources(): Promise<Pick<ProcurementSnapshot, "supplierBills">> {
+async function loadProcurementSources(): Promise<Pick<ProcurementSnapshot, "supplierBills" | "supplierPayments">> {
   const response = await fetch("/api/persistence/procurement", {
     method: "GET",
     headers: { Accept: "application/json" }
   });
-  if (!response.ok) return { supplierBills: [] };
+  if (!response.ok) return { supplierBills: [], supplierPayments: [] };
   const snapshot = await response.json() as ProcurementSnapshot;
-  return { supplierBills: snapshot.supplierBills ?? [] };
+  return { supplierBills: snapshot.supplierBills ?? [], supplierPayments: snapshot.supplierPayments ?? [] };
 }
 
 async function loadInventorySources(): Promise<Pick<InventorySnapshot, "valuationEvents" | "valuationRows">> {

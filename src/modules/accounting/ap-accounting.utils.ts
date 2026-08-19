@@ -8,7 +8,7 @@ import {
 import { moneyToAccountingAmount } from "./commercial-accounting.utils";
 import type { AccountingAmount, AccountingJournalEntry, AccountingJournalEntryLine } from "./accounting.types";
 import type { ApAccountingPostingContext, ApAccountingPostingSettings } from "./ap-accounting.types";
-import type { SupplierBill } from "@/modules/procurement";
+import type { SupplierBill, SupplierPayment } from "@/modules/procurement";
 import { calculateSupplierBillTotals } from "@/modules/procurement";
 
 export class ApAccountingError extends Error {
@@ -76,6 +76,42 @@ export function createSupplierBillAccountingEntry(
   });
 }
 
+export function createSupplierPaymentAccountingEntry(
+  payment: SupplierPayment,
+  settings: ApAccountingPostingSettings,
+  context: ApAccountingPostingContext
+) {
+  assertFinalSupplierPayment(payment);
+  assertCurrencyMatches(payment.currency, settings.functionalCurrency);
+  assertRequiredSetting(settings.purchaseJournalId, "Journal d'achats non configuré.");
+  assertRequiredSetting(settings.payableAccountId, "Compte fournisseurs à payer non configuré.");
+  assertRequiredSetting(settings.settlementAccountId, "Compte de règlement fournisseur non configuré.");
+
+  const amount = moneyToAccountingAmount(payment.amount);
+  if (accountingAmountToMinorUnits(amount) <= BigInt(0)) throw new ApAccountingError("Le règlement fournisseur ne porte aucun montant à comptabiliser.");
+
+  const label = `Règlement fournisseur ${payment.number} · ${payment.supplierName}`;
+  const lines: AccountingJournalEntryLine[] = [
+    createLine(payment.id, "payable-settlement", settings.payableAccountId, `Apurement fournisseur · ${payment.supplierBillNumber}`, amount, "0.00" as AccountingAmount),
+    createLine(payment.id, "settlement", settings.settlementAccountId, label, "0.00" as AccountingAmount, amount)
+  ];
+
+  return postApEntry({
+    id: `accounting-ap-supplier-payment-${payment.id}`,
+    journalId: settings.purchaseJournalId,
+    number: `AP-${payment.number}`,
+    entryDate: payment.paymentDate,
+    description: `Comptabilisation règlement fournisseur ${payment.number}`,
+    reference: payment.reference || payment.number,
+    sourceType: "procurement.supplier-payment",
+    sourceId: payment.id,
+    functionalCurrency: settings.functionalCurrency,
+    transactionCurrency: payment.currency,
+    lines,
+    context
+  });
+}
+
 function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
 }
@@ -87,7 +123,7 @@ function postApEntry(input: {
   entryDate: string;
   description: string;
   reference: string;
-  sourceType: "procurement.supplier-bill";
+  sourceType: "procurement.supplier-bill" | "procurement.supplier-payment";
   sourceId: string;
   functionalCurrency: string;
   transactionCurrency: string;
@@ -135,6 +171,12 @@ function createLine(sourceId: string, kind: string, accountId: string, label: st
 function assertFinalSupplierBill(bill: SupplierBill) {
   if (bill.archivedAt || bill.status === "draft" || bill.status === "cancelled" || bill.status === "archived") {
     throw new ApAccountingError("Seule une facture fournisseur finalisée peut être comptabilisée.");
+  }
+}
+
+function assertFinalSupplierPayment(payment: SupplierPayment) {
+  if (payment.archivedAt || payment.status !== "finalized") {
+    throw new ApAccountingError("Seul un règlement fournisseur finalisé peut être comptabilisé.");
   }
 }
 

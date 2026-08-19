@@ -6,7 +6,7 @@ import type {
   AccountingWorkspaceId
 } from "./accounting.types";
 
-export type ApAccountingSourceType = "procurement.supplier-bill";
+export type ApAccountingSourceType = "procurement.supplier-bill" | "procurement.supplier-payment";
 
 export type ApAccountingPostingSettings = Readonly<{
   tenantCompanyId: AccountingTenantCompanyId;

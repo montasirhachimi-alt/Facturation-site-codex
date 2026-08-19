@@ -31,6 +31,28 @@ export const SUPPLIER_BILL_STATUS_LABELS = {
   archived: "Archivée"
 } as const;
 
+export const SUPPLIER_PAYMENT_STATUS_LABELS = {
+  draft: "Brouillon",
+  finalized: "Finalisé",
+  accounted: "Comptabilisé",
+  cancelled: "Annulé",
+  archived: "Archivé"
+} as const;
+
+export const SUPPLIER_PAYMENT_METHOD_LABELS = {
+  bank_transfer: "Virement bancaire",
+  cash: "Espèces",
+  card: "Carte",
+  cheque: "Chèque",
+  other: "Autre"
+} as const;
+
+export const SUPPLIER_BILL_PAYMENT_STATUS_LABELS = {
+  unpaid: "Non payé",
+  partially_paid: "Partiellement payé",
+  paid: "Payé"
+} as const;
+
 export const SUPPLIER_STATUS_LABELS = {
   active: "Actif",
   archived: "Archivé"

@@ -121,6 +121,7 @@ model Company {
   procurementPurchaseOrders    ProcurementPurchaseOrder[]
   procurementGoodsReceipts     ProcurementGoodsReceipt[]
   procurementSupplierBills     ProcurementSupplierBill[]
+  procurementSupplierPayments  ProcurementSupplierPayment[]
   accountingAccounts           AccountingAccount[]
   accountingJournals           AccountingJournal[]
   accountingJournalEntries     AccountingJournalEntry[]
@@ -1275,31 +1276,32 @@ model SalesPayment {
 }
 
 model ProcurementSupplier {
-  id              String                     @id
-  tenantCompanyId String
-  tenantCompany   Company                    @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
-  workspaceId     String
-  companyName     String
-  tradeName       String?
-  ice             String?
-  taxId           String?
-  rc              String?
-  vat             String?
-  phone           String?
-  email           String?
-  address         String?
-  country         String
-  currency        String
-  paymentTerms    String?
-  notes           String?
-  status          String
-  active          Boolean                    @default(true)
-  archivedAt      DateTime?
-  purchaseOrders  ProcurementPurchaseOrder[]
-  goodsReceipts   ProcurementGoodsReceipt[]
-  supplierBills   ProcurementSupplierBill[]
-  createdAt       DateTime                   @default(now())
-  updatedAt       DateTime                   @updatedAt
+  id               String                       @id
+  tenantCompanyId  String
+  tenantCompany    Company                      @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  workspaceId      String
+  companyName      String
+  tradeName        String?
+  ice              String?
+  taxId            String?
+  rc               String?
+  vat              String?
+  phone            String?
+  email            String?
+  address          String?
+  country          String
+  currency         String
+  paymentTerms     String?
+  notes            String?
+  status           String
+  active           Boolean                      @default(true)
+  archivedAt       DateTime?
+  purchaseOrders   ProcurementPurchaseOrder[]
+  goodsReceipts    ProcurementGoodsReceipt[]
+  supplierBills    ProcurementSupplierBill[]
+  supplierPayments ProcurementSupplierPayment[]
+  createdAt        DateTime                     @default(now())
+  updatedAt        DateTime                     @updatedAt
 
   @@index([tenantCompanyId, workspaceId])
   @@index([tenantCompanyId, active])
@@ -1441,6 +1443,7 @@ model ProcurementSupplierBill {
   archivedAt          DateTime?
   ownerId             String?
   lines               ProcurementSupplierBillLine[]
+  payments            ProcurementSupplierPayment[]
   createdAt           DateTime                      @default(now())
   updatedAt           DateTime                      @updatedAt
 
@@ -1474,6 +1477,39 @@ model ProcurementSupplierBillLine {
   @@index([purchaseOrderLineId])
   @@index([goodsReceiptLineId])
   @@index([productId])
+}
+
+model ProcurementSupplierPayment {
+  id                 String                  @id
+  tenantCompanyId    String
+  tenantCompany      Company                 @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  workspaceId        String
+  number             String
+  supplierId         String
+  supplier           ProcurementSupplier     @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  supplierName       String
+  supplierBillId     String
+  supplierBill       ProcurementSupplierBill @relation(fields: [supplierBillId], references: [id], onDelete: Restrict)
+  supplierBillNumber String
+  paymentDate        DateTime
+  amount             Float
+  currency           String
+  method             String
+  reference          String?
+  notes              String?
+  status             String
+  finalizedAt        DateTime?
+  accountedAt        DateTime?
+  archivedAt         DateTime?
+  ownerId            String?
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  @@unique([tenantCompanyId, number])
+  @@index([tenantCompanyId, workspaceId])
+  @@index([tenantCompanyId, supplierId])
+  @@index([tenantCompanyId, supplierBillId])
+  @@index([tenantCompanyId, status])
 }
 
 model AccountingAccount {
