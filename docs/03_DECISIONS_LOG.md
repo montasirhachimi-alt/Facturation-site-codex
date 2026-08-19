@@ -2147,3 +2147,38 @@ Supplier Bills now expose paid/outstanding/payment status in Procurement. Multip
 Finance posts finalized Supplier Payments through the AP integration workspace. The AP settlement account is required for payment posting. Accounted Supplier Payments cannot be silently mutated through Procurement persistence.
 
 Advanced payment allocation, one payment covering multiple Supplier Bills, bank reconciliation, supplier remittance documents and controlled reposting after reversal remain future capabilities.
+
+## ADR-041 — HR Core Uses Canonical Hr* Models Separate from Auth Users and Legacy Payroll Tables
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+
+### Decision
+
+BOSIACO HR Core V1 uses canonical `Hr*` models for Alpha employee administration:
+
+- `HrEmployee`
+- `HrDepartment`
+- `HrPosition`
+- `HrEmploymentContract`
+- `HrLeaveType`
+- `HrLeaveRequest`
+
+The existing legacy `Employee`, `EmployeeContract`, `Attendance`, `HrLeave`, `SalarySlip`, `SalaryAdvance` and `HrDocument` tables remain in the schema for compatibility, but they are not the Alpha HR source of truth.
+
+`HrEmployee` is not the same concept as `User`. A BOSIACO `User` represents authenticated application access. An `HrEmployee` represents a business personnel record. The optional `HrEmployee.linkedUserId` relation is preserved for future self-service and permission-aware HR capabilities.
+
+### Motivation
+
+The legacy HR tables mix employee administration with payroll-era concepts. Promoting them directly would expose sensitive and incomplete workflows too early and would blur the boundary between personnel records and authentication.
+
+The Alpha HR product needs a smaller, safer operational foundation: employees, departments, positions, contracts and simple leave requests.
+
+### Consequences
+
+The canonical RH route is `/rh`. Legacy RH subroutes redirect to `/rh` until their underlying workflows become real production surfaces.
+
+The `hr.employees` module is now Alpha-ready and active in `alpha.crm-sales`. HR persistence is tenant-scoped through `/api/persistence/hr`, and Unified Search can return hydrated employee records.
+
+Payroll, time clocks, salary advances, recruitment, performance management, training, payroll accounting and leave-balance calculation remain future work.

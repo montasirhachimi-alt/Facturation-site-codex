@@ -9,3 +9,5 @@ export * from "./shipment-persistence-provider";
 export * from "./shipment-persistence.client";
 export * from "./procurement-persistence.client";
 export * from "./accounting-persistence.client";
+export * from "./hr-persistence-provider";
+export * from "./hr-persistence.client";

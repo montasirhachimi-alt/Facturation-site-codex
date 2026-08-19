@@ -30,7 +30,15 @@ export const legacyRouteRedirects: Readonly<Record<string, string>> = Object.fre
   "/utilisateurs": "/parametres",
   "/ventes": "/sales/quotes",
   "/crm/activities": "/crm/companies",
-  "/crm/opportunities": "/sales/quotes"
+  "/crm/opportunities": "/sales/quotes",
+  "/rh/absences": "/rh",
+  "/rh/avances": "/rh",
+  "/rh/conges": "/rh",
+  "/rh/contrats": "/rh",
+  "/rh/documents": "/rh",
+  "/rh/employes": "/rh",
+  "/rh/presences": "/rh",
+  "/rh/salaires": "/rh"
 });
 
 export const inactiveLegacyFallbackRoutes = Object.freeze([
@@ -38,15 +46,6 @@ export const inactiveLegacyFallbackRoutes = Object.freeze([
   "/assistant-ia",
   "/caisse",
   "/fournisseurs",
-  "/rh",
-  "/rh/absences",
-  "/rh/avances",
-  "/rh/conges",
-  "/rh/contrats",
-  "/rh/documents",
-  "/rh/employes",
-  "/rh/presences",
-  "/rh/salaires",
   "/statistiques",
   "/stock"
 ]);

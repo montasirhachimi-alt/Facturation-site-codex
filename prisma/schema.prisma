@@ -129,6 +129,12 @@ model Company {
   accountingCommercialSettings AccountingCommercialPostingSettings?
   accountingApSettings         AccountingApPostingSettings?
   accountingInventorySettings  AccountingInventoryPostingSettings?
+  hrEmployees                  HrEmployee[]
+  hrDepartments                HrDepartment[]
+  hrPositions                  HrPosition[]
+  hrEmploymentContracts        HrEmploymentContract[]
+  hrLeaveTypes                 HrLeaveType[]
+  hrLeaveRequests              HrLeaveRequest[]
   inventoryWarehouses          InventoryWarehouse[]
   inventoryBalances            InventoryBalance[]
   inventoryMovements           InventoryStockMovement[]
@@ -138,16 +144,17 @@ model Company {
 }
 
 model User {
-  id           String     @id @default(cuid())
+  id           String       @id @default(cuid())
   companyId    String?
-  company      Company?   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company      Company?     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name         String
-  email        String     @unique
+  email        String       @unique
   passwordHash String
-  role         Role       @default(READ_ONLY)
-  status       UserStatus @default(ACTIVE)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  role         Role         @default(READ_ONLY)
+  status       UserStatus   @default(ACTIVE)
+  hrEmployees  HrEmployee[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
   @@index([companyId])
   @@index([companyId, status])
@@ -587,6 +594,153 @@ model HrDocument {
 
   @@index([companyId, employeeId])
   @@index([companyId, type])
+}
+
+model HrDepartment {
+  id              String       @id
+  tenantCompanyId String
+  tenantCompany   Company      @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  code            String?
+  name            String
+  description     String?
+  managerId       String?
+  manager         HrEmployee?  @relation("HrDepartmentManager", fields: [managerId], references: [id], onDelete: SetNull)
+  active          Boolean      @default(true)
+  employees       HrEmployee[]
+  positions       HrPosition[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([tenantCompanyId, name])
+  @@index([tenantCompanyId, active])
+  @@index([tenantCompanyId, managerId])
+}
+
+model HrPosition {
+  id              String                 @id
+  tenantCompanyId String
+  tenantCompany   Company                @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  code            String?
+  name            String
+  departmentId    String?
+  department      HrDepartment?          @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  description     String?
+  active          Boolean                @default(true)
+  employees       HrEmployee[]
+  contracts       HrEmploymentContract[]
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  @@unique([tenantCompanyId, name])
+  @@index([tenantCompanyId, departmentId])
+  @@index([tenantCompanyId, active])
+}
+
+model HrEmployee {
+  id                    String                 @id
+  tenantCompanyId       String
+  tenantCompany         Company                @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  employeeNumber        String
+  firstName             String
+  lastName              String
+  displayName           String
+  email                 String?
+  phone                 String?
+  dateOfBirth           DateTime?
+  hireDate              DateTime
+  terminationDate       DateTime?
+  status                String                 @default("active")
+  departmentId          String?
+  department            HrDepartment?          @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  positionId            String?
+  position              HrPosition?            @relation(fields: [positionId], references: [id], onDelete: SetNull)
+  managerEmployeeId     String?
+  manager               HrEmployee?            @relation("HrEmployeeManager", fields: [managerEmployeeId], references: [id], onDelete: SetNull)
+  directReports         HrEmployee[]           @relation("HrEmployeeManager")
+  managedDepartments    HrDepartment[]         @relation("HrDepartmentManager")
+  linkedUserId          String?
+  linkedUser            User?                  @relation(fields: [linkedUserId], references: [id], onDelete: SetNull)
+  notes                 String?
+  contracts             HrEmploymentContract[]
+  leaveRequests         HrLeaveRequest[]
+  approvedLeaveRequests HrLeaveRequest[]       @relation("HrLeaveApprover")
+  archivedAt            DateTime?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  @@unique([tenantCompanyId, employeeNumber])
+  @@unique([tenantCompanyId, linkedUserId])
+  @@index([tenantCompanyId, status])
+  @@index([tenantCompanyId, departmentId])
+  @@index([tenantCompanyId, positionId])
+  @@index([tenantCompanyId, managerEmployeeId])
+}
+
+model HrEmploymentContract {
+  id              String      @id
+  tenantCompanyId String
+  tenantCompany   Company     @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  employeeId      String
+  employee        HrEmployee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  contractType    String
+  startDate       DateTime
+  endDate         DateTime?
+  positionId      String?
+  position        HrPosition? @relation(fields: [positionId], references: [id], onDelete: SetNull)
+  jobTitle        String
+  workingTimeType String?
+  notes           String?
+  status          String      @default("active")
+  archivedAt      DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([tenantCompanyId, employeeId])
+  @@index([tenantCompanyId, status])
+  @@index([tenantCompanyId, positionId])
+}
+
+model HrLeaveType {
+  id              String           @id
+  tenantCompanyId String
+  tenantCompany   Company          @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  name            String
+  description     String?
+  paid            Boolean          @default(true)
+  active          Boolean          @default(true)
+  leaveRequests   HrLeaveRequest[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@unique([tenantCompanyId, name])
+  @@index([tenantCompanyId, active])
+}
+
+model HrLeaveRequest {
+  id                   String       @id
+  tenantCompanyId      String
+  tenantCompany        Company      @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  employeeId           String
+  employee             HrEmployee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveTypeId          String?
+  leaveType            HrLeaveType? @relation(fields: [leaveTypeId], references: [id], onDelete: SetNull)
+  title                String
+  reason               String?
+  startDate            DateTime
+  endDate              DateTime
+  status               String       @default("requested")
+  requestedAt          DateTime
+  approvedAt           DateTime?
+  approvedByEmployeeId String?
+  approvedByEmployee   HrEmployee?  @relation("HrLeaveApprover", fields: [approvedByEmployeeId], references: [id], onDelete: SetNull)
+  archivedAt           DateTime?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  @@index([tenantCompanyId, employeeId])
+  @@index([tenantCompanyId, leaveTypeId])
+  @@index([tenantCompanyId, status])
+  @@index([tenantCompanyId, startDate])
 }
 
 model StockMovement {

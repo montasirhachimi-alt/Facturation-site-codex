@@ -544,16 +544,28 @@ export const bosiacoModuleDescriptors = Object.freeze([
   {
     id: "hr.employees",
     name: "Ressources humaines",
-    description: "Fondation RH future.",
+    description: "Socle RH Alpha pour collaborateurs, affectations, contrats simples et congés.",
     category: "hr",
     iconKey: "Users",
     route: "/rh",
-    status: "planned",
+    status: "alpha",
     version: "0.1.0",
-    features: ["employees", "leaves", "payroll"],
-    hidden: true,
+    features: ["employees", "departments", "positions", "contracts", "leaves"],
+    navigation: {
+      label: "RH",
+      href: "/rh",
+      iconKey: "Users",
+      group: "RH",
+      order: 370,
+      exactMatch: false,
+      searchKeywords: ["rh", "ressources humaines", "employes", "contrats", "conges", "departements", "postes"]
+    },
+    commandCenter: {
+      navigationKeywords: ["rh", "ressources humaines", "employes", "collaborateurs", "contrats", "conges"]
+    },
+    hidden: false,
     defaultEnabled: false,
-    alphaReady: false,
+    alphaReady: true,
     order: 370
   },
   {

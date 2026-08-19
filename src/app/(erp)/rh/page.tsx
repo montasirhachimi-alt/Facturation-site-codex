@@ -1,6 +1,5 @@
-import { redirect } from "next/navigation";
-import { getFallbackRouteForUnavailableModule } from "@/platform/modules/module-route-availability";
+import { HrWorkspacePage } from "@/modules/hr/ui";
 
 export default function HrPage() {
-  redirect(getFallbackRouteForUnavailableModule());
+  return <HrWorkspacePage />;
 }

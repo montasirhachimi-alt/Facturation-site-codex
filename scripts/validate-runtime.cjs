@@ -355,7 +355,7 @@ test("SearchService exposes the Unified Search facade without breaking legacy mo
 
   assert(Array.isArray(legacyResults), "String SearchService.search calls should preserve legacy synchronous module search.");
   assert(Array.isArray(unifiedResults), "Object SearchService.search calls should use the Unified Search Runtime.");
-  const expectedProviderIds = ["crm.overview", "crm.companies", "crm.contacts", "crm.meetings", "crm.tasks", "crm.notes", "sales.quotes", "sales.invoices", "sales.orders", "sales.delivery-notes", "sales.shipments", "sales.payments"];
+  const expectedProviderIds = ["crm.overview", "crm.companies", "crm.contacts", "crm.meetings", "crm.tasks", "crm.notes", "sales.quotes", "sales.invoices", "sales.orders", "sales.delivery-notes", "sales.shipments", "sales.payments", "hr.employees"];
 
   assert(expectedProviderIds.every((providerId) => providers.includes(providerId)), "SearchService should bootstrap initial Alpha CRM/Sales module-owned search providers.");
 });
@@ -627,7 +627,8 @@ test("Platform Module Activation resolves the current Alpha profile deterministi
     "procurement.purchase-orders",
     "procurement.goods-receipts",
     "procurement.supplier-bills",
-    "finance.accounting"
+    "finance.accounting",
+    "hr.employees"
   ];
 
   assert(first.errors.length === 0, `Alpha activation should resolve without errors: ${first.errors.map((issue) => issue.message).join("; ")}`);
@@ -637,6 +638,7 @@ test("Platform Module Activation resolves the current Alpha profile deterministi
   assert(visibleIds.includes("inventory.stock"), "Inventory should be visible in Alpha once the operational workspace is ready.");
   assert(visibleIds.includes("procurement.purchase-orders"), "Procurement should be visible in Alpha once the operational workspace is ready.");
   assert(visibleIds.includes("finance.accounting"), "Finance Accounting should be visible in Alpha once the operational workspace is ready.");
+  assert(visibleIds.includes("hr.employees"), "HR Core should be visible in Alpha once the canonical HR foundation is ready.");
   assert(first.activeModuleIds.includes("platform.persistence"), "Required hidden platform dependencies may activate as non-visible foundations.");
   assert(first.automaticallyEnabledModuleIds.includes("platform.persistence"), "Required dependencies should auto-enable deterministically.");
   assert(getCurrentAlphaActivation().profileKey === "alpha.crm-sales", "Current Alpha activation should expose the current Edition profile key.");
@@ -664,6 +666,7 @@ test("Edition Profiles validate the default Alpha Edition and future metadata", 
   assert(alphaActivation.activeModuleIds.includes("sales.products"), "Current Edition should activate the operational Product Catalog.");
   assert(alphaActivation.activeModuleIds.includes("inventory.stock"), "Current Edition should activate the operational Inventory workspace.");
   assert(alphaActivation.activeModuleIds.includes("finance.accounting"), "Current Edition should activate the operational Finance workspace.");
+  assert(alphaActivation.activeModuleIds.includes("hr.employees"), "Current Edition should activate the HR Alpha foundation.");
   assert(commercialEditionIds.includes("basic"), "Basic should exist as commercial metadata.");
   assert(commercialEditionIds.includes("crm"), "CRM should exist as commercial metadata.");
   assert(commercialEditionIds.includes("sales"), "Sales should exist as commercial metadata.");
@@ -857,11 +860,13 @@ test("Sidebar and Command Center consume activation without exposing hidden modu
   assert(sidebarHrefs.includes("/parametres"), "Sidebar should keep Settings visible.");
   assert(sidebarHrefs.includes("/sales/products"), "Sidebar should expose operational Products.");
   assert(sidebarHrefs.includes("/inventory"), "Sidebar should expose operational Inventory.");
+  assert(sidebarHrefs.includes("/rh"), "Sidebar should expose operational HR.");
   assert(!sidebarHrefs.includes("/crm/opportunities"), "Sidebar should not expose hidden Opportunities.");
   assert(commandHrefs.includes("/crm/contacts"), "Command Center should keep active CRM navigation.");
   assert(commandHrefs.includes("/sales/invoices"), "Command Center should keep active Sales navigation.");
   assert(commandHrefs.includes("/sales/products"), "Command Center should expose active Products navigation.");
   assert(commandHrefs.includes("/inventory"), "Command Center should expose active Inventory navigation.");
+  assert(commandHrefs.includes("/rh"), "Command Center should expose active HR navigation.");
   assert(!commandHrefs.includes("/crm/opportunities"), "Command Center should not expose hidden Opportunities.");
 });
 
@@ -890,6 +895,7 @@ test("Dynamic Navigation preserves exact current Alpha Sidebar parity", () => {
     "/procurement/goods-receipts",
     "/procurement/supplier-bills",
     "/accounting",
+    "/rh",
     "/parametres"
   ];
   const sidebarHrefs = getSidebarGroups().flatMap((group) => group.items.map((item) => item.href));
@@ -6477,6 +6483,145 @@ test("SPR-438A avoids misleading AP treatment labels for header-only receipt lin
   assert(accountingWorkspace.includes("function getSupplierBillTreatment"), "AP integration should centralize Supplier Bill treatment classification.");
   assert(accountingWorkspace.includes("\"Non rapproché\""), "A header-only Goods Receipt link should be displayed as unmatched instead of Charges.");
   assert(accountingWorkspace.includes("row.treatment === \"Non rapproché\" ? \"warning\""), "Unmatched stock-link candidates should have a visible warning treatment.");
+});
+
+test("HR Core service manages employees departments positions contracts and leave without auth-user coupling", () => {
+  const { HrService } = load("src/modules/hr");
+  const service = new HrService({ now: () => "2026-08-19T09:00:00.000Z" });
+
+  const department = service.createDepartment({
+    code: "OPS",
+    name: "Operations",
+    description: "Equipe operationnelle",
+    active: true
+  }).department;
+  assert(Boolean(department), "HR service should create Departments.");
+
+  const position = service.createPosition({
+    code: "OPS-MGR",
+    name: "Responsable operations",
+    departmentId: department.id,
+    description: "Management operationnel",
+    active: true
+  }).position;
+  assert(Boolean(position), "HR service should create Positions attached to Departments.");
+
+  const manager = service.createEmployee({
+    employeeNumber: "EMP-0001",
+    firstName: "Sara",
+    lastName: "Amrani",
+    email: "sara@example.test",
+    phone: "+212600000001",
+    hireDate: "2026-08-19T00:00:00.000Z",
+    status: "active",
+    departmentId: department.id,
+    positionId: position.id,
+    notes: "Manager RH"
+  }).employee;
+  assert(Boolean(manager), "HR service should create Employees independent from Auth User.");
+
+  const employee = service.createEmployee({
+    employeeNumber: "EMP-0002",
+    firstName: "Nadia",
+    lastName: "El Fassi",
+    hireDate: "2026-08-19T00:00:00.000Z",
+    status: "active",
+    departmentId: department.id,
+    positionId: position.id,
+    managerEmployeeId: manager.id
+  }).employee;
+  assert(Boolean(employee), "HR service should preserve manager relationships.");
+
+  const selfManagerRejected = service.updateEmployee({ id: employee.id, managerEmployeeId: employee.id });
+  assert(Boolean(selfManagerRejected.error), "HR service should reject self-manager assignments.");
+
+  const contract = service.createContract({
+    employeeId: employee.id,
+    contractType: "permanent",
+    startDate: "2026-08-19T00:00:00.000Z",
+    positionId: position.id,
+    jobTitle: position.name,
+    workingTimeType: "full_time",
+    currency: "MAD",
+    status: "active"
+  }).contract;
+  assert(Boolean(contract), "HR service should create an employment contract without payroll calculations.");
+
+  const leaveType = service.createLeaveType({ name: "Congé payé", paid: true, active: true }).leaveType;
+  const leave = service.createLeaveRequest({
+    employeeId: employee.id,
+    leaveTypeId: leaveType.id,
+    title: "Congé annuel",
+    reason: "Validation Runtime",
+    startDate: "2026-08-20T00:00:00.000Z",
+    endDate: "2026-08-22T00:00:00.000Z",
+    status: "requested",
+    requestedAt: "2026-08-19T09:00:00.000Z"
+  }).leaveRequest;
+  assert(Boolean(leave), "HR service should support a minimal Leave Request lifecycle.");
+
+  const archived = service.updateEmployee({ id: employee.id, status: "archived" }).employee;
+  assert(archived?.archivedAt === "2026-08-19T09:00:00.000Z", "Archiving an Employee should set archivedAt deterministically.");
+});
+
+test("HR Core is active in Alpha navigation route availability and Command Center", () => {
+  const { getCurrentAlphaActivation } = load("src/platform/modules");
+  const { getSidebarGroups } = load("src/services/navigation/sidebar-adapter.ts");
+  const { createNavigationCommandRegistry } = load("src/platform/search/command-registry.ts");
+  const { isRouteAvailable, getRouteAvailabilityDecision } = load("src/platform/modules/module-route-availability.ts");
+  const activation = getCurrentAlphaActivation();
+  const hrefs = getSidebarGroups(activation).flatMap((group) => group.items.map((item) => item.href));
+  const commandHrefs = createNavigationCommandRegistry(activation).getAll().map((command) => command.href);
+
+  assert(activation.activeModuleIdSet.has("hr.employees"), "Alpha activation should include HR Core.");
+  assert(hrefs.includes("/rh"), "Sidebar should expose the canonical HR workspace.");
+  assert(commandHrefs.includes("/rh"), "Command Center should expose HR navigation.");
+  assert(isRouteAvailable("/rh", activation), "Canonical HR route should be available in Alpha.");
+  assert(getRouteAvailabilityDecision("/rh/employes", activation).redirectTo === "/rh", "Legacy HR employee route should redirect to the canonical HR workspace.");
+});
+
+test("HR Core persistence and UI stay tenant-scoped and free of legacy payroll workflows", () => {
+  const schema = read("prisma/schema.prisma");
+  const migration = read("prisma/migrations/20260819110000_hr_core_alpha_foundation/migration.sql");
+  const repository = read("src/server/persistence/hr-repository.ts");
+  const route = read("src/app/api/persistence/hr/route.ts");
+  const workspace = read("src/modules/hr/ui/pages/hr-workspace-page.tsx");
+  const descriptors = read("src/platform/modules/module.descriptors.ts");
+
+  assert(schema.includes("model HrEmployee") && schema.includes("tenantCompanyId"), "Schema should define tenant-scoped canonical HrEmployee records.");
+  assert(schema.includes("linkedUserId") && schema.includes("linkedUser            User?"), "HR Employee should support an optional explicit Auth User link.");
+  assert(schema.includes("model HrDepartment") && schema.includes("model HrPosition") && schema.includes("model HrEmploymentContract"), "Schema should include Department, Position and Contract foundations.");
+  assert(schema.includes("model HrLeaveType") && schema.includes("model HrLeaveRequest"), "Schema should include the minimal Leave foundation.");
+  assert(migration.includes('CREATE TABLE "HrEmployee"') && migration.includes('FOREIGN KEY ("tenantCompanyId") REFERENCES "Company"'), "Migration should create HR tables with tenant Company foreign keys.");
+  assert(repository.includes("assertOptionalUserTenant") && repository.includes("Un employé ne peut pas être son propre manager"), "Repository should enforce optional User tenant ownership and self-manager rejection.");
+  assert(route.includes("requirePersistenceTenantScope"), "HR persistence route should resolve tenant scope on the server.");
+  assert(workspace.includes("Un employé RH peut exister sans compte utilisateur BOSIACO."), "UI should state that Employee and Auth User are separate concepts.");
+  assert(!descriptors.includes('features: ["employees", "leaves", "payroll"]'), "HR descriptor should not expose payroll as an Alpha capability.");
+});
+
+test("HR Unified Search provider returns hydrated employee results", async () => {
+  const { HrService, hrLocalService } = load("src/modules/hr");
+  const { SearchService } = load("src/services/search");
+  const snapshot = hrLocalService.getSnapshot();
+  const fixture = new HrService({ now: () => "2026-08-19T09:00:00.000Z" });
+  const department = fixture.createDepartment({ code: "RH", name: "Ressources humaines", active: true }).department;
+  const position = fixture.createPosition({ code: "HR-BP", name: "HR Business Partner", departmentId: department.id, active: true }).position;
+  const employee = fixture.createEmployee({
+    employeeNumber: "EMP-SEARCH-001",
+    firstName: "Leila",
+    lastName: "Bennani",
+    hireDate: "2026-08-19T00:00:00.000Z",
+    status: "active",
+    departmentId: department.id,
+    positionId: position.id
+  }).employee;
+
+  hrLocalService.replaceSnapshot(fixture.getSnapshot());
+  const service = new SearchService();
+  const results = await service.searchUnified({ text: "Leila", modules: ["hr.employees"], limit: 5 });
+  hrLocalService.replaceSnapshot(snapshot);
+
+  assert(results.some((result) => result.entityType === "hr.employee" && result.entityId === employee.id && result.url === "/rh"), "Unified Search should return HR Employee records through the HR provider.");
 });
 
 test("Inventory Valuation synchronization precomputes references before short write transaction", () => {

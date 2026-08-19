@@ -10,7 +10,8 @@ import {
   ScrollText,
   WalletCards,
   HandCoins,
-  Truck
+  Truck,
+  UserRoundCheck
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { CRM_COMPANIES_WORKSPACE_ID } from "@/modules/crm/companies/ui/companies.seed";
@@ -41,6 +42,7 @@ import type { ModuleActivationResult } from "@/platform/modules/module-activatio
 import type { UniversalSearchItem, UniversalSearchSection } from "./universal-search.types";
 import { DELIVERY_NOTES_WORKSPACE_ID, DELIVERY_NOTE_STATUS_LABELS, deliveryNoteService } from "@/modules/sales/delivery-notes";
 import { SHIPMENTS_WORKSPACE_ID, SHIPMENT_STATUS_LABELS, shipmentService } from "@/modules/sales/shipments";
+import { HR_EMPLOYEE_STATUS_LABELS, hrLocalService } from "@/modules/hr";
 
 export type RecordSearchResult = Readonly<{
   id: string;
@@ -120,8 +122,39 @@ export function createRecordSearchRegistry(activation: ModuleActivationResult = 
   if (activation.activeModuleIdSet.has("procurement.supplier-bills")) {
     registry.registerMany(buildSupplierBillRecords());
   }
+  if (activation.activeModuleIdSet.has("hr.employees")) {
+    registry.registerMany(buildHrEmployeeRecords());
+  }
 
   return registry;
+}
+
+function buildHrEmployeeRecords(): readonly RecordSearchResult[] {
+  const snapshot = hrLocalService.getSnapshot();
+  const departments = new Map(snapshot.departments.map((department) => [department.id, department.name]));
+  const positions = new Map(snapshot.positions.map((position) => [position.id, position.name]));
+
+  return snapshot.employees
+    .filter((employee) => !employee.archivedAt && employee.status !== "archived")
+    .map((employee) => ({
+      id: `record.hr-employee.${employee.id}`,
+      title: employee.displayName,
+      type: "Employé",
+      description: `${employee.employeeNumber} · ${employee.departmentId ? departments.get(employee.departmentId) ?? "Département non affecté" : "Département non affecté"} · ${HR_EMPLOYEE_STATUS_LABELS[employee.status]}`,
+      href: "/rh",
+      icon: UserRoundCheck,
+      keywords: [
+        employee.employeeNumber,
+        employee.firstName,
+        employee.lastName,
+        employee.displayName,
+        employee.email,
+        employee.phone,
+        employee.status,
+        employee.departmentId ? departments.get(employee.departmentId) : undefined,
+        employee.positionId ? positions.get(employee.positionId) : undefined
+      ].filter(Boolean) as string[]
+    }));
 }
 
 function buildDeliveryNoteRecords(): readonly RecordSearchResult[] {
@@ -450,6 +483,7 @@ function iconKeyForRecordType(type: string) {
   if (normalizedType.includes("devis")) return "quote";
   if (normalizedType.includes("facture")) return "invoice";
   if (normalizedType.includes("paiement")) return "payment";
+  if (normalizedType.includes("employ")) return "contact";
   if (normalizedType.includes("entrepôt") || normalizedType.includes("entrepot")) return "warehouse";
   return "default";
 }

@@ -28,6 +28,7 @@ const navigationGroupOrder: Record<string, number> = {
   Ventes: 30,
   Stock: 40,
   Finance: 55,
+  RH: 60,
   Système: 90
 };
 
