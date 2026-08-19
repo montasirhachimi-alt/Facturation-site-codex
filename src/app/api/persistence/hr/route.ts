@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { loadHrSnapshot, persistHrRecord, type HrPersistenceResource } from "@/server/persistence/hr-repository";
 import { requirePersistenceTenantScope } from "@/server/persistence/tenant-scope";
 
-const resources = new Set<HrPersistenceResource>(["department", "position", "employee", "contract", "leaveType", "leaveRequest"]);
+const resources = new Set<HrPersistenceResource>(["department", "position", "employee", "contract", "leaveType", "leaveRequest", "leaveBalance", "absence", "attendanceRecord"]);
 
 export async function GET() {
   try {

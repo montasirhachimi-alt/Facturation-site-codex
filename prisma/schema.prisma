@@ -135,6 +135,9 @@ model Company {
   hrEmploymentContracts        HrEmploymentContract[]
   hrLeaveTypes                 HrLeaveType[]
   hrLeaveRequests              HrLeaveRequest[]
+  hrLeaveBalances              HrLeaveBalance[]
+  hrAbsences                   HrAbsence[]
+  hrAttendanceRecords          HrAttendanceRecord[]
   inventoryWarehouses          InventoryWarehouse[]
   inventoryBalances            InventoryBalance[]
   inventoryMovements           InventoryStockMovement[]
@@ -637,36 +640,41 @@ model HrPosition {
 }
 
 model HrEmployee {
-  id                    String                 @id
-  tenantCompanyId       String
-  tenantCompany         Company                @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
-  employeeNumber        String
-  firstName             String
-  lastName              String
-  displayName           String
-  email                 String?
-  phone                 String?
-  dateOfBirth           DateTime?
-  hireDate              DateTime
-  terminationDate       DateTime?
-  status                String                 @default("active")
-  departmentId          String?
-  department            HrDepartment?          @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  positionId            String?
-  position              HrPosition?            @relation(fields: [positionId], references: [id], onDelete: SetNull)
-  managerEmployeeId     String?
-  manager               HrEmployee?            @relation("HrEmployeeManager", fields: [managerEmployeeId], references: [id], onDelete: SetNull)
-  directReports         HrEmployee[]           @relation("HrEmployeeManager")
-  managedDepartments    HrDepartment[]         @relation("HrDepartmentManager")
-  linkedUserId          String?
-  linkedUser            User?                  @relation(fields: [linkedUserId], references: [id], onDelete: SetNull)
-  notes                 String?
-  contracts             HrEmploymentContract[]
-  leaveRequests         HrLeaveRequest[]
-  approvedLeaveRequests HrLeaveRequest[]       @relation("HrLeaveApprover")
-  archivedAt            DateTime?
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
+  id                        String                 @id
+  tenantCompanyId           String
+  tenantCompany             Company                @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  employeeNumber            String
+  firstName                 String
+  lastName                  String
+  displayName               String
+  email                     String?
+  phone                     String?
+  dateOfBirth               DateTime?
+  hireDate                  DateTime
+  terminationDate           DateTime?
+  status                    String                 @default("active")
+  departmentId              String?
+  department                HrDepartment?          @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  positionId                String?
+  position                  HrPosition?            @relation(fields: [positionId], references: [id], onDelete: SetNull)
+  managerEmployeeId         String?
+  manager                   HrEmployee?            @relation("HrEmployeeManager", fields: [managerEmployeeId], references: [id], onDelete: SetNull)
+  directReports             HrEmployee[]           @relation("HrEmployeeManager")
+  managedDepartments        HrDepartment[]         @relation("HrDepartmentManager")
+  linkedUserId              String?
+  linkedUser                User?                  @relation(fields: [linkedUserId], references: [id], onDelete: SetNull)
+  notes                     String?
+  contracts                 HrEmploymentContract[]
+  leaveRequests             HrLeaveRequest[]
+  approvedLeaveRequests     HrLeaveRequest[]       @relation("HrLeaveApprover")
+  decidedLeaveRequests      HrLeaveRequest[]       @relation("HrLeaveDecisionActor")
+  leaveBalances             HrLeaveBalance[]
+  absences                  HrAbsence[]
+  attendanceRecords         HrAttendanceRecord[]   @relation("HrAttendanceEmployee")
+  recordedAttendanceRecords HrAttendanceRecord[]   @relation("HrAttendanceRecorder")
+  archivedAt                DateTime?
+  createdAt                 DateTime               @default(now())
+  updatedAt                 DateTime               @updatedAt
 
   @@unique([tenantCompanyId, employeeNumber])
   @@unique([tenantCompanyId, linkedUserId])
@@ -701,18 +709,24 @@ model HrEmploymentContract {
 }
 
 model HrLeaveType {
-  id              String           @id
-  tenantCompanyId String
-  tenantCompany   Company          @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
-  name            String
-  description     String?
-  paid            Boolean          @default(true)
-  active          Boolean          @default(true)
-  leaveRequests   HrLeaveRequest[]
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id                       String           @id
+  tenantCompanyId          String
+  tenantCompany            Company          @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  code                     String?
+  name                     String
+  description              String?
+  paid                     Boolean          @default(true)
+  approvalRequired         Boolean          @default(true)
+  balanceTracked           Boolean          @default(true)
+  defaultAnnualEntitlement Decimal?         @db.Decimal(10, 2)
+  active                   Boolean          @default(true)
+  leaveRequests            HrLeaveRequest[]
+  leaveBalances            HrLeaveBalance[]
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
 
   @@unique([tenantCompanyId, name])
+  @@unique([tenantCompanyId, code])
   @@index([tenantCompanyId, active])
 }
 
@@ -733,6 +747,11 @@ model HrLeaveRequest {
   approvedAt           DateTime?
   approvedByEmployeeId String?
   approvedByEmployee   HrEmployee?  @relation("HrLeaveApprover", fields: [approvedByEmployeeId], references: [id], onDelete: SetNull)
+  decidedAt            DateTime?
+  decisionByEmployeeId String?
+  decisionByEmployee   HrEmployee?  @relation("HrLeaveDecisionActor", fields: [decisionByEmployeeId], references: [id], onDelete: SetNull)
+  decisionNote         String?
+  absences             HrAbsence[]  @relation("HrAbsenceLeaveRequest")
   archivedAt           DateTime?
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
@@ -741,6 +760,70 @@ model HrLeaveRequest {
   @@index([tenantCompanyId, leaveTypeId])
   @@index([tenantCompanyId, status])
   @@index([tenantCompanyId, startDate])
+  @@index([tenantCompanyId, decisionByEmployeeId])
+}
+
+model HrLeaveBalance {
+  id               String      @id
+  tenantCompanyId  String
+  tenantCompany    Company     @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  employeeId       String
+  employee         HrEmployee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveTypeId      String
+  leaveType        HrLeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+  periodYear       Int
+  entitledDays     Decimal     @default(0) @db.Decimal(10, 2)
+  adjustmentDays   Decimal     @default(0) @db.Decimal(10, 2)
+  adjustmentReason String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@unique([tenantCompanyId, employeeId, leaveTypeId, periodYear])
+  @@index([tenantCompanyId, employeeId])
+  @@index([tenantCompanyId, leaveTypeId])
+  @@index([tenantCompanyId, periodYear])
+}
+
+model HrAbsence {
+  id                   String          @id
+  tenantCompanyId      String
+  tenantCompany        Company         @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  employeeId           String
+  employee             HrEmployee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  startDate            DateTime
+  endDate              DateTime
+  type                 String
+  source               String          @default("manual")
+  linkedLeaveRequestId String?
+  linkedLeaveRequest   HrLeaveRequest? @relation("HrAbsenceLeaveRequest", fields: [linkedLeaveRequestId], references: [id], onDelete: SetNull)
+  justified            Boolean         @default(false)
+  notes                String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  @@index([tenantCompanyId, employeeId])
+  @@index([tenantCompanyId, startDate])
+  @@index([tenantCompanyId, type])
+  @@index([tenantCompanyId, linkedLeaveRequestId])
+}
+
+model HrAttendanceRecord {
+  id                   String      @id
+  tenantCompanyId      String
+  tenantCompany        Company     @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  employeeId           String
+  employee             HrEmployee  @relation("HrAttendanceEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  date                 DateTime
+  status               String
+  note                 String?
+  recordedByEmployeeId String?
+  recordedByEmployee   HrEmployee? @relation("HrAttendanceRecorder", fields: [recordedByEmployeeId], references: [id], onDelete: SetNull)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  @@unique([tenantCompanyId, employeeId, date])
+  @@index([tenantCompanyId, date])
+  @@index([tenantCompanyId, status])
 }
 
 model StockMovement {

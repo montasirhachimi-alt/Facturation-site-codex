@@ -2182,3 +2182,103 @@ The canonical RH route is `/rh`. Legacy RH subroutes redirect to `/rh` until the
 The `hr.employees` module is now Alpha-ready and active in `alpha.crm-sales`. HR persistence is tenant-scoped through `/api/persistence/hr`, and Unified Search can return hydrated employee records.
 
 Payroll, time clocks, salary advances, recruitment, performance management, training, payroll accounting and leave-balance calculation remain future work.
+
+## ADR-042 — HR Operations Uses Derived Leave Consumption And Simple Daily Attendance Records
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-08-19 |
+
+### Decision
+
+SPR-441 extends the canonical SPR-440 `Hr*` model family instead of introducing a second HR system.
+
+Leave balances are represented by tenant-scoped `HrLeaveBalance` records with:
+
+- employee;
+- leave type;
+- period year;
+- entitled days;
+- adjustment days;
+- adjustment reason.
+
+Approved consumption, pending days and remaining balance are derived from `HrLeaveRequest` records:
+
+```text
+remaining = entitled + adjustment - approved leave days
+```
+
+`used`, `pending` and `remaining` are not stored as independently mutable totals.
+
+Manual absences use tenant-scoped `HrAbsence`. Approved leave requests are projected as leave-derived absences and do not require duplicate manual absence entry.
+
+Simple attendance uses tenant-scoped `HrAttendanceRecord` with one record per employee/date and operational statuses:
+
+```text
+present, absent, leave, remote, partial, other
+```
+
+### Motivation
+
+Small and medium companies need daily HR operational visibility before payroll-level complexity: leave balances, pending approvals, who is absent, who is on leave, and what attendance state was recorded for a day.
+
+The Alpha product must answer those questions deterministically without pretending to implement statutory leave law, payroll deduction, time-clock infrastructure or full workforce management.
+
+### Consequences
+
+SPR-441 keeps `/rh` as the canonical HR workspace and keeps `hr.employees` as the active Alpha module.
+
+V1 uses inclusive calendar-day counting. Weekend, public-holiday, carry-over, monthly accrual, seniority and statutory compliance engines remain future work.
+
+Attendance is daily operational status only. It is not payroll hours, shift scheduling, overtime, biometric attendance, GPS tracking or a timesheet engine.
+
+`HrEmployee.linkedUserId` remains optional for future self-service/manager approval paths, but SPR-441 does not require every employee to be an authenticated user and does not create a parallel permission system.
+
+## ADR-043 — Manual Absence Dominates Contradictory Attendance For Daily Workforce State
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-08-20 |
+
+### Decision
+
+SPR-441A establishes the explicit attendance/absence consistency rule for HR Operations V1.
+
+When a manual `HrAbsence` covers an employee on date `D`, the only compatible `HrAttendanceRecord.status` for that employee/date is:
+
+```text
+absent
+```
+
+The following attendance states are incompatible with a manual absence on the same date:
+
+```text
+present
+remote
+partial
+other
+leave
+```
+
+`leave` remains reserved for approved leave visibility, not manual absence.
+
+### Motivation
+
+Authenticated Manual QA found that `EMP-0001` / `Youssef Alami` could have a manual absence and a `Présent` attendance record on `20/08/2026`.
+
+That made one employee both absent and present for the same business day, which violates deterministic HR operational state.
+
+### Consequences
+
+The invariant is enforced bidirectionally:
+
+- attendance creation/update rejects incompatible states when a manual absence already covers the date;
+- manual absence creation/update rejects an overlapping period when incompatible attendance already exists;
+- multi-day absence checks inspect every covered date through the date range;
+- server-side persistence repeats the rule and remains tenant-scoped.
+
+Workforce-state derivation prioritizes approved leave and manual absence before attendance records, so contradictory legacy QA data cannot display `Présent` while a manual absence covers the same date.
+
+SPR-441 authenticated QA remains pending until the corrected behavior is manually verified.

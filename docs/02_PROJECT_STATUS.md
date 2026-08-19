@@ -1,6 +1,6 @@
 # BOSIACO Project Status
 
-Last reconciled: 2026-08-19
+Last reconciled: 2026-08-20
 
 This document is the current repository reality. It is intentionally not a sprint history. Historical sprint files remain useful for context, but this status is authoritative when older documents disagree with the current code.
 
@@ -11,19 +11,19 @@ This document is the current repository reality. It is intentionally not a sprin
 | Product | BOSIACO, still using some HicoPilot naming in legacy files and code comments. |
 | Stage | Alpha product moving from ERP Core into Business Platform foundations. |
 | Default runtime edition | `alpha.crm-sales` from `src/platform/editions/edition.profiles.ts`. |
-| Current default scope | Dashboard, CRM, Sales quotes/orders/delivery notes/shipments/invoices/payments, Product Catalog, Inventory, Procurement, Finance Operations and HR Core. |
-| Latest completed sprint reflected in code | SPR-440 — HR Core / RH Alpha Foundation V1. |
+| Current default scope | Dashboard, CRM, Sales quotes/orders/delivery notes/shipments/invoices/payments, Product Catalog, Inventory, Procurement, Finance Operations and HR Operations. |
+| Latest completed sprint reflected in code | SPR-441B — HR Modal Error Feedback Hardening. |
 | Latest roadmap reconciliation | SPR-429 — Post-Procurement Roadmap Reconciliation & Next Core Domain Decision. |
-| Important caveat | Finance Operations is active for manual accounting, controlled Sales invoice/payment posting, controlled Supplier Bill/AP posting, supplier payment/AP settlement, inventory valuation, derived financial statements, reversal corrections and minimal period posting controls. HR Core is active for employee administration only; payroll, time clocks, performance and advanced recruitment remain future work. |
+| Important caveat | Finance Operations is active for manual accounting, controlled Sales invoice/payment posting, controlled Supplier Bill/AP posting, supplier payment/AP settlement, inventory valuation, derived financial statements, reversal corrections and minimal period posting controls. HR Operations is active for employee administration, leave balances, leave approval, absence visibility and simple attendance declarations; payroll, time clocks, performance and advanced recruitment remain future work. |
 
 ## Validation Snapshot
 
 | Command | Latest Reconciled Result |
 | --- | --- |
-| `npm run typecheck` | Passed on 2026-08-19. |
-| `npm run validate:runtime` | Passed on 2026-08-19 with 212/212 checks. |
-| `npm run build` | Passed on 2026-08-19; known `src/components/pdf-preview.tsx` `<img>` warning remains. |
-| `git diff --check` | Passed on 2026-08-19. |
+| `npm run typecheck` | Passed on 2026-08-20. |
+| `npm run validate:runtime` | Passed on 2026-08-20 with 223/223 checks. |
+| `npm run build` | Passed on 2026-08-20; known `src/components/pdf-preview.tsx` `<img>` warning remains. |
+| `git diff --check` | Passed on 2026-08-20. |
 
 ## Runtime Architecture Status
 
@@ -85,7 +85,7 @@ Hidden platform dependencies such as `platform.persistence` may be automatically
 | `sales.shipments` | Active in Alpha | Persistent Shipment logistics records are enabled in `alpha.crm-sales`; lifecycle changes remain logistics-only and do not post Inventory movements. |
 | `crm.opportunities` | Hidden | Opportunity UI/domain remnants exist, but the route redirects because persistence is not stable. |
 | `finance.accounting` | Active in Alpha | Manual Finance Operations are available for accounts, journals, draft/post journal entries, reversals, period controls, General Ledger, Trial Balance, Profit & Loss and Balance Sheet. Controlled Sales invoice/payment posting, Supplier Bill/AP posting and Supplier Payment/AP settlement posting are active. |
-| `hr.employees` | Active in Alpha | Canonical HR Core workspace for employees, departments, positions, contracts and simple leave requests. Legacy payroll-oriented RH routes redirect to `/rh`. |
+| `hr.employees` | Active in Alpha | Canonical HR workspace for employees, departments, positions, contracts, leave balances, controlled leave lifecycle, absences and simple attendance declarations. Legacy payroll-oriented RH routes redirect to `/rh`. |
 | Legacy `purchasing.*`, `finance.*` and payroll-era HR surfaces | Planned/hidden | Legacy demo-era routes are redirected or hidden from active navigation. |
 
 ## Route Availability
@@ -191,7 +191,7 @@ Persistent models are present in `prisma/schema.prisma` and backed by repository
 | Smart Entity Picker / Inline Creation | Implemented for supported forms; should remain generic and client-safe. |
 | Business Timeline | Foundation plus Sales/Inventory providers; currently integrated on Sales Order details. |
 | Settings | Active but limited to Alpha-safe settings. |
-| HR | Active Alpha foundation for employees, departments, positions, contracts and simple leave requests. Payroll, attendance, salary advances, documents, performance and recruitment remain out of scope. |
+| HR | Active Alpha operations for employees, departments, positions, contracts, leave types, leave balances, controlled leave approvals/rejections/cancellations, absence visibility, HR agenda and simple daily attendance declarations. Payroll, salary advances, documents, performance, recruitment, statutory leave compliance and biometric/time-clock attendance remain out of scope. |
 | Finance/Accounting | Active for accounts, journals, draft/post journal entries, canonical reversal corrections, minimal period posting controls, General Ledger, Trial Balance, controlled Sales invoice/payment posting, controlled Supplier Bill/AP posting, controlled Supplier Payment/AP settlement posting, controlled Inventory receipt capitalization, controlled Supplier Bill GRNI clearing, controlled Inventory COGS posting, Profit & Loss and Balance Sheet. No multi-bill supplier payment allocation, advance payments, bank reconciliation, FX differences, remittance advice, statutory localization, statutory close or controlled reposting after reversal. |
 | AI Platform | Vision/planned; no AI business feature is implemented. |
 | Workflow Automation | Not implemented as a production workflow engine. |
@@ -224,6 +224,7 @@ Known migration folders include:
 - `20260818133000_grni_reconciliation_v1`
 - `20260819100000_supplier_payment_ap_settlement`
 - `20260819110000_hr_core_alpha_foundation`
+- `20260819123000_hr_leave_attendance_operations`
 
 Accounting persistence exists as of SPR-430. General Ledger and Trial Balance read models exist as of SPR-431. Finance Operations UI is active as of SPR-432. No additional migration was required by SPR-432.
 
@@ -625,7 +626,86 @@ Verified records:
 
 Read-back confirmed the employee, department, position and status displayed correctly, the contract counter updated from `0` to `1`, and the leave counter updated from `0` to `1`.
 
-Current HR Alpha capability is employee administration only. Leave balances, automatic entitlement calculation, approval workflow beyond the simple status model, attendance operations, payroll, employee self-service and advanced org chart capability remain future work.
+At SPR-440 closure, HR Alpha capability was employee administration only. SPR-441 extends that foundation into leave, absence and simple attendance operations while payroll, employee self-service, statutory compliance and advanced org chart capability remain future work.
+
+## SPR-441 HR Leave, Absence & Attendance Operations Reality
+
+SPR-441 extends the canonical HR Alpha foundation into pragmatic HR Operations.
+
+The `/rh` workspace now supports:
+
+- leave type operational configuration;
+- employee/type/year leave balances;
+- manual HR balance adjustments with reasons;
+- requested, approved, rejected and cancelled leave lifecycle;
+- approved leave consumption;
+- pending leave visibility without consumption;
+- leave-derived absence visibility;
+- manual HR absence records;
+- simple daily attendance declarations;
+- HR agenda visibility;
+- employee operational HR summary.
+
+Leave balance source of truth is:
+
+```text
+entitledDays + adjustmentDays - approved leave request days = remainingDays
+```
+
+`usedDays`, `pendingDays` and `remainingDays` are derived, not stored as independently mutable totals. V1 uses inclusive calendar days and does not apply weekend, public-holiday, carry-over, seniority, monthly accrual or statutory leave rules.
+
+The controlled leave lifecycle is:
+
+```text
+draft -> requested | cancelled | archived
+requested -> approved | rejected | cancelled | archived
+approved -> cancelled | archived
+rejected -> archived
+cancelled -> archived
+archived -> no transition
+```
+
+Attendance is daily operational state only, with statuses `present`, `absent`, `leave`, `remote`, `partial` and `other`. It is not a time-clock, payroll-hours, overtime, shift, GPS or biometric attendance system.
+
+SPR-441A then hardened the attendance/absence consistency rule after authenticated Manual QA found that `EMP-0001` / `Youssef Alami` could have both a manual absence and `Présent` attendance on `20/08/2026`.
+
+Canonical daily-state rule:
+
+```text
+manual absence covering date D
+  -> only attendance status `absent` is compatible for D
+```
+
+The incompatible statuses are `present`, `remote`, `partial`, `other` and `leave`. `leave` remains reserved for approved leave visibility.
+
+The rule is enforced in both directions:
+
+- creating/updating attendance checks manual absences and approved leave;
+- creating/updating manual absences checks existing attendance across every covered day;
+- workforce state prioritizes approved leave and manual absence over contradictory legacy attendance.
+
+SPR-441B then hardened RH modal error feedback after authenticated Manual QA found that an attendance save rejected by the approved-leave rule left the modal open without showing the error inside the modal. RH modal submit failures now use dialog-scoped inline errors through the existing `EntityDialog` error banner, preserve entered values for correction, reset submit loading state, and avoid duplicating the same error in the parent page notice while the modal is open.
+
+Authenticated Manual E2E QA is closed for SPR-441 / SPR-441A / SPR-441B.
+
+Verified QA evidence:
+
+- tenant `company-hicotech`;
+- employee `EMP-0001` / `Youssef Alami`;
+- department `Commercial`;
+- position `Responsable commercial`;
+- existing `CDI` contract from `18/08/2026`;
+- `Congé payé` entitlement for 2026 set to `18.00` days with `0.00` adjustment;
+- existing leave request `24/08/2026 -> 28/08/2026` first displayed as `Demandé`, `18.00 j restants` and `5.00 j en attente`;
+- after approval, status became `Approuvé`, pending became `0.00`, used became `5.00`, remaining became `13.00`, and the employee card showed `SOLDE CONGÉ = 13.00 j`;
+- approved leave projected automatically into `RH -> Absences` as `Congé payé`, source `Congé approuvé`, justified `Oui`, without manual duplicate absence entry;
+- manual absence `20/08/2026 -> 20/08/2026`, type `Absence`, source `Manuelle`, justified `Non`, persisted successfully and did not consume paid-leave balance;
+- the pre-SPR-441A contradictory `20/08/2026` attendance `Présent` remains legacy QA data and was not silently deleted or rewritten;
+- approved leave rejected contradictory `Présent` attendance on `25/08/2026` with the controlled French error;
+- after SPR-441B, that error appeared immediately inside the attendance modal, the modal stayed open, entered values were preserved, and the user changed the status to `En congé` without reopening the modal;
+- corrected `En congé` attendance for `25/08/2026` saved successfully, displayed `Présence enregistrée.`, persisted as `25 août 2026 · En congé`, and did not consume leave a second time.
+
+Runtime validation passed on 2026-08-20 with `223/223` checks after adding targeted SPR-441B coverage.
 
 ## Known Limitations
 
@@ -637,7 +717,7 @@ Current HR Alpha capability is employee administration only. Leave balances, aut
 - Inventory has posting, reservations and availability, but no barcode scanning, manufacturing, POS, carrier integration or advanced warehouse operations.
 - CRM Opportunities/Pipeline remains hidden until a persistent, company-centric model is completed.
 - Finance Operations is active for manual journal entries, reversal corrections, period posting controls, controlled Sales invoice/payment posting, controlled Supplier Bill/AP posting, controlled Supplier Payment/AP settlement posting, controlled Inventory receipt capitalization, controlled Supplier Bill GRNI clearing, controlled Inventory COGS posting, Profit & Loss and Balance Sheet, but advanced GRNI reporting, price variance accounting, statutory localization, controlled reposting after reversal, fiscal closing and tax reporting are not implemented.
-- HR and finance legacy pages exist as routes but are hidden or redirected and should not be treated as production modules.
+- HR payroll-era and finance legacy pages exist as routes but are hidden or redirected and should not be treated as production modules.
 - Platform profiles are static; there is no tenant edition assignment, licensing engine, feature flag engine, dashboard editor or module admin UI.
 - Runtime notification, activity and audit layers are foundations, not complete production observability or compliance systems.
 - Local migration application was not executed during SPR-430 because the current `.env` points at a remote Supabase PostgreSQL host; destructive or development migration commands must not be run against non-local databases without an explicit deployment plan.
@@ -645,7 +725,7 @@ Current HR Alpha capability is employee administration only. Leave balances, aut
 
 ## Recommended Candidate Directions
 
-1. HR Leave & Attendance Operations V1: add formal leave balances, approval workflow, calendar-style absence visibility and attendance declarations without implementing payroll.
+1. Customer Alpha Hardening & Operational Readiness V1: authenticated smoke QA across active Alpha modules, route/permission review, seed/demo data review, empty/error state hardening and readiness documentation.
 2. GRNI maturity: add advanced GRNI reporting, durable match records and controlled price variance accounting.
 3. Controlled source reposting after reversal: define a lifecycle for corrected Sales, AP and Inventory source postings if operationally required.
 4. Sales Operations release monitoring: continue authenticated smoke QA for Quote acceptance, Sales Order reservation, Delivery Note posting, Shipment lifecycle and Inventory reconciliation now that the workflow is visible in Alpha.

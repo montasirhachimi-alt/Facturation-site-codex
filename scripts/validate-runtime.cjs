@@ -6589,7 +6589,7 @@ test("HR Core persistence and UI stay tenant-scoped and free of legacy payroll w
   const descriptors = read("src/platform/modules/module.descriptors.ts");
 
   assert(schema.includes("model HrEmployee") && schema.includes("tenantCompanyId"), "Schema should define tenant-scoped canonical HrEmployee records.");
-  assert(schema.includes("linkedUserId") && schema.includes("linkedUser            User?"), "HR Employee should support an optional explicit Auth User link.");
+  assert(schema.includes("linkedUserId") && /linkedUser\s+User\?/.test(schema), "HR Employee should support an optional explicit Auth User link.");
   assert(schema.includes("model HrDepartment") && schema.includes("model HrPosition") && schema.includes("model HrEmploymentContract"), "Schema should include Department, Position and Contract foundations.");
   assert(schema.includes("model HrLeaveType") && schema.includes("model HrLeaveRequest"), "Schema should include the minimal Leave foundation.");
   assert(migration.includes('CREATE TABLE "HrEmployee"') && migration.includes('FOREIGN KEY ("tenantCompanyId") REFERENCES "Company"'), "Migration should create HR tables with tenant Company foreign keys.");
@@ -6622,6 +6622,276 @@ test("HR Unified Search provider returns hydrated employee results", async () =>
   hrLocalService.replaceSnapshot(snapshot);
 
   assert(results.some((result) => result.entityType === "hr.employee" && result.entityId === employee.id && result.url === "/rh"), "Unified Search should return HR Employee records through the HR provider.");
+});
+
+test("HR Leave Operations calculate entitlement pending used and remaining balances", () => {
+  const { HrService } = load("src/modules/hr");
+  const { service, employee, manager, leaveType } = createHrOperationsFixture(HrService);
+  const balance = service.createLeaveBalance({
+    employeeId: employee.id,
+    leaveTypeId: leaveType.id,
+    periodYear: 2026,
+    entitledDays: "18.00",
+    adjustmentDays: "2.00",
+    adjustmentReason: "Solde initial QA"
+  }).leaveBalance;
+  const requested = service.createLeaveRequest({
+    employeeId: employee.id,
+    leaveTypeId: leaveType.id,
+    title: "Congé annuel",
+    startDate: "2026-08-24T00:00:00.000Z",
+    endDate: "2026-08-28T00:00:00.000Z",
+    status: "requested",
+    requestedAt: "2026-08-19T09:00:00.000Z"
+  }).leaveRequest;
+
+  let projection = service.listLeaveBalanceProjections().leaveBalances.find((item) => item.employeeId === employee.id);
+  assert(balance && requested, "Fixture should create balance and request.");
+  assert(projection.pendingDays === "5.00" && projection.usedDays === "0.00" && projection.remainingDays === "20.00", "Requested leave should be pending but not consumed.");
+
+  const approved = service.approveLeaveRequest(requested.id, manager.id).leaveRequest;
+  projection = service.listLeaveBalanceProjections().leaveBalances.find((item) => item.employeeId === employee.id);
+  assert(approved.status === "approved" && approved.approvedAt && approved.decidedAt, "Approval should store lifecycle timestamps.");
+  assert(projection.usedDays === "5.00" && projection.pendingDays === "0.00" && projection.remainingDays === "15.00", "Approved leave should consume the available balance.");
+});
+
+test("HR Leave Operations reject invalid transitions and over-balance approval", () => {
+  const { HrService } = load("src/modules/hr");
+  const { service, employee, manager, leaveType } = createHrOperationsFixture(HrService);
+  service.createLeaveBalance({ employeeId: employee.id, leaveTypeId: leaveType.id, periodYear: 2026, entitledDays: "2.00", adjustmentDays: "0.00" });
+  const request = service.createLeaveRequest({
+    employeeId: employee.id,
+    leaveTypeId: leaveType.id,
+    title: "Congé long",
+    startDate: "2026-08-24T00:00:00.000Z",
+    endDate: "2026-08-28T00:00:00.000Z",
+    status: "requested",
+    requestedAt: "2026-08-19T09:00:00.000Z"
+  }).leaveRequest;
+  const overBalance = service.approveLeaveRequest(request.id, manager.id);
+  const rejected = service.rejectLeaveRequest(request.id, manager.id).leaveRequest;
+  const invalid = service.approveLeaveRequest(rejected.id, manager.id);
+
+  assert(!overBalance.leaveRequest && overBalance.error.includes("Solde"), "Approval should reject negative remaining balance.");
+  assert(rejected.status === "rejected", "Requested leave should be rejectable.");
+  assert(!invalid.leaveRequest && invalid.error.includes("Transition"), "Rejected leave should not transition back to approved.");
+});
+
+test("HR Absence Operations derive approved leave absence without duplicating manual records", () => {
+  const { HrService } = load("src/modules/hr");
+  const { service, employee, manager, leaveType } = createHrOperationsFixture(HrService);
+  service.createLeaveBalance({ employeeId: employee.id, leaveTypeId: leaveType.id, periodYear: 2026, entitledDays: "18.00", adjustmentDays: "0.00" });
+  const request = service.createLeaveRequest({
+    employeeId: employee.id,
+    leaveTypeId: leaveType.id,
+    title: "Congé annuel",
+    startDate: "2026-08-24T00:00:00.000Z",
+    endDate: "2026-08-28T00:00:00.000Z",
+    status: "requested",
+    requestedAt: "2026-08-19T09:00:00.000Z"
+  }).leaveRequest;
+  service.approveLeaveRequest(request.id, manager.id);
+  const manual = service.createAbsence({
+    employeeId: employee.id,
+    startDate: "2026-09-02T00:00:00.000Z",
+    endDate: "2026-09-02T00:00:00.000Z",
+    type: "Absence exceptionnelle",
+    source: "manual",
+    justified: true
+  }).absence;
+  const absences = service.listOperationalAbsences().absences;
+
+  assert(manual && absences.some((absence) => absence.source === "leave" && absence.linkedLeaveRequestId === request.id), "Approved leave should appear as leave-derived absence.");
+  assert(absences.some((absence) => absence.id === manual.id && absence.source === "manual"), "Manual absence should remain a distinct HR record.");
+});
+
+test("HR Attendance Operations enforce one employee date record and approved-leave consistency", () => {
+  const { HrService } = load("src/modules/hr");
+  const { service, employee, manager, leaveType } = createHrOperationsFixture(HrService);
+  const first = service.createAttendanceRecord({ employeeId: employee.id, date: "2026-08-20T00:00:00.000Z", status: "present", note: "Présence QA" }).attendanceRecord;
+  const duplicate = service.createAttendanceRecord({ employeeId: employee.id, date: "2026-08-20T12:00:00.000Z", status: "remote" });
+  service.createLeaveBalance({ employeeId: employee.id, leaveTypeId: leaveType.id, periodYear: 2026, entitledDays: "18.00", adjustmentDays: "0.00" });
+  const request = service.createLeaveRequest({
+    employeeId: employee.id,
+    leaveTypeId: leaveType.id,
+    title: "Congé annuel",
+    startDate: "2026-08-24T00:00:00.000Z",
+    endDate: "2026-08-28T00:00:00.000Z",
+    status: "requested",
+    requestedAt: "2026-08-19T09:00:00.000Z"
+  }).leaveRequest;
+  service.approveLeaveRequest(request.id, manager.id);
+  const conflict = service.createAttendanceRecord({ employeeId: employee.id, date: "2026-08-24T00:00:00.000Z", status: "present" });
+  const leaveRecord = service.createAttendanceRecord({ employeeId: employee.id, date: "2026-08-24T00:00:00.000Z", status: "leave" }).attendanceRecord;
+
+  assert(first, "First attendance record should be created.");
+  assert(!duplicate.attendanceRecord && duplicate.error.includes("existe déjà"), "Duplicate employee/date attendance should be rejected.");
+  assert(!conflict.attendanceRecord && conflict.error.includes("congé approuvé"), "Present status should be blocked on approved leave dates.");
+  assert(leaveRecord.status === "leave", "Leave status should be allowed on approved leave dates.");
+});
+
+test("HR Attendance Absence consistency rejects present attendance on manual absence dates", () => {
+  const { HrService } = load("src/modules/hr");
+  const { service, employee } = createHrOperationsFixture(HrService);
+  const absence = service.createAbsence({
+    employeeId: employee.id,
+    startDate: "2026-08-20T00:00:00.000Z",
+    endDate: "2026-08-20T00:00:00.000Z",
+    type: "Absence",
+    source: "manual",
+    justified: false
+  }).absence;
+  const present = service.createAttendanceRecord({ employeeId: employee.id, date: "2026-08-20T00:00:00.000Z", status: "present" });
+  const remote = service.createAttendanceRecord({ employeeId: employee.id, date: "2026-08-20T00:00:00.000Z", status: "remote" });
+  const absent = service.createAttendanceRecord({ employeeId: employee.id, date: "2026-08-20T00:00:00.000Z", status: "absent" }).attendanceRecord;
+
+  assert(absence, "Manual absence fixture should be created.");
+  assert(!present.attendanceRecord && present.error.includes("absence manuelle"), "Present attendance should be rejected on a manual absence date.");
+  assert(!remote.attendanceRecord && remote.error.includes("absence manuelle"), "Remote attendance should be rejected on a manual absence date.");
+  assert(absent.status === "absent", "Absent attendance should be compatible with a manual absence.");
+});
+
+test("HR Attendance Absence consistency rejects overlapping manual absence after contradictory attendance", () => {
+  const { HrService } = load("src/modules/hr");
+  const { service, employee } = createHrOperationsFixture(HrService);
+  const present = service.createAttendanceRecord({ employeeId: employee.id, date: "2026-08-20T00:00:00.000Z", status: "present" }).attendanceRecord;
+  const absence = service.createAbsence({
+    employeeId: employee.id,
+    startDate: "2026-08-20T00:00:00.000Z",
+    endDate: "2026-08-20T00:00:00.000Z",
+    type: "Absence",
+    source: "manual",
+    justified: false
+  });
+
+  assert(present, "Present attendance fixture should be created.");
+  assert(!absence.absence && absence.error.includes("contradictoire"), "Manual absence should be rejected when contradictory attendance already exists.");
+});
+
+test("HR Attendance Absence consistency checks every day in multi-day absence ranges", () => {
+  const { HrService } = load("src/modules/hr");
+  const { service, employee } = createHrOperationsFixture(HrService);
+  const present = service.createAttendanceRecord({ employeeId: employee.id, date: "2026-08-22T00:00:00.000Z", status: "present" }).attendanceRecord;
+  const overlapping = service.createAbsence({
+    employeeId: employee.id,
+    startDate: "2026-08-20T00:00:00.000Z",
+    endDate: "2026-08-24T00:00:00.000Z",
+    type: "Absence",
+    source: "manual",
+    justified: false
+  });
+  const nonConflicting = service.createAbsence({
+    employeeId: employee.id,
+    startDate: "2026-08-25T00:00:00.000Z",
+    endDate: "2026-08-26T00:00:00.000Z",
+    type: "Absence",
+    source: "manual",
+    justified: false
+  }).absence;
+
+  assert(present, "Present attendance fixture should be created.");
+  assert(!overlapping.absence && overlapping.error.includes("contradictoire"), "Multi-day absence should inspect every covered date for conflicts.");
+  assert(nonConflicting, "Non-conflicting absence dates should remain accepted.");
+});
+
+test("HR Workforce state prioritizes approved leave and manual absence over contradictory legacy attendance", () => {
+  const { HrService } = load("src/modules/hr");
+  const { service, employee } = createHrOperationsFixture(HrService);
+  const snapshot = service.getSnapshot();
+  const now = "2026-08-20T09:00:00.000Z";
+  service.replaceSnapshot({
+    ...snapshot,
+    absences: [{
+      id: "qa-conflict-absence",
+      employeeId: employee.id,
+      startDate: "2026-08-20T00:00:00.000Z",
+      endDate: "2026-08-20T00:00:00.000Z",
+      type: "Absence",
+      source: "manual",
+      justified: false,
+      createdAt: now,
+      updatedAt: now
+    }],
+    attendanceRecords: [{
+      id: "qa-conflict-attendance",
+      employeeId: employee.id,
+      date: "2026-08-20T00:00:00.000Z",
+      status: "present",
+      createdAt: now,
+      updatedAt: now
+    }]
+  });
+  const conflictState = service.getEmployeeOperationalSummary(employee.id, now).workforceState;
+  const otherDateAttendance = service.createAttendanceRecord({ employeeId: employee.id, date: "2026-08-21T00:00:00.000Z", status: "present" }).attendanceRecord;
+  const validState = service.getEmployeeOperationalSummary(employee.id, "2026-08-21T09:00:00.000Z").workforceState;
+
+  assert(conflictState === "absent", "Manual absence should dominate contradictory legacy present attendance for daily state.");
+  assert(otherDateAttendance && validState === "present", "Valid attendance for the business date should still drive workforce state.");
+});
+
+test("HR Attendance dialog surfaces rejected save errors inside the modal without clearing form state", () => {
+  const workspace = read("src/modules/hr/ui/pages/hr-workspace-page.tsx");
+  const dialog = read("src/ui/dialogs/entity-dialog.tsx");
+  const saveStart = workspace.indexOf("async function saveAttendance()");
+  const saveEnd = workspace.indexOf("\n  async function decideLeave", saveStart);
+  const saveBody = workspace.slice(saveStart, saveEnd);
+  const renderStart = workspace.indexOf("<AttendanceDialog");
+  const renderEnd = workspace.indexOf("/>", renderStart);
+  const renderBody = workspace.slice(renderStart, renderEnd);
+  const attendanceDialogStart = workspace.indexOf("function AttendanceDialog");
+  const attendanceDialogEnd = workspace.indexOf("\nfunction Toolbar", attendanceDialogStart);
+  const attendanceDialogBody = workspace.slice(attendanceDialogStart, attendanceDialogEnd);
+
+  assert(saveBody.includes('setDialogError("attendance", error, "Présence non enregistrée.")'), "Rejected attendance saves should set dialog-scoped error state.");
+  assert(!saveBody.includes("setNotice({ tone: \"error\""), "Rejected attendance saves should not duplicate the error in the parent page notice.");
+  assert(!saveBody.includes("setAttendanceForm("), "Rejected attendance saves should preserve the entered attendance values.");
+  assert(saveBody.includes("finally") && saveBody.includes("setSaving(false)"), "Rejected attendance saves should recover the HR submit busy state.");
+  assert(saveBody.includes("setAttendanceDialogOpen(false)") && saveBody.includes("Présence enregistrée."), "Successful attendance saves should still close the modal and show the existing success feedback.");
+  assert(renderBody.includes("error={dialogErrors.attendance}") && renderBody.includes('clearDialogError("attendance"); setAttendanceForm(form);'), "Attendance dialog should receive inline errors and clear them when the user edits the form.");
+  assert(attendanceDialogBody.includes("error?: string | null") && attendanceDialogBody.includes("error={error}"), "Attendance dialog should pass its error into EntityDialog.");
+  assert(dialog.includes("error?: string | null") && dialog.includes("{error &&") && dialog.includes("AlertCircle"), "EntityDialog should render visible inline errors inside the modal.");
+  assert(dialog.includes("finally") && dialog.includes("setSubmitting(false)"), "EntityDialog should always reset its internal submitting state after failed submits.");
+});
+
+test("HR Calendar and workforce state project leave absence and attendance", () => {
+  const { HrService } = load("src/modules/hr");
+  const { service, employee, manager, leaveType } = createHrOperationsFixture(HrService);
+  service.createLeaveBalance({ employeeId: employee.id, leaveTypeId: leaveType.id, periodYear: 2026, entitledDays: "18.00", adjustmentDays: "0.00" });
+  const request = service.createLeaveRequest({
+    employeeId: employee.id,
+    leaveTypeId: leaveType.id,
+    title: "Congé annuel",
+    startDate: "2026-08-24T00:00:00.000Z",
+    endDate: "2026-08-28T00:00:00.000Z",
+    status: "requested",
+    requestedAt: "2026-08-19T09:00:00.000Z"
+  }).leaveRequest;
+  const pendingItems = service.listCalendarItems("2026-08-24", "2026-08-28");
+  service.approveLeaveRequest(request.id, manager.id);
+  const approvedItems = service.listCalendarItems("2026-08-24", "2026-08-28");
+  const state = service.getWorkforceState(employee.id, "2026-08-25T00:00:00.000Z");
+  const summary = service.getEmployeeOperationalSummary(employee.id, "2026-08-25T00:00:00.000Z");
+
+  assert(pendingItems.every((item) => item.kind === "pending_leave"), "Requested leave should show as pending calendar visibility.");
+  assert(approvedItems.length === 5 && approvedItems.every((item) => item.kind === "approved_leave"), "Approved leave should project one calendar item per inclusive day.");
+  assert(state === "leave" && summary.workforceState === "leave", "Workforce state should detect approved leave when attendance is not separately recorded.");
+});
+
+test("HR Operations persistence route and schema expose SPR-441 resources", () => {
+  const schema = read("prisma/schema.prisma");
+  const migration = read("prisma/migrations/20260819123000_hr_leave_attendance_operations/migration.sql");
+  const repository = read("src/server/persistence/hr-repository.ts");
+  const route = read("src/app/api/persistence/hr/route.ts");
+  const client = read("src/platform/persistence/hr-persistence.client.ts");
+  const workspace = read("src/modules/hr/ui/pages/hr-workspace-page.tsx");
+
+  assert(schema.includes("model HrLeaveBalance") && schema.includes("@@unique([tenantCompanyId, employeeId, leaveTypeId, periodYear])"), "Schema should persist one leave balance per employee/type/year.");
+  assert(schema.includes("model HrAbsence") && schema.includes("model HrAttendanceRecord"), "Schema should include canonical absence and attendance operation records.");
+  assert(migration.includes('CREATE TABLE "HrLeaveBalance"') && migration.includes('CREATE TABLE "HrAttendanceRecord"'), "Migration should create SPR-441 operational HR tables.");
+  assert(repository.includes("assertOptionalLeaveRequestTenant") && repository.includes("assertOptionalEmployeeTenant(scope, record.recordedByEmployeeId)"), "Repository should enforce tenant integrity for linked leave and attendance actors.");
+  assert(repository.includes("assertNoContradictoryAttendanceForAbsence") && repository.includes("assertAttendanceConsistency"), "Repository should enforce absence and attendance consistency server-side.");
+  assert(route.includes('"leaveBalance"') && client.includes('"attendanceRecord"'), "API route and client should expose new HR persistence resources through the existing bridge.");
+  assert(workspace.includes("Absences") && workspace.includes("Présences") && workspace.includes("Agenda RH"), "RH workspace should expose operations without creating a second HR app.");
 });
 
 test("Inventory Valuation synchronization precomputes references before short write transaction", () => {
@@ -6661,6 +6931,44 @@ function createRuntimeInvoice(overrides = {}) {
     ...overrides
   };
   return invoice;
+}
+
+function createHrOperationsFixture(HrService) {
+  const service = new HrService({ now: () => "2026-08-19T09:00:00.000Z" });
+  const department = service.createDepartment({ code: "COM", name: "Commercial", active: true }).department;
+  const position = service.createPosition({ code: "RESP-COM", name: "Responsable commercial", departmentId: department.id, active: true }).position;
+  const manager = service.createEmployee({
+    employeeNumber: "EMP-MGR",
+    firstName: "Nadia",
+    lastName: "Mansouri",
+    hireDate: "2026-01-01T00:00:00.000Z",
+    status: "active",
+    departmentId: department.id,
+    positionId: position.id
+  }).employee;
+  const employee = service.createEmployee({
+    employeeNumber: "EMP-0001",
+    firstName: "Youssef",
+    lastName: "Alami",
+    email: "youssef.alami@hicotech.ma",
+    phone: "0612345678",
+    hireDate: "2026-08-18T00:00:00.000Z",
+    status: "active",
+    departmentId: department.id,
+    positionId: position.id,
+    managerEmployeeId: manager.id
+  }).employee;
+  const leaveType = service.createLeaveType({
+    code: "CP",
+    name: "Congé payé",
+    paid: true,
+    approvalRequired: true,
+    balanceTracked: true,
+    defaultAnnualEntitlement: "18.00",
+    active: true
+  }).leaveType;
+
+  return { service, department, position, manager, employee, leaveType };
 }
 
 function createRuntimeValuationEvent(overrides = {}) {

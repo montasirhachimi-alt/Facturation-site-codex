@@ -10,7 +10,9 @@ import {
   HR_CONTRACT_STATUS_LABELS,
   HR_CONTRACT_TYPE_LABELS,
   HR_EMPLOYEE_STATUS_LABELS,
+  HR_ATTENDANCE_STATUS_LABELS,
   HR_LEAVE_REQUEST_STATUS_LABELS,
+  HR_WORKFORCE_STATE_LABELS,
   HR_WORKING_TIME_TYPE_LABELS,
   hrLocalService,
   subscribeToHrStore,
@@ -22,6 +24,10 @@ import {
   type HrEmployeeId,
   type HrEmployeeStatus,
   type HrEmploymentContract,
+  type HrAttendanceRecord,
+  type HrAttendanceStatus,
+  type HrAbsence,
+  type HrLeaveBalance,
   type HrLeaveRequest,
   type HrLeaveRequestStatus,
   type HrLeaveType,
@@ -29,8 +35,9 @@ import {
   type HrWorkingTimeType
 } from "@/modules/hr";
 
-type HrTab = "overview" | "employees" | "departments" | "positions" | "contracts" | "leaves";
+type HrTab = "overview" | "employees" | "departments" | "positions" | "contracts" | "leaves" | "absences" | "attendance";
 type Notice = { tone: "success" | "error"; message: string };
+type HrDialogKey = "employee" | "department" | "position" | "contract" | "leave" | "leaveBalance" | "absence" | "attendance";
 type EmployeeForm = {
   employeeNumber: string;
   firstName: string;
@@ -68,6 +75,9 @@ type LeaveForm = {
   endDate: string;
   status: HrLeaveRequestStatus;
 };
+type LeaveBalanceForm = { employeeId: string; leaveTypeId: string; periodYear: string; entitledDays: string; adjustmentDays: string; adjustmentReason: string };
+type AbsenceForm = { employeeId: string; startDate: string; endDate: string; type: string; justified: boolean; notes: string };
+type AttendanceForm = { employeeId: string; date: string; status: HrAttendanceStatus; note: string };
 
 const tabs = [
   { id: "overview", label: "Vue d'ensemble" },
@@ -75,7 +85,9 @@ const tabs = [
   { id: "departments", label: "Départements" },
   { id: "positions", label: "Postes" },
   { id: "contracts", label: "Contrats" },
-  { id: "leaves", label: "Congés" }
+  { id: "leaves", label: "Congés" },
+  { id: "absences", label: "Absences" },
+  { id: "attendance", label: "Présences" }
 ] satisfies readonly { id: HrTab; label: string }[];
 
 const emptyEmployeeForm: EmployeeForm = {
@@ -108,6 +120,19 @@ const emptyContractForm: ContractForm = {
   status: "active"
 };
 const emptyLeaveForm: LeaveForm = { employeeId: "", leaveTypeId: "", title: "", reason: "", startDate: today(), endDate: today(), status: "requested" };
+const emptyLeaveBalanceForm: LeaveBalanceForm = { employeeId: "", leaveTypeId: "", periodYear: String(new Date().getFullYear()), entitledDays: "18.00", adjustmentDays: "0.00", adjustmentReason: "" };
+const emptyAbsenceForm: AbsenceForm = { employeeId: "", startDate: today(), endDate: today(), type: "Absence", justified: false, notes: "" };
+const emptyAttendanceForm: AttendanceForm = { employeeId: "", date: today(), status: "present", note: "" };
+const emptyDialogErrors: Record<HrDialogKey, string | null> = {
+  employee: null,
+  department: null,
+  position: null,
+  contract: null,
+  leave: null,
+  leaveBalance: null,
+  absence: null,
+  attendance: null
+};
 
 export function HrWorkspacePage() {
   const [version, setVersion] = useState(0);
@@ -116,12 +141,16 @@ export function HrWorkspacePage() {
   const [statusFilter, setStatusFilter] = useState<HrEmployeeStatus | "all">("all");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [notice, setNotice] = useState<Notice | null>(null);
+  const [dialogErrors, setDialogErrors] = useState<Record<HrDialogKey, string | null>>(emptyDialogErrors);
   const [saving, setSaving] = useState(false);
   const [employeeDialogOpen, setEmployeeDialogOpen] = useState(false);
   const [departmentDialogOpen, setDepartmentDialogOpen] = useState(false);
   const [positionDialogOpen, setPositionDialogOpen] = useState(false);
   const [contractDialogOpen, setContractDialogOpen] = useState(false);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [leaveBalanceDialogOpen, setLeaveBalanceDialogOpen] = useState(false);
+  const [absenceDialogOpen, setAbsenceDialogOpen] = useState(false);
+  const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<HrEmployee | null>(null);
   const [editingDepartment, setEditingDepartment] = useState<HrDepartment | null>(null);
   const [editingPosition, setEditingPosition] = useState<HrPosition | null>(null);
@@ -130,6 +159,9 @@ export function HrWorkspacePage() {
   const [positionForm, setPositionForm] = useState<PositionForm>(emptyPositionForm);
   const [contractForm, setContractForm] = useState<ContractForm>(emptyContractForm);
   const [leaveForm, setLeaveForm] = useState<LeaveForm>(emptyLeaveForm);
+  const [leaveBalanceForm, setLeaveBalanceForm] = useState<LeaveBalanceForm>(emptyLeaveBalanceForm);
+  const [absenceForm, setAbsenceForm] = useState<AbsenceForm>(emptyAbsenceForm);
+  const [attendanceForm, setAttendanceForm] = useState<AttendanceForm>(emptyAttendanceForm);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
 
   useEffect(() => {
@@ -152,10 +184,19 @@ export function HrWorkspacePage() {
   const departmentById = new Map(snapshot.departments.map((department) => [department.id, department]));
   const positionById = new Map(snapshot.positions.map((position) => [position.id, position]));
 
+  function clearDialogError(dialog: HrDialogKey) {
+    setDialogErrors((current) => current[dialog] ? { ...current, [dialog]: null } : current);
+  }
+
+  function setDialogError(dialog: HrDialogKey, error: unknown, fallback: string) {
+    setDialogErrors((current) => ({ ...current, [dialog]: error instanceof Error ? error.message : fallback }));
+  }
+
   function openEmployee(employee?: HrEmployee) {
     setEditingEmployee(employee ?? null);
     setEmployeeForm(employee ? employeeToForm(employee) : { ...emptyEmployeeForm, employeeNumber: nextEmployeeNumber(snapshot.employees), hireDate: today() });
     setEmployeeDialogOpen(true);
+    clearDialogError("employee");
     setNotice(null);
   }
 
@@ -163,6 +204,7 @@ export function HrWorkspacePage() {
     setEditingDepartment(department ?? null);
     setDepartmentForm(department ? departmentToForm(department) : emptyDepartmentForm);
     setDepartmentDialogOpen(true);
+    clearDialogError("department");
     setNotice(null);
   }
 
@@ -170,6 +212,7 @@ export function HrWorkspacePage() {
     setEditingPosition(position ?? null);
     setPositionForm(position ? positionToForm(position) : emptyPositionForm);
     setPositionDialogOpen(true);
+    clearDialogError("position");
     setNotice(null);
   }
 
@@ -178,18 +221,42 @@ export function HrWorkspacePage() {
     const position = employee?.positionId ? positionById.get(employee.positionId) : undefined;
     setContractForm({ ...emptyContractForm, employeeId: employeeId ?? "", positionId: employee?.positionId ?? "", jobTitle: position?.name ?? "", startDate: today() });
     setContractDialogOpen(true);
+    clearDialogError("contract");
     setNotice(null);
   }
 
   function openLeave(employeeId?: HrEmployeeId) {
     setLeaveForm({ ...emptyLeaveForm, employeeId: employeeId ?? "", startDate: today(), endDate: today() });
     setLeaveDialogOpen(true);
+    clearDialogError("leave");
+    setNotice(null);
+  }
+
+  function openLeaveBalance(employeeId?: HrEmployeeId) {
+    setLeaveBalanceForm({ ...emptyLeaveBalanceForm, employeeId: employeeId ?? "", leaveTypeId: snapshot.leaveTypes[0]?.id ?? "" });
+    setLeaveBalanceDialogOpen(true);
+    clearDialogError("leaveBalance");
+    setNotice(null);
+  }
+
+  function openAbsence(employeeId?: HrEmployeeId) {
+    setAbsenceForm({ ...emptyAbsenceForm, employeeId: employeeId ?? "", startDate: today(), endDate: today() });
+    setAbsenceDialogOpen(true);
+    clearDialogError("absence");
+    setNotice(null);
+  }
+
+  function openAttendance(employeeId?: HrEmployeeId) {
+    setAttendanceForm({ ...emptyAttendanceForm, employeeId: employeeId ?? "", date: today() });
+    setAttendanceDialogOpen(true);
+    clearDialogError("attendance");
     setNotice(null);
   }
 
   async function saveEmployee() {
     setSaving(true);
     setNotice(null);
+    clearDialogError("employee");
     try {
       const result = editingEmployee
         ? hrLocalService.updateEmployee(employeeFormToUpdate(editingEmployee, employeeForm))
@@ -198,10 +265,11 @@ export function HrWorkspacePage() {
       await persistHrRecord("employee", result.employee);
       setSelectedEmployeeId(result.employee.id);
       setEmployeeDialogOpen(false);
+      clearDialogError("employee");
       setNotice({ tone: "success", message: editingEmployee ? "Employé enregistré." : "Employé créé." });
       return true;
     } catch (error) {
-      setNotice({ tone: "error", message: error instanceof Error ? error.message : "Employé non enregistré." });
+      setDialogError("employee", error, "Employé non enregistré.");
       return false;
     } finally {
       setSaving(false);
@@ -211,6 +279,7 @@ export function HrWorkspacePage() {
   async function saveDepartment() {
     setSaving(true);
     setNotice(null);
+    clearDialogError("department");
     try {
       const result = editingDepartment
         ? hrLocalService.updateDepartment({ id: editingDepartment.id, ...departmentForm, managerId: optionalId(departmentForm.managerId) as never })
@@ -218,10 +287,11 @@ export function HrWorkspacePage() {
       if (!result.department) throw new Error(result.error ?? "Département non enregistré.");
       await persistHrRecord("department", result.department);
       setDepartmentDialogOpen(false);
+      clearDialogError("department");
       setNotice({ tone: "success", message: editingDepartment ? "Département enregistré." : "Département créé." });
       return true;
     } catch (error) {
-      setNotice({ tone: "error", message: error instanceof Error ? error.message : "Département non enregistré." });
+      setDialogError("department", error, "Département non enregistré.");
       return false;
     } finally {
       setSaving(false);
@@ -231,6 +301,7 @@ export function HrWorkspacePage() {
   async function savePosition() {
     setSaving(true);
     setNotice(null);
+    clearDialogError("position");
     try {
       const result = editingPosition
         ? hrLocalService.updatePosition({ id: editingPosition.id, ...positionForm, departmentId: optionalId(positionForm.departmentId) as never })
@@ -238,10 +309,11 @@ export function HrWorkspacePage() {
       if (!result.position) throw new Error(result.error ?? "Poste non enregistré.");
       await persistHrRecord("position", result.position);
       setPositionDialogOpen(false);
+      clearDialogError("position");
       setNotice({ tone: "success", message: editingPosition ? "Poste enregistré." : "Poste créé." });
       return true;
     } catch (error) {
-      setNotice({ tone: "error", message: error instanceof Error ? error.message : "Poste non enregistré." });
+      setDialogError("position", error, "Poste non enregistré.");
       return false;
     } finally {
       setSaving(false);
@@ -251,6 +323,7 @@ export function HrWorkspacePage() {
   async function saveContract() {
     setSaving(true);
     setNotice(null);
+    clearDialogError("contract");
     try {
       const result = hrLocalService.createContract({
         employeeId: contractForm.employeeId as never,
@@ -266,10 +339,11 @@ export function HrWorkspacePage() {
       if (!result.contract) throw new Error(result.error ?? "Contrat non enregistré.");
       await persistHrRecord("contract", result.contract);
       setContractDialogOpen(false);
+      clearDialogError("contract");
       setNotice({ tone: "success", message: "Contrat créé." });
       return true;
     } catch (error) {
-      setNotice({ tone: "error", message: error instanceof Error ? error.message : "Contrat non enregistré." });
+      setDialogError("contract", error, "Contrat non enregistré.");
       return false;
     } finally {
       setSaving(false);
@@ -279,6 +353,7 @@ export function HrWorkspacePage() {
   async function saveLeave() {
     setSaving(true);
     setNotice(null);
+    clearDialogError("leave");
     try {
       await ensureDefaultLeaveType();
       const leaveTypes = hrLocalService.listLeaveTypes().leaveTypes;
@@ -296,19 +371,116 @@ export function HrWorkspacePage() {
       if (!result.leaveRequest) throw new Error(result.error ?? "Demande de congé non enregistrée.");
       await persistHrRecord("leaveRequest", result.leaveRequest);
       setLeaveDialogOpen(false);
+      clearDialogError("leave");
       setNotice({ tone: "success", message: "Demande de congé créée." });
       return true;
     } catch (error) {
-      setNotice({ tone: "error", message: error instanceof Error ? error.message : "Demande de congé non enregistrée." });
+      setDialogError("leave", error, "Demande de congé non enregistrée.");
       return false;
     } finally {
       setSaving(false);
     }
   }
 
+  async function saveLeaveBalance() {
+    setSaving(true);
+    setNotice(null);
+    clearDialogError("leaveBalance");
+    try {
+      await ensureDefaultLeaveType();
+      const leaveTypeId = leaveBalanceForm.leaveTypeId || hrLocalService.listLeaveTypes().leaveTypes[0]?.id;
+      const result = hrLocalService.createLeaveBalance({
+        employeeId: leaveBalanceForm.employeeId as never,
+        leaveTypeId: leaveTypeId as never,
+        periodYear: Number(leaveBalanceForm.periodYear),
+        entitledDays: leaveBalanceForm.entitledDays,
+        adjustmentDays: leaveBalanceForm.adjustmentDays,
+        adjustmentReason: leaveBalanceForm.adjustmentReason
+      });
+      if (!result.leaveBalance) throw new Error(result.error ?? "Droit de congé non enregistré.");
+      await persistHrRecord("leaveBalance", result.leaveBalance);
+      setLeaveBalanceDialogOpen(false);
+      clearDialogError("leaveBalance");
+      setNotice({ tone: "success", message: "Droit de congé enregistré." });
+      return true;
+    } catch (error) {
+      setDialogError("leaveBalance", error, "Droit de congé non enregistré.");
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveAbsence() {
+    setSaving(true);
+    setNotice(null);
+    clearDialogError("absence");
+    try {
+      const result = hrLocalService.createAbsence({
+        employeeId: absenceForm.employeeId as never,
+        startDate: new Date(absenceForm.startDate || today()).toISOString(),
+        endDate: new Date(absenceForm.endDate || today()).toISOString(),
+        type: absenceForm.type,
+        source: "manual",
+        justified: absenceForm.justified,
+        notes: absenceForm.notes
+      });
+      if (!result.absence) throw new Error(result.error ?? "Absence non enregistrée.");
+      await persistHrRecord("absence", result.absence);
+      setAbsenceDialogOpen(false);
+      clearDialogError("absence");
+      setNotice({ tone: "success", message: "Absence enregistrée." });
+      return true;
+    } catch (error) {
+      setDialogError("absence", error, "Absence non enregistrée.");
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveAttendance() {
+    setSaving(true);
+    setNotice(null);
+    clearDialogError("attendance");
+    try {
+      const result = hrLocalService.createAttendanceRecord({
+        employeeId: attendanceForm.employeeId as never,
+        date: new Date(attendanceForm.date || today()).toISOString(),
+        status: attendanceForm.status,
+        note: attendanceForm.note
+      });
+      if (!result.attendanceRecord) throw new Error(result.error ?? "Présence non enregistrée.");
+      await persistHrRecord("attendanceRecord", result.attendanceRecord);
+      setAttendanceDialogOpen(false);
+      clearDialogError("attendance");
+      setNotice({ tone: "success", message: "Présence enregistrée." });
+      return true;
+    } catch (error) {
+      setDialogError("attendance", error, "Présence non enregistrée.");
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function decideLeave(leave: HrLeaveRequest, status: "approved" | "rejected" | "cancelled") {
+    const result = status === "approved" ? hrLocalService.approveLeaveRequest(leave.id) : status === "rejected" ? hrLocalService.rejectLeaveRequest(leave.id) : hrLocalService.cancelLeaveRequest(leave.id);
+    if (!result.leaveRequest) {
+      setNotice({ tone: "error", message: result.error ?? "Décision impossible." });
+      return;
+    }
+    try {
+      await persistHrRecord("leaveRequest", result.leaveRequest);
+      setNotice({ tone: "success", message: "Demande mise à jour." });
+    } catch (error) {
+      setNotice({ tone: "error", message: error instanceof Error ? error.message : "Décision impossible." });
+    }
+  }
+
   async function ensureDefaultLeaveType() {
     if (hrLocalService.listLeaveTypes().leaveTypes.length > 0) return;
-    const result = hrLocalService.createLeaveType({ name: "Congé payé", paid: true, active: true });
+    const result = hrLocalService.createLeaveType({ code: "CP", name: "Congé payé", paid: true, approvalRequired: true, balanceTracked: true, defaultAnnualEntitlement: "18.00", active: true });
     if (result.leaveType) await persistHrRecord("leaveType", result.leaveType);
   }
 
@@ -346,15 +518,20 @@ export function HrWorkspacePage() {
       {activeTab === "departments" && <DepartmentSection departments={snapshot.departments} employees={snapshot.employees} onCreate={() => openDepartment()} onEdit={openDepartment} />}
       {activeTab === "positions" && <PositionSection positions={snapshot.positions} departments={departmentById} onCreate={() => openPosition()} onEdit={openPosition} />}
       {activeTab === "contracts" && <ContractsSection contracts={snapshot.contracts} employees={employeeById} positions={positionById} onCreate={() => openContract(selectedEmployee?.id)} />}
-      {activeTab === "leaves" && <LeavesSection leaves={snapshot.leaveRequests} employees={employeeById} leaveTypes={new Map(snapshot.leaveTypes.map((type) => [type.id, type]))} onCreate={() => openLeave(selectedEmployee?.id)} />}
+      {activeTab === "leaves" && <LeavesSection balances={snapshot.leaveBalances} leaves={snapshot.leaveRequests} employees={employeeById} leaveTypes={new Map(snapshot.leaveTypes.map((type) => [type.id, type]))} onCreate={() => openLeave(selectedEmployee?.id)} onBalance={() => openLeaveBalance(selectedEmployee?.id)} onApprove={(leave) => void decideLeave(leave, "approved")} onReject={(leave) => void decideLeave(leave, "rejected")} onCancel={(leave) => void decideLeave(leave, "cancelled")} />}
+      {activeTab === "absences" && <AbsencesSection absences={hrLocalService.listOperationalAbsences().absences} employees={employeeById} onCreate={() => openAbsence(selectedEmployee?.id)} />}
+      {activeTab === "attendance" && <AttendanceSection records={snapshot.attendanceRecords} employees={employeeById} onCreate={() => openAttendance(selectedEmployee?.id)} />}
 
-      {selectedEmployee && <EmployeeDetail employee={selectedEmployee} departments={departmentById} positions={positionById} managers={employeeById} contracts={snapshot.contracts.filter((contract) => contract.employeeId === selectedEmployee.id)} leaves={snapshot.leaveRequests.filter((leave) => leave.employeeId === selectedEmployee.id)} onEdit={() => openEmployee(selectedEmployee)} />}
+      {selectedEmployee && <EmployeeDetail employee={selectedEmployee} departments={departmentById} positions={positionById} managers={employeeById} contracts={snapshot.contracts.filter((contract) => contract.employeeId === selectedEmployee.id)} leaves={snapshot.leaveRequests.filter((leave) => leave.employeeId === selectedEmployee.id)} operational={hrLocalService.getEmployeeOperationalSummary(selectedEmployee.id)} onEdit={() => openEmployee(selectedEmployee)} />}
 
-      <EmployeeDialog departments={snapshot.departments} editing={Boolean(editingEmployee)} employees={snapshot.employees} form={employeeForm} onChange={setEmployeeForm} onClose={() => setEmployeeDialogOpen(false)} onSubmit={saveEmployee} open={employeeDialogOpen} positions={snapshot.positions} saving={saving} />
-      <DepartmentDialog employees={snapshot.employees} editing={Boolean(editingDepartment)} form={departmentForm} onChange={setDepartmentForm} onClose={() => setDepartmentDialogOpen(false)} onSubmit={saveDepartment} open={departmentDialogOpen} saving={saving} />
-      <PositionDialog departments={snapshot.departments} editing={Boolean(editingPosition)} form={positionForm} onChange={setPositionForm} onClose={() => setPositionDialogOpen(false)} onSubmit={savePosition} open={positionDialogOpen} saving={saving} />
-      <ContractDialog employees={snapshot.employees} form={contractForm} onChange={setContractForm} onClose={() => setContractDialogOpen(false)} onSubmit={saveContract} open={contractDialogOpen} positions={snapshot.positions} saving={saving} />
-      <LeaveDialog employees={snapshot.employees} form={leaveForm} leaveTypes={snapshot.leaveTypes} onChange={setLeaveForm} onClose={() => setLeaveDialogOpen(false)} onSubmit={saveLeave} open={leaveDialogOpen} saving={saving} />
+      <EmployeeDialog departments={snapshot.departments} editing={Boolean(editingEmployee)} employees={snapshot.employees} error={dialogErrors.employee} form={employeeForm} onChange={(form) => { clearDialogError("employee"); setEmployeeForm(form); }} onClose={() => setEmployeeDialogOpen(false)} onSubmit={saveEmployee} open={employeeDialogOpen} positions={snapshot.positions} saving={saving} />
+      <DepartmentDialog employees={snapshot.employees} editing={Boolean(editingDepartment)} error={dialogErrors.department} form={departmentForm} onChange={(form) => { clearDialogError("department"); setDepartmentForm(form); }} onClose={() => setDepartmentDialogOpen(false)} onSubmit={saveDepartment} open={departmentDialogOpen} saving={saving} />
+      <PositionDialog departments={snapshot.departments} editing={Boolean(editingPosition)} error={dialogErrors.position} form={positionForm} onChange={(form) => { clearDialogError("position"); setPositionForm(form); }} onClose={() => setPositionDialogOpen(false)} onSubmit={savePosition} open={positionDialogOpen} saving={saving} />
+      <ContractDialog employees={snapshot.employees} error={dialogErrors.contract} form={contractForm} onChange={(form) => { clearDialogError("contract"); setContractForm(form); }} onClose={() => setContractDialogOpen(false)} onSubmit={saveContract} open={contractDialogOpen} positions={snapshot.positions} saving={saving} />
+      <LeaveDialog employees={snapshot.employees} error={dialogErrors.leave} form={leaveForm} leaveTypes={snapshot.leaveTypes} onChange={(form) => { clearDialogError("leave"); setLeaveForm(form); }} onClose={() => setLeaveDialogOpen(false)} onSubmit={saveLeave} open={leaveDialogOpen} saving={saving} />
+      <LeaveBalanceDialog employees={snapshot.employees} error={dialogErrors.leaveBalance} form={leaveBalanceForm} leaveTypes={snapshot.leaveTypes} onChange={(form) => { clearDialogError("leaveBalance"); setLeaveBalanceForm(form); }} onClose={() => setLeaveBalanceDialogOpen(false)} onSubmit={saveLeaveBalance} open={leaveBalanceDialogOpen} saving={saving} />
+      <AbsenceDialog employees={snapshot.employees} error={dialogErrors.absence} form={absenceForm} onChange={(form) => { clearDialogError("absence"); setAbsenceForm(form); }} onClose={() => setAbsenceDialogOpen(false)} onSubmit={saveAbsence} open={absenceDialogOpen} saving={saving} />
+      <AttendanceDialog employees={snapshot.employees} error={dialogErrors.attendance} form={attendanceForm} onChange={(form) => { clearDialogError("attendance"); setAttendanceForm(form); }} onClose={() => setAttendanceDialogOpen(false)} onSubmit={saveAttendance} open={attendanceDialogOpen} saving={saving} />
     </main>
   );
 }
@@ -367,7 +544,10 @@ function Overview({ contracts, departments, employees, leaves, positions, summar
       <MetricCard icon={BriefcaseBusiness} label="Postes" value={String(summary.activePositions)} helper={`${positions.length} intitulé(s)`} />
       <MetricCard icon={FileText} label="Contrats actifs" value={String(contracts.filter((contract) => contract.status === "active" && !contract.archivedAt).length)} helper={`${summary.contractsEndingSoon} fin(s) proche(s)`} />
       <MetricCard icon={CalendarDays} label="Congés en attente" value={String(summary.pendingLeaves)} helper={`${leaves.length} demande(s)`} />
-      <MetricCard icon={UserRoundCheck} label="En congé" value={String(summary.onLeaveEmployees)} helper="Statut collaborateur" />
+      <MetricCard icon={UserRoundCheck} label="État du jour" value={String(summary.employeesOnLeaveToday)} helper={`${summary.absencesToday} absence(s), ${summary.attendanceRecordedToday} présence(s)`} />
+      <div className="md:col-span-2 xl:col-span-6">
+        <CalendarAgenda items={hrLocalService.listCalendarItems(today(), addDays(today(), 14))} employees={new Map(employees.map((employee) => [employee.id, employee]))} />
+      </div>
     </section>
   );
 }
@@ -464,19 +644,69 @@ function ContractsSection({ contracts, employees, onCreate, positions }: { contr
   );
 }
 
-function LeavesSection({ employees, leaveTypes, leaves, onCreate }: { employees: Map<string, HrEmployee>; leaveTypes: Map<string, HrLeaveType>; leaves: readonly HrLeaveRequest[]; onCreate: () => void }) {
+function LeavesSection({ balances, employees, leaveTypes, leaves, onApprove, onBalance, onCancel, onCreate, onReject }: { balances: readonly HrLeaveBalance[]; employees: Map<string, HrEmployee>; leaveTypes: Map<string, HrLeaveType>; leaves: readonly HrLeaveRequest[]; onApprove: (leave: HrLeaveRequest) => void; onBalance: () => void; onCancel: (leave: HrLeaveRequest) => void; onCreate: () => void; onReject: (leave: HrLeaveRequest) => void }) {
+  const projections = hrLocalService.listLeaveBalanceProjections().leaveBalances;
   return (
-    <SimpleCardTable title="Congés" actionLabel="Nouvelle demande" empty="Aucune demande de congé." onAction={onCreate} headers={["Employé", "Type", "Début", "Fin", "Statut", "Motif"]}>
-      {leaves.map((leave) => (
-        <tr key={leave.id} className={rowClassName}>
-          <td>{employees.get(leave.employeeId)?.displayName ?? "-"}</td><td>{leaveTypes.get(leave.leaveTypeId ?? "")?.name ?? "Congé"}</td><td>{formatDate(leave.startDate)}</td><td>{formatDate(leave.endDate)}</td><td>{HR_LEAVE_REQUEST_STATUS_LABELS[leave.status]}</td><td>{leave.reason || "-"}</td>
+    <SectionCard className="mt-4 overflow-hidden">
+      <Toolbar title="Congés" actionLabel="Nouvelle demande" onAction={onCreate}><button type="button" onClick={onBalance} className={secondaryButtonClassName}><Plus size={15} /> Droit annuel</button></Toolbar>
+      <div className="grid gap-3 border-b border-slate-100 p-4 md:grid-cols-3 dark:border-hicotech-dark-border">
+        {projections.slice(0, 6).map((balance) => (
+          <Info key={`${balance.employeeId}-${balance.leaveTypeId}-${balance.periodYear}`} label={`${employees.get(balance.employeeId)?.displayName ?? "Employé"} · ${leaveTypes.get(balance.leaveTypeId)?.name ?? "Congé"}`} value={`${balance.remainingDays} j restants · ${balance.pendingDays} j en attente`} />
+        ))}
+        {balances.length === 0 && <p className="text-sm font-semibold text-slate-500">Aucun droit configuré. Ajoutez un droit annuel pour suivre les soldes.</p>}
+      </div>
+      <TableShell isEmpty={leaves.length === 0} emptyMessage="Aucune demande de congé.">
+        <thead className={tableHeadClassName}><tr><th>Employé</th><th>Type</th><th>Début</th><th>Fin</th><th>Statut</th><th>Motif</th><th className="text-right">Décision</th></tr></thead>
+        <tbody>
+          {leaves.map((leave) => (
+            <tr key={leave.id} className={rowClassName}>
+              <td>{employees.get(leave.employeeId)?.displayName ?? "-"}</td><td>{leaveTypes.get(leave.leaveTypeId ?? "")?.name ?? "Congé"}</td><td>{formatDate(leave.startDate)}</td><td>{formatDate(leave.endDate)}</td><td>{HR_LEAVE_REQUEST_STATUS_LABELS[leave.status]}</td><td>{leave.reason || "-"}</td>
+              <td className="text-right"><div className="flex justify-end gap-2">{leave.status === "requested" && <><SmallButton label="Approuver" onClick={() => onApprove(leave)} /><SmallButton label="Refuser" onClick={() => onReject(leave)} /></>}{["requested", "approved"].includes(leave.status) && <SmallButton label="Annuler" onClick={() => onCancel(leave)} />}</div></td>
+            </tr>
+          ))}
+        </tbody>
+      </TableShell>
+    </SectionCard>
+  );
+}
+
+function AbsencesSection({ absences, employees, onCreate }: { absences: readonly HrAbsence[]; employees: Map<string, HrEmployee>; onCreate: () => void }) {
+  return (
+    <SimpleCardTable title="Absences" actionLabel="Nouvelle absence" empty="Aucune absence." onAction={onCreate} headers={["Employé", "Début", "Fin", "Type", "Source", "Justifiée"]}>
+      {absences.map((absence) => (
+        <tr key={absence.id} className={rowClassName}>
+          <td>{employees.get(absence.employeeId)?.displayName ?? "-"}</td><td>{formatDate(absence.startDate)}</td><td>{formatDate(absence.endDate)}</td><td>{absence.type}</td><td>{absence.source === "leave" ? "Congé approuvé" : "Manuelle"}</td><td>{absence.justified ? "Oui" : "Non"}</td>
         </tr>
       ))}
     </SimpleCardTable>
   );
 }
 
-function EmployeeDetail({ contracts, departments, employee, leaves, managers, onEdit, positions }: { contracts: readonly HrEmploymentContract[]; departments: Map<string, HrDepartment>; employee: HrEmployee; leaves: readonly HrLeaveRequest[]; managers: Map<string, HrEmployee>; onEdit: () => void; positions: Map<string, HrPosition> }) {
+function AttendanceSection({ employees, onCreate, records }: { employees: Map<string, HrEmployee>; onCreate: () => void; records: readonly HrAttendanceRecord[] }) {
+  return (
+    <SimpleCardTable title="Présences" actionLabel="Déclarer présence" empty="Aucune présence déclarée." onAction={onCreate} headers={["Employé", "Date", "Statut", "Note"]}>
+      {records.map((record) => (
+        <tr key={record.id} className={rowClassName}>
+          <td>{employees.get(record.employeeId)?.displayName ?? "-"}</td><td>{formatDate(record.date)}</td><td>{HR_ATTENDANCE_STATUS_LABELS[record.status]}</td><td>{record.note || "-"}</td>
+        </tr>
+      ))}
+    </SimpleCardTable>
+  );
+}
+
+function CalendarAgenda({ employees, items }: { employees: Map<string, HrEmployee>; items: readonly { id: string; employeeId: HrEmployeeId; date: string; label: string; status: string; kind: string }[] }) {
+  return (
+    <SectionCard className="p-4">
+      <h2 className="font-display text-lg font-black text-hicotech-navy dark:text-white">Agenda RH</h2>
+      <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+        {items.slice(0, 12).map((item) => <Info key={item.id} label={formatDate(item.date)} value={`${employees.get(item.employeeId)?.displayName ?? "-"} · ${item.label}`} />)}
+        {items.length === 0 && <p className="text-sm font-semibold text-slate-500">Aucun congé ou absence sur la période affichée.</p>}
+      </div>
+    </SectionCard>
+  );
+}
+
+function EmployeeDetail({ contracts, departments, employee, leaves, managers, onEdit, operational, positions }: { contracts: readonly HrEmploymentContract[]; departments: Map<string, HrDepartment>; employee: HrEmployee; leaves: readonly HrLeaveRequest[]; managers: Map<string, HrEmployee>; operational: ReturnType<typeof hrLocalService.getEmployeeOperationalSummary>; onEdit: () => void; positions: Map<string, HrPosition> }) {
   return (
     <SectionCard className="mt-4 p-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -492,6 +722,8 @@ function EmployeeDetail({ contracts, departments, employee, leaves, managers, on
         <Info label="Date d'entrée" value={formatDate(employee.hireDate)} />
         <Info label="Manager" value={managers.get(employee.managerEmployeeId ?? "")?.displayName ?? "-"} />
         <Info label="Contrats" value={String(contracts.length)} />
+        <Info label="État du jour" value={HR_WORKFORCE_STATE_LABELS[operational.workforceState]} />
+        <Info label="Solde congé" value={operational.leaveBalances[0]?.remainingDays ? `${operational.leaveBalances[0].remainingDays} j` : "-"} />
         <Info label="Email" value={employee.email || "-"} />
         <Info label="Téléphone" value={employee.phone || "-"} />
         <Info label="Congés" value={String(leaves.length)} />
@@ -501,10 +733,10 @@ function EmployeeDetail({ contracts, departments, employee, leaves, managers, on
   );
 }
 
-function EmployeeDialog({ departments, editing, employees, form, onChange, onClose, onSubmit, open, positions, saving }: { departments: readonly HrDepartment[]; editing: boolean; employees: readonly HrEmployee[]; form: EmployeeForm; onChange: (form: EmployeeForm) => void; onClose: () => void; onSubmit: () => Promise<boolean>; open: boolean; positions: readonly HrPosition[]; saving: boolean }) {
+function EmployeeDialog({ departments, editing, employees, error, form, onChange, onClose, onSubmit, open, positions, saving }: { departments: readonly HrDepartment[]; editing: boolean; employees: readonly HrEmployee[]; error?: string | null; form: EmployeeForm; onChange: (form: EmployeeForm) => void; onClose: () => void; onSubmit: () => Promise<boolean>; open: boolean; positions: readonly HrPosition[]; saving: boolean }) {
   const update = (key: keyof EmployeeForm, value: string) => onChange({ ...form, [key]: value });
   return (
-    <EntityDialog open={open} eyebrow="RH" title={editing ? "Modifier l'employé" : "Nouvel employé"} description="Un employé RH peut exister sans compte utilisateur BOSIACO." onClose={onClose} onSubmit={onSubmit} size="lg" footer={<FormActions onCancel={onClose} submitBusy={saving} submitLabel={editing ? "Enregistrer" : "Créer l'employé"} />}>
+    <EntityDialog open={open} error={error} eyebrow="RH" title={editing ? "Modifier l'employé" : "Nouvel employé"} description="Un employé RH peut exister sans compte utilisateur BOSIACO." onClose={onClose} onSubmit={onSubmit} size="lg" footer={<FormActions onCancel={onClose} submitBusy={saving} submitLabel={editing ? "Enregistrer" : "Créer l'employé"} />}>
       <FormSection title="Identité">
         <FormField label="Matricule" required><input className={entityInputClassName} value={form.employeeNumber} onChange={(event) => update("employeeNumber", event.target.value)} /></FormField>
         <FormField label="Statut"><select className={entityInputClassName} value={form.status} onChange={(event) => update("status", event.target.value)}>{Object.entries(HR_EMPLOYEE_STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></FormField>
@@ -525,27 +757,45 @@ function EmployeeDialog({ departments, editing, employees, form, onChange, onClo
   );
 }
 
-function DepartmentDialog({ editing, employees, form, onChange, onClose, onSubmit, open, saving }: { editing: boolean; employees: readonly HrEmployee[]; form: DepartmentForm; onChange: (form: DepartmentForm) => void; onClose: () => void; onSubmit: () => Promise<boolean>; open: boolean; saving: boolean }) {
-  return <EntityDialog open={open} eyebrow="RH" title={editing ? "Modifier le département" : "Nouveau département"} description="Structure simple utilisée pour classer les collaborateurs." onClose={onClose} onSubmit={onSubmit} size="md" footer={<FormActions onCancel={onClose} submitBusy={saving} submitLabel="Enregistrer" />}>
+function DepartmentDialog({ editing, employees, error, form, onChange, onClose, onSubmit, open, saving }: { editing: boolean; employees: readonly HrEmployee[]; error?: string | null; form: DepartmentForm; onChange: (form: DepartmentForm) => void; onClose: () => void; onSubmit: () => Promise<boolean>; open: boolean; saving: boolean }) {
+  return <EntityDialog open={open} error={error} eyebrow="RH" title={editing ? "Modifier le département" : "Nouveau département"} description="Structure simple utilisée pour classer les collaborateurs." onClose={onClose} onSubmit={onSubmit} size="md" footer={<FormActions onCancel={onClose} submitBusy={saving} submitLabel="Enregistrer" />}>
     <FormSection title="Département"><FormField label="Code"><input className={entityInputClassName} value={form.code} onChange={(event) => onChange({ ...form, code: event.target.value })} /></FormField><FormField label="Nom" required><input className={entityInputClassName} value={form.name} onChange={(event) => onChange({ ...form, name: event.target.value })} /></FormField><FormField label="Manager"><Select value={form.managerId} onChange={(managerId) => onChange({ ...form, managerId })} placeholder="Aucun manager" options={employees.map((employee) => [employee.id, employee.displayName])} /></FormField><FormField label="Description"><textarea className={entityInputClassName} value={form.description} onChange={(event) => onChange({ ...form, description: event.target.value })} /></FormField></FormSection>
   </EntityDialog>;
 }
 
-function PositionDialog({ departments, editing, form, onChange, onClose, onSubmit, open, saving }: { departments: readonly HrDepartment[]; editing: boolean; form: PositionForm; onChange: (form: PositionForm) => void; onClose: () => void; onSubmit: () => Promise<boolean>; open: boolean; saving: boolean }) {
-  return <EntityDialog open={open} eyebrow="RH" title={editing ? "Modifier le poste" : "Nouveau poste"} description="Intitulé de poste réutilisable dans les fiches employés et contrats." onClose={onClose} onSubmit={onSubmit} size="md" footer={<FormActions onCancel={onClose} submitBusy={saving} submitLabel="Enregistrer" />}>
+function PositionDialog({ departments, editing, error, form, onChange, onClose, onSubmit, open, saving }: { departments: readonly HrDepartment[]; editing: boolean; error?: string | null; form: PositionForm; onChange: (form: PositionForm) => void; onClose: () => void; onSubmit: () => Promise<boolean>; open: boolean; saving: boolean }) {
+  return <EntityDialog open={open} error={error} eyebrow="RH" title={editing ? "Modifier le poste" : "Nouveau poste"} description="Intitulé de poste réutilisable dans les fiches employés et contrats." onClose={onClose} onSubmit={onSubmit} size="md" footer={<FormActions onCancel={onClose} submitBusy={saving} submitLabel="Enregistrer" />}>
     <FormSection title="Poste"><FormField label="Code"><input className={entityInputClassName} value={form.code} onChange={(event) => onChange({ ...form, code: event.target.value })} /></FormField><FormField label="Nom" required><input className={entityInputClassName} value={form.name} onChange={(event) => onChange({ ...form, name: event.target.value })} /></FormField><FormField label="Département"><Select value={form.departmentId} onChange={(departmentId) => onChange({ ...form, departmentId })} placeholder="Aucun département" options={departments.map((department) => [department.id, department.name])} /></FormField><FormField label="Description"><textarea className={entityInputClassName} value={form.description} onChange={(event) => onChange({ ...form, description: event.target.value })} /></FormField></FormSection>
   </EntityDialog>;
 }
 
-function ContractDialog({ employees, form, onChange, onClose, onSubmit, open, positions, saving }: { employees: readonly HrEmployee[]; form: ContractForm; onChange: (form: ContractForm) => void; onClose: () => void; onSubmit: () => Promise<boolean>; open: boolean; positions: readonly HrPosition[]; saving: boolean }) {
-  return <EntityDialog open={open} eyebrow="RH" title="Nouveau contrat" description="Fondation contractuelle sans calcul de paie." onClose={onClose} onSubmit={onSubmit} size="lg" footer={<FormActions onCancel={onClose} submitBusy={saving} submitLabel="Créer le contrat" />}>
+function ContractDialog({ employees, error, form, onChange, onClose, onSubmit, open, positions, saving }: { employees: readonly HrEmployee[]; error?: string | null; form: ContractForm; onChange: (form: ContractForm) => void; onClose: () => void; onSubmit: () => Promise<boolean>; open: boolean; positions: readonly HrPosition[]; saving: boolean }) {
+  return <EntityDialog open={open} error={error} eyebrow="RH" title="Nouveau contrat" description="Fondation contractuelle sans calcul de paie." onClose={onClose} onSubmit={onSubmit} size="lg" footer={<FormActions onCancel={onClose} submitBusy={saving} submitLabel="Créer le contrat" />}>
     <FormSection title="Contrat"><FormField label="Employé" required><Select value={form.employeeId} onChange={(employeeId) => onChange({ ...form, employeeId })} placeholder="Choisir un employé" options={employees.map((employee) => [employee.id, employee.displayName])} /></FormField><FormField label="Type"><Select value={form.contractType} onChange={(contractType) => onChange({ ...form, contractType: contractType as HrContractType })} options={Object.entries(HR_CONTRACT_TYPE_LABELS)} /></FormField><FormField label="Poste"><Select value={form.positionId} onChange={(positionId) => onChange({ ...form, positionId, jobTitle: positions.find((position) => position.id === positionId)?.name ?? form.jobTitle })} placeholder="Aucun poste" options={positions.map((position) => [position.id, position.name])} /></FormField><FormField label="Intitulé" required><input className={entityInputClassName} value={form.jobTitle} onChange={(event) => onChange({ ...form, jobTitle: event.target.value })} /></FormField><FormField label="Début" required><input type="date" className={entityInputClassName} value={form.startDate} onChange={(event) => onChange({ ...form, startDate: event.target.value })} /></FormField><FormField label="Fin"><input type="date" className={entityInputClassName} value={form.endDate} onChange={(event) => onChange({ ...form, endDate: event.target.value })} /></FormField><FormField label="Temps de travail"><Select value={form.workingTimeType} onChange={(workingTimeType) => onChange({ ...form, workingTimeType: workingTimeType as HrWorkingTimeType })} options={Object.entries(HR_WORKING_TIME_TYPE_LABELS)} /></FormField><FormField label="Notes"><textarea className={entityInputClassName} value={form.notes} onChange={(event) => onChange({ ...form, notes: event.target.value })} rows={3} /></FormField></FormSection>
   </EntityDialog>;
 }
 
-function LeaveDialog({ employees, form, leaveTypes, onChange, onClose, onSubmit, open, saving }: { employees: readonly HrEmployee[]; form: LeaveForm; leaveTypes: readonly HrLeaveType[]; onChange: (form: LeaveForm) => void; onClose: () => void; onSubmit: () => Promise<boolean>; open: boolean; saving: boolean }) {
-  return <EntityDialog open={open} eyebrow="RH" title="Nouvelle demande de congé" description="Fondation simple sans calcul automatique de droits." onClose={onClose} onSubmit={onSubmit} size="md" footer={<FormActions onCancel={onClose} submitBusy={saving} submitLabel="Créer la demande" />}>
+function LeaveDialog({ employees, error, form, leaveTypes, onChange, onClose, onSubmit, open, saving }: { employees: readonly HrEmployee[]; error?: string | null; form: LeaveForm; leaveTypes: readonly HrLeaveType[]; onChange: (form: LeaveForm) => void; onClose: () => void; onSubmit: () => Promise<boolean>; open: boolean; saving: boolean }) {
+  return <EntityDialog open={open} error={error} eyebrow="RH" title="Nouvelle demande de congé" description="Fondation simple sans calcul automatique de droits." onClose={onClose} onSubmit={onSubmit} size="md" footer={<FormActions onCancel={onClose} submitBusy={saving} submitLabel="Créer la demande" />}>
     <FormSection title="Demande"><FormField label="Employé" required><Select value={form.employeeId} onChange={(employeeId) => onChange({ ...form, employeeId })} placeholder="Choisir un employé" options={employees.map((employee) => [employee.id, employee.displayName])} /></FormField><FormField label="Type"><Select value={form.leaveTypeId} onChange={(leaveTypeId) => onChange({ ...form, leaveTypeId })} placeholder="Congé payé par défaut" options={leaveTypes.map((type) => [type.id, type.name])} /></FormField><FormField label="Titre"><input className={entityInputClassName} value={form.title} onChange={(event) => onChange({ ...form, title: event.target.value })} /></FormField><FormField label="Statut"><Select value={form.status} onChange={(status) => onChange({ ...form, status: status as HrLeaveRequestStatus })} options={Object.entries(HR_LEAVE_REQUEST_STATUS_LABELS)} /></FormField><FormField label="Début" required><input type="date" className={entityInputClassName} value={form.startDate} onChange={(event) => onChange({ ...form, startDate: event.target.value })} /></FormField><FormField label="Fin" required><input type="date" className={entityInputClassName} value={form.endDate} onChange={(event) => onChange({ ...form, endDate: event.target.value })} /></FormField><FormField label="Motif"><textarea className={entityInputClassName} value={form.reason} onChange={(event) => onChange({ ...form, reason: event.target.value })} /></FormField></FormSection>
+  </EntityDialog>;
+}
+
+function LeaveBalanceDialog({ employees, error, form, leaveTypes, onChange, onClose, onSubmit, open, saving }: { employees: readonly HrEmployee[]; error?: string | null; form: LeaveBalanceForm; leaveTypes: readonly HrLeaveType[]; onChange: (form: LeaveBalanceForm) => void; onClose: () => void; onSubmit: () => Promise<boolean>; open: boolean; saving: boolean }) {
+  return <EntityDialog open={open} error={error} eyebrow="RH" title="Droit annuel de congé" description="Droit manuel Alpha. Le restant est recalculé depuis les demandes approuvées." onClose={onClose} onSubmit={onSubmit} size="md" footer={<FormActions onCancel={onClose} submitBusy={saving} submitLabel="Enregistrer le droit" />}>
+    <FormSection title="Solde"><FormField label="Employé" required><Select value={form.employeeId} onChange={(employeeId) => onChange({ ...form, employeeId })} placeholder="Choisir un employé" options={employees.map((employee) => [employee.id, employee.displayName])} /></FormField><FormField label="Type" required><Select value={form.leaveTypeId} onChange={(leaveTypeId) => onChange({ ...form, leaveTypeId })} placeholder="Choisir un type" options={leaveTypes.map((type) => [type.id, type.name])} /></FormField><FormField label="Année" required><input className={entityInputClassName} value={form.periodYear} onChange={(event) => onChange({ ...form, periodYear: event.target.value })} /></FormField><FormField label="Droit"><input className={entityInputClassName} value={form.entitledDays} onChange={(event) => onChange({ ...form, entitledDays: event.target.value })} /></FormField><FormField label="Ajustement"><input className={entityInputClassName} value={form.adjustmentDays} onChange={(event) => onChange({ ...form, adjustmentDays: event.target.value })} /></FormField><FormField label="Raison"><textarea className={entityInputClassName} value={form.adjustmentReason} onChange={(event) => onChange({ ...form, adjustmentReason: event.target.value })} /></FormField></FormSection>
+  </EntityDialog>;
+}
+
+function AbsenceDialog({ employees, error, form, onChange, onClose, onSubmit, open, saving }: { employees: readonly HrEmployee[]; error?: string | null; form: AbsenceForm; onChange: (form: AbsenceForm) => void; onClose: () => void; onSubmit: () => Promise<boolean>; open: boolean; saving: boolean }) {
+  return <EntityDialog open={open} error={error} eyebrow="RH" title="Nouvelle absence" description="Absence manuelle RH. Les congés approuvés apparaissent automatiquement dans la visibilité absence." onClose={onClose} onSubmit={onSubmit} size="md" footer={<FormActions onCancel={onClose} submitBusy={saving} submitLabel="Enregistrer l'absence" />}>
+    <FormSection title="Absence"><FormField label="Employé" required><Select value={form.employeeId} onChange={(employeeId) => onChange({ ...form, employeeId })} placeholder="Choisir un employé" options={employees.map((employee) => [employee.id, employee.displayName])} /></FormField><FormField label="Début" required><input type="date" className={entityInputClassName} value={form.startDate} onChange={(event) => onChange({ ...form, startDate: event.target.value })} /></FormField><FormField label="Fin" required><input type="date" className={entityInputClassName} value={form.endDate} onChange={(event) => onChange({ ...form, endDate: event.target.value })} /></FormField><FormField label="Type"><input className={entityInputClassName} value={form.type} onChange={(event) => onChange({ ...form, type: event.target.value })} /></FormField><FormField label="Justifiée"><select className={entityInputClassName} value={form.justified ? "yes" : "no"} onChange={(event) => onChange({ ...form, justified: event.target.value === "yes" })}><option value="no">Non</option><option value="yes">Oui</option></select></FormField><FormField label="Notes"><textarea className={entityInputClassName} value={form.notes} onChange={(event) => onChange({ ...form, notes: event.target.value })} /></FormField></FormSection>
+  </EntityDialog>;
+}
+
+function AttendanceDialog({ employees, error, form, onChange, onClose, onSubmit, open, saving }: { employees: readonly HrEmployee[]; error?: string | null; form: AttendanceForm; onChange: (form: AttendanceForm) => void; onClose: () => void; onSubmit: () => Promise<boolean>; open: boolean; saving: boolean }) {
+  return <EntityDialog open={open} error={error} eyebrow="RH" title="Déclaration de présence" description="Statut journalier simple, sans badgeuse ni calcul de paie." onClose={onClose} onSubmit={onSubmit} size="md" footer={<FormActions onCancel={onClose} submitBusy={saving} submitLabel="Enregistrer la présence" />}>
+    <FormSection title="Présence"><FormField label="Employé" required><Select value={form.employeeId} onChange={(employeeId) => onChange({ ...form, employeeId })} placeholder="Choisir un employé" options={employees.map((employee) => [employee.id, employee.displayName])} /></FormField><FormField label="Date" required><input type="date" className={entityInputClassName} value={form.date} onChange={(event) => onChange({ ...form, date: event.target.value })} /></FormField><FormField label="Statut"><Select value={form.status} onChange={(status) => onChange({ ...form, status: status as HrAttendanceStatus })} options={Object.entries(HR_ATTENDANCE_STATUS_LABELS)} /></FormField><FormField label="Note"><textarea className={entityInputClassName} value={form.note} onChange={(event) => onChange({ ...form, note: event.target.value })} /></FormField></FormSection>
   </EntityDialog>;
 }
 
@@ -576,6 +826,10 @@ function RowActions({ onArchive, onContract, onEdit, onLeave }: { onArchive: () 
 
 function IconButton({ children, label, onClick }: { children: ReactNode; label: string; onClick: () => void }) {
   return <button type="button" onClick={onClick} className={iconButtonClassName} aria-label={label} title={label}>{children}</button>;
+}
+
+function SmallButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return <button type="button" onClick={onClick} className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-black text-hicotech-navy transition hover:bg-hicotech-sky/40 dark:border-hicotech-dark-border dark:text-white">{label}</button>;
 }
 
 function StatusBadge({ label, tone }: { label: string; tone: "ok" | "warning" | "muted" }) {
@@ -632,6 +886,12 @@ function optionalId(value: string) {
 
 function today() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function addDays(value: string, days: number) {
+  const date = new Date(value);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
 }
 
 function formatDate(value: string) {

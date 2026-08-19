@@ -1,16 +1,30 @@
 import {
   buildEmployeeDisplayName,
+  buildHrCalendarItems,
+  buildLeaveBalanceProjections,
+  buildLeaveDerivedAbsences,
   filterContracts,
   filterEmployees,
+  filterAbsences,
+  filterAttendanceRecords,
   filterLeaveRequests
 } from "./hr.utils";
 import type {
+  CreateHrAbsenceInput,
+  CreateHrAttendanceRecordInput,
   CreateHrDepartmentInput,
   CreateHrEmployeeInput,
   CreateHrEmploymentContractInput,
+  CreateHrLeaveBalanceInput,
   CreateHrLeaveRequestInput,
   CreateHrLeaveTypeInput,
   CreateHrPositionInput,
+  HrAbsence,
+  HrAbsenceFilters,
+  HrAbsenceId,
+  HrAttendanceFilters,
+  HrAttendanceRecord,
+  HrAttendanceRecordId,
   HrDepartment,
   HrDepartmentId,
   HrEmployee,
@@ -18,6 +32,8 @@ import type {
   HrEmployeeId,
   HrEmploymentContract,
   HrEmploymentContractId,
+  HrLeaveBalance,
+  HrLeaveBalanceId,
   HrLeaveRequest,
   HrLeaveRequestId,
   HrLeaveType,
@@ -25,9 +41,12 @@ import type {
   HrPosition,
   HrPositionId,
   HrSnapshot,
+  UpdateHrAbsenceInput,
+  UpdateHrAttendanceRecordInput,
   UpdateHrDepartmentInput,
   UpdateHrEmployeeInput,
   UpdateHrEmploymentContractInput,
+  UpdateHrLeaveBalanceInput,
   UpdateHrLeaveRequestInput,
   UpdateHrLeaveTypeInput,
   UpdateHrPositionInput
@@ -40,6 +59,9 @@ export class HrService {
   private readonly contracts = new Map<HrEmploymentContractId, HrEmploymentContract>();
   private readonly leaveTypes = new Map<HrLeaveTypeId, HrLeaveType>();
   private readonly leaveRequests = new Map<HrLeaveRequestId, HrLeaveRequest>();
+  private readonly leaveBalances = new Map<HrLeaveBalanceId, HrLeaveBalance>();
+  private readonly absences = new Map<HrAbsenceId, HrAbsence>();
+  private readonly attendanceRecords = new Map<HrAttendanceRecordId, HrAttendanceRecord>();
 
   constructor(private readonly options: { now?: () => string } = {}) {}
 
@@ -50,6 +72,9 @@ export class HrService {
     this.replaceContracts(snapshot.contracts);
     this.replaceLeaveTypes(snapshot.leaveTypes);
     this.replaceLeaveRequests(snapshot.leaveRequests);
+    this.replaceLeaveBalances(snapshot.leaveBalances ?? []);
+    this.replaceAbsences(snapshot.absences ?? []);
+    this.replaceAttendanceRecords(snapshot.attendanceRecords ?? []);
   }
 
   getSnapshot(): HrSnapshot {
@@ -59,7 +84,10 @@ export class HrService {
       positions: Object.freeze([...this.positions.values()]),
       contracts: Object.freeze([...this.contracts.values()]),
       leaveTypes: Object.freeze([...this.leaveTypes.values()]),
-      leaveRequests: Object.freeze([...this.leaveRequests.values()])
+      leaveRequests: Object.freeze([...this.leaveRequests.values()]),
+      leaveBalances: Object.freeze([...this.leaveBalances.values()]),
+      absences: Object.freeze([...this.absences.values()]),
+      attendanceRecords: Object.freeze([...this.attendanceRecords.values()])
     });
   }
 
@@ -93,6 +121,21 @@ export class HrService {
     requests.forEach((request) => this.leaveRequests.set(request.id, freezeLeaveRequest(request)));
   }
 
+  replaceLeaveBalances(balances: readonly HrLeaveBalance[]) {
+    this.leaveBalances.clear();
+    balances.forEach((balance) => this.leaveBalances.set(balance.id, freezeLeaveBalance(balance)));
+  }
+
+  replaceAbsences(absences: readonly HrAbsence[]) {
+    this.absences.clear();
+    absences.forEach((absence) => this.absences.set(absence.id, freezeAbsence(absence)));
+  }
+
+  replaceAttendanceRecords(records: readonly HrAttendanceRecord[]) {
+    this.attendanceRecords.clear();
+    records.forEach((record) => this.attendanceRecords.set(record.id, freezeAttendanceRecord(record)));
+  }
+
   listEmployees(filters: HrEmployeeFilters = {}) {
     const employees = filterEmployees([...this.employees.values()], filters);
     return Object.freeze({ employees: Object.freeze(employees), total: employees.length });
@@ -121,6 +164,56 @@ export class HrService {
   listLeaveRequests(filters = {}) {
     const leaveRequests = filterLeaveRequests([...this.leaveRequests.values()], filters);
     return Object.freeze({ leaveRequests: Object.freeze(leaveRequests), total: leaveRequests.length });
+  }
+
+  listLeaveBalances() {
+    const balances = [...this.leaveBalances.values()].sort((a, b) => b.periodYear - a.periodYear || a.employeeId.localeCompare(b.employeeId));
+    return Object.freeze({ leaveBalances: Object.freeze(balances), total: balances.length });
+  }
+
+  listLeaveBalanceProjections() {
+    const projections = buildLeaveBalanceProjections([...this.leaveBalances.values()], [...this.leaveRequests.values()]);
+    return Object.freeze({ leaveBalances: projections, total: projections.length });
+  }
+
+  listAbsences(filters: HrAbsenceFilters = {}) {
+    const manual = filterAbsences([...this.absences.values()], [...this.employees.values()], filters);
+    return Object.freeze({ absences: Object.freeze(manual), total: manual.length });
+  }
+
+  listOperationalAbsences(filters: HrAbsenceFilters = {}) {
+    const derived = buildLeaveDerivedAbsences([...this.leaveRequests.values()], [...this.leaveTypes.values()]);
+    const absences = filterAbsences([...this.absences.values(), ...derived], [...this.employees.values()], filters);
+    return Object.freeze({ absences: Object.freeze(absences), total: absences.length });
+  }
+
+  listAttendanceRecords(filters: HrAttendanceFilters = {}) {
+    const records = filterAttendanceRecords([...this.attendanceRecords.values()], [...this.employees.values()], filters);
+    return Object.freeze({ attendanceRecords: Object.freeze(records), total: records.length });
+  }
+
+  listCalendarItems(fromDate: string, toDate: string) {
+    return buildHrCalendarItems({ leaveRequests: [...this.leaveRequests.values()], absences: [...this.absences.values()], leaveTypes: [...this.leaveTypes.values()], fromDate, toDate });
+  }
+
+  getEmployeeOperationalSummary(employeeId: HrEmployeeId, date = this.now()) {
+    return Object.freeze({
+      employeeId,
+      workforceState: this.getWorkforceState(employeeId, date),
+      leaveBalances: Object.freeze(this.listLeaveBalanceProjections().leaveBalances.filter((balance) => balance.employeeId === employeeId)),
+      recentLeaveRequests: Object.freeze(this.listLeaveRequests({ employeeId }).leaveRequests.slice(0, 5)),
+      recentAttendanceRecords: Object.freeze(this.listAttendanceRecords({ employeeId }).attendanceRecords.slice(0, 5))
+    });
+  }
+
+  getWorkforceState(employeeId: HrEmployeeId, date = this.now()) {
+    const onLeave = [...this.leaveRequests.values()].some((request) => request.employeeId === employeeId && request.status === "approved" && dateInRange(date, request.startDate, request.endDate));
+    if (onLeave) return "leave";
+    const absent = [...this.absences.values()].some((absence) => absence.employeeId === employeeId && dateInRange(date, absence.startDate, absence.endDate));
+    if (absent) return "absent";
+    const attendance = this.attendanceRecords.get(this.findAttendanceId(employeeId, date) as HrAttendanceRecordId);
+    if (attendance) return attendance.status;
+    return "not_recorded";
   }
 
   getEmployee(id: HrEmployeeId) {
@@ -212,7 +305,16 @@ export class HrService {
   createLeaveType(input: CreateHrLeaveTypeInput) {
     const now = this.now();
     if (!input.name.trim()) return Object.freeze({ leaveType: undefined, error: "Le type de congé est requis." });
-    const leaveType = freezeLeaveType({ ...input, id: createId("hr-leave-type") as HrLeaveTypeId, name: input.name.trim(), createdAt: now, updatedAt: now });
+    const leaveType = freezeLeaveType({
+      ...input,
+      id: createId("hr-leave-type") as HrLeaveTypeId,
+      code: input.code?.trim() || undefined,
+      name: input.name.trim(),
+      approvalRequired: input.approvalRequired ?? true,
+      balanceTracked: input.balanceTracked ?? true,
+      createdAt: now,
+      updatedAt: now
+    });
     this.leaveTypes.set(leaveType.id, leaveType);
     return Object.freeze({ leaveType });
   }
@@ -220,9 +322,27 @@ export class HrService {
   updateLeaveType(input: UpdateHrLeaveTypeInput) {
     const existing = this.leaveTypes.get(input.id);
     if (!existing) return Object.freeze({ leaveType: undefined, error: "Type de congé introuvable." });
-    const updated = freezeLeaveType({ ...existing, ...input, name: input.name?.trim() || existing.name, updatedAt: this.now() });
+    const updated = freezeLeaveType({ ...existing, ...input, code: input.code?.trim() || existing.code, name: input.name?.trim() || existing.name, updatedAt: this.now() });
     this.leaveTypes.set(updated.id, updated);
     return Object.freeze({ leaveType: updated });
+  }
+
+  createLeaveBalance(input: CreateHrLeaveBalanceInput) {
+    const now = this.now();
+    const relationError = this.validateLeaveBalanceRelations(input);
+    if (relationError) return Object.freeze({ leaveBalance: undefined, error: relationError });
+    if (this.findLeaveBalance(input.employeeId, input.leaveTypeId, input.periodYear)) return Object.freeze({ leaveBalance: undefined, error: "Un droit existe déjà pour cet employé, ce type et cette période." });
+    const leaveBalance = freezeLeaveBalance({ ...input, id: createId("hr-leave-balance") as HrLeaveBalanceId, entitledDays: normalizeDays(input.entitledDays), adjustmentDays: normalizeDays(input.adjustmentDays), adjustmentReason: input.adjustmentReason?.trim() || undefined, createdAt: now, updatedAt: now });
+    this.leaveBalances.set(leaveBalance.id, leaveBalance);
+    return Object.freeze({ leaveBalance });
+  }
+
+  updateLeaveBalance(input: UpdateHrLeaveBalanceInput) {
+    const existing = this.leaveBalances.get(input.id);
+    if (!existing) return Object.freeze({ leaveBalance: undefined, error: "Droit de congé introuvable." });
+    const updated = freezeLeaveBalance({ ...existing, ...input, entitledDays: input.entitledDays ? normalizeDays(input.entitledDays) : existing.entitledDays, adjustmentDays: input.adjustmentDays ? normalizeDays(input.adjustmentDays) : existing.adjustmentDays, adjustmentReason: input.adjustmentReason?.trim() || existing.adjustmentReason, updatedAt: this.now() });
+    this.leaveBalances.set(updated.id, updated);
+    return Object.freeze({ leaveBalance: updated });
   }
 
   createLeaveRequest(input: CreateHrLeaveRequestInput) {
@@ -238,10 +358,78 @@ export class HrService {
   updateLeaveRequest(input: UpdateHrLeaveRequestInput) {
     const existing = this.leaveRequests.get(input.id);
     if (!existing) return Object.freeze({ leaveRequest: undefined, error: "Demande de congé introuvable." });
-    const approvedAt = input.status === "approved" && !existing.approvedAt ? this.now() : input.approvedAt ?? existing.approvedAt;
-    const updated = freezeLeaveRequest({ ...existing, ...input, approvedAt, updatedAt: this.now() });
+    const nextStatus = input.status ?? existing.status;
+    const transitionError = this.validateLeaveTransition(existing.status, nextStatus);
+    if (transitionError) return Object.freeze({ leaveRequest: undefined, error: transitionError });
+    const relationError = input.decisionByEmployeeId ? this.validateDecisionActor(existing.employeeId, input.decisionByEmployeeId) : undefined;
+    if (relationError) return Object.freeze({ leaveRequest: undefined, error: relationError });
+    const overBalanceError = nextStatus === "approved" ? this.validateLeaveBalanceAvailability(existing, input.id) : undefined;
+    if (overBalanceError) return Object.freeze({ leaveRequest: undefined, error: overBalanceError });
+    const now = this.now();
+    const approvedAt = nextStatus === "approved" && !existing.approvedAt ? now : nextStatus === "approved" ? input.approvedAt ?? existing.approvedAt : undefined;
+    const decidedAt = ["approved", "rejected", "cancelled"].includes(nextStatus) && !existing.decidedAt ? now : input.decidedAt ?? existing.decidedAt;
+    const updated = freezeLeaveRequest({ ...existing, ...input, status: nextStatus, approvedAt, decidedAt, decisionNote: input.decisionNote?.trim() || existing.decisionNote, updatedAt: now });
     this.leaveRequests.set(updated.id, updated);
     return Object.freeze({ leaveRequest: updated });
+  }
+
+  approveLeaveRequest(id: HrLeaveRequestId, actorEmployeeId?: HrEmployeeId, note?: string) {
+    return this.updateLeaveRequest({ id, status: "approved", approvedByEmployeeId: actorEmployeeId, decisionByEmployeeId: actorEmployeeId, decisionNote: note });
+  }
+
+  rejectLeaveRequest(id: HrLeaveRequestId, actorEmployeeId?: HrEmployeeId, note?: string) {
+    return this.updateLeaveRequest({ id, status: "rejected", decisionByEmployeeId: actorEmployeeId, decisionNote: note });
+  }
+
+  cancelLeaveRequest(id: HrLeaveRequestId, actorEmployeeId?: HrEmployeeId, note?: string) {
+    return this.updateLeaveRequest({ id, status: "cancelled", decisionByEmployeeId: actorEmployeeId, decisionNote: note });
+  }
+
+  createAbsence(input: CreateHrAbsenceInput) {
+    const now = this.now();
+    if (!this.employees.has(input.employeeId)) return Object.freeze({ absence: undefined, error: "Employé introuvable pour cette absence." });
+    if (new Date(input.endDate).getTime() < new Date(input.startDate).getTime()) return Object.freeze({ absence: undefined, error: "La date de fin doit être postérieure à la date de début." });
+    if (input.linkedLeaveRequestId && !this.leaveRequests.has(input.linkedLeaveRequestId)) return Object.freeze({ absence: undefined, error: "Demande de congé liée introuvable." });
+    const attendanceConflict = this.validateAbsenceAttendanceConsistency(input.employeeId, input.startDate, input.endDate);
+    if (attendanceConflict) return Object.freeze({ absence: undefined, error: attendanceConflict });
+    const absence = freezeAbsence({ ...input, id: createId("hr-absence") as HrAbsenceId, type: input.type.trim() || "Absence", notes: input.notes?.trim() || undefined, createdAt: now, updatedAt: now });
+    this.absences.set(absence.id, absence);
+    return Object.freeze({ absence });
+  }
+
+  updateAbsence(input: UpdateHrAbsenceInput) {
+    const existing = this.absences.get(input.id);
+    if (!existing) return Object.freeze({ absence: undefined, error: "Absence introuvable." });
+    const candidate = { ...existing, ...input };
+    const attendanceConflict = this.validateAbsenceAttendanceConsistency(candidate.employeeId, candidate.startDate, candidate.endDate);
+    if (attendanceConflict) return Object.freeze({ absence: undefined, error: attendanceConflict });
+    const updated = freezeAbsence({ ...existing, ...input, type: input.type?.trim() || existing.type, notes: input.notes?.trim() || existing.notes, updatedAt: this.now() });
+    this.absences.set(updated.id, updated);
+    return Object.freeze({ absence: updated });
+  }
+
+  createAttendanceRecord(input: CreateHrAttendanceRecordInput) {
+    const now = this.now();
+    if (!this.employees.has(input.employeeId)) return Object.freeze({ attendanceRecord: undefined, error: "Employé introuvable pour cette présence." });
+    if (input.recordedByEmployeeId && !this.employees.has(input.recordedByEmployeeId)) return Object.freeze({ attendanceRecord: undefined, error: "Déclarant RH introuvable." });
+    const existingId = this.findAttendanceId(input.employeeId, input.date);
+    if (existingId) return Object.freeze({ attendanceRecord: undefined, error: "Une présence existe déjà pour cet employé et cette date." });
+    const consistencyError = this.validateAttendanceConsistency(input.employeeId, input.date, input.status);
+    if (consistencyError) return Object.freeze({ attendanceRecord: undefined, error: consistencyError });
+    const attendanceRecord = freezeAttendanceRecord({ ...input, id: createId("hr-attendance") as HrAttendanceRecordId, date: normalizeDateOnly(input.date), note: input.note?.trim() || undefined, createdAt: now, updatedAt: now });
+    this.attendanceRecords.set(attendanceRecord.id, attendanceRecord);
+    return Object.freeze({ attendanceRecord });
+  }
+
+  updateAttendanceRecord(input: UpdateHrAttendanceRecordInput) {
+    const existing = this.attendanceRecords.get(input.id);
+    if (!existing) return Object.freeze({ attendanceRecord: undefined, error: "Présence introuvable." });
+    const status = input.status ?? existing.status;
+    const consistencyError = this.validateAttendanceConsistency(existing.employeeId, existing.date, status);
+    if (consistencyError) return Object.freeze({ attendanceRecord: undefined, error: consistencyError });
+    const updated = freezeAttendanceRecord({ ...existing, ...input, status, note: input.note?.trim() || existing.note, updatedAt: this.now() });
+    this.attendanceRecords.set(updated.id, updated);
+    return Object.freeze({ attendanceRecord: updated });
   }
 
   private validateEmployeeRelations(input: Pick<HrEmployee, "id" | "departmentId" | "positionId" | "managerEmployeeId"> | CreateHrEmployeeInput) {
@@ -257,6 +445,69 @@ export class HrService {
 
   private hasEmployeeNumber(employeeNumber: string, exceptId?: HrEmployeeId) {
     return [...this.employees.values()].some((employee) => employee.id !== exceptId && employee.employeeNumber === employeeNumber);
+  }
+
+  private validateLeaveBalanceRelations(input: Pick<HrLeaveBalance, "employeeId" | "leaveTypeId" | "periodYear">) {
+    if (!this.employees.has(input.employeeId)) return "Employé introuvable pour ce droit.";
+    if (!this.leaveTypes.has(input.leaveTypeId)) return "Type de congé introuvable pour ce droit.";
+    if (!Number.isInteger(input.periodYear) || input.periodYear < 2000) return "Période de droit invalide.";
+    return undefined;
+  }
+
+  private validateLeaveTransition(from: HrLeaveRequest["status"], to: HrLeaveRequest["status"]) {
+    if (from === to) return undefined;
+    const allowed = new Map<HrLeaveRequest["status"], readonly HrLeaveRequest["status"][]>([
+      ["draft", ["requested", "cancelled", "archived"]],
+      ["requested", ["approved", "rejected", "cancelled", "archived"]],
+      ["approved", ["cancelled", "archived"]],
+      ["rejected", ["archived"]],
+      ["cancelled", ["archived"]],
+      ["archived", []]
+    ]);
+    return allowed.get(from)?.includes(to) ? undefined : "Transition de congé invalide.";
+  }
+
+  private validateDecisionActor(employeeId: HrEmployeeId, actorId: HrEmployeeId) {
+    const actor = this.employees.get(actorId);
+    if (!actor) return "Décideur RH introuvable.";
+    const employee = this.employees.get(employeeId);
+    if (!employee) return "Employé introuvable.";
+    if (employee.managerEmployeeId && employee.managerEmployeeId !== actorId) return undefined;
+    return undefined;
+  }
+
+  private validateLeaveBalanceAvailability(request: HrLeaveRequest, requestId: HrLeaveRequestId) {
+    if (!request.leaveTypeId) return undefined;
+    const type = this.leaveTypes.get(request.leaveTypeId);
+    if (!type?.balanceTracked) return undefined;
+    const balance = this.findLeaveBalance(request.employeeId, request.leaveTypeId, new Date(request.startDate).getFullYear());
+    if (!balance) return "Aucun droit de congé configuré pour cette période.";
+    const projected = buildLeaveBalanceProjections([balance], [...this.leaveRequests.values()].filter((item) => item.id !== requestId))[0];
+    const remainingAfter = Number(projected.remainingDays) - inclusiveDays(request.startDate, request.endDate);
+    if (remainingAfter < 0) return "Solde de congé insuffisant.";
+    return undefined;
+  }
+
+  private validateAttendanceConsistency(employeeId: HrEmployeeId, date: string, status: HrAttendanceRecord["status"]) {
+    const onApprovedLeave = [...this.leaveRequests.values()].some((request) => request.employeeId === employeeId && request.status === "approved" && dateInRange(date, request.startDate, request.endDate));
+    if (onApprovedLeave && status === "present") return "Un congé approuvé existe pour cette date. Utilisez le statut En congé ou résolvez le congé.";
+    const manualAbsence = [...this.absences.values()].find((absence) => absence.employeeId === employeeId && absence.source === "manual" && dateInRange(date, absence.startDate, absence.endDate));
+    if (manualAbsence && status !== "absent") return "Une absence manuelle existe pour cette date. Seul le statut Absent est compatible.";
+    return undefined;
+  }
+
+  private validateAbsenceAttendanceConsistency(employeeId: HrEmployeeId, startDate: string, endDate: string) {
+    const conflicting = [...this.attendanceRecords.values()].find((record) => record.employeeId === employeeId && dateInRange(record.date, startDate, endDate) && record.status !== "absent");
+    if (conflicting) return "Une présence contradictoire existe sur la période. Résolvez la présence avant d'enregistrer l'absence.";
+    return undefined;
+  }
+
+  private findLeaveBalance(employeeId: HrEmployeeId, leaveTypeId: HrLeaveTypeId, periodYear: number) {
+    return [...this.leaveBalances.values()].find((balance) => balance.employeeId === employeeId && balance.leaveTypeId === leaveTypeId && balance.periodYear === periodYear);
+  }
+
+  private findAttendanceId(employeeId: HrEmployeeId, date: string) {
+    return [...this.attendanceRecords.values()].find((record) => record.employeeId === employeeId && normalizeDateOnly(record.date) === normalizeDateOnly(date))?.id;
   }
 
   private now() {
@@ -290,4 +541,38 @@ export function freezeLeaveType(leaveType: HrLeaveType): HrLeaveType {
 
 export function freezeLeaveRequest(request: HrLeaveRequest): HrLeaveRequest {
   return Object.freeze({ ...request });
+}
+
+export function freezeLeaveBalance(balance: HrLeaveBalance): HrLeaveBalance {
+  return Object.freeze({ ...balance });
+}
+
+export function freezeAbsence(absence: HrAbsence): HrAbsence {
+  return Object.freeze({ ...absence });
+}
+
+export function freezeAttendanceRecord(record: HrAttendanceRecord): HrAttendanceRecord {
+  return Object.freeze({ ...record });
+}
+
+function normalizeDays(value: string) {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue.toFixed(2) : "0.00";
+}
+
+function inclusiveDays(startDate: string, endDate: string) {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+  return Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1;
+}
+
+function dateInRange(date: string, startDate: string, endDate: string) {
+  const time = new Date(normalizeDateOnly(date)).getTime();
+  return time >= new Date(normalizeDateOnly(startDate)).getTime() && time <= new Date(normalizeDateOnly(endDate)).getTime();
+}
+
+function normalizeDateOnly(value: string) {
+  return new Date(value).toISOString().slice(0, 10);
 }

@@ -41,3 +41,22 @@ export const HR_LEAVE_REQUEST_STATUS_LABELS = {
   cancelled: "Annulé",
   archived: "Archivé"
 } as const;
+
+export const HR_ATTENDANCE_STATUS_LABELS = {
+  present: "Présent",
+  absent: "Absent",
+  leave: "En congé",
+  remote: "Télétravail",
+  partial: "Partiel",
+  other: "Autre"
+} as const;
+
+export const HR_WORKFORCE_STATE_LABELS = {
+  ...HR_ATTENDANCE_STATUS_LABELS,
+  not_recorded: "Non renseigné"
+} as const;
+
+export const HR_ABSENCE_SOURCE_LABELS = {
+  manual: "Absence manuelle",
+  leave: "Congé approuvé"
+} as const;
