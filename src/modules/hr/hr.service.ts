@@ -1,3 +1,4 @@
+import { HR_CONTRACT_TYPE_LABELS, HR_TEMPLATE_VARIABLES, HR_WORKING_TIME_TYPE_LABELS } from "./hr.constants";
 import {
   buildEmployeeDisplayName,
   buildHrCalendarItems,
@@ -13,12 +14,16 @@ import type {
   CreateHrAbsenceInput,
   CreateHrAttendanceRecordInput,
   CreateHrDepartmentInput,
+  CreateHrDocumentTemplateInput,
+  CreateHrDocumentTypeInput,
   CreateHrEmployeeInput,
+  CreateHrEmployeeDocumentInput,
   CreateHrEmploymentContractInput,
   CreateHrLeaveBalanceInput,
   CreateHrLeaveRequestInput,
   CreateHrLeaveTypeInput,
   CreateHrPositionInput,
+  GenerateHrEmployeeDocumentInput,
   HrAbsence,
   HrAbsenceFilters,
   HrAbsenceId,
@@ -27,7 +32,13 @@ import type {
   HrAttendanceRecordId,
   HrDepartment,
   HrDepartmentId,
+  HrDocumentTemplate,
+  HrDocumentTemplateId,
+  HrDocumentType,
+  HrDocumentTypeId,
   HrEmployee,
+  HrEmployeeDocument,
+  HrEmployeeDocumentId,
   HrEmployeeFilters,
   HrEmployeeId,
   HrEmploymentContract,
@@ -41,10 +52,14 @@ import type {
   HrPosition,
   HrPositionId,
   HrSnapshot,
+  UploadHrEmployeeDocumentInput,
   UpdateHrAbsenceInput,
   UpdateHrAttendanceRecordInput,
   UpdateHrDepartmentInput,
+  UpdateHrDocumentTemplateInput,
+  UpdateHrDocumentTypeInput,
   UpdateHrEmployeeInput,
+  UpdateHrEmployeeDocumentInput,
   UpdateHrEmploymentContractInput,
   UpdateHrLeaveBalanceInput,
   UpdateHrLeaveRequestInput,
@@ -62,6 +77,9 @@ export class HrService {
   private readonly leaveBalances = new Map<HrLeaveBalanceId, HrLeaveBalance>();
   private readonly absences = new Map<HrAbsenceId, HrAbsence>();
   private readonly attendanceRecords = new Map<HrAttendanceRecordId, HrAttendanceRecord>();
+  private readonly documentTypes = new Map<HrDocumentTypeId, HrDocumentType>();
+  private readonly documentTemplates = new Map<HrDocumentTemplateId, HrDocumentTemplate>();
+  private readonly employeeDocuments = new Map<HrEmployeeDocumentId, HrEmployeeDocument>();
 
   constructor(private readonly options: { now?: () => string } = {}) {}
 
@@ -75,6 +93,9 @@ export class HrService {
     this.replaceLeaveBalances(snapshot.leaveBalances ?? []);
     this.replaceAbsences(snapshot.absences ?? []);
     this.replaceAttendanceRecords(snapshot.attendanceRecords ?? []);
+    this.replaceDocumentTypes(snapshot.documentTypes ?? []);
+    this.replaceDocumentTemplates(snapshot.documentTemplates ?? []);
+    this.replaceEmployeeDocuments(snapshot.employeeDocuments ?? []);
   }
 
   getSnapshot(): HrSnapshot {
@@ -87,7 +108,10 @@ export class HrService {
       leaveRequests: Object.freeze([...this.leaveRequests.values()]),
       leaveBalances: Object.freeze([...this.leaveBalances.values()]),
       absences: Object.freeze([...this.absences.values()]),
-      attendanceRecords: Object.freeze([...this.attendanceRecords.values()])
+      attendanceRecords: Object.freeze([...this.attendanceRecords.values()]),
+      documentTypes: Object.freeze([...this.documentTypes.values()]),
+      documentTemplates: Object.freeze([...this.documentTemplates.values()]),
+      employeeDocuments: Object.freeze([...this.employeeDocuments.values()])
     });
   }
 
@@ -134,6 +158,21 @@ export class HrService {
   replaceAttendanceRecords(records: readonly HrAttendanceRecord[]) {
     this.attendanceRecords.clear();
     records.forEach((record) => this.attendanceRecords.set(record.id, freezeAttendanceRecord(record)));
+  }
+
+  replaceDocumentTypes(types: readonly HrDocumentType[]) {
+    this.documentTypes.clear();
+    types.forEach((type) => this.documentTypes.set(type.id, freezeDocumentType(type)));
+  }
+
+  replaceDocumentTemplates(templates: readonly HrDocumentTemplate[]) {
+    this.documentTemplates.clear();
+    templates.forEach((template) => this.documentTemplates.set(template.id, freezeDocumentTemplate(template)));
+  }
+
+  replaceEmployeeDocuments(documents: readonly HrEmployeeDocument[]) {
+    this.employeeDocuments.clear();
+    documents.forEach((document) => this.employeeDocuments.set(document.id, freezeEmployeeDocument(document)));
   }
 
   listEmployees(filters: HrEmployeeFilters = {}) {
@@ -192,6 +231,26 @@ export class HrService {
     return Object.freeze({ attendanceRecords: Object.freeze(records), total: records.length });
   }
 
+  listDocumentTypes() {
+    const types = [...this.documentTypes.values()].sort((a, b) => a.name.localeCompare(b.name, "fr"));
+    return Object.freeze({ documentTypes: Object.freeze(types), total: types.length });
+  }
+
+  listDocumentTemplates() {
+    const templates = [...this.documentTemplates.values()].sort((a, b) => a.name.localeCompare(b.name, "fr"));
+    return Object.freeze({ documentTemplates: Object.freeze(templates), total: templates.length });
+  }
+
+  listEmployeeDocuments(filters: { employeeId?: HrEmployeeId | "all"; status?: HrEmployeeDocument["status"] | "all"; required?: boolean } = {}) {
+    const documents = [...this.employeeDocuments.values()]
+      .filter((document) => !document.archivedAt)
+      .filter((document) => !filters.employeeId || filters.employeeId === "all" || document.employeeId === filters.employeeId)
+      .filter((document) => !filters.status || filters.status === "all" || document.status === filters.status)
+      .filter((document) => filters.required === undefined || document.required === filters.required)
+      .sort((a, b) => Number(b.required) - Number(a.required) || a.title.localeCompare(b.title, "fr"));
+    return Object.freeze({ employeeDocuments: Object.freeze(documents), total: documents.length });
+  }
+
   listCalendarItems(fromDate: string, toDate: string) {
     return buildHrCalendarItems({ leaveRequests: [...this.leaveRequests.values()], absences: [...this.absences.values()], leaveTypes: [...this.leaveTypes.values()], fromDate, toDate });
   }
@@ -203,6 +262,47 @@ export class HrService {
       leaveBalances: Object.freeze(this.listLeaveBalanceProjections().leaveBalances.filter((balance) => balance.employeeId === employeeId)),
       recentLeaveRequests: Object.freeze(this.listLeaveRequests({ employeeId }).leaveRequests.slice(0, 5)),
       recentAttendanceRecords: Object.freeze(this.listAttendanceRecords({ employeeId }).attendanceRecords.slice(0, 5))
+    });
+  }
+
+  getEmployeeDossierSummary(employeeId: HrEmployeeId, date = this.now()) {
+    const employee = this.employees.get(employeeId);
+    const documents = this.listEmployeeDocuments({ employeeId }).employeeDocuments;
+    const requiredDocuments = documents.filter((document) => document.required);
+    const completeDocuments = requiredDocuments.filter((document) => isDocumentComplete(document, date));
+    const expiredDocuments = requiredDocuments.filter((document) => getDocumentExpiryState(document, date) === "expired");
+    const missingDocuments = requiredDocuments.length - completeDocuments.length;
+    const activeContract = [...this.contracts.values()].some((contract) => contract.employeeId === employeeId && contract.status === "active" && !contract.archivedAt);
+    const profileComplete = Boolean(employee?.employeeNumber && employee.firstName && employee.lastName && employee.hireDate);
+    const departmentAssigned = Boolean(employee?.departmentId);
+    const positionAssigned = Boolean(employee?.positionId);
+    const baseChecklist = [
+      { id: "profile", label: "Fiche employé complète", complete: profileComplete },
+      { id: "department", label: "Département affecté", complete: departmentAssigned },
+      { id: "position", label: "Poste affecté", complete: positionAssigned },
+      { id: "contract", label: "Contrat actif", complete: activeContract }
+    ];
+    const documentChecklist = requiredDocuments.map((document) => {
+      const expiryState = getDocumentExpiryState(document, date);
+      const complete = isDocumentComplete(document, date);
+      return { id: document.id, label: document.title, complete, status: expiryState === "expired" ? "expired" as const : complete ? "complete" as const : "missing" as const };
+    });
+    const checklist = Object.freeze([...baseChecklist.map((item) => ({ ...item, status: item.complete ? "complete" as const : "missing" as const })), ...documentChecklist]);
+    const completed = checklist.filter((item) => item.complete).length;
+    const completionPercent = checklist.length ? Math.round((completed / checklist.length) * 100) : 100;
+    return Object.freeze({
+      employeeId,
+      profileComplete,
+      departmentAssigned,
+      positionAssigned,
+      activeContract,
+      requiredDocuments: requiredDocuments.length,
+      completeDocuments: completeDocuments.length,
+      missingDocuments,
+      expiredDocuments: expiredDocuments.length,
+      completionPercent,
+      readinessStatus: expiredDocuments.length > 0 ? "blocked" as const : missingDocuments > 0 || completionPercent < 100 ? "incomplete" as const : "ready" as const,
+      checklist
     });
   }
 
@@ -432,6 +532,181 @@ export class HrService {
     return Object.freeze({ attendanceRecord: updated });
   }
 
+  createDocumentType(input: CreateHrDocumentTypeInput) {
+    const now = this.now();
+    if (!input.name.trim()) return Object.freeze({ documentType: undefined, error: "Le type de document est requis." });
+    const documentType = freezeDocumentType({ ...input, id: createId("hr-doc-type") as HrDocumentTypeId, code: input.code?.trim() || undefined, name: input.name.trim(), category: input.category.trim() || "Autre", active: input.active ?? true, requiredByDefault: input.requiredByDefault ?? false, description: input.description?.trim() || undefined, createdAt: now, updatedAt: now });
+    this.documentTypes.set(documentType.id, documentType);
+    return Object.freeze({ documentType });
+  }
+
+  updateDocumentType(input: UpdateHrDocumentTypeInput) {
+    const existing = this.documentTypes.get(input.id);
+    if (!existing) return Object.freeze({ documentType: undefined, error: "Type de document introuvable." });
+    const updated = freezeDocumentType({ ...existing, ...input, code: input.code?.trim() || existing.code, name: input.name?.trim() || existing.name, category: input.category?.trim() || existing.category, description: input.description?.trim() || existing.description, updatedAt: this.now() });
+    this.documentTypes.set(updated.id, updated);
+    return Object.freeze({ documentType: updated });
+  }
+
+  createDocumentTemplate(input: CreateHrDocumentTemplateInput) {
+    const now = this.now();
+    const validation = this.validateTemplateInput(input);
+    if (validation) return Object.freeze({ documentTemplate: undefined, error: validation });
+    const template = freezeDocumentTemplate({ ...input, id: createId("hr-doc-template") as HrDocumentTemplateId, code: input.code?.trim() || undefined, name: input.name.trim(), templateFormat: "plain_text", description: input.description?.trim() || undefined, createdAt: now, updatedAt: now });
+    this.documentTemplates.set(template.id, template);
+    return Object.freeze({ documentTemplate: template });
+  }
+
+  updateDocumentTemplate(input: UpdateHrDocumentTemplateInput) {
+    const existing = this.documentTemplates.get(input.id);
+    if (!existing) return Object.freeze({ documentTemplate: undefined, error: "Modèle RH introuvable." });
+    const candidate = { ...existing, ...input };
+    const validation = this.validateTemplateInput(candidate);
+    if (validation) return Object.freeze({ documentTemplate: undefined, error: validation });
+    const updated = freezeDocumentTemplate({ ...candidate, code: candidate.code?.trim() || undefined, name: candidate.name.trim(), description: candidate.description?.trim() || undefined, updatedAt: this.now() });
+    this.documentTemplates.set(updated.id, updated);
+    return Object.freeze({ documentTemplate: updated });
+  }
+
+  createEmployeeDocument(input: CreateHrEmployeeDocumentInput) {
+    const now = this.now();
+    const relationError = this.validateDocumentRelations(input);
+    if (relationError) return Object.freeze({ employeeDocument: undefined, error: relationError });
+    const status = normalizeDocumentStatus(input);
+    const document = freezeEmployeeDocument({ ...input, id: createId("hr-doc") as HrEmployeeDocumentId, title: input.title.trim() || "Document RH", category: input.category.trim() || this.resolveDocumentType(input.documentTypeId)?.category || "Autre", status, source: input.source ?? "manual", notes: input.notes?.trim() || undefined, createdAt: now, updatedAt: now });
+    this.employeeDocuments.set(document.id, document);
+    return Object.freeze({ employeeDocument: document });
+  }
+
+  updateEmployeeDocument(input: UpdateHrEmployeeDocumentInput) {
+    const existing = this.employeeDocuments.get(input.id);
+    if (!existing) return Object.freeze({ employeeDocument: undefined, error: "Document employé introuvable." });
+    const candidate = { ...existing, ...input };
+    const relationError = this.validateDocumentRelations(candidate);
+    if (relationError) return Object.freeze({ employeeDocument: undefined, error: relationError });
+    const updated = freezeEmployeeDocument({ ...candidate, title: candidate.title.trim() || existing.title, category: candidate.category.trim() || existing.category, status: normalizeDocumentStatus(candidate), notes: candidate.notes?.trim() || undefined, updatedAt: this.now() });
+    this.employeeDocuments.set(updated.id, updated);
+    return Object.freeze({ employeeDocument: updated });
+  }
+
+  generateEmployeeDocument(input: GenerateHrEmployeeDocumentInput) {
+    const template = this.documentTemplates.get(input.templateId);
+    if (!template || !template.active) return Object.freeze({ employeeDocument: undefined, error: "Modèle RH introuvable ou inactif." });
+    const employee = this.employees.get(input.employeeId);
+    if (!employee) return Object.freeze({ employeeDocument: undefined, error: "Employé introuvable pour ce document." });
+    if (input.contractId && !this.contracts.has(input.contractId)) return Object.freeze({ employeeDocument: undefined, error: "Contrat introuvable pour ce document." });
+    const rendered = this.renderTemplate(template, input.employeeId, input.contractId, input.company);
+    if (rendered.error) return Object.freeze({ employeeDocument: undefined, error: rendered.error });
+    const documentType = this.resolveDocumentType(template.documentTypeId);
+    const now = this.now();
+    const document = freezeEmployeeDocument({
+      id: createId("hr-doc") as HrEmployeeDocumentId,
+      tenantCompanyId: template.tenantCompanyId,
+      employeeId: employee.id,
+      documentTypeId: template.documentTypeId,
+      templateId: template.id,
+      contractId: input.contractId,
+      title: input.title?.trim() || template.name,
+      category: documentType?.category ?? "Contrat de travail",
+      status: "generated",
+      source: "generated",
+      generatedContent: rendered.content,
+      generatedFromTemplateName: template.name,
+      issuedDate: input.issuedDate ?? now,
+      expiryDate: input.expiryDate,
+      required: input.required ?? documentType?.requiredByDefault ?? false,
+      notes: input.notes?.trim() || undefined,
+      generatedAt: now,
+      createdAt: now,
+      updatedAt: now
+    });
+    this.employeeDocuments.set(document.id, document);
+    return Object.freeze({ employeeDocument: document });
+  }
+
+  uploadEmployeeDocument(input: UploadHrEmployeeDocumentInput) {
+    const existing = this.employeeDocuments.get(input.id);
+    if (!existing) return Object.freeze({ employeeDocument: undefined, error: "Document employé introuvable." });
+    const fileError = validateUploadMetadata(input);
+    if (fileError) return Object.freeze({ employeeDocument: undefined, error: fileError });
+    const now = this.now();
+    const safeFilename = sanitizeFilename(input.filename);
+    const updated = freezeEmployeeDocument({
+      ...existing,
+      storageReference: input.storageReference?.trim() || `hr/${existing.employeeId}/${existing.id}/${safeFilename}`,
+      storageFilename: safeFilename,
+      storageMimeType: input.mimeType,
+      storageSizeBytes: input.sizeBytes,
+      source: input.signedFinal ? "uploaded" : existing.source,
+      status: input.signedFinal ? "signed" : "uploaded",
+      receivedDate: input.receivedDate ?? now,
+      uploadedAt: now,
+      finalizedAt: input.signedFinal ? now : existing.finalizedAt,
+      notes: input.notes?.trim() || existing.notes,
+      updatedAt: now
+    });
+    this.employeeDocuments.set(updated.id, updated);
+    return Object.freeze({ employeeDocument: updated });
+  }
+
+  private validateTemplateInput(input: Pick<HrDocumentTemplate, "name" | "body" | "templateFormat" | "documentTypeId">) {
+    if (!input.name.trim()) return "Le nom du modèle RH est requis.";
+    if (input.templateFormat !== "plain_text") return "Format de modèle RH non supporté.";
+    if (!input.body.trim()) return "Le contenu du modèle RH est requis.";
+    if (input.documentTypeId && !this.documentTypes.has(input.documentTypeId)) return "Type de document introuvable pour ce modèle.";
+    const unknown = findUnknownTemplateVariables(input.body);
+    if (unknown.length) return `Variable inconnue dans le modèle RH: ${unknown.join(", ")}.`;
+    return undefined;
+  }
+
+  private validateDocumentRelations(input: Pick<HrEmployeeDocument, "employeeId" | "documentTypeId" | "templateId" | "contractId">) {
+    if (!this.employees.has(input.employeeId)) return "Employé introuvable pour ce document.";
+    if (input.documentTypeId && !this.documentTypes.has(input.documentTypeId)) return "Type de document introuvable.";
+    if (input.templateId && !this.documentTemplates.has(input.templateId)) return "Modèle RH introuvable.";
+    if (input.contractId) {
+      const contract = this.contracts.get(input.contractId);
+      if (!contract || contract.employeeId !== input.employeeId) return "Contrat introuvable pour cet employé.";
+    }
+    return undefined;
+  }
+
+  private resolveDocumentType(id?: HrDocumentTypeId) {
+    return id ? this.documentTypes.get(id) : undefined;
+  }
+
+  private renderTemplate(template: HrDocumentTemplate, employeeId: HrEmployeeId, contractId?: HrEmploymentContractId, company?: GenerateHrEmployeeDocumentInput["company"]) {
+    const unknown = findUnknownTemplateVariables(template.body);
+    if (unknown.length) return { content: undefined, error: `Variable inconnue dans le modèle RH: ${unknown.join(", ")}.` };
+    const employee = this.employees.get(employeeId);
+    if (!employee) return { content: undefined, error: "Employé introuvable pour ce modèle." };
+    const department = employee.departmentId ? this.departments.get(employee.departmentId) : undefined;
+    const position = employee.positionId ? this.positions.get(employee.positionId) : undefined;
+    const manager = employee.managerEmployeeId ? this.employees.get(employee.managerEmployeeId) : undefined;
+    const contract = contractId ? this.contracts.get(contractId) : [...this.contracts.values()].find((item) => item.employeeId === employeeId && item.status === "active" && !item.archivedAt);
+    const values: Record<string, string> = {
+      "employee.firstName": employee.firstName,
+      "employee.lastName": employee.lastName,
+      "employee.displayName": employee.displayName,
+      "employee.employeeNumber": employee.employeeNumber,
+      "employee.email": employee.email ?? "",
+      "employee.phone": employee.phone ?? "",
+      "employee.hireDate": formatDateOnly(employee.hireDate),
+      "department.name": department?.name ?? "",
+      "position.name": position?.name ?? "",
+      "manager.displayName": manager?.displayName ?? "",
+      "contract.type": contract ? HR_CONTRACT_TYPE_LABELS[contract.contractType] : "",
+      "contract.startDate": contract ? formatDateOnly(contract.startDate) : "",
+      "contract.endDate": contract?.endDate ? formatDateOnly(contract.endDate) : "",
+      "contract.title": contract?.jobTitle ?? "",
+      "contract.workingTimeType": contract?.workingTimeType ? HR_WORKING_TIME_TYPE_LABELS[contract.workingTimeType] : "",
+      "company.name": company?.name ?? "",
+      "company.address": company?.address ?? "",
+      "company.email": company?.email ?? "",
+      "company.phone": company?.phone ?? ""
+    };
+    return { content: template.body.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, key: string) => values[key] ?? ""), error: undefined };
+  }
+
   private validateEmployeeRelations(input: Pick<HrEmployee, "id" | "departmentId" | "positionId" | "managerEmployeeId"> | CreateHrEmployeeInput) {
     if (input.departmentId && !this.departments.has(input.departmentId)) return "Département introuvable.";
     if (input.positionId && !this.positions.has(input.positionId)) return "Poste introuvable.";
@@ -555,6 +830,18 @@ export function freezeAttendanceRecord(record: HrAttendanceRecord): HrAttendance
   return Object.freeze({ ...record });
 }
 
+export function freezeDocumentType(type: HrDocumentType): HrDocumentType {
+  return Object.freeze({ ...type });
+}
+
+export function freezeDocumentTemplate(template: HrDocumentTemplate): HrDocumentTemplate {
+  return Object.freeze({ ...template });
+}
+
+export function freezeEmployeeDocument(document: HrEmployeeDocument): HrEmployeeDocument {
+  return Object.freeze({ ...document });
+}
+
 function normalizeDays(value: string) {
   const numberValue = Number(value);
   return Number.isFinite(numberValue) ? numberValue.toFixed(2) : "0.00";
@@ -575,4 +862,45 @@ function dateInRange(date: string, startDate: string, endDate: string) {
 
 function normalizeDateOnly(value: string) {
   return new Date(value).toISOString().slice(0, 10);
+}
+
+function findUnknownTemplateVariables(body: string) {
+  const allowed = new Set<string>(HR_TEMPLATE_VARIABLES);
+  return [...body.matchAll(/\{\{\s*([\w.]+)\s*\}\}/g)].map((match) => match[1]).filter((key, index, keys) => !allowed.has(key) && keys.indexOf(key) === index);
+}
+
+function normalizeDocumentStatus(document: Pick<HrEmployeeDocument, "status" | "expiryDate">) {
+  if (document.status === "archived") return "archived";
+  if (document.expiryDate && getDocumentExpiryState(document, new Date().toISOString()) === "expired") return "expired";
+  return document.status;
+}
+
+function isDocumentComplete(document: HrEmployeeDocument, date: string) {
+  if (getDocumentExpiryState(document, date) === "expired") return false;
+  return ["signed", "uploaded"].includes(document.status);
+}
+
+function getDocumentExpiryState(document: Pick<HrEmployeeDocument, "expiryDate">, date: string) {
+  if (!document.expiryDate) return "not_applicable";
+  const expiry = new Date(normalizeDateOnly(document.expiryDate)).getTime();
+  const today = new Date(normalizeDateOnly(date)).getTime();
+  if (expiry < today) return "expired";
+  const soon = today + 30 * 86_400_000;
+  return expiry <= soon ? "expiring_soon" : "valid";
+}
+
+function validateUploadMetadata(input: UploadHrEmployeeDocumentInput) {
+  if (!input.filename.trim()) return "Nom de fichier requis.";
+  if (!["application/pdf", "image/png", "image/jpeg"].includes(input.mimeType)) return "Format non supporté. Utilisez PDF, PNG ou JPG.";
+  if (!Number.isFinite(input.sizeBytes) || input.sizeBytes <= 0) return "Taille de fichier invalide.";
+  if (input.sizeBytes > 10 * 1024 * 1024) return "Le fichier dépasse la limite Alpha de 10 Mo.";
+  return undefined;
+}
+
+function sanitizeFilename(filename: string) {
+  return filename.trim().replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/-+/g, "-").slice(0, 120) || "document.pdf";
+}
+
+function formatDateOnly(value: string) {
+  return normalizeDateOnly(value).split("-").reverse().join("/");
 }

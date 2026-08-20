@@ -9,6 +9,9 @@ import { MetricCard, SectionCard } from "@/ui";
 import {
   HR_CONTRACT_STATUS_LABELS,
   HR_CONTRACT_TYPE_LABELS,
+  HR_DOCUMENT_CATEGORY_OPTIONS,
+  HR_DOCUMENT_STATUS_LABELS,
+  HR_TEMPLATE_VARIABLES,
   HR_EMPLOYEE_STATUS_LABELS,
   HR_ATTENDANCE_STATUS_LABELS,
   HR_LEAVE_REQUEST_STATUS_LABELS,
@@ -20,7 +23,11 @@ import {
   type HrContractStatus,
   type HrContractType,
   type HrDepartment,
+  type HrDocumentStatus,
+  type HrDocumentTemplate,
+  type HrDocumentType,
   type HrEmployee,
+  type HrEmployeeDocument,
   type HrEmployeeId,
   type HrEmployeeStatus,
   type HrEmploymentContract,
@@ -35,9 +42,9 @@ import {
   type HrWorkingTimeType
 } from "@/modules/hr";
 
-type HrTab = "overview" | "employees" | "departments" | "positions" | "contracts" | "leaves" | "absences" | "attendance";
+type HrTab = "overview" | "employees" | "departments" | "positions" | "contracts" | "leaves" | "absences" | "attendance" | "documents";
 type Notice = { tone: "success" | "error"; message: string };
-type HrDialogKey = "employee" | "department" | "position" | "contract" | "leave" | "leaveBalance" | "absence" | "attendance";
+type HrDialogKey = "employee" | "department" | "position" | "contract" | "leave" | "leaveBalance" | "absence" | "attendance" | "documentType" | "documentTemplate" | "employeeDocument" | "generateDocument" | "uploadDocument";
 type EmployeeForm = {
   employeeNumber: string;
   firstName: string;
@@ -78,6 +85,11 @@ type LeaveForm = {
 type LeaveBalanceForm = { employeeId: string; leaveTypeId: string; periodYear: string; entitledDays: string; adjustmentDays: string; adjustmentReason: string };
 type AbsenceForm = { employeeId: string; startDate: string; endDate: string; type: string; justified: boolean; notes: string };
 type AttendanceForm = { employeeId: string; date: string; status: HrAttendanceStatus; note: string };
+type DocumentTypeForm = { code: string; name: string; category: string; requiredByDefault: boolean; active: boolean; description: string };
+type DocumentTemplateForm = { code: string; name: string; documentTypeId: string; body: string; active: boolean; description: string };
+type EmployeeDocumentForm = { employeeId: string; documentTypeId: string; title: string; category: string; status: HrDocumentStatus; required: boolean; expiryDate: string; notes: string };
+type GenerateDocumentForm = { employeeId: string; templateId: string; contractId: string; title: string; required: boolean; notes: string };
+type UploadDocumentForm = { documentId: string; filename: string; mimeType: string; sizeBytes: string; signedFinal: boolean; notes: string };
 
 const tabs = [
   { id: "overview", label: "Vue d'ensemble" },
@@ -87,7 +99,8 @@ const tabs = [
   { id: "contracts", label: "Contrats" },
   { id: "leaves", label: "Congés" },
   { id: "absences", label: "Absences" },
-  { id: "attendance", label: "Présences" }
+  { id: "attendance", label: "Présences" },
+  { id: "documents", label: "Documents" }
 ] satisfies readonly { id: HrTab; label: string }[];
 
 const emptyEmployeeForm: EmployeeForm = {
@@ -123,6 +136,11 @@ const emptyLeaveForm: LeaveForm = { employeeId: "", leaveTypeId: "", title: "", 
 const emptyLeaveBalanceForm: LeaveBalanceForm = { employeeId: "", leaveTypeId: "", periodYear: String(new Date().getFullYear()), entitledDays: "18.00", adjustmentDays: "0.00", adjustmentReason: "" };
 const emptyAbsenceForm: AbsenceForm = { employeeId: "", startDate: today(), endDate: today(), type: "Absence", justified: false, notes: "" };
 const emptyAttendanceForm: AttendanceForm = { employeeId: "", date: today(), status: "present", note: "" };
+const emptyDocumentTypeForm: DocumentTypeForm = { code: "", name: "", category: "Autre", requiredByDefault: false, active: true, description: "" };
+const emptyDocumentTemplateForm: DocumentTemplateForm = { code: "", name: "", documentTypeId: "", body: "Contrat établi entre {{company.name}} et {{employee.displayName}} pour le poste {{position.name}} à compter du {{contract.startDate}}.", active: true, description: "" };
+const emptyEmployeeDocumentForm: EmployeeDocumentForm = { employeeId: "", documentTypeId: "", title: "", category: "Autre", status: "missing", required: true, expiryDate: "", notes: "" };
+const emptyGenerateDocumentForm: GenerateDocumentForm = { employeeId: "", templateId: "", contractId: "", title: "", required: true, notes: "" };
+const emptyUploadDocumentForm: UploadDocumentForm = { documentId: "", filename: "document.pdf", mimeType: "application/pdf", sizeBytes: "1024", signedFinal: true, notes: "" };
 const emptyDialogErrors: Record<HrDialogKey, string | null> = {
   employee: null,
   department: null,
@@ -131,7 +149,12 @@ const emptyDialogErrors: Record<HrDialogKey, string | null> = {
   leave: null,
   leaveBalance: null,
   absence: null,
-  attendance: null
+  attendance: null,
+  documentType: null,
+  documentTemplate: null,
+  employeeDocument: null,
+  generateDocument: null,
+  uploadDocument: null
 };
 
 export function HrWorkspacePage() {
@@ -151,6 +174,11 @@ export function HrWorkspacePage() {
   const [leaveBalanceDialogOpen, setLeaveBalanceDialogOpen] = useState(false);
   const [absenceDialogOpen, setAbsenceDialogOpen] = useState(false);
   const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);
+  const [documentTypeDialogOpen, setDocumentTypeDialogOpen] = useState(false);
+  const [documentTemplateDialogOpen, setDocumentTemplateDialogOpen] = useState(false);
+  const [employeeDocumentDialogOpen, setEmployeeDocumentDialogOpen] = useState(false);
+  const [generateDocumentDialogOpen, setGenerateDocumentDialogOpen] = useState(false);
+  const [uploadDocumentDialogOpen, setUploadDocumentDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<HrEmployee | null>(null);
   const [editingDepartment, setEditingDepartment] = useState<HrDepartment | null>(null);
   const [editingPosition, setEditingPosition] = useState<HrPosition | null>(null);
@@ -162,6 +190,11 @@ export function HrWorkspacePage() {
   const [leaveBalanceForm, setLeaveBalanceForm] = useState<LeaveBalanceForm>(emptyLeaveBalanceForm);
   const [absenceForm, setAbsenceForm] = useState<AbsenceForm>(emptyAbsenceForm);
   const [attendanceForm, setAttendanceForm] = useState<AttendanceForm>(emptyAttendanceForm);
+  const [documentTypeForm, setDocumentTypeForm] = useState<DocumentTypeForm>(emptyDocumentTypeForm);
+  const [documentTemplateForm, setDocumentTemplateForm] = useState<DocumentTemplateForm>(emptyDocumentTemplateForm);
+  const [employeeDocumentForm, setEmployeeDocumentForm] = useState<EmployeeDocumentForm>(emptyEmployeeDocumentForm);
+  const [generateDocumentForm, setGenerateDocumentForm] = useState<GenerateDocumentForm>(emptyGenerateDocumentForm);
+  const [uploadDocumentForm, setUploadDocumentForm] = useState<UploadDocumentForm>(emptyUploadDocumentForm);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
 
   useEffect(() => {
@@ -250,6 +283,43 @@ export function HrWorkspacePage() {
     setAttendanceForm({ ...emptyAttendanceForm, employeeId: employeeId ?? "", date: today() });
     setAttendanceDialogOpen(true);
     clearDialogError("attendance");
+    setNotice(null);
+  }
+
+  function openDocumentType() {
+    setDocumentTypeForm(emptyDocumentTypeForm);
+    setDocumentTypeDialogOpen(true);
+    clearDialogError("documentType");
+    setNotice(null);
+  }
+
+  function openDocumentTemplate() {
+    setDocumentTemplateForm({ ...emptyDocumentTemplateForm, documentTypeId: snapshot.documentTypes[0]?.id ?? "" });
+    setDocumentTemplateDialogOpen(true);
+    clearDialogError("documentTemplate");
+    setNotice(null);
+  }
+
+  function openEmployeeDocument(employeeId?: HrEmployeeId) {
+    const type = snapshot.documentTypes[0];
+    setEmployeeDocumentForm({ ...emptyEmployeeDocumentForm, employeeId: employeeId ?? "", documentTypeId: type?.id ?? "", title: type?.name ?? "", category: type?.category ?? "Autre", required: type?.requiredByDefault ?? true });
+    setEmployeeDocumentDialogOpen(true);
+    clearDialogError("employeeDocument");
+    setNotice(null);
+  }
+
+  function openGenerateDocument(employeeId?: HrEmployeeId) {
+    const employeeContracts = snapshot.contracts.filter((contract) => !employeeId || contract.employeeId === employeeId);
+    setGenerateDocumentForm({ ...emptyGenerateDocumentForm, employeeId: employeeId ?? "", templateId: snapshot.documentTemplates[0]?.id ?? "", contractId: employeeContracts[0]?.id ?? "" });
+    setGenerateDocumentDialogOpen(true);
+    clearDialogError("generateDocument");
+    setNotice(null);
+  }
+
+  function openUploadDocument(document?: HrEmployeeDocument) {
+    setUploadDocumentForm({ ...emptyUploadDocumentForm, documentId: document?.id ?? "" });
+    setUploadDocumentDialogOpen(true);
+    clearDialogError("uploadDocument");
     setNotice(null);
   }
 
@@ -464,6 +534,127 @@ export function HrWorkspacePage() {
     }
   }
 
+  async function saveDocumentType() {
+    setSaving(true);
+    setNotice(null);
+    clearDialogError("documentType");
+    try {
+      const result = hrLocalService.createDocumentType(documentTypeForm);
+      if (!result.documentType) throw new Error(result.error ?? "Type de document non enregistré.");
+      await persistHrRecord("documentType", result.documentType);
+      setDocumentTypeDialogOpen(false);
+      setNotice({ tone: "success", message: "Type de document créé." });
+      return true;
+    } catch (error) {
+      setDialogError("documentType", error, "Type de document non enregistré.");
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveDocumentTemplate() {
+    setSaving(true);
+    setNotice(null);
+    clearDialogError("documentTemplate");
+    try {
+      const result = hrLocalService.createDocumentTemplate({ ...documentTemplateForm, documentTypeId: optionalId(documentTemplateForm.documentTypeId) as never, templateFormat: "plain_text" });
+      if (!result.documentTemplate) throw new Error(result.error ?? "Modèle RH non enregistré.");
+      await persistHrRecord("documentTemplate", result.documentTemplate);
+      setDocumentTemplateDialogOpen(false);
+      setNotice({ tone: "success", message: "Modèle RH créé." });
+      return true;
+    } catch (error) {
+      setDialogError("documentTemplate", error, "Modèle RH non enregistré.");
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveEmployeeDocument() {
+    setSaving(true);
+    setNotice(null);
+    clearDialogError("employeeDocument");
+    try {
+      const type = snapshot.documentTypes.find((item) => item.id === employeeDocumentForm.documentTypeId);
+      const result = hrLocalService.createEmployeeDocument({
+        employeeId: employeeDocumentForm.employeeId as never,
+        documentTypeId: optionalId(employeeDocumentForm.documentTypeId) as never,
+        title: employeeDocumentForm.title || type?.name || "Document RH",
+        category: employeeDocumentForm.category || type?.category || "Autre",
+        status: employeeDocumentForm.status,
+        source: "manual",
+        required: employeeDocumentForm.required,
+        expiryDate: employeeDocumentForm.expiryDate ? new Date(employeeDocumentForm.expiryDate).toISOString() : undefined,
+        notes: employeeDocumentForm.notes
+      });
+      if (!result.employeeDocument) throw new Error(result.error ?? "Document employé non enregistré.");
+      await persistHrRecord("employeeDocument", result.employeeDocument);
+      setEmployeeDocumentDialogOpen(false);
+      setNotice({ tone: "success", message: "Document requis ajouté." });
+      return true;
+    } catch (error) {
+      setDialogError("employeeDocument", error, "Document employé non enregistré.");
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveGeneratedDocument() {
+    setSaving(true);
+    setNotice(null);
+    clearDialogError("generateDocument");
+    try {
+      const result = hrLocalService.generateEmployeeDocument({
+        employeeId: generateDocumentForm.employeeId as never,
+        templateId: generateDocumentForm.templateId as never,
+        contractId: optionalId(generateDocumentForm.contractId) as never,
+        title: generateDocumentForm.title,
+        required: generateDocumentForm.required,
+        notes: generateDocumentForm.notes,
+        company: { name: "HICOTECH" }
+      });
+      if (!result.employeeDocument) throw new Error(result.error ?? "Document non généré.");
+      await persistHrRecord("employeeDocument", result.employeeDocument);
+      setGenerateDocumentDialogOpen(false);
+      setNotice({ tone: "success", message: "Document généré." });
+      return true;
+    } catch (error) {
+      setDialogError("generateDocument", error, "Document non généré.");
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveUploadedDocument() {
+    setSaving(true);
+    setNotice(null);
+    clearDialogError("uploadDocument");
+    try {
+      const result = hrLocalService.uploadEmployeeDocument({
+        id: uploadDocumentForm.documentId as never,
+        filename: uploadDocumentForm.filename,
+        mimeType: uploadDocumentForm.mimeType,
+        sizeBytes: Number(uploadDocumentForm.sizeBytes),
+        signedFinal: uploadDocumentForm.signedFinal,
+        notes: uploadDocumentForm.notes
+      });
+      if (!result.employeeDocument) throw new Error(result.error ?? "Fichier final non enregistré.");
+      await persistHrRecord("employeeDocument", result.employeeDocument);
+      setUploadDocumentDialogOpen(false);
+      setNotice({ tone: "success", message: "Version finale enregistrée." });
+      return true;
+    } catch (error) {
+      setDialogError("uploadDocument", error, "Fichier final non enregistré.");
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function decideLeave(leave: HrLeaveRequest, status: "approved" | "rejected" | "cancelled") {
     const result = status === "approved" ? hrLocalService.approveLeaveRequest(leave.id) : status === "rejected" ? hrLocalService.rejectLeaveRequest(leave.id) : hrLocalService.cancelLeaveRequest(leave.id);
     if (!result.leaveRequest) {
@@ -521,6 +712,7 @@ export function HrWorkspacePage() {
       {activeTab === "leaves" && <LeavesSection balances={snapshot.leaveBalances} leaves={snapshot.leaveRequests} employees={employeeById} leaveTypes={new Map(snapshot.leaveTypes.map((type) => [type.id, type]))} onCreate={() => openLeave(selectedEmployee?.id)} onBalance={() => openLeaveBalance(selectedEmployee?.id)} onApprove={(leave) => void decideLeave(leave, "approved")} onReject={(leave) => void decideLeave(leave, "rejected")} onCancel={(leave) => void decideLeave(leave, "cancelled")} />}
       {activeTab === "absences" && <AbsencesSection absences={hrLocalService.listOperationalAbsences().absences} employees={employeeById} onCreate={() => openAbsence(selectedEmployee?.id)} />}
       {activeTab === "attendance" && <AttendanceSection records={snapshot.attendanceRecords} employees={employeeById} onCreate={() => openAttendance(selectedEmployee?.id)} />}
+      {activeTab === "documents" && <DocumentsSection documents={snapshot.employeeDocuments} documentTypes={snapshot.documentTypes} employees={employeeById} templates={snapshot.documentTemplates} onCreateType={openDocumentType} onCreateTemplate={openDocumentTemplate} onGenerate={() => openGenerateDocument(selectedEmployee?.id)} onRequire={() => openEmployeeDocument(selectedEmployee?.id)} onUpload={openUploadDocument} />}
 
       {selectedEmployee && <EmployeeDetail employee={selectedEmployee} departments={departmentById} positions={positionById} managers={employeeById} contracts={snapshot.contracts.filter((contract) => contract.employeeId === selectedEmployee.id)} leaves={snapshot.leaveRequests.filter((leave) => leave.employeeId === selectedEmployee.id)} operational={hrLocalService.getEmployeeOperationalSummary(selectedEmployee.id)} onEdit={() => openEmployee(selectedEmployee)} />}
 
@@ -532,6 +724,11 @@ export function HrWorkspacePage() {
       <LeaveBalanceDialog employees={snapshot.employees} error={dialogErrors.leaveBalance} form={leaveBalanceForm} leaveTypes={snapshot.leaveTypes} onChange={(form) => { clearDialogError("leaveBalance"); setLeaveBalanceForm(form); }} onClose={() => setLeaveBalanceDialogOpen(false)} onSubmit={saveLeaveBalance} open={leaveBalanceDialogOpen} saving={saving} />
       <AbsenceDialog employees={snapshot.employees} error={dialogErrors.absence} form={absenceForm} onChange={(form) => { clearDialogError("absence"); setAbsenceForm(form); }} onClose={() => setAbsenceDialogOpen(false)} onSubmit={saveAbsence} open={absenceDialogOpen} saving={saving} />
       <AttendanceDialog employees={snapshot.employees} error={dialogErrors.attendance} form={attendanceForm} onChange={(form) => { clearDialogError("attendance"); setAttendanceForm(form); }} onClose={() => setAttendanceDialogOpen(false)} onSubmit={saveAttendance} open={attendanceDialogOpen} saving={saving} />
+      <DocumentTypeDialog error={dialogErrors.documentType} form={documentTypeForm} onChange={(form) => { clearDialogError("documentType"); setDocumentTypeForm(form); }} onClose={() => setDocumentTypeDialogOpen(false)} onSubmit={saveDocumentType} open={documentTypeDialogOpen} saving={saving} />
+      <DocumentTemplateDialog documentTypes={snapshot.documentTypes} error={dialogErrors.documentTemplate} form={documentTemplateForm} onChange={(form) => { clearDialogError("documentTemplate"); setDocumentTemplateForm(form); }} onClose={() => setDocumentTemplateDialogOpen(false)} onSubmit={saveDocumentTemplate} open={documentTemplateDialogOpen} saving={saving} />
+      <EmployeeDocumentDialog documentTypes={snapshot.documentTypes} employees={snapshot.employees} error={dialogErrors.employeeDocument} form={employeeDocumentForm} onChange={(form) => { clearDialogError("employeeDocument"); setEmployeeDocumentForm(form); }} onClose={() => setEmployeeDocumentDialogOpen(false)} onSubmit={saveEmployeeDocument} open={employeeDocumentDialogOpen} saving={saving} />
+      <GenerateDocumentDialog contracts={snapshot.contracts} employees={snapshot.employees} error={dialogErrors.generateDocument} form={generateDocumentForm} onChange={(form) => { clearDialogError("generateDocument"); setGenerateDocumentForm(form); }} onClose={() => setGenerateDocumentDialogOpen(false)} onSubmit={saveGeneratedDocument} open={generateDocumentDialogOpen} saving={saving} templates={snapshot.documentTemplates} />
+      <UploadDocumentDialog documents={snapshot.employeeDocuments} error={dialogErrors.uploadDocument} form={uploadDocumentForm} onChange={(form) => { clearDialogError("uploadDocument"); setUploadDocumentForm(form); }} onClose={() => setUploadDocumentDialogOpen(false)} onSubmit={saveUploadedDocument} open={uploadDocumentDialogOpen} saving={saving} />
     </main>
   );
 }
@@ -694,6 +891,42 @@ function AttendanceSection({ employees, onCreate, records }: { employees: Map<st
   );
 }
 
+function DocumentsSection({ documents, documentTypes, employees, onCreateTemplate, onCreateType, onGenerate, onRequire, onUpload, templates }: { documents: readonly HrEmployeeDocument[]; documentTypes: readonly HrDocumentType[]; employees: Map<string, HrEmployee>; onCreateTemplate: () => void; onCreateType: () => void; onGenerate: () => void; onRequire: () => void; onUpload: (document: HrEmployeeDocument) => void; templates: readonly HrDocumentTemplate[] }) {
+  const selectedEmployee = [...employees.values()][0];
+  const dossier = selectedEmployee ? hrLocalService.getEmployeeDossierSummary(selectedEmployee.id) : undefined;
+  return (
+    <SectionCard className="mt-4 overflow-hidden">
+      <Toolbar title="Dossier administratif" actionLabel="Générer document" onAction={onGenerate}>
+        <button type="button" onClick={onRequire} className={secondaryButtonClassName}><Plus size={15} /> Document requis</button>
+        <button type="button" onClick={onCreateTemplate} className={secondaryButtonClassName}><Plus size={15} /> Modèle RH</button>
+        <button type="button" onClick={onCreateType} className={secondaryButtonClassName}><Plus size={15} /> Type</button>
+      </Toolbar>
+      <div className="grid gap-3 border-b border-slate-100 p-4 md:grid-cols-4 dark:border-hicotech-dark-border">
+        <Info label="Types actifs" value={String(documentTypes.filter((type) => type.active).length)} />
+        <Info label="Modèles actifs" value={String(templates.filter((template) => template.active).length)} />
+        <Info label="Documents requis" value={String(dossier?.requiredDocuments ?? documents.filter((document) => document.required).length)} />
+        <Info label="Complétude dossier" value={dossier ? `${dossier.completionPercent}%` : "0%"} />
+      </div>
+      <TableShell isEmpty={documents.length === 0} emptyMessage="Aucun document RH. Ajoutez un type, un modèle ou un document requis.">
+        <thead className={tableHeadClassName}><tr><th>Employé</th><th>Document</th><th>Catégorie</th><th>Statut</th><th>Échéance</th><th>Référence</th><th className="text-right">Action</th></tr></thead>
+        <tbody>
+          {documents.map((document) => (
+            <tr key={document.id} className={rowClassName}>
+              <td>{employees.get(document.employeeId)?.displayName ?? "-"}</td>
+              <td>{document.title}{document.required ? <span className="ml-2 text-xs font-black text-hicotech-blue">Requis</span> : null}</td>
+              <td>{document.category}</td>
+              <td>{HR_DOCUMENT_STATUS_LABELS[document.status]}</td>
+              <td>{document.expiryDate ? formatDate(document.expiryDate) : "-"}</td>
+              <td>{document.storageFilename ?? document.generatedFromTemplateName ?? "-"}</td>
+              <td className="text-right"><SmallButton label="Finaliser" onClick={() => onUpload(document)} /></td>
+            </tr>
+          ))}
+        </tbody>
+      </TableShell>
+    </SectionCard>
+  );
+}
+
 function CalendarAgenda({ employees, items }: { employees: Map<string, HrEmployee>; items: readonly { id: string; employeeId: HrEmployeeId; date: string; label: string; status: string; kind: string }[] }) {
   return (
     <SectionCard className="p-4">
@@ -707,6 +940,7 @@ function CalendarAgenda({ employees, items }: { employees: Map<string, HrEmploye
 }
 
 function EmployeeDetail({ contracts, departments, employee, leaves, managers, onEdit, operational, positions }: { contracts: readonly HrEmploymentContract[]; departments: Map<string, HrDepartment>; employee: HrEmployee; leaves: readonly HrLeaveRequest[]; managers: Map<string, HrEmployee>; operational: ReturnType<typeof hrLocalService.getEmployeeOperationalSummary>; onEdit: () => void; positions: Map<string, HrPosition> }) {
+  const dossier = hrLocalService.getEmployeeDossierSummary(employee.id);
   return (
     <SectionCard className="mt-4 p-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -727,6 +961,7 @@ function EmployeeDetail({ contracts, departments, employee, leaves, managers, on
         <Info label="Email" value={employee.email || "-"} />
         <Info label="Téléphone" value={employee.phone || "-"} />
         <Info label="Congés" value={String(leaves.length)} />
+        <Info label="Dossier administratif" value={`${dossier.completionPercent}% · ${dossier.missingDocuments} manquant(s)`} />
         <Info label="Notes" value={employee.notes || "-"} />
       </div>
     </SectionCard>
@@ -796,6 +1031,37 @@ function AbsenceDialog({ employees, error, form, onChange, onClose, onSubmit, op
 function AttendanceDialog({ employees, error, form, onChange, onClose, onSubmit, open, saving }: { employees: readonly HrEmployee[]; error?: string | null; form: AttendanceForm; onChange: (form: AttendanceForm) => void; onClose: () => void; onSubmit: () => Promise<boolean>; open: boolean; saving: boolean }) {
   return <EntityDialog open={open} error={error} eyebrow="RH" title="Déclaration de présence" description="Statut journalier simple, sans badgeuse ni calcul de paie." onClose={onClose} onSubmit={onSubmit} size="md" footer={<FormActions onCancel={onClose} submitBusy={saving} submitLabel="Enregistrer la présence" />}>
     <FormSection title="Présence"><FormField label="Employé" required><Select value={form.employeeId} onChange={(employeeId) => onChange({ ...form, employeeId })} placeholder="Choisir un employé" options={employees.map((employee) => [employee.id, employee.displayName])} /></FormField><FormField label="Date" required><input type="date" className={entityInputClassName} value={form.date} onChange={(event) => onChange({ ...form, date: event.target.value })} /></FormField><FormField label="Statut"><Select value={form.status} onChange={(status) => onChange({ ...form, status: status as HrAttendanceStatus })} options={Object.entries(HR_ATTENDANCE_STATUS_LABELS)} /></FormField><FormField label="Note"><textarea className={entityInputClassName} value={form.note} onChange={(event) => onChange({ ...form, note: event.target.value })} /></FormField></FormSection>
+  </EntityDialog>;
+}
+
+function DocumentTypeDialog({ error, form, onChange, onClose, onSubmit, open, saving }: { error?: string | null; form: DocumentTypeForm; onChange: (form: DocumentTypeForm) => void; onClose: () => void; onSubmit: () => Promise<boolean>; open: boolean; saving: boolean }) {
+  return <EntityDialog open={open} error={error} eyebrow="RH" title="Type de document" description="Référentiel configurable des pièces RH." onClose={onClose} onSubmit={onSubmit} size="md" footer={<FormActions onCancel={onClose} submitBusy={saving} submitLabel="Créer le type" />}>
+    <FormSection title="Type"><FormField label="Code"><input className={entityInputClassName} value={form.code} onChange={(event) => onChange({ ...form, code: event.target.value })} /></FormField><FormField label="Nom" required><input className={entityInputClassName} value={form.name} onChange={(event) => onChange({ ...form, name: event.target.value })} /></FormField><FormField label="Catégorie"><Select value={form.category} onChange={(category) => onChange({ ...form, category })} options={HR_DOCUMENT_CATEGORY_OPTIONS.map((item) => [item, item])} /></FormField><FormField label="Requis par défaut"><select className={entityInputClassName} value={form.requiredByDefault ? "yes" : "no"} onChange={(event) => onChange({ ...form, requiredByDefault: event.target.value === "yes" })}><option value="no">Non</option><option value="yes">Oui</option></select></FormField><FormField label="Description"><textarea className={entityInputClassName} value={form.description} onChange={(event) => onChange({ ...form, description: event.target.value })} /></FormField></FormSection>
+  </EntityDialog>;
+}
+
+function DocumentTemplateDialog({ documentTypes, error, form, onChange, onClose, onSubmit, open, saving }: { documentTypes: readonly HrDocumentType[]; error?: string | null; form: DocumentTemplateForm; onChange: (form: DocumentTemplateForm) => void; onClose: () => void; onSubmit: () => Promise<boolean>; open: boolean; saving: boolean }) {
+  return <EntityDialog open={open} error={error} eyebrow="RH" title="Modèle RH" description="Modèle texte déterministe. Les variables inconnues sont refusées." onClose={onClose} onSubmit={onSubmit} size="lg" footer={<FormActions onCancel={onClose} submitBusy={saving} submitLabel="Créer le modèle" />}>
+    <FormSection title="Modèle"><FormField label="Code"><input className={entityInputClassName} value={form.code} onChange={(event) => onChange({ ...form, code: event.target.value })} /></FormField><FormField label="Nom" required><input className={entityInputClassName} value={form.name} onChange={(event) => onChange({ ...form, name: event.target.value })} /></FormField><FormField label="Type"><Select value={form.documentTypeId} onChange={(documentTypeId) => onChange({ ...form, documentTypeId })} placeholder="Aucun type" options={documentTypes.map((type) => [type.id, type.name])} /></FormField><FormField label="Actif"><select className={entityInputClassName} value={form.active ? "yes" : "no"} onChange={(event) => onChange({ ...form, active: event.target.value === "yes" })}><option value="yes">Oui</option><option value="no">Non</option></select></FormField><FormField label="Contenu"><textarea rows={8} className={entityInputClassName} value={form.body} onChange={(event) => onChange({ ...form, body: event.target.value })} /></FormField><FormField label="Variables"><textarea readOnly rows={8} className={entityInputClassName} value={HR_TEMPLATE_VARIABLES.map((item) => `{{${item}}}`).join("\n")} /></FormField><FormField label="Description"><textarea className={entityInputClassName} value={form.description} onChange={(event) => onChange({ ...form, description: event.target.value })} /></FormField></FormSection>
+  </EntityDialog>;
+}
+
+function EmployeeDocumentDialog({ documentTypes, employees, error, form, onChange, onClose, onSubmit, open, saving }: { documentTypes: readonly HrDocumentType[]; employees: readonly HrEmployee[]; error?: string | null; form: EmployeeDocumentForm; onChange: (form: EmployeeDocumentForm) => void; onClose: () => void; onSubmit: () => Promise<boolean>; open: boolean; saving: boolean }) {
+  return <EntityDialog open={open} error={error} eyebrow="RH" title="Document requis" description="Ajout simple au dossier administratif de l'employé." onClose={onClose} onSubmit={onSubmit} size="md" footer={<FormActions onCancel={onClose} submitBusy={saving} submitLabel="Ajouter" />}>
+    <FormSection title="Document"><FormField label="Employé" required><Select value={form.employeeId} onChange={(employeeId) => onChange({ ...form, employeeId })} placeholder="Choisir un employé" options={employees.map((employee) => [employee.id, employee.displayName])} /></FormField><FormField label="Type"><Select value={form.documentTypeId} onChange={(documentTypeId) => { const type = documentTypes.find((item) => item.id === documentTypeId); onChange({ ...form, documentTypeId, title: form.title || type?.name || "", category: type?.category ?? form.category }); }} placeholder="Aucun type" options={documentTypes.map((type) => [type.id, type.name])} /></FormField><FormField label="Titre" required><input className={entityInputClassName} value={form.title} onChange={(event) => onChange({ ...form, title: event.target.value })} /></FormField><FormField label="Statut"><Select value={form.status} onChange={(status) => onChange({ ...form, status: status as HrDocumentStatus })} options={Object.entries(HR_DOCUMENT_STATUS_LABELS)} /></FormField><FormField label="Échéance"><input type="date" className={entityInputClassName} value={form.expiryDate} onChange={(event) => onChange({ ...form, expiryDate: event.target.value })} /></FormField><FormField label="Requis"><select className={entityInputClassName} value={form.required ? "yes" : "no"} onChange={(event) => onChange({ ...form, required: event.target.value === "yes" })}><option value="yes">Oui</option><option value="no">Non</option></select></FormField><FormField label="Notes"><textarea className={entityInputClassName} value={form.notes} onChange={(event) => onChange({ ...form, notes: event.target.value })} /></FormField></FormSection>
+  </EntityDialog>;
+}
+
+function GenerateDocumentDialog({ contracts, employees, error, form, onChange, onClose, onSubmit, open, saving, templates }: { contracts: readonly HrEmploymentContract[]; employees: readonly HrEmployee[]; error?: string | null; form: GenerateDocumentForm; onChange: (form: GenerateDocumentForm) => void; onClose: () => void; onSubmit: () => Promise<boolean>; open: boolean; saving: boolean; templates: readonly HrDocumentTemplate[] }) {
+  const scopedContracts = contracts.filter((contract) => !form.employeeId || contract.employeeId === form.employeeId);
+  return <EntityDialog open={open} error={error} eyebrow="RH" title="Générer un document" description="BOSIACO remplit le modèle; l'entreprise reste responsable de son contenu." onClose={onClose} onSubmit={onSubmit} size="md" footer={<FormActions onCancel={onClose} submitBusy={saving} submitLabel="Générer" />}>
+    <FormSection title="Génération"><FormField label="Employé" required><Select value={form.employeeId} onChange={(employeeId) => onChange({ ...form, employeeId, contractId: contracts.find((contract) => contract.employeeId === employeeId)?.id ?? "" })} placeholder="Choisir un employé" options={employees.map((employee) => [employee.id, employee.displayName])} /></FormField><FormField label="Modèle" required><Select value={form.templateId} onChange={(templateId) => onChange({ ...form, templateId })} placeholder="Choisir un modèle" options={templates.map((template) => [template.id, template.name])} /></FormField><FormField label="Contrat"><Select value={form.contractId} onChange={(contractId) => onChange({ ...form, contractId })} placeholder="Contrat actif par défaut" options={scopedContracts.map((contract) => [contract.id, `${HR_CONTRACT_TYPE_LABELS[contract.contractType]} · ${formatDate(contract.startDate)}`])} /></FormField><FormField label="Titre"><input className={entityInputClassName} value={form.title} onChange={(event) => onChange({ ...form, title: event.target.value })} /></FormField><FormField label="Requis"><select className={entityInputClassName} value={form.required ? "yes" : "no"} onChange={(event) => onChange({ ...form, required: event.target.value === "yes" })}><option value="yes">Oui</option><option value="no">Non</option></select></FormField><FormField label="Notes"><textarea className={entityInputClassName} value={form.notes} onChange={(event) => onChange({ ...form, notes: event.target.value })} /></FormField></FormSection>
+  </EntityDialog>;
+}
+
+function UploadDocumentDialog({ documents, error, form, onChange, onClose, onSubmit, open, saving }: { documents: readonly HrEmployeeDocument[]; error?: string | null; form: UploadDocumentForm; onChange: (form: UploadDocumentForm) => void; onClose: () => void; onSubmit: () => Promise<boolean>; open: boolean; saving: boolean }) {
+  return <EntityDialog open={open} error={error} eyebrow="RH" title="Version signée / finale" description="V1 enregistre une référence de fichier et ses métadonnées, sans signature électronique." onClose={onClose} onSubmit={onSubmit} size="md" footer={<FormActions onCancel={onClose} submitBusy={saving} submitLabel="Enregistrer la version finale" />}>
+    <FormSection title="Fichier"><FormField label="Document" required><Select value={form.documentId} onChange={(documentId) => onChange({ ...form, documentId })} placeholder="Choisir un document" options={documents.map((document) => [document.id, document.title])} /></FormField><FormField label="Nom du fichier" required><input className={entityInputClassName} value={form.filename} onChange={(event) => onChange({ ...form, filename: event.target.value })} /></FormField><FormField label="Type MIME"><Select value={form.mimeType} onChange={(mimeType) => onChange({ ...form, mimeType })} options={[["application/pdf", "PDF"], ["image/png", "PNG"], ["image/jpeg", "JPG"]]} /></FormField><FormField label="Taille octets"><input className={entityInputClassName} value={form.sizeBytes} onChange={(event) => onChange({ ...form, sizeBytes: event.target.value })} /></FormField><FormField label="Signé / final"><select className={entityInputClassName} value={form.signedFinal ? "yes" : "no"} onChange={(event) => onChange({ ...form, signedFinal: event.target.value === "yes" })}><option value="yes">Oui</option><option value="no">Non</option></select></FormField><FormField label="Notes"><textarea className={entityInputClassName} value={form.notes} onChange={(event) => onChange({ ...form, notes: event.target.value })} /></FormField></FormSection>
   </EntityDialog>;
 }
 

@@ -11,17 +11,17 @@ This document is the current repository reality. It is intentionally not a sprin
 | Product | BOSIACO, still using some HicoPilot naming in legacy files and code comments. |
 | Stage | Alpha product moving from ERP Core into Business Platform foundations. |
 | Default runtime edition | `alpha.crm-sales` from `src/platform/editions/edition.profiles.ts`. |
-| Current default scope | Dashboard, CRM, Sales quotes/orders/delivery notes/shipments/invoices/payments, Product Catalog, Inventory, Procurement, Finance Operations and HR Operations. |
-| Latest completed sprint reflected in code | SPR-441B — HR Modal Error Feedback Hardening. |
+| Current default scope | Dashboard, CRM, Sales quotes/orders/delivery notes/shipments/invoices/payments, Product Catalog, Inventory, Procurement, Finance Operations and HR Operations including administrative dossiers. |
+| Latest completed sprint reflected in code | SPR-442 — Employee Administrative File, Document Templates & Onboarding V1. |
 | Latest roadmap reconciliation | SPR-429 — Post-Procurement Roadmap Reconciliation & Next Core Domain Decision. |
-| Important caveat | Finance Operations is active for manual accounting, controlled Sales invoice/payment posting, controlled Supplier Bill/AP posting, supplier payment/AP settlement, inventory valuation, derived financial statements, reversal corrections and minimal period posting controls. HR Operations is active for employee administration, leave balances, leave approval, absence visibility and simple attendance declarations; payroll, time clocks, performance and advanced recruitment remain future work. |
+| Important caveat | Finance Operations is active for manual accounting, controlled Sales invoice/payment posting, controlled Supplier Bill/AP posting, supplier payment/AP settlement, inventory valuation, derived financial statements, reversal corrections and minimal period posting controls. HR Operations is active for employee administration, leave balances, leave approval, absence visibility, simple attendance declarations and administrative dossiers; payroll, time clocks, e-signature, performance and advanced recruitment remain future work. |
 
 ## Validation Snapshot
 
 | Command | Latest Reconciled Result |
 | --- | --- |
 | `npm run typecheck` | Passed on 2026-08-20. |
-| `npm run validate:runtime` | Passed on 2026-08-20 with 223/223 checks. |
+| `npm run validate:runtime` | Passed on 2026-08-20 with 226/226 checks. |
 | `npm run build` | Passed on 2026-08-20; known `src/components/pdf-preview.tsx` `<img>` warning remains. |
 | `git diff --check` | Passed on 2026-08-20. |
 
@@ -85,7 +85,7 @@ Hidden platform dependencies such as `platform.persistence` may be automatically
 | `sales.shipments` | Active in Alpha | Persistent Shipment logistics records are enabled in `alpha.crm-sales`; lifecycle changes remain logistics-only and do not post Inventory movements. |
 | `crm.opportunities` | Hidden | Opportunity UI/domain remnants exist, but the route redirects because persistence is not stable. |
 | `finance.accounting` | Active in Alpha | Manual Finance Operations are available for accounts, journals, draft/post journal entries, reversals, period controls, General Ledger, Trial Balance, Profit & Loss and Balance Sheet. Controlled Sales invoice/payment posting, Supplier Bill/AP posting and Supplier Payment/AP settlement posting are active. |
-| `hr.employees` | Active in Alpha | Canonical HR workspace for employees, departments, positions, contracts, leave balances, controlled leave lifecycle, absences and simple attendance declarations. Legacy payroll-oriented RH routes redirect to `/rh`. |
+| `hr.employees` | Active in Alpha | Canonical HR workspace for employees, departments, positions, contracts, leave balances, controlled leave lifecycle, absences, simple attendance declarations and administrative dossiers. Legacy payroll-oriented RH routes redirect to `/rh`. |
 | Legacy `purchasing.*`, `finance.*` and payroll-era HR surfaces | Planned/hidden | Legacy demo-era routes are redirected or hidden from active navigation. |
 
 ## Route Availability
@@ -191,7 +191,7 @@ Persistent models are present in `prisma/schema.prisma` and backed by repository
 | Smart Entity Picker / Inline Creation | Implemented for supported forms; should remain generic and client-safe. |
 | Business Timeline | Foundation plus Sales/Inventory providers; currently integrated on Sales Order details. |
 | Settings | Active but limited to Alpha-safe settings. |
-| HR | Active Alpha operations for employees, departments, positions, contracts, leave types, leave balances, controlled leave approvals/rejections/cancellations, absence visibility, HR agenda and simple daily attendance declarations. Payroll, salary advances, documents, performance, recruitment, statutory leave compliance and biometric/time-clock attendance remain out of scope. |
+| HR | Active Alpha operations for employees, departments, positions, contracts, leave types, leave balances, controlled leave approvals/rejections/cancellations, absence visibility, HR agenda, simple daily attendance declarations, employee administrative dossiers, HR document templates, generated document snapshots, signed/final upload metadata and onboarding readiness. Payroll, salary advances, e-signature, performance, recruitment, statutory leave compliance and biometric/time-clock attendance remain out of scope. |
 | Finance/Accounting | Active for accounts, journals, draft/post journal entries, canonical reversal corrections, minimal period posting controls, General Ledger, Trial Balance, controlled Sales invoice/payment posting, controlled Supplier Bill/AP posting, controlled Supplier Payment/AP settlement posting, controlled Inventory receipt capitalization, controlled Supplier Bill GRNI clearing, controlled Inventory COGS posting, Profit & Loss and Balance Sheet. No multi-bill supplier payment allocation, advance payments, bank reconciliation, FX differences, remittance advice, statutory localization, statutory close or controlled reposting after reversal. |
 | AI Platform | Vision/planned; no AI business feature is implemented. |
 | Workflow Automation | Not implemented as a production workflow engine. |
@@ -225,6 +225,7 @@ Known migration folders include:
 - `20260819100000_supplier_payment_ap_settlement`
 - `20260819110000_hr_core_alpha_foundation`
 - `20260819123000_hr_leave_attendance_operations`
+- `20260820100000_hr_employee_documents_onboarding`
 
 Accounting persistence exists as of SPR-430. General Ledger and Trial Balance read models exist as of SPR-431. Finance Operations UI is active as of SPR-432. No additional migration was required by SPR-432.
 
@@ -706,6 +707,60 @@ Verified QA evidence:
 - corrected `En congé` attendance for `25/08/2026` saved successfully, displayed `Présence enregistrée.`, persisted as `25 août 2026 · En congé`, and did not consume leave a second time.
 
 Runtime validation passed on 2026-08-20 with `223/223` checks after adding targeted SPR-441B coverage.
+
+## SPR-442 HR Administrative Dossier Reality
+
+SPR-442 adds the final major HR Alpha administrative capability.
+
+The canonical HR document layer is owned by the active `Hr*` model family:
+
+- `HrDocumentType`;
+- `HrDocumentTemplate`;
+- `HrEmployeeDocument`.
+
+Legacy payroll-era `HrDocument` remains isolated because it references the old `Employee` model. Commercial `Document` remains isolated because it represents Sales/Purchasing documents, not personnel files.
+
+The `/rh` workspace now includes a `Documents` tab for:
+
+- HR document type configuration;
+- reusable deterministic plain-text HR templates;
+- employee-specific required document tracking;
+- employee document generation;
+- signed/final upload metadata;
+- expiry tracking;
+- employee dossier readiness.
+
+Generated employee documents preserve `generatedContent` and `generatedFromTemplateName` on the employee document record, so later template edits do not rewrite historical generated content.
+
+SPR-442 intentionally stores upload metadata and storage references only. It does not store raw binary data in Prisma and does not implement a generic DMS, e-signature integration, OCR, legal template pack, employee self-service portal or notification/reminder automation.
+
+Authenticated Manual E2E QA passed on 2026-08-20 for company `company-hicotech` after the SPR-442 migration was applied.
+
+Verified QA evidence:
+
+- employee `EMP-0001` / `Youssef Alami`, department `Commercial`, position `Responsable commercial`, status `Actif`;
+- active contract `CDI`, start date `18 août 2026`;
+- document type `CONTRAT_TRAVAIL` / `Contrat de travail` created and read back, active type count `1`, success feedback `Type de document créé.`;
+- template `CONTRAT_TRAVAIL_STANDARD` / `Contrat de travail standard` created and read back with deterministic variables for company, employee, position and contract start date, active template count `1`;
+- generated document `Contrat de travail - Youssef Alami` from template `Contrat de travail standard` and contract `CDI - 18 août 2026`, required `Oui`, success feedback `Document généré.`;
+- generated required document remained incomplete until final metadata was recorded: dossier completeness `80%`, employee card `Dossier administratif = 80% · 1 manquant(s)`;
+- final metadata `document.pdf`, `application/pdf`, `1024` bytes, signed/final `Oui` was recorded successfully with feedback `Version finale enregistrée.`;
+- final read-back showed status `Signé / final`, reference `document.pdf`, dossier completeness `100%`, employee card `Dossier administratif = 100% · 0 manquant(s)`.
+
+The verified chain is:
+
+```text
+Document Type
+  -> HR Template
+  -> Generated employee document
+  -> Required document incomplete
+  -> Signed/final metadata recorded
+  -> Administrative dossier complete
+```
+
+This is a V1 file-metadata lifecycle closure only. The final state means `100% complete according to the SPR-442 V1 administrative document lifecycle and recorded final-file metadata`; it does not prove real PDF binary storage, PDF rendering/download, signed PDF upload from a device, automatic file metadata extraction, secure archive storage or e-signature capability.
+
+Runtime validation passed on 2026-08-20 with `226/226` checks after adding targeted SPR-442 coverage.
 
 ## Known Limitations
 

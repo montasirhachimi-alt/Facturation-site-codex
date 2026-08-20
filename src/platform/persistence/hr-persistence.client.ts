@@ -1,6 +1,6 @@
 import { hrLocalService, notifyHrStoreUpdated, type HrSnapshot } from "@/modules/hr";
 
-export type HrPersistenceResource = "department" | "position" | "employee" | "contract" | "leaveType" | "leaveRequest" | "leaveBalance" | "absence" | "attendanceRecord";
+export type HrPersistenceResource = "department" | "position" | "employee" | "contract" | "leaveType" | "leaveRequest" | "leaveBalance" | "absence" | "attendanceRecord" | "documentType" | "documentTemplate" | "employeeDocument";
 
 let hydrationPromise: Promise<HrSnapshot> | null = null;
 

@@ -10,6 +10,9 @@ export type HrLeaveRequestId = string & { readonly __brand: "HrLeaveRequestId" }
 export type HrLeaveBalanceId = string & { readonly __brand: "HrLeaveBalanceId" };
 export type HrAbsenceId = string & { readonly __brand: "HrAbsenceId" };
 export type HrAttendanceRecordId = string & { readonly __brand: "HrAttendanceRecordId" };
+export type HrDocumentTypeId = string & { readonly __brand: "HrDocumentTypeId" };
+export type HrDocumentTemplateId = string & { readonly __brand: "HrDocumentTemplateId" };
+export type HrEmployeeDocumentId = string & { readonly __brand: "HrEmployeeDocumentId" };
 
 export type HrEmployeeStatus = "active" | "inactive" | "on_leave" | "terminated" | "archived";
 export type HrContractStatus = "active" | "ended" | "cancelled" | "archived";
@@ -19,6 +22,10 @@ export type HrLeaveRequestStatus = "draft" | "requested" | "approved" | "rejecte
 export type HrAbsenceSource = "manual" | "leave";
 export type HrAttendanceStatus = "present" | "absent" | "leave" | "remote" | "partial" | "other";
 export type HrWorkforceState = HrAttendanceStatus | "not_recorded";
+export type HrDocumentStatus = "missing" | "generated" | "awaiting_signature" | "signed" | "uploaded" | "expired" | "archived";
+export type HrDocumentSource = "manual" | "generated" | "uploaded";
+export type HrDocumentTemplateFormat = "plain_text";
+export type HrDocumentExpiryState = "not_applicable" | "valid" | "expiring_soon" | "expired";
 
 export type HrDepartment = Readonly<{
   id: HrDepartmentId;
@@ -160,6 +167,63 @@ export type HrAttendanceRecord = Readonly<{
   updatedAt: string;
 }>;
 
+export type HrDocumentType = Readonly<{
+  id: HrDocumentTypeId;
+  tenantCompanyId?: HrTenantCompanyId;
+  code?: string;
+  name: string;
+  category: string;
+  active: boolean;
+  requiredByDefault: boolean;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+}>;
+
+export type HrDocumentTemplate = Readonly<{
+  id: HrDocumentTemplateId;
+  tenantCompanyId?: HrTenantCompanyId;
+  code?: string;
+  name: string;
+  documentTypeId?: HrDocumentTypeId;
+  templateFormat: HrDocumentTemplateFormat;
+  body: string;
+  active: boolean;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+}>;
+
+export type HrEmployeeDocument = Readonly<{
+  id: HrEmployeeDocumentId;
+  tenantCompanyId?: HrTenantCompanyId;
+  employeeId: HrEmployeeId;
+  documentTypeId?: HrDocumentTypeId;
+  templateId?: HrDocumentTemplateId;
+  contractId?: HrEmploymentContractId;
+  title: string;
+  category: string;
+  status: HrDocumentStatus;
+  source: HrDocumentSource;
+  storageReference?: string;
+  storageFilename?: string;
+  storageMimeType?: string;
+  storageSizeBytes?: number;
+  generatedContent?: string;
+  generatedFromTemplateName?: string;
+  issuedDate?: string;
+  receivedDate?: string;
+  expiryDate?: string;
+  required: boolean;
+  notes?: string;
+  generatedAt?: string;
+  uploadedAt?: string;
+  finalizedAt?: string;
+  archivedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}>;
+
 export type HrSnapshot = Readonly<{
   employees: readonly HrEmployee[];
   departments: readonly HrDepartment[];
@@ -170,6 +234,9 @@ export type HrSnapshot = Readonly<{
   leaveBalances: readonly HrLeaveBalance[];
   absences: readonly HrAbsence[];
   attendanceRecords: readonly HrAttendanceRecord[];
+  documentTypes: readonly HrDocumentType[];
+  documentTemplates: readonly HrDocumentTemplate[];
+  employeeDocuments: readonly HrEmployeeDocument[];
 }>;
 
 export type HrEmployeeFilters = Readonly<{
@@ -239,6 +306,21 @@ export type HrEmployeeOperationalSummary = Readonly<{
   recentAttendanceRecords: readonly HrAttendanceRecord[];
 }>;
 
+export type HrEmployeeDossierSummary = Readonly<{
+  employeeId: HrEmployeeId;
+  profileComplete: boolean;
+  departmentAssigned: boolean;
+  positionAssigned: boolean;
+  activeContract: boolean;
+  requiredDocuments: number;
+  completeDocuments: number;
+  missingDocuments: number;
+  expiredDocuments: number;
+  completionPercent: number;
+  readinessStatus: "ready" | "incomplete" | "blocked";
+  checklist: readonly Readonly<{ id: string; label: string; complete: boolean; status: "complete" | "missing" | "expired" }>[];
+}>;
+
 export type CreateHrDepartmentInput = Readonly<Omit<HrDepartment, "id" | "createdAt" | "updatedAt">>;
 export type UpdateHrDepartmentInput = Readonly<Partial<Omit<CreateHrDepartmentInput, "tenantCompanyId">> & { id: HrDepartmentId }>;
 
@@ -265,3 +347,35 @@ export type UpdateHrAbsenceInput = Readonly<Partial<Omit<CreateHrAbsenceInput, "
 
 export type CreateHrAttendanceRecordInput = Readonly<Omit<HrAttendanceRecord, "id" | "createdAt" | "updatedAt">>;
 export type UpdateHrAttendanceRecordInput = Readonly<Partial<Omit<CreateHrAttendanceRecordInput, "tenantCompanyId" | "employeeId" | "date">> & { id: HrAttendanceRecordId }>;
+
+export type CreateHrDocumentTypeInput = Readonly<Omit<HrDocumentType, "id" | "createdAt" | "updatedAt">>;
+export type UpdateHrDocumentTypeInput = Readonly<Partial<Omit<CreateHrDocumentTypeInput, "tenantCompanyId">> & { id: HrDocumentTypeId }>;
+
+export type CreateHrDocumentTemplateInput = Readonly<Omit<HrDocumentTemplate, "id" | "createdAt" | "updatedAt">>;
+export type UpdateHrDocumentTemplateInput = Readonly<Partial<Omit<CreateHrDocumentTemplateInput, "tenantCompanyId">> & { id: HrDocumentTemplateId }>;
+
+export type CreateHrEmployeeDocumentInput = Readonly<Omit<HrEmployeeDocument, "id" | "createdAt" | "updatedAt" | "archivedAt">>;
+export type UpdateHrEmployeeDocumentInput = Readonly<Partial<Omit<CreateHrEmployeeDocumentInput, "tenantCompanyId" | "employeeId">> & { id: HrEmployeeDocumentId; archivedAt?: string }>;
+
+export type GenerateHrEmployeeDocumentInput = Readonly<{
+  employeeId: HrEmployeeId;
+  templateId: HrDocumentTemplateId;
+  contractId?: HrEmploymentContractId;
+  title?: string;
+  issuedDate?: string;
+  expiryDate?: string;
+  required?: boolean;
+  notes?: string;
+  company?: Readonly<{ name?: string; address?: string; email?: string; phone?: string }>;
+}>;
+
+export type UploadHrEmployeeDocumentInput = Readonly<{
+  id: HrEmployeeDocumentId;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  storageReference?: string;
+  signedFinal?: boolean;
+  receivedDate?: string;
+  notes?: string;
+}>;

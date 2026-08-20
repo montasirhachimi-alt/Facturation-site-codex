@@ -138,6 +138,9 @@ model Company {
   hrLeaveBalances              HrLeaveBalance[]
   hrAbsences                   HrAbsence[]
   hrAttendanceRecords          HrAttendanceRecord[]
+  hrDocumentTypes              HrDocumentType[]
+  hrDocumentTemplates          HrDocumentTemplate[]
+  hrEmployeeDocuments          HrEmployeeDocument[]
   inventoryWarehouses          InventoryWarehouse[]
   inventoryBalances            InventoryBalance[]
   inventoryMovements           InventoryStockMovement[]
@@ -672,6 +675,7 @@ model HrEmployee {
   absences                  HrAbsence[]
   attendanceRecords         HrAttendanceRecord[]   @relation("HrAttendanceEmployee")
   recordedAttendanceRecords HrAttendanceRecord[]   @relation("HrAttendanceRecorder")
+  administrativeDocuments   HrEmployeeDocument[]
   archivedAt                DateTime?
   createdAt                 DateTime               @default(now())
   updatedAt                 DateTime               @updatedAt
@@ -685,23 +689,24 @@ model HrEmployee {
 }
 
 model HrEmploymentContract {
-  id              String      @id
+  id              String               @id
   tenantCompanyId String
-  tenantCompany   Company     @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  tenantCompany   Company              @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
   employeeId      String
-  employee        HrEmployee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee        HrEmployee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   contractType    String
   startDate       DateTime
   endDate         DateTime?
   positionId      String?
-  position        HrPosition? @relation(fields: [positionId], references: [id], onDelete: SetNull)
+  position        HrPosition?          @relation(fields: [positionId], references: [id], onDelete: SetNull)
   jobTitle        String
   workingTimeType String?
   notes           String?
-  status          String      @default("active")
+  status          String               @default("active")
+  documents       HrEmployeeDocument[]
   archivedAt      DateTime?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
 
   @@index([tenantCompanyId, employeeId])
   @@index([tenantCompanyId, status])
@@ -824,6 +829,93 @@ model HrAttendanceRecord {
   @@unique([tenantCompanyId, employeeId, date])
   @@index([tenantCompanyId, date])
   @@index([tenantCompanyId, status])
+}
+
+model HrDocumentType {
+  id                String               @id
+  tenantCompanyId   String
+  tenantCompany     Company              @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  code              String?
+  name              String
+  category          String
+  active            Boolean              @default(true)
+  requiredByDefault Boolean              @default(false)
+  description       String?
+  templates         HrDocumentTemplate[]
+  documents         HrEmployeeDocument[]
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  @@unique([tenantCompanyId, name])
+  @@unique([tenantCompanyId, code])
+  @@index([tenantCompanyId, category])
+  @@index([tenantCompanyId, active])
+  @@index([tenantCompanyId, requiredByDefault])
+}
+
+model HrDocumentTemplate {
+  id              String               @id
+  tenantCompanyId String
+  tenantCompany   Company              @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  code            String?
+  name            String
+  documentTypeId  String?
+  documentType    HrDocumentType?      @relation(fields: [documentTypeId], references: [id], onDelete: SetNull)
+  templateFormat  String               @default("plain_text")
+  body            String
+  active          Boolean              @default(true)
+  description     String?
+  generatedDocs   HrEmployeeDocument[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@unique([tenantCompanyId, name])
+  @@unique([tenantCompanyId, code])
+  @@index([tenantCompanyId, documentTypeId])
+  @@index([tenantCompanyId, active])
+}
+
+model HrEmployeeDocument {
+  id                        String                @id
+  tenantCompanyId           String
+  tenantCompany             Company               @relation(fields: [tenantCompanyId], references: [id], onDelete: Cascade)
+  employeeId                String
+  employee                  HrEmployee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  documentTypeId            String?
+  documentType              HrDocumentType?       @relation(fields: [documentTypeId], references: [id], onDelete: SetNull)
+  templateId                String?
+  template                  HrDocumentTemplate?   @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  contractId                String?
+  contract                  HrEmploymentContract? @relation(fields: [contractId], references: [id], onDelete: SetNull)
+  title                     String
+  category                  String
+  status                    String                @default("missing")
+  source                    String                @default("manual")
+  storageReference          String?
+  storageFilename           String?
+  storageMimeType           String?
+  storageSizeBytes          Int?
+  generatedContent          String?
+  generatedFromTemplateName String?
+  issuedDate                DateTime?
+  receivedDate              DateTime?
+  expiryDate                DateTime?
+  required                  Boolean               @default(false)
+  notes                     String?
+  generatedAt               DateTime?
+  uploadedAt                DateTime?
+  finalizedAt               DateTime?
+  archivedAt                DateTime?
+  createdAt                 DateTime              @default(now())
+  updatedAt                 DateTime              @updatedAt
+
+  @@index([tenantCompanyId, employeeId])
+  @@index([tenantCompanyId, documentTypeId])
+  @@index([tenantCompanyId, templateId])
+  @@index([tenantCompanyId, contractId])
+  @@index([tenantCompanyId, status])
+  @@index([tenantCompanyId, required])
+  @@index([tenantCompanyId, expiryDate])
 }
 
 model StockMovement {

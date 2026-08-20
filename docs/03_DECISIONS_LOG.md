@@ -1,5 +1,34 @@
 # HicoPilot Architecture Decision Records
 
+## ADR-057 — HR Administrative Documents Are Canonical Hr-Owned Dossier Records
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-08-20 |
+
+### Decision
+
+SPR-442 introduces employee administrative files as canonical HR-owned records:
+
+- `HrDocumentType`;
+- `HrDocumentTemplate`;
+- `HrEmployeeDocument`.
+
+These records belong to the active `Hr*` Alpha HR model family and are tenant-scoped through `tenantCompanyId`.
+
+Legacy payroll-era `HrDocument` remains isolated because it references the old `Employee` model. Commercial `Document` remains isolated because it represents business/commercial documents, not personnel files.
+
+Generated HR documents preserve a rendered content snapshot on `HrEmployeeDocument.generatedContent`. Later template edits do not rewrite already-generated employee documents.
+
+Signed/final evidence is represented in V1 by safe upload metadata and storage references, not by raw binary storage in Prisma and not by fabricated e-signature state.
+
+### Consequences
+
+HR can now manage employee administrative dossiers, required documents, reusable templates, generated document drafts, final upload metadata and onboarding readiness without introducing a generic DMS or payroll document platform.
+
+Future binary/object storage, PDF rendering, e-signature providers, document versioning, reminders and employee self-service uploads can extend this foundation without changing canonical HR ownership.
+
 ## ADR-056 — GRNI Matching Requires Line-Level Receipt Linkage And Actual Valuation Movement Resolution
 
 | Field | Value |

@@ -6853,6 +6853,80 @@ test("HR Attendance dialog surfaces rejected save errors inside the modal withou
   assert(dialog.includes("finally") && dialog.includes("setSubmitting(false)"), "EntityDialog should always reset its internal submitting state after failed submits.");
 });
 
+test("HR Administrative File generates documents from safe templates and preserves historical content", () => {
+  const { HrService } = load("src/modules/hr");
+  const { service, employee, position } = createHrOperationsFixture(HrService);
+  const contract = service.createContract({
+    employeeId: employee.id,
+    contractType: "permanent",
+    startDate: "2026-08-18T00:00:00.000Z",
+    positionId: position.id,
+    jobTitle: "Responsable commercial",
+    workingTimeType: "full_time",
+    status: "active"
+  }).contract;
+  const type = service.createDocumentType({ code: "CONTRAT", name: "Contrat de travail", category: "Contrat de travail", active: true, requiredByDefault: true }).documentType;
+  const template = service.createDocumentTemplate({
+    code: "CDI",
+    name: "Contrat CDI Alpha",
+    documentTypeId: type.id,
+    templateFormat: "plain_text",
+    body: "Contrat {{employee.displayName}} - {{position.name}} - {{contract.startDate}} - {{company.name}}",
+    active: true
+  }).documentTemplate;
+  const unknown = service.createDocumentTemplate({
+    code: "BAD",
+    name: "Variable interdite",
+    documentTypeId: type.id,
+    templateFormat: "plain_text",
+    body: "Bonjour {{employee.secret}}",
+    active: true
+  });
+  const generated = service.generateEmployeeDocument({ employeeId: employee.id, templateId: template.id, contractId: contract.id, company: { name: "HICOTECH" } }).employeeDocument;
+  service.updateDocumentTemplate({ id: template.id, body: "Texte modifié {{employee.displayName}}" });
+  const afterEdit = service.listEmployeeDocuments({ employeeId: employee.id }).employeeDocuments.find((document) => document.id === generated.id);
+
+  assert(type.requiredByDefault, "Document types should support company default required documents.");
+  assert(!unknown.documentTemplate && unknown.error.includes("Variable inconnue"), "Unknown template variables should be rejected explicitly.");
+  assert(generated.status === "generated" && generated.required, "Generated documents should start as generated required drafts when the type requires it.");
+  assert(generated.generatedContent.includes("Youssef") && generated.generatedContent.includes("Responsable commercial") && generated.generatedContent.includes("18/08/2026") && generated.generatedContent.includes("HICOTECH"), "Generation should resolve employee, position, contract and company variables.");
+  assert(afterEdit.generatedContent === generated.generatedContent, "Editing a template should not rewrite historical generated document content.");
+});
+
+test("HR Administrative File tracks upload finality expiry and onboarding completeness", () => {
+  const { HrService } = load("src/modules/hr");
+  const { service, employee } = createHrOperationsFixture(HrService);
+  const ribType = service.createDocumentType({ code: "RIB", name: "RIB", category: "RIB", active: true, requiredByDefault: false }).documentType;
+  const cinType = service.createDocumentType({ code: "CIN", name: "CIN", category: "Identité", active: true, requiredByDefault: true }).documentType;
+  const rib = service.createEmployeeDocument({ employeeId: employee.id, documentTypeId: ribType.id, title: "RIB", category: "RIB", status: "missing", source: "manual", required: true }).employeeDocument;
+  const cin = service.createEmployeeDocument({ employeeId: employee.id, documentTypeId: cinType.id, title: "CIN", category: "Identité", status: "missing", source: "manual", required: true, expiryDate: "2026-08-10T00:00:00.000Z" }).employeeDocument;
+  const invalidUpload = service.uploadEmployeeDocument({ id: rib.id, filename: "../rib.exe", mimeType: "application/octet-stream", sizeBytes: 42, signedFinal: true });
+  const uploaded = service.uploadEmployeeDocument({ id: rib.id, filename: "rib-youssef.pdf", mimeType: "application/pdf", sizeBytes: 2048, signedFinal: true }).employeeDocument;
+  const dossier = service.getEmployeeDossierSummary(employee.id, "2026-08-20T00:00:00.000Z");
+
+  assert(!invalidUpload.employeeDocument && invalidUpload.error.includes("Format non supporté"), "Upload metadata should reject unsupported file types.");
+  assert(uploaded.status === "signed" && uploaded.storageReference.includes(employee.id) && uploaded.storageFilename === "rib-youssef.pdf", "Signed/final upload should persist safe metadata and final status.");
+  assert(dossier.requiredDocuments === 2, "Employee dossier should count required documents.");
+  assert(dossier.completeDocuments === 1 && dossier.expiredDocuments === 1 && dossier.readinessStatus === "blocked", "Expired required documents should block onboarding readiness.");
+  assert(dossier.checklist.some((item) => item.label === "CIN" && item.status === "expired"), "Dossier checklist should expose expired required document state.");
+  assert(cin.required && cin.status === "expired", "Expired required document should normalize to expired status.");
+});
+
+test("HR Administrative File persistence and UI expose SPR-442 resources", () => {
+  const schema = read("prisma/schema.prisma");
+  const migration = read("prisma/migrations/20260820100000_hr_employee_documents_onboarding/migration.sql");
+  const repository = read("src/server/persistence/hr-repository.ts");
+  const route = read("src/app/api/persistence/hr/route.ts");
+  const client = read("src/platform/persistence/hr-persistence.client.ts");
+  const workspace = read("src/modules/hr/ui/pages/hr-workspace-page.tsx");
+
+  assert(schema.includes("model HrDocumentType") && schema.includes("model HrDocumentTemplate") && schema.includes("model HrEmployeeDocument"), "Schema should include canonical HR document type, template and employee document models.");
+  assert(migration.includes('CREATE TABLE "HrEmployeeDocument"') && migration.includes('FOREIGN KEY ("employeeId") REFERENCES "HrEmployee"'), "Migration should create employee documents linked to canonical HrEmployee.");
+  assert(repository.includes("assertSafeStorageMetadata") && repository.includes("assertSafeTemplateBody"), "Repository should enforce storage metadata and template safety server-side.");
+  assert(route.includes('"documentTemplate"') && client.includes('"employeeDocument"'), "Existing HR persistence bridge should expose SPR-442 resources.");
+  assert(workspace.includes('id: "documents"') && workspace.includes("Dossier administratif") && workspace.includes("HR_TEMPLATE_VARIABLES"), "RH workspace should expose document dossiers and template variables without a second HR app.");
+});
+
 test("HR Calendar and workforce state project leave absence and attendance", () => {
   const { HrService } = load("src/modules/hr");
   const { service, employee, manager, leaveType } = createHrOperationsFixture(HrService);

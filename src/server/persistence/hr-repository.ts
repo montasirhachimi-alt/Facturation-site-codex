@@ -9,7 +9,13 @@ import {
   type HrAttendanceRecordId,
   type HrDepartment,
   type HrDepartmentId,
+  type HrDocumentTemplate,
+  type HrDocumentTemplateId,
+  type HrDocumentType,
+  type HrDocumentTypeId,
   type HrEmployee,
+  type HrEmployeeDocument,
+  type HrEmployeeDocumentId,
   type HrEmployeeId,
   type HrEmploymentContract,
   type HrEmploymentContractId,
@@ -36,11 +42,14 @@ type DbLeaveRequest = Prisma.HrLeaveRequestGetPayload<Record<string, never>>;
 type DbLeaveBalance = Prisma.HrLeaveBalanceGetPayload<Record<string, never>>;
 type DbAbsence = Prisma.HrAbsenceGetPayload<Record<string, never>>;
 type DbAttendanceRecord = Prisma.HrAttendanceRecordGetPayload<Record<string, never>>;
+type DbDocumentType = Prisma.HrDocumentTypeGetPayload<Record<string, never>>;
+type DbDocumentTemplate = Prisma.HrDocumentTemplateGetPayload<Record<string, never>>;
+type DbEmployeeDocument = Prisma.HrEmployeeDocumentGetPayload<Record<string, never>>;
 
-export type HrPersistenceResource = "department" | "position" | "employee" | "contract" | "leaveType" | "leaveRequest" | "leaveBalance" | "absence" | "attendanceRecord";
+export type HrPersistenceResource = "department" | "position" | "employee" | "contract" | "leaveType" | "leaveRequest" | "leaveBalance" | "absence" | "attendanceRecord" | "documentType" | "documentTemplate" | "employeeDocument";
 
 export async function loadHrSnapshot(scope: PersistenceTenantScope): Promise<HrSnapshot> {
-  const [departments, positions, employees, contracts, leaveTypes, leaveRequests, leaveBalances, absences, attendanceRecords] = await Promise.all([
+  const [departments, positions, employees, contracts, leaveTypes, leaveRequests, leaveBalances, absences, attendanceRecords, documentTypes, documentTemplates, employeeDocuments] = await Promise.all([
     prisma.hrDepartment.findMany({ where: { tenantCompanyId: scope.companyId }, orderBy: [{ name: "asc" }] }),
     prisma.hrPosition.findMany({ where: { tenantCompanyId: scope.companyId }, orderBy: [{ name: "asc" }] }),
     prisma.hrEmployee.findMany({ where: { tenantCompanyId: scope.companyId }, orderBy: [{ displayName: "asc" }] }),
@@ -49,7 +58,10 @@ export async function loadHrSnapshot(scope: PersistenceTenantScope): Promise<HrS
     prisma.hrLeaveRequest.findMany({ where: { tenantCompanyId: scope.companyId }, orderBy: [{ startDate: "desc" }] }),
     prisma.hrLeaveBalance.findMany({ where: { tenantCompanyId: scope.companyId }, orderBy: [{ periodYear: "desc" }] }),
     prisma.hrAbsence.findMany({ where: { tenantCompanyId: scope.companyId }, orderBy: [{ startDate: "desc" }] }),
-    prisma.hrAttendanceRecord.findMany({ where: { tenantCompanyId: scope.companyId }, orderBy: [{ date: "desc" }] })
+    prisma.hrAttendanceRecord.findMany({ where: { tenantCompanyId: scope.companyId }, orderBy: [{ date: "desc" }] }),
+    prisma.hrDocumentType.findMany({ where: { tenantCompanyId: scope.companyId }, orderBy: [{ name: "asc" }] }),
+    prisma.hrDocumentTemplate.findMany({ where: { tenantCompanyId: scope.companyId }, orderBy: [{ name: "asc" }] }),
+    prisma.hrEmployeeDocument.findMany({ where: { tenantCompanyId: scope.companyId }, orderBy: [{ updatedAt: "desc" }] })
   ]);
 
   return Object.freeze({
@@ -61,7 +73,10 @@ export async function loadHrSnapshot(scope: PersistenceTenantScope): Promise<HrS
     leaveRequests: Object.freeze(leaveRequests.map(mapDbLeaveRequest)),
     leaveBalances: Object.freeze(leaveBalances.map(mapDbLeaveBalance)),
     absences: Object.freeze(absences.map(mapDbAbsence)),
-    attendanceRecords: Object.freeze(attendanceRecords.map(mapDbAttendanceRecord))
+    attendanceRecords: Object.freeze(attendanceRecords.map(mapDbAttendanceRecord)),
+    documentTypes: Object.freeze(documentTypes.map(mapDbDocumentType)),
+    documentTemplates: Object.freeze(documentTemplates.map(mapDbDocumentTemplate)),
+    employeeDocuments: Object.freeze(employeeDocuments.map(mapDbEmployeeDocument))
   });
 }
 
@@ -75,6 +90,9 @@ export async function persistHrRecord(scope: PersistenceTenantScope, resource: H
   if (resource === "leaveBalance") return persistLeaveBalance(scope, record as HrLeaveBalance);
   if (resource === "absence") return persistAbsence(scope, record as HrAbsence);
   if (resource === "attendanceRecord") return persistAttendanceRecord(scope, record as HrAttendanceRecord);
+  if (resource === "documentType") return persistDocumentType(scope, record as HrDocumentType);
+  if (resource === "documentTemplate") return persistDocumentTemplate(scope, record as HrDocumentTemplate);
+  if (resource === "employeeDocument") return persistEmployeeDocument(scope, record as HrEmployeeDocument);
   throw new Error("Ressource RH inconnue.");
 }
 
@@ -192,6 +210,43 @@ async function persistAttendanceRecord(scope: PersistenceTenantScope, record: Hr
   return mapDbAttendanceRecord(saved);
 }
 
+async function persistDocumentType(scope: PersistenceTenantScope, type: HrDocumentType) {
+  await assertExistingHrTenant(scope, "documentType", type.id);
+  const saved = await prisma.hrDocumentType.upsert({
+    where: { id: type.id },
+    update: documentTypeWriteData(type),
+    create: { id: type.id, tenantCompanyId: scope.companyId, ...documentTypeWriteData(type) }
+  });
+  return mapDbDocumentType(saved);
+}
+
+async function persistDocumentTemplate(scope: PersistenceTenantScope, template: HrDocumentTemplate) {
+  await assertExistingHrTenant(scope, "documentTemplate", template.id);
+  await assertOptionalDocumentTypeTenant(scope, template.documentTypeId);
+  assertSafeTemplateBody(template.body);
+  const saved = await prisma.hrDocumentTemplate.upsert({
+    where: { id: template.id },
+    update: documentTemplateWriteData(template),
+    create: { id: template.id, tenantCompanyId: scope.companyId, ...documentTemplateWriteData(template) }
+  });
+  return mapDbDocumentTemplate(saved);
+}
+
+async function persistEmployeeDocument(scope: PersistenceTenantScope, document: HrEmployeeDocument) {
+  await assertExistingHrTenant(scope, "employeeDocument", document.id);
+  await assertEmployeeTenant(scope, document.employeeId);
+  await assertOptionalDocumentTypeTenant(scope, document.documentTypeId);
+  await assertOptionalDocumentTemplateTenant(scope, document.templateId);
+  await assertOptionalContractTenant(scope, document.contractId, document.employeeId);
+  assertSafeStorageMetadata(document);
+  const saved = await prisma.hrEmployeeDocument.upsert({
+    where: { id: document.id },
+    update: employeeDocumentWriteData(document),
+    create: { id: document.id, tenantCompanyId: scope.companyId, ...employeeDocumentWriteData(document) }
+  });
+  return mapDbEmployeeDocument(saved);
+}
+
 async function assertNoContradictoryAttendanceForAbsence(scope: PersistenceTenantScope, absence: HrAbsence) {
   if (absence.source !== "manual") return;
   const conflicting = await prisma.hrAttendanceRecord.findFirst({
@@ -252,7 +307,10 @@ async function findExistingHrTenant(resource: HrPersistenceResource, id: string)
   if (resource === "leaveRequest") return prisma.hrLeaveRequest.findUnique({ where: { id }, select: { tenantCompanyId: true } });
   if (resource === "leaveBalance") return prisma.hrLeaveBalance.findUnique({ where: { id }, select: { tenantCompanyId: true } });
   if (resource === "absence") return prisma.hrAbsence.findUnique({ where: { id }, select: { tenantCompanyId: true } });
-  return prisma.hrAttendanceRecord.findUnique({ where: { id }, select: { tenantCompanyId: true } });
+  if (resource === "attendanceRecord") return prisma.hrAttendanceRecord.findUnique({ where: { id }, select: { tenantCompanyId: true } });
+  if (resource === "documentType") return prisma.hrDocumentType.findUnique({ where: { id }, select: { tenantCompanyId: true } });
+  if (resource === "documentTemplate") return prisma.hrDocumentTemplate.findUnique({ where: { id }, select: { tenantCompanyId: true } });
+  return prisma.hrEmployeeDocument.findUnique({ where: { id }, select: { tenantCompanyId: true } });
 }
 
 async function assertEmployeeTenant(scope: PersistenceTenantScope, id: string) {
@@ -291,6 +349,24 @@ async function assertOptionalLeaveRequestTenant(scope: PersistenceTenantScope, i
   if (!id) return;
   const existing = await prisma.hrLeaveRequest.findUnique({ where: { id }, select: { tenantCompanyId: true } });
   if (!existing || existing.tenantCompanyId !== scope.companyId) throw new Error("Demande de congé introuvable pour cette entreprise.");
+}
+
+async function assertOptionalDocumentTypeTenant(scope: PersistenceTenantScope, id?: string) {
+  if (!id) return;
+  const existing = await prisma.hrDocumentType.findUnique({ where: { id }, select: { tenantCompanyId: true } });
+  if (!existing || existing.tenantCompanyId !== scope.companyId) throw new Error("Type de document introuvable pour cette entreprise.");
+}
+
+async function assertOptionalDocumentTemplateTenant(scope: PersistenceTenantScope, id?: string) {
+  if (!id) return;
+  const existing = await prisma.hrDocumentTemplate.findUnique({ where: { id }, select: { tenantCompanyId: true } });
+  if (!existing || existing.tenantCompanyId !== scope.companyId) throw new Error("Modèle RH introuvable pour cette entreprise.");
+}
+
+async function assertOptionalContractTenant(scope: PersistenceTenantScope, id?: string, employeeId?: string) {
+  if (!id) return;
+  const existing = await prisma.hrEmploymentContract.findUnique({ where: { id }, select: { tenantCompanyId: true, employeeId: true } });
+  if (!existing || existing.tenantCompanyId !== scope.companyId || (employeeId && existing.employeeId !== employeeId)) throw new Error("Contrat introuvable pour cet employé.");
 }
 
 async function assertOptionalUserTenant(scope: PersistenceTenantScope, id?: string) {
@@ -427,6 +503,60 @@ function attendanceRecordWriteData(record: HrAttendanceRecord) {
     note: emptyToNull(record.note),
     recordedByEmployeeId: record.recordedByEmployeeId ?? null,
     updatedAt: parseDate(record.updatedAt)
+  };
+}
+
+function documentTypeWriteData(type: HrDocumentType) {
+  return {
+    code: emptyToNull(type.code),
+    name: type.name.trim(),
+    category: type.category.trim(),
+    active: type.active,
+    requiredByDefault: type.requiredByDefault,
+    description: emptyToNull(type.description),
+    updatedAt: parseDate(type.updatedAt)
+  };
+}
+
+function documentTemplateWriteData(template: HrDocumentTemplate) {
+  return {
+    code: emptyToNull(template.code),
+    name: template.name.trim(),
+    documentTypeId: template.documentTypeId ?? null,
+    templateFormat: template.templateFormat,
+    body: template.body,
+    active: template.active,
+    description: emptyToNull(template.description),
+    updatedAt: parseDate(template.updatedAt)
+  };
+}
+
+function employeeDocumentWriteData(document: HrEmployeeDocument) {
+  return {
+    employeeId: document.employeeId,
+    documentTypeId: document.documentTypeId ?? null,
+    templateId: document.templateId ?? null,
+    contractId: document.contractId ?? null,
+    title: document.title.trim(),
+    category: document.category.trim(),
+    status: document.status,
+    source: document.source,
+    storageReference: emptyToNull(document.storageReference),
+    storageFilename: emptyToNull(document.storageFilename),
+    storageMimeType: emptyToNull(document.storageMimeType),
+    storageSizeBytes: document.storageSizeBytes ?? null,
+    generatedContent: emptyToNull(document.generatedContent),
+    generatedFromTemplateName: emptyToNull(document.generatedFromTemplateName),
+    issuedDate: parseOptionalDate(document.issuedDate),
+    receivedDate: parseOptionalDate(document.receivedDate),
+    expiryDate: parseOptionalDate(document.expiryDate),
+    required: document.required,
+    notes: emptyToNull(document.notes),
+    generatedAt: parseOptionalDate(document.generatedAt),
+    uploadedAt: parseOptionalDate(document.uploadedAt),
+    finalizedAt: parseOptionalDate(document.finalizedAt),
+    archivedAt: parseOptionalDate(document.archivedAt),
+    updatedAt: parseDate(document.updatedAt)
   };
 }
 
@@ -588,6 +718,69 @@ function mapDbAttendanceRecord(row: DbAttendanceRecord): HrAttendanceRecord {
   });
 }
 
+function mapDbDocumentType(row: DbDocumentType): HrDocumentType {
+  return Object.freeze({
+    id: row.id as HrDocumentTypeId,
+    tenantCompanyId: row.tenantCompanyId as HrTenantCompanyId,
+    code: row.code ?? undefined,
+    name: row.name,
+    category: row.category,
+    active: row.active,
+    requiredByDefault: row.requiredByDefault,
+    description: row.description ?? undefined,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString()
+  });
+}
+
+function mapDbDocumentTemplate(row: DbDocumentTemplate): HrDocumentTemplate {
+  return Object.freeze({
+    id: row.id as HrDocumentTemplateId,
+    tenantCompanyId: row.tenantCompanyId as HrTenantCompanyId,
+    code: row.code ?? undefined,
+    name: row.name,
+    documentTypeId: row.documentTypeId as HrDocumentTemplate["documentTypeId"] | undefined,
+    templateFormat: row.templateFormat as HrDocumentTemplate["templateFormat"],
+    body: row.body,
+    active: row.active,
+    description: row.description ?? undefined,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString()
+  });
+}
+
+function mapDbEmployeeDocument(row: DbEmployeeDocument): HrEmployeeDocument {
+  return Object.freeze({
+    id: row.id as HrEmployeeDocumentId,
+    tenantCompanyId: row.tenantCompanyId as HrTenantCompanyId,
+    employeeId: row.employeeId as HrEmployeeId,
+    documentTypeId: row.documentTypeId as HrEmployeeDocument["documentTypeId"] | undefined,
+    templateId: row.templateId as HrEmployeeDocument["templateId"] | undefined,
+    contractId: row.contractId as HrEmployeeDocument["contractId"] | undefined,
+    title: row.title,
+    category: row.category,
+    status: row.status as HrEmployeeDocument["status"],
+    source: row.source as HrEmployeeDocument["source"],
+    storageReference: row.storageReference ?? undefined,
+    storageFilename: row.storageFilename ?? undefined,
+    storageMimeType: row.storageMimeType ?? undefined,
+    storageSizeBytes: row.storageSizeBytes ?? undefined,
+    generatedContent: row.generatedContent ?? undefined,
+    generatedFromTemplateName: row.generatedFromTemplateName ?? undefined,
+    issuedDate: row.issuedDate?.toISOString(),
+    receivedDate: row.receivedDate?.toISOString(),
+    expiryDate: row.expiryDate?.toISOString(),
+    required: row.required,
+    notes: row.notes ?? undefined,
+    generatedAt: row.generatedAt?.toISOString(),
+    uploadedAt: row.uploadedAt?.toISOString(),
+    finalizedAt: row.finalizedAt?.toISOString(),
+    archivedAt: row.archivedAt?.toISOString(),
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString()
+  });
+}
+
 function parseDate(value: string) {
   return new Date(value);
 }
@@ -610,4 +803,41 @@ function parseOptionalDate(value?: string) {
 function emptyToNull(value?: string) {
   const trimmed = value?.trim();
   return trimmed || null;
+}
+
+function assertSafeTemplateBody(body: string) {
+  if (/<script/i.test(body) || /javascript:/i.test(body)) throw new Error("Le modèle RH contient du contenu non autorisé.");
+  const allowed = new Set([
+    "employee.firstName",
+    "employee.lastName",
+    "employee.displayName",
+    "employee.employeeNumber",
+    "employee.email",
+    "employee.phone",
+    "employee.hireDate",
+    "department.name",
+    "position.name",
+    "manager.displayName",
+    "contract.type",
+    "contract.startDate",
+    "contract.endDate",
+    "contract.title",
+    "contract.workingTimeType",
+    "company.name",
+    "company.address",
+    "company.email",
+    "company.phone"
+  ]);
+  const unknown = [...body.matchAll(/\{\{\s*([\w.]+)\s*\}\}/g)].map((match) => match[1]).filter((key, index, keys) => !allowed.has(key) && keys.indexOf(key) === index);
+  if (unknown.length) throw new Error(`Variable inconnue dans le modèle RH: ${unknown.join(", ")}.`);
+}
+
+function assertSafeStorageMetadata(document: HrEmployeeDocument) {
+  if (!document.storageReference && !document.storageFilename && !document.storageMimeType) return;
+  if (document.storageReference && (document.storageReference.includes("..") || document.storageReference.startsWith("/") || /^https?:\/\//i.test(document.storageReference))) {
+    throw new Error("Référence de stockage RH invalide.");
+  }
+  if (document.storageFilename && /[\\/]/.test(document.storageFilename)) throw new Error("Nom de fichier RH invalide.");
+  if (document.storageMimeType && !["application/pdf", "image/png", "image/jpeg"].includes(document.storageMimeType)) throw new Error("Format de fichier RH non supporté.");
+  if (document.storageSizeBytes !== undefined && (document.storageSizeBytes <= 0 || document.storageSizeBytes > 10 * 1024 * 1024)) throw new Error("Taille de fichier RH invalide.");
 }
